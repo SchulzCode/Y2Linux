@@ -27,7 +27,7 @@ use std::{
     path::Path,
 };
 use y2p_core::json::ObjectExt;
-use y2p_core::{clock as kernel, command, Root};
+use y2p_core::{command, Root};
 
 const SETTINGS: &str = "reborn/state/session.json";
 /// The Last.fm sign-in and the plays waiting for it are settings too: a settings reset forgets them
@@ -391,7 +391,7 @@ fn plan(root: &Root, scope: Option<&str>) -> Result<Py, Failure> {
             .with("data_uuid", volume.uuid.clone().into())
             .with(
                 "expires_monotonic_s",
-                Py::Float(kernel::monotonic() + 300.0),
+                Py::Float(root.clock().monotonic() + 300.0),
             )
             .with("targets", Py::List(targets)),
     );
@@ -553,7 +553,7 @@ fn execute(root: &Root, confirm: Option<&str>, erase: bool, resume: bool) -> Res
     if !resume {
         // `time.monotonic() > value['expires_monotonic_s']`.
         let expires = pyops::index(&value, "expires_monotonic_s")?;
-        let (now, expires) = pyops::ordered(&Py::Float(kernel::monotonic()), ">", expires)?;
+        let (now, expires) = pyops::ordered(&Py::Float(root.clock().monotonic()), ">", expires)?;
         if now > expires {
             return Err(Failure::value("reset_plan_expired"));
         }
@@ -851,9 +851,11 @@ fn purge(root: &Root, token: &str, confirm: Option<&str>) -> Result<Py, Failure>
         return Err(os_plain(y2p_core::lock::would_block()));
     }
     let device = fstat(&top).map_err(os_plain)?.dev;
-    let deadline = kernel::monotonic() + 8.0;
+    let clock = root.clock();
+    let deadline = clock.monotonic() + 8.0;
     let mut removed = 0usize;
     fn walk(
+        clock: &dyn y2p_core::clock::Clock,
         fd: &OwnedFd,
         depth: usize,
         device: u64,
@@ -867,7 +869,7 @@ fn purge(root: &Root, token: &str, confirm: Option<&str>) -> Result<Py, Failure>
             if depth == 0 && !three_digits(&name) {
                 continue;
             }
-            if *removed >= 256 || kernel::monotonic() >= deadline {
+            if *removed >= 256 || clock.monotonic() >= deadline {
                 return Ok(false);
             }
             let meta = stat_at(fd, &name).map_err(|e| os_name(e, &name))?;
@@ -877,7 +879,7 @@ fn purge(root: &Root, token: &str, confirm: Option<&str>) -> Result<Py, Failure>
             let c = CString::new(name.as_str()).expect("no NUL");
             if meta.mode & libc::S_IFMT == libc::S_IFDIR {
                 let child = open_directory(fd, &name)?;
-                let complete = walk(&child, depth + 1, device, deadline, removed)?;
+                let complete = walk(clock, &child, depth + 1, device, deadline, removed)?;
                 drop(child);
                 if !complete {
                     return Ok(false);
@@ -898,7 +900,7 @@ fn purge(root: &Root, token: &str, confirm: Option<&str>) -> Result<Py, Failure>
         fsync(fd)?;
         Ok(true)
     }
-    let complete = walk(&top, 0, device, deadline, &mut removed)?;
+    let complete = walk(clock, &top, 0, device, deadline, &mut removed)?;
     Ok(Py::dict()
         .with(
             "state",
@@ -1055,7 +1057,7 @@ fn export_into(
                 use y2p_core::reports_sqlite::{Database, Error, Value};
                 let database = root.path(&format!("/data/{relative}"));
                 let target = scratch.join("library.db");
-                let deadline = kernel::monotonic() + 30.0;
+                let deadline = root.clock().monotonic() + 30.0;
                 let sqlite = |error: Error| match error {
                     Error::Callback(text) => Failure::Value(text),
                     other => Failure::value(format!("sqlite3.{}", other.class())),
@@ -1069,7 +1071,8 @@ fn export_into(
                     let dest = Database::open(&target.to_string_lossy(), 5000).map_err(sqlite)?;
                     source
                         .backup(&dest, 128, 50, |_, _, total| {
-                            if kernel::monotonic() > deadline || i64::from(total) * 4096 > 128 << 20
+                            if root.clock().monotonic() > deadline
+                                || i64::from(total) * 4096 > 128 << 20
                             {
                                 return Err("database_export_limit".into());
                             }
@@ -1142,9 +1145,7 @@ fn export_into(
         let body = std::fs::read(&path).map_err(|e| os(e, &path))?;
         tar.add(&tar_info(&path, name)?, &body);
     }
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map_or(0, |d| d.as_secs() as u32);
+    let now = (root.clock().wall_ns() / 1_000_000_000) as u32;
     // tarfile 'w:gz': GzipFile at level 9 with the current time in its header.
     stream
         .write_all(&tarball::gzip(&tar.finish(), 9, now))

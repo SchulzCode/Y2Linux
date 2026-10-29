@@ -35,8 +35,8 @@ const MINIMUM_PERCENT: i64 = 15;
 /// The receiver will never take this report.
 const REFUSED: [i64; 6] = [400, 403, 404, 405, 411, 413];
 
-fn wall() -> f64 {
-    clock::Instant::now().timestamp()
+fn wall(root: &Root) -> f64 {
+    clock::Instant::now(root).timestamp()
 }
 
 /// `queue(ctx, trigger, detail, topic, now, progress, triggers)`: build and queue one report if the
@@ -55,7 +55,7 @@ pub fn queue(
             .with("reason", Py::str("not_enabled")));
     }
     let trigger = &triggers[0];
-    let now = clock::Instant::now();
+    let now = clock::Instant::now(root);
     let day = clock::date(now);
     let boot = root.boot_id().unwrap_or_default();
     // `{k: v for k, v in value['daily'].items() if k == day}`.
@@ -516,7 +516,7 @@ pub fn upload(
     first: Option<&str>,
 ) -> Result<Py, Failure> {
     let _lease = workload::Lease::take(root, "NetworkTransfer")?;
-    let now = wall();
+    let now = wall(root);
     if let Some(blocked) = upload_blocked(root)? {
         return Ok(Py::dict()
             .with("uploaded", Py::List(Vec::new()))

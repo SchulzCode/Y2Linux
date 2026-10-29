@@ -14,7 +14,7 @@ fn built(root: &Root, trigger: &str, detail: &str, topic: Option<&str>) -> (Vec<
         detail,
         topic,
         Py::str("install-1"),
-        clock::Instant::now(),
+        clock::Instant::now(root),
         &Progress::quiet(),
     )
     .unwrap()
@@ -124,7 +124,7 @@ fn a_huge_log_is_cut_to_the_budget() {
         "",
         None,
         Py::str("i"),
-        clock::Instant::now(),
+        clock::Instant::now(&fixture.root),
         &Progress::quiet(),
     )
     .unwrap();

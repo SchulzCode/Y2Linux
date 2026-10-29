@@ -166,7 +166,7 @@ fn due_now(root: &Root, name: &str) {
         .get_mut("uploads")
         .and_then(|u| u.get_mut(name))
         .unwrap()
-        .set("next", Py::Float(wall() - 1.0));
+        .set("next", Py::Float(wall(root) - 1.0));
     state::save(root, &value).unwrap();
 }
 
@@ -335,10 +335,10 @@ fn server_errors_back_off_and_stop_the_run_then_succeed() {
     earlier(root, &mut first);
     let first = text(&first, "name");
     let second = text(&queued(root), "name");
-    let before = wall();
+    let before = wall(root);
     let busy = http(root, &first, 503, Py::dict().with("error", Py::str("busy")));
     let (result, curls) = send(root, vec![busy]);
-    let after = wall();
+    let after = wall(root);
     assert_eq!(outcomes(&result), ["retry"]); // the second was not tried
     assert_eq!(curls.len(), 1);
     assert_eq!(last(root).get("state"), Some(&Py::str("queued"))); // the last report is the second
@@ -425,9 +425,9 @@ fn the_last_reports_failure_shows_and_backoff_grows() {
         )
     );
     due_now(root, &name);
-    let before = wall();
+    let before = wall(root);
     send(root, vec![http(root, &name, 502, Py::dict())]);
-    let after = wall();
+    let after = wall(root);
     let entry = retry(root, &name);
     assert_eq!(entry.get("attempts"), Some(&Py::int(2)));
     let at = entry.get("next").and_then(Py::number).unwrap();
@@ -444,10 +444,10 @@ fn a_full_day_waits_for_the_next_utc_day() {
     let root = &fixture.root;
     state::set_enabled(root, true).unwrap();
     let name = text(&queued(root), "name");
-    let before = wall();
+    let before = wall(root);
     let full = Py::dict().with("error", Py::str("install_daily_limit"));
     send(root, vec![http(root, &name, 429, full)]);
-    let after = wall();
+    let after = wall(root);
     let at = retry(root, &name).get("next").and_then(Py::number).unwrap();
     // 00:05 UTC of the next day
     assert!(at == clock::next_midnight(before) || at == clock::next_midnight(after));
@@ -490,7 +490,7 @@ fn made_earlier(root: &Root, name: &str, seconds: f64) {
         let mut body = body.unwrap();
         if member.name == "report.json" {
             let mut index = pyjson::loads_bytes(&body).unwrap();
-            let made = clock::Instant::from_float(wall() - seconds);
+            let made = clock::Instant::from_float(wall(root) - seconds);
             index.set("created_utc", Py::Str(clock::isoformat(made)));
             body = pyjson::dumps(&index, pyjson::Style::Indent).into_bytes();
         }
@@ -738,7 +738,7 @@ fn the_receiver_accepts_exactly_the_players_triggers_and_schema() {
         "",
         None,
         Py::None,
-        clock::Instant::now(),
+        clock::Instant::now(&fixture.root),
         &build::Progress::quiet(),
     )
     .unwrap();

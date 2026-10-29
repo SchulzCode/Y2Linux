@@ -375,9 +375,7 @@ fn export_inner(root: &Root) -> Result<Py, Failure> {
     if raw.len() > MAX_BYTES {
         return Err(Failure::value("diagnostic_size_limit"));
     }
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map_or(0, |d| d.as_secs());
+    let now = root.clock().wall_ns() / 1_000_000_000;
     let name = format!("y2-diagnostics-{now}-{}.tar.gz", uuid4()?.replace('-', ""));
     let partial = directory.join(format!(".{name}.partial"));
     let result = (|| {

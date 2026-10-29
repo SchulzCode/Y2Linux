@@ -18,7 +18,7 @@ use std::{
     path::PathBuf,
     sync::{mpsc, Mutex},
 };
-use y2p_core::{clock as kernel, command, Root};
+use y2p_core::{command, Root};
 
 /// The compressed report (the receiver takes at most 2 MiB; real ones ≈0.5 MB).
 pub const BUDGET: usize = 2 * 1024 * 1024;
@@ -56,7 +56,13 @@ const BOOTLOADERS: [(&str, &str, u64, usize); 2] = [
 /// upload or save), the whole run's percent and an estimate of the seconds left. At most five writes
 /// a second, in RAM.
 pub struct Progress {
-    path: Option<PathBuf>,
+    /// Where the record goes and whose clock times it; none for a run nobody watches.
+    sink: Option<Sink>,
+}
+
+struct Sink {
+    root: Root,
+    path: PathBuf,
     destination: Option<String>,
     start: f64,
     written: Cell<f64>,
@@ -65,32 +71,30 @@ pub struct Progress {
 impl Progress {
     pub fn new(root: &Root, destination: Option<&str>) -> Progress {
         Progress {
-            path: Some(root.path(PROGRESS)),
-            destination: destination.map(str::to_owned),
-            start: kernel::monotonic(),
-            written: Cell::new(0.0),
+            sink: Some(Sink {
+                root: root.clone(),
+                path: root.path(PROGRESS),
+                destination: destination.map(str::to_owned),
+                start: root.clock().monotonic(),
+                written: Cell::new(0.0),
+            }),
         }
     }
 
-    /// `_quiet`: a run nobody watches.
+    /// A run nobody watches (the automatic checks): nothing is written.
     pub fn quiet() -> Progress {
-        Progress {
-            path: None,
-            destination: None,
-            start: 0.0,
-            written: Cell::new(0.0),
-        }
+        Progress { sink: None }
     }
 
     pub fn update(&self, phase: &str, fraction: f64, force: bool, fields: &[(&str, Py)]) {
-        let Some(path) = &self.path else {
+        let Some(sink) = &self.sink else {
             return;
         };
-        let now = kernel::monotonic();
-        if !force && now - self.written.get() < 0.2 {
+        let now = sink.root.clock().monotonic();
+        if !force && now - sink.written.get() < 0.2 {
             return;
         }
-        self.written.set(now);
+        sink.written.set(now);
         let (low, high) = match phase {
             "collect" => (0.0, 12.0),
             "scrub" => (12.0, 76.0),
@@ -98,7 +102,7 @@ impl Progress {
             _ => (82.0, 100.0), // upload, save
         };
         let percent = low + (high - low) * fraction.clamp(0.0, 1.0);
-        let elapsed = now - self.start;
+        let elapsed = now - sink.start;
         let left = if percent >= 15.0 {
             Py::Int(format!(
                 "{}",
@@ -107,26 +111,28 @@ impl Progress {
         } else {
             Py::None
         };
-        let rounded: f64 = format!("{percent:.1}").parse().expect("number");
+        // `round(percent, 1)`: the formatter rounds the exact binary value, as Python does.
+        let rounded: f64 = format!("{percent:.1}").parse().unwrap_or(percent);
         let mut record = Py::dict()
             .with("schema", Py::int(1))
             .with("phase", Py::str(phase))
             .with("percent", Py::Float(rounded))
             .with("seconds_left", left)
-            .with("destination", self.destination.clone().into());
+            .with("destination", sink.destination.clone().into());
         for (key, value) in fields {
             record.set(key, value.clone());
         }
         // The screen goes without; the report does not.
-        let parent = path.parent().expect("parent");
-        if std::fs::create_dir_all(parent).is_ok() || parent.is_dir() {
-            let _ = y2p_core::record::atomic_json(path, &record, false, 0o600);
+        if let Some(parent) = sink.path.parent() {
+            if std::fs::create_dir_all(parent).is_ok() || parent.is_dir() {
+                let _ = y2p_core::record::atomic_json(&sink.path, &record, false, 0o600);
+            }
         }
     }
 
     pub fn close(&self) {
-        if let Some(path) = &self.path {
-            let _ = std::fs::remove_file(path);
+        if let Some(sink) = &self.sink {
+            let _ = std::fs::remove_file(&sink.path);
         }
     }
 }
@@ -728,7 +734,7 @@ fn scrub_files(
 }
 
 /// `_pack`: tar.gz within BUDGET: the largest optional sections are cut first.
-fn pack(index: &mut Py, members: &mut [(String, Vec<u8>)]) -> Vec<u8> {
+fn pack(root: &Root, index: &mut Py, members: &mut [(String, Vec<u8>)]) -> Vec<u8> {
     let mut optional: Vec<usize> = (0..members.len())
         .filter(|&i| members[i].0.starts_with("files/"))
         .collect();
@@ -736,11 +742,7 @@ fn pack(index: &mut Py, members: &mut [(String, Vec<u8>)]) -> Vec<u8> {
     loop {
         let mut tar = tarball::Writer::new();
         let body = pyjson::dumps(index, Style::Indent).into_bytes();
-        let now = || {
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .map_or(0, |d| d.as_secs() as i64)
-        };
+        let now = || (root.clock().wall_ns() / 1_000_000_000) as i64;
         tar.add(
             &tarball::Info::file("report.json", body.len(), now(), 0o600),
             &body,
@@ -826,7 +828,7 @@ pub fn build(
         .with("created_utc", Py::Str(clock::isoformat(now)))
         .with(
             "utc_offset_minutes",
-            Py::int(clock::utc_offset_minutes(clock::Instant::now())),
+            Py::int(clock::utc_offset_minutes(clock::Instant::now(root))),
         )
         .with("uptime_seconds", Py::Str(uptime))
         .with("boot_id", root.boot_id().into())
@@ -972,7 +974,7 @@ pub fn build(
         .map(|(k, v)| (k.clone(), Py::from(*v)))
         .collect();
     index.set("scrubbed", Py::Dict(counts));
-    let packed = pack(&mut index, &mut members);
+    let packed = pack(root, &mut index, &mut members);
     progress.update("pack", 1.0, true, &[]);
     Ok((packed, index))
 }

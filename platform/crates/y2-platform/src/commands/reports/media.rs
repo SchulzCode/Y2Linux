@@ -84,7 +84,7 @@ fn writers(root: &Root, mount: &Mount) -> Vec<(String, Py)> {
     {
         return Vec::new();
     }
-    let now = kernel::monotonic();
+    let now = root.clock().monotonic();
     match value.get("holders") {
         Some(Py::Dict(holders)) => holders
             .iter()
@@ -126,6 +126,7 @@ fn write_window(root: &Root, seconds: i64, release: bool) -> Result<Vec<String>,
     let runtime = root.path("/run/y2");
     crate::reply::mkdir_parents(&runtime, 0o700)?;
     let path = runtime.join("media.lock");
+    // A real wait (it sleeps): the kernel's clock bounds it, whatever clock the root reads.
     let deadline = kernel::monotonic() + 5.0;
     let _lock = loop {
         match y2p_core::lock::try_exclusive(&path).map_err(|e| super::os(e, &path))? {
@@ -148,7 +149,7 @@ fn write_window(root: &Root, seconds: i64, release: bool) -> Result<Vec<String>,
     holders.retain(|(k, _)| k != "report");
     if !release {
         let hold = seconds.clamp(1, WRITE_HOLD_MAX) as f64;
-        holders.push(("report".into(), Py::Float(kernel::monotonic() + hold)));
+        holders.push(("report".into(), Py::Float(root.clock().monotonic() + hold)));
     }
     apply_window(root, &mount, &holders)?;
     let mut names: Vec<String> = holders.into_iter().map(|(k, _)| k).collect();
@@ -301,7 +302,7 @@ pub fn save_to(
             .with("reason", Py::str("not_mounted")));
     }
     let value = state::state(root);
-    let now = clock::Instant::now();
+    let now = clock::Instant::now(root);
     let install = if matches!(value.get("enabled"), Some(Py::Bool(true))) {
         value.get("install_id").cloned().unwrap_or(Py::None)
     } else {
