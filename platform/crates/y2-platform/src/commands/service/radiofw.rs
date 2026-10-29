@@ -758,7 +758,6 @@ pub fn run(root: &Root, action: &str, path: Option<&str>) -> Outcome {
     let result = (|| -> Result<Value> {
         match action {
             "status" => Ok(state(root)),
-            // DEFECT (CONTRACT.md): `firmware scan` exits 0 with install errors (its state says Failed).
             "scan" => scan(root, &reviewed),
             _ => {
                 let path = path.filter(|p| !p.is_empty()).ok_or_else(|| {
@@ -777,7 +776,12 @@ pub fn run(root: &Root, action: &str, path: Option<&str>) -> Outcome {
         }
     })();
     match result {
-        Ok(value) => Reply::sorted(&value, 0),
+        // A scan whose copy could not be installed exits 1 as an install does (it exited 0 with
+        // state Failed); the service ignores the code and reads the state record.
+        Ok(value) => Reply::sorted(
+            &value,
+            u8::from(value.get("state") == Some(&json!("Failed"))),
+        ),
         Err(error) => Reply::unsorted(
             &Ordered::new()
                 .with("state", "Failed")
@@ -790,6 +794,32 @@ pub fn run(root: &Root, action: &str, path: Option<&str>) -> Outcome {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::testing::Fixture;
+
+    #[test]
+    fn a_scan_whose_copy_cannot_be_installed_exits_1() {
+        let fixture = Fixture::new();
+        let image = format!("{INBOX}/{SOURCE}");
+        fixture.put(&image, "not a system image");
+        // A finished copy: older than the arrival window, and seen unchanged on the pass before.
+        let file = fs::File::options()
+            .write(true)
+            .open(fixture.path(&image))
+            .unwrap();
+        file.set_modified(SystemTime::now() - std::time::Duration::from_secs(60))
+            .unwrap();
+        let (seen, arriving) = seen(&file.metadata().unwrap());
+        assert!(!arriving);
+        fixture.put_json(
+            STATE,
+            &json!({"schema": 1, "state": "Missing", "seen": seen}),
+        );
+        let reply = run(&fixture.root, "scan", None).unwrap();
+        assert_eq!(reply.code, 1, "{}", reply.stdout);
+        assert_eq!(fixture.json(STATE)["state"], json!("Failed"));
+        // The next pass reports the same failure, still as one.
+        assert_eq!(run(&fixture.root, "scan", None).unwrap().code, 1);
+    }
 
     fn patch(sequence: u8) -> Vec<u8> {
         let mut data = vec![7u8; 64];
