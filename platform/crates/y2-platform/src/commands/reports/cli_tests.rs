@@ -12,7 +12,6 @@ fn niceness() -> i32 {
 
 #[test]
 fn the_command_saves_at_low_priority() {
-    let _env = crate::commands::reports::fixture_environment();
     let fixture = Fixture::new();
     test_player::player(fixture.base());
     test_player::mount(fixture.base(), &["/media/sd"], "rw,relatime");

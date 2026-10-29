@@ -22,7 +22,6 @@ fn built(root: &Root, trigger: &str, detail: &str, topic: Option<&str>) -> (Vec<
 
 #[test]
 fn no_planted_secret_reaches_the_report() {
-    let _env = crate::commands::reports::fixture_environment();
     let fixture = Fixture::new();
     player::player(fixture.base());
     let (data, index) = built(
@@ -55,7 +54,6 @@ fn no_planted_secret_reaches_the_report() {
 
 #[test]
 fn parallel_scrubbing_matches_one_process_and_tokens_hold_across_files() {
-    let _env = crate::commands::reports::fixture_environment();
     let fixture = Fixture::new();
     player::player(fixture.base());
     let root = &fixture.root;
@@ -105,7 +103,6 @@ fn parallel_scrubbing_matches_one_process_and_tokens_hold_across_files() {
 
 #[test]
 fn a_huge_log_is_cut_to_the_budget() {
-    let _env = crate::commands::reports::fixture_environment();
     let fixture = Fixture::new();
     player::player(fixture.base());
     // 20 MiB of random hex (half of it entropy: it does not compress below the budget).
@@ -138,7 +135,6 @@ fn a_huge_log_is_cut_to_the_budget() {
 
 #[test]
 fn files_without_a_size_are_read_through() {
-    let _env = crate::commands::reports::fixture_environment();
     // seq_file refuses SEEK_END: /proc and debugfs were left out of every report.
     if !std::path::Path::new("/proc/version").is_file() {
         return; // needs procfs
@@ -151,20 +147,27 @@ fn files_without_a_size_are_read_through() {
 
 #[test]
 fn progress_writes_at_most_five_times_a_second() {
-    let _env = crate::commands::reports::fixture_environment();
-    let fixture = Fixture::new();
+    let clock = std::sync::Arc::new(y2p_core::clock::Manual::at(10_000_000_000, 10_000_000_000));
+    let fixture = Fixture::new().with_clock(clock.clone());
     let progress = Progress::new(&fixture.root, Some("sd"));
+    clock.advance(1_000_000_000);
     progress.update("scrub", 0.5, false, &[]);
     let first = fixture.read(PROGRESS);
+    clock.advance(199_000_000);
     progress.update("scrub", 0.6, false, &[]); // within 0.2 s: skipped
     assert_eq!(fixture.read(PROGRESS), first);
+    clock.advance(2_000_000);
+    progress.update("scrub", 0.6, false, &[]); // 0.2 s on
+    assert_eq!(fixture.json(PROGRESS)["percent"], 50.4);
     progress.update("scrub", 0.7, true, &[]);
     let value = fixture.json(PROGRESS);
     assert_eq!(
         (&value["phase"], &value["destination"], &value["schema"]),
         (&"scrub".into(), &"sd".into(), &1.into())
     );
-    assert!((value["percent"].as_f64().unwrap() - (12.0 + 64.0 * 0.7)).abs() < 0.05);
+    assert_eq!(value["percent"], 56.8);
+    // 1.2 s for 56.8 %: about a second left.
+    assert_eq!(value["seconds_left"], 1);
     progress.close();
     progress.close(); // twice is fine
     assert!(!fixture.exists(PROGRESS));

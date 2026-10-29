@@ -752,8 +752,6 @@ fn execute(root: &Root, confirm: Option<&str>, erase: bool, resume: bool) -> Res
                 return Err(Failure::value(format!("reset_target_changed:{relative}")));
             } else {
                 let (parent, name) = parent_fd(&data, &relative)?;
-                #[cfg(test)]
-                seams::rename()?;
                 rename_between(&parent, &name, &quarantine, &saved)
                     .map_err(|e| os_name(e, &name))?;
                 fsync(&parent)?;
@@ -1171,36 +1169,6 @@ fn export_into(
         .with("sha256", Py::Str(digest))
         .with("bytes", Py::from(bytes))
         .with("contains_network_credentials", Py::Bool(include_network)))
-}
-
-/// What tests/test_platform_maintenance.py patched (`os.rename` failing once), per thread and only in
-/// unit tests.
-#[cfg(test)]
-mod seams {
-    use crate::reply::Failure;
-    use std::cell::Cell;
-
-    thread_local! {
-        /// The reset target rename (counted from 1) that fails like an interrupted reset.
-        pub static FAIL_RENAME: Cell<Option<u32>> = const { Cell::new(None) };
-        static RENAMES: Cell<u32> = const { Cell::new(0) };
-    }
-
-    pub fn rename() -> Result<(), Failure> {
-        let count = RENAMES.with(|r| {
-            r.set(r.get() + 1);
-            r.get()
-        });
-        if FAIL_RENAME.with(Cell::get) == Some(count) {
-            return Err(Failure::os_message("injected interruption"));
-        }
-        Ok(())
-    }
-
-    pub fn reset() {
-        FAIL_RENAME.with(|f| f.set(None));
-        RENAMES.with(|r| r.set(0));
-    }
 }
 
 #[cfg(test)]

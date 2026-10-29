@@ -247,14 +247,6 @@ pub fn os_name(error: std::io::Error, name: &str) -> Failure {
     Failure::Os { text, class }
 }
 
-/// For a unit test whose fixture commands are not all scripted on its own thread (a report runs its
-/// live commands on another, the service records a start): such tests run one at a time.
-#[cfg(test)]
-pub(crate) fn fixture_environment() -> std::sync::MutexGuard<'static, ()> {
-    static SERIAL: std::sync::Mutex<()> = std::sync::Mutex::new(());
-    SERIAL.lock().unwrap_or_else(|e| e.into_inner())
-}
-
 #[cfg(test)]
 mod cli_tests;
 

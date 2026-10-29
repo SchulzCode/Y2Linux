@@ -52,7 +52,6 @@ fn running(started: f64) -> Option<(Child, f64)> {
 
 #[test]
 fn nothing_runs_without_an_upload_key_or_opt_in() {
-    let _env = crate::commands::reports::fixture_environment();
     let mut service = Service::new();
     set_enabled(service.root(), true).unwrap();
     let run = service.tick(None, 0.0, "Online");
@@ -68,7 +67,6 @@ fn nothing_runs_without_an_upload_key_or_opt_in() {
 
 #[test]
 fn checks_run_after_start_then_every_period_and_never_twice_at_once() {
-    let _env = crate::commands::reports::fixture_environment();
     let mut service = Service::new();
     service.key();
     set_enabled(service.root(), true).unwrap();
@@ -97,7 +95,6 @@ fn checks_run_after_start_then_every_period_and_never_twice_at_once() {
 
 #[test]
 fn a_due_report_is_sent_before_the_next_check_but_not_every_pass() {
-    let _env = crate::commands::reports::fixture_environment();
     let mut service = Service::new();
     service.key();
     set_enabled(service.root(), true).unwrap();
@@ -130,7 +127,6 @@ fn a_due_report_is_sent_before_the_next_check_but_not_every_pass() {
 
 #[test]
 fn a_broken_reports_record_never_stops_the_service_loop() {
-    let _env = crate::commands::reports::fixture_environment();
     let mut service = Service::new();
     service.key();
     service.fixture.put_json(
@@ -144,7 +140,6 @@ fn a_broken_reports_record_never_stops_the_service_loop() {
 
 #[test]
 fn a_stuck_run_is_stopped() {
-    let _env = crate::commands::reports::fixture_environment();
     let mut service = Service::new();
     service.key();
     set_enabled(service.root(), true).unwrap();

@@ -3,18 +3,35 @@
 //!
 //! Below a fixture root the request is the `curl` command line (its headers in argv), answered with
 //! curl's output as `answer` reads it: the receiver's body, then `<http_code> <exitcode> <errormsg>`.
-//! The wall clock is the real one: where the Python tests moved `now` on, a retry's time is moved back.
+//! The root reads a test clock (2026-10-29 12:00 UTC) that moves only when a test moves it on.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::*;
 use crate::commands::reports::test_player as player;
 use crate::commands::service::daemon::{next_upload, Due};
-use crate::testing::{ok, scripted, Fixture};
+use crate::testing::{ok, Fixture};
 use serde_json::json;
+use std::sync::Arc;
+use y2p_core::clock::Manual;
 
 const KEY: &str = "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk";
+/// The test clock's wall time at the start (seconds since the epoch).
+const START: f64 = 1_793_275_200.0;
 
 fn setup() -> Fixture {
-    let fixture = Fixture::new();
+    setup_with(&Arc::new(clock_at_start()))
+}
+
+fn clock_at_start() -> Manual {
+    Manual::at(1_000_000_000_000, 1_000_000_000_000).with_wall(START as u64 * 1_000_000_000)
+}
+
+/// Move the test clock `seconds` on.
+fn later(clock: &Manual, seconds: f64) {
+    clock.advance((seconds * 1e9) as u64);
+}
+
+fn setup_with(clock: &Arc<Manual>) -> Fixture {
+    let fixture = Fixture::new().with_clock(clock.clone());
     player::player(fixture.base());
     fixture.put_json(state::UPLOAD_KEY, &json!({"upload_key": KEY}));
     player::online(fixture.base(), "Online", "boot-1");
@@ -102,8 +119,10 @@ fn send_with(
     progress: Option<&build::Progress>,
     first: Option<&str>,
 ) -> (Py, Vec<Vec<String>>) {
-    let (result, calls) = scripted(answers, || upload(root, progress, first).unwrap());
-    let curls = calls
+    let answering = root.clone().with_answers(answers);
+    let result = upload(&answering, progress, first).unwrap();
+    let curls = answering
+        .calls()
         .into_iter()
         .map(|(argv, _)| argv)
         .filter(|argv| argv[0] == "curl")
@@ -159,15 +178,10 @@ fn retry(root: &Root, name: &str) -> Py {
         .unwrap_or_else(|| panic!("no retry for {name}"))
 }
 
-/// The retry time has come (Python sent again at a later `now`).
-fn due_now(root: &Root, name: &str) {
-    let mut value = state::state(root);
-    value
-        .get_mut("uploads")
-        .and_then(|u| u.get_mut(name))
-        .unwrap()
-        .set("next", Py::Float(wall(root) - 1.0));
-    state::save(root, &value).unwrap();
+/// The clock moved on just past `name`'s retry time.
+fn due_now(clock: &Manual, root: &Root, name: &str) {
+    let at = retry(root, name).get("next").and_then(Py::number).unwrap();
+    later(clock, at - wall(root) + 1.0);
 }
 
 fn next(root: &Root) -> Option<f64> {
@@ -184,7 +198,6 @@ fn install_id(status: &Py) -> String {
 
 #[test]
 fn a_queued_report_is_sent_with_its_identity_and_leaves_the_queue() {
-    let _env = crate::commands::reports::fixture_environment();
     let fixture = setup();
     let root = &fixture.root;
     let install = install_id(&state::set_enabled(root, true).unwrap());
@@ -226,7 +239,6 @@ fn a_queued_report_is_sent_with_its_identity_and_leaves_the_queue() {
 
 #[test]
 fn without_an_upload_key_nothing_is_sent_and_reborn_offers_only_save() {
-    let _env = crate::commands::reports::fixture_environment();
     let fixture = setup();
     let root = &fixture.root;
     state::set_enabled(root, true).unwrap();
@@ -255,7 +267,6 @@ type Change<'a> = Box<dyn Fn() + 'a>;
 
 #[test]
 fn reports_wait_for_opt_in_wifi_clock_battery_and_no_update() {
-    let _env = crate::commands::reports::fixture_environment();
     let fixture = setup();
     let root = &fixture.root;
     let base = fixture.base();
@@ -327,18 +338,16 @@ fn reports_wait_for_opt_in_wifi_clock_battery_and_no_update() {
 
 #[test]
 fn server_errors_back_off_and_stop_the_run_then_succeed() {
-    let _env = crate::commands::reports::fixture_environment();
-    let fixture = setup();
+    let clock = Arc::new(clock_at_start());
+    let fixture = setup_with(&clock);
     let root = &fixture.root;
     state::set_enabled(root, true).unwrap();
     let mut first = queued(root);
     earlier(root, &mut first);
     let first = text(&first, "name");
     let second = text(&queued(root), "name");
-    let before = wall(root);
     let busy = http(root, &first, 503, Py::dict().with("error", Py::str("busy")));
     let (result, curls) = send(root, vec![busy]);
-    let after = wall(root);
     assert_eq!(outcomes(&result), ["retry"]); // the second was not tried
     assert_eq!(curls.len(), 1);
     assert_eq!(last(root).get("state"), Some(&Py::str("queued"))); // the last report is the second
@@ -347,15 +356,13 @@ fn server_errors_back_off_and_stop_the_run_then_succeed() {
     assert_eq!(entry.get("attempts"), Some(&Py::int(1)));
     assert_eq!(entry.get("error"), Some(&Py::str("HTTP_503")));
     let at = entry.get("next").and_then(Py::number).unwrap();
-    assert!(
-        (before + RETRY_S[0]..=after + RETRY_S[0]).contains(&at),
-        "{at}"
-    );
+    assert_eq!(at, START + RETRY_S[0]);
     // A later run sends the untried one; the failed one waits for its time.
+    later(&clock, 60.0);
     let (result, _) = send(root, vec![stored(root, &second), stored(root, &first)]);
     assert_eq!(outcomes(&result), ["sent"]);
     assert_eq!(next(root), Some(at));
-    due_now(root, &first);
+    due_now(&clock, root, &first);
     let (result, _) = send(root, vec![stored(root, &first)]);
     assert_eq!(outcomes(&result), ["sent"]);
     assert!(queue_names(root).is_empty());
@@ -364,7 +371,6 @@ fn server_errors_back_off_and_stop_the_run_then_succeed() {
 
 #[test]
 fn send_report_now_goes_first_then_takes_the_waiting_ones_along() {
-    let _env = crate::commands::reports::fixture_environment();
     let fixture = setup();
     let root = &fixture.root;
     state::set_enabled(root, true).unwrap();
@@ -404,8 +410,8 @@ fn send_report_now_goes_first_then_takes_the_waiting_ones_along() {
 
 #[test]
 fn the_last_reports_failure_shows_and_backoff_grows() {
-    let _env = crate::commands::reports::fixture_environment();
-    let fixture = setup();
+    let clock = Arc::new(clock_at_start());
+    let fixture = setup_with(&clock);
     let root = &fixture.root;
     state::set_enabled(root, true).unwrap();
     let item = queued(root);
@@ -424,40 +430,31 @@ fn the_last_reports_failure_shows_and_backoff_grows() {
             text(&item, "report_id")
         )
     );
-    due_now(root, &name);
-    let before = wall(root);
+    due_now(&clock, root, &name);
+    let now = wall(root);
     send(root, vec![http(root, &name, 502, Py::dict())]);
-    let after = wall(root);
     let entry = retry(root, &name);
     assert_eq!(entry.get("attempts"), Some(&Py::int(2)));
     let at = entry.get("next").and_then(Py::number).unwrap();
-    assert!(
-        (before + RETRY_S[1]..=after + RETRY_S[1]).contains(&at),
-        "{at}"
-    );
+    assert_eq!(at, now + RETRY_S[1]);
 }
 
 #[test]
 fn a_full_day_waits_for_the_next_utc_day() {
-    let _env = crate::commands::reports::fixture_environment();
     let fixture = setup();
     let root = &fixture.root;
     state::set_enabled(root, true).unwrap();
     let name = text(&queued(root), "name");
-    let before = wall(root);
     let full = Py::dict().with("error", Py::str("install_daily_limit"));
     send(root, vec![http(root, &name, 429, full)]);
-    let after = wall(root);
     let at = retry(root, &name).get("next").and_then(Py::number).unwrap();
     // 00:05 UTC of the next day
-    assert!(at == clock::next_midnight(before) || at == clock::next_midnight(after));
-    assert_eq!(at.rem_euclid(86_400.0), 300.0);
-    assert!(at > after && at <= after + 86_400.0 + 300.0);
+    assert_eq!(at, clock::next_midnight(START));
+    assert_eq!(at, START + 12.0 * 3600.0 + 300.0);
 }
 
 #[test]
 fn a_refused_report_is_dropped_and_says_why() {
-    let _env = crate::commands::reports::fixture_environment();
     let fixture = setup();
     let root = &fixture.root;
     state::set_enabled(root, true).unwrap();
@@ -479,37 +476,14 @@ fn a_refused_report_is_dropped_and_says_why() {
     );
 }
 
-/// The queued archive with report.json's `created_utc` `seconds` earlier (Python sent at a later
-/// `now` instead).
-fn made_earlier(root: &Root, name: &str, seconds: f64) {
-    let path = root.path(QUEUE).join(name);
-    let data = std::fs::read(&path).unwrap();
-    let members = tarball::members(&data, true, 64, |_| true).unwrap();
-    let mut writer = tarball::Writer::new();
-    for (member, body) in members {
-        let mut body = body.unwrap();
-        if member.name == "report.json" {
-            let mut index = pyjson::loads_bytes(&body).unwrap();
-            let made = clock::Instant::from_float(wall(root) - seconds);
-            index.set("created_utc", Py::Str(clock::isoformat(made)));
-            body = pyjson::dumps(&index, pyjson::Style::Indent).into_bytes();
-        }
-        writer.add(
-            &tarball::Info::file(&member.name, body.len(), member.mtime as i64, 0o600),
-            &body,
-        );
-    }
-    std::fs::write(&path, tarball::gzip(&writer.finish(), 6, 0)).unwrap();
-}
-
 #[test]
 fn a_report_unsent_for_three_days_is_dropped_without_sending() {
-    let _env = crate::commands::reports::fixture_environment();
-    let fixture = setup();
+    let clock = Arc::new(clock_at_start());
+    let fixture = setup_with(&clock);
     let root = &fixture.root;
     state::set_enabled(root, true).unwrap();
-    let name = text(&queued(root), "name");
-    made_earlier(root, &name, GIVE_UP_S + 1.0);
+    queued(root);
+    later(&clock, GIVE_UP_S + 1.0);
     let (result, curls) = send(root, Vec::new());
     assert_eq!(text(&uploaded(&result, 0), "reason"), "expired");
     assert!(curls.is_empty());
@@ -518,7 +492,6 @@ fn a_report_unsent_for_three_days_is_dropped_without_sending() {
 
 #[test]
 fn a_redirect_is_never_followed() {
-    let _env = crate::commands::reports::fixture_environment();
     let fixture = setup();
     let root = &fixture.root;
     state::set_enabled(root, true).unwrap();
@@ -539,7 +512,6 @@ fn a_redirect_is_never_followed() {
 
 #[test]
 fn an_untrusted_certificate_sends_nothing() {
-    let _env = crate::commands::reports::fixture_environment();
     let fixture = setup();
     let root = &fixture.root;
     state::set_enabled(root, true).unwrap();
@@ -563,7 +535,6 @@ fn an_untrusted_certificate_sends_nothing() {
 
 #[test]
 fn a_damaged_queue_file_is_dropped() {
-    let _env = crate::commands::reports::fixture_environment();
     let fixture = setup();
     let root = &fixture.root;
     state::set_enabled(root, true).unwrap();
@@ -588,7 +559,6 @@ fn a_damaged_queue_file_is_dropped() {
 
 #[test]
 fn only_one_upload_runs_at_a_time() {
-    let _env = crate::commands::reports::fixture_environment();
     let fixture = setup();
     let root = &fixture.root;
     state::set_enabled(root, true).unwrap();
@@ -602,7 +572,6 @@ fn only_one_upload_runs_at_a_time() {
 
 #[test]
 fn the_owners_screen_follows_build_and_upload_and_the_record_goes_away() {
-    let _env = crate::commands::reports::fixture_environment();
     let fixture = setup();
     let root = &fixture.root;
     state::set_enabled(root, true).unwrap();
@@ -651,7 +620,6 @@ fn the_owners_screen_follows_build_and_upload_and_the_record_goes_away() {
 
 #[test]
 fn a_sleep_in_progress_leaves_the_report_queued() {
-    let _env = crate::commands::reports::fixture_environment();
     let fixture = setup();
     let root = &fixture.root;
     state::set_enabled(root, true).unwrap();
@@ -666,7 +634,6 @@ fn a_sleep_in_progress_leaves_the_report_queued() {
 
 #[test]
 fn queue_is_opt_in_and_bounded() {
-    let _env = crate::commands::reports::fixture_environment();
     let fixture = Fixture::new();
     player::player(fixture.base());
     let root = &fixture.root;
@@ -712,7 +679,6 @@ fn url_path(url: &str) -> String {
 
 #[test]
 fn the_receiver_accepts_exactly_the_players_triggers_and_schema() {
-    let _env = crate::commands::reports::fixture_environment();
     let source = std::fs::read_to_string(
         crate::testing::repository().join("tools/reports/worker/src/index.js"),
     )

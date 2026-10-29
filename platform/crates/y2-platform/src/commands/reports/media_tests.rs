@@ -33,7 +33,6 @@ fn text(value: &Py, key: &str) -> String {
 
 #[test]
 fn a_report_is_saved_onto_mounted_storage_without_opting_in() {
-    let _env = crate::commands::reports::fixture_environment();
     let fixture = setup();
     let root = &fixture.root;
     assert_eq!(destinations(root), names(&[]));
@@ -121,7 +120,6 @@ fn a_report_is_saved_onto_mounted_storage_without_opting_in() {
 
 #[test]
 fn saving_refuses_read_only_storage_and_a_folder_link() {
-    let _env = crate::commands::reports::fixture_environment();
     let fixture = setup();
     let root = &fixture.root;
     player::mount(fixture.base(), &["/media/sd"], "ro,relatime");
@@ -145,7 +143,6 @@ fn saving_refuses_read_only_storage_and_a_folder_link() {
 
 #[test]
 fn saving_shows_the_save_step_last() {
-    let _env = crate::commands::reports::fixture_environment();
     let fixture = setup();
     let root = &fixture.root;
     player::mount(fixture.base(), &["/media/sd"], "rw,relatime");
