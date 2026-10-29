@@ -4,8 +4,8 @@
 use super::observe::{media_identity, refused_card, volumes, MEDIA_MOUNT, MEDIA_STATE};
 use super::sys::{
     available, boot_id, device_instance, exists, get, get_eq, get_in, is_symlink, isdigit,
-    lock_now, lock_within, maintenance, mkdir, mounts as all_mounts, name, object, py_eq, read,
-    release_sd, resolve, statvfs, try_lock, wall_seconds, write_record, Mount, Object,
+    lock_now, lock_within, maintenance, mkdir, mounts as all_mounts, name, no_attribute, object,
+    py_eq, read, release_sd, resolve, statvfs, try_lock, wall_seconds, write_record, Mount, Object,
 };
 use crate::reply::{atomic_json, unlink_missing_ok, Failure};
 use serde_json::{json, Value};
@@ -656,7 +656,8 @@ fn writers(root: &Root, mount: &Mount) -> Result<Object, Failure> {
     }
     let holders = match value.get("holders") {
         Some(Value::Object(holders)) => holders.clone(),
-        Some(other) if truthy(other) => return Err(Failure::Fallback), // not a dict: Python's AttributeError
+        // `(value.get('holders') or {}).items()`: not a dict is Python's AttributeError.
+        Some(other) if truthy(other) => return Err(no_attribute(other, "items")),
         _ => Object::new(),
     };
     let now = clock::monotonic();
@@ -783,7 +784,7 @@ fn slept_ns() -> i128 {
 fn identity_id(record: &Object) -> Result<Value, Failure> {
     match record.get("identity") {
         Some(Value::Object(identity)) => Ok(get(identity, "id").clone()),
-        Some(other) if truthy(other) => Err(Failure::Fallback),
+        Some(other) if truthy(other) => Err(no_attribute(other, "get")),
         _ => Ok(Value::Null),
     }
 }
@@ -925,7 +926,7 @@ fn battery_allows_repair(root: &Root) -> Result<bool, Failure> {
     }
     let battery = match power.get("battery") {
         Some(Value::Object(battery)) => battery.clone(),
-        Some(other) if truthy(other) => return Err(Failure::Fallback), // Python's AttributeError
+        Some(other) if truthy(other) => return Err(no_attribute(other, "get")), // AttributeError
         _ => Object::new(),
     };
     let percent = exact_int(battery.get("percent"));
@@ -1064,18 +1065,13 @@ fn repair_locked(root: &Root, record: &mut Object) -> Result<Object, Failure> {
         set_state(&mut state, "Failed", "repair_needs_charger_or_battery");
         return Ok(state);
     }
-    // Checked before anything changes (Python fails on a non-dict identity or check only after
-    // the card was detached, and so does the Python run this hands over to).
-    let identity = identity_id(&before)?;
-    let findings_before = match before.get("filesystem_check") {
-        Some(Value::Object(check)) => get(check, "findings").clone(),
-        Some(other) if truthy(other) => return Err(Failure::Fallback),
-        _ => Value::Null,
-    };
     if !detach_for_change(root, &mut state)? {
         return Ok(state);
     }
     let available = candidates(root);
+    // A non-dict identity or check crashes Python here, after the card was detached (and, for the
+    // check, before the record has a card: no repair record is written).
+    let identity = identity_id(&before)?;
     if available.len() != 1 || !py_eq(&json!(card_id(&available[0])), &identity) {
         set_state(&mut state, "Failed", "card_changed");
         return Ok(state);
@@ -1085,6 +1081,11 @@ fn repair_locked(root: &Root, record: &mut Object) -> Result<Object, Failure> {
     let Some(repairer) = repairer(filesystem) else {
         set_state(&mut state, "Failed", "filesystem_not_repairable");
         return Ok(state);
+    };
+    let findings_before = match before.get("filesystem_check") {
+        Some(Value::Object(check)) => get(check, "findings").clone(),
+        Some(other) if truthy(other) => return Err(no_attribute(other, "get")),
+        _ => Value::Null,
     };
     set(
         record,

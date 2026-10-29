@@ -608,7 +608,8 @@ pub fn provision(
             Ok(migration) => {
                 result.insert("migration".into(), migration);
             }
-            Err(Failure::Fallback) => return Err(Failure::Fallback),
+            // `except (OSError, ValueError)`: anything else is uncaught.
+            Err(error) if !error.caught() => return Err(error),
             Err(error) => {
                 let reason = format!("migration_failed:{}", error.message());
                 return record(
@@ -948,7 +949,8 @@ fn save(root: &Root, value: &Object) -> Result<(), Failure> {
 pub fn setup(root: &Root, automatic: bool, confirm_serial: &Value) -> Result<Object, Failure> {
     let _lock = lock_runtime(root)?;
     match setup_locked(root, automatic, confirm_serial) {
-        Err(Failure::Fallback) => Err(Failure::Fallback),
+        // `except (OSError, ValueError)`: a KeyError (or any other exception) is uncaught.
+        Err(error) if !error.caught() => Err(error),
         Err(error) => {
             let reason = format!(
                 "setup_error:{}",
@@ -960,10 +962,10 @@ pub fn setup(root: &Root, automatic: bool, confirm_serial: &Value) -> Result<Obj
     }
 }
 
-/// `saved[key]` of the resume record: a missing key is Python's KeyError (a traceback), so the run
-/// goes to Python, which writes the same records up to the same point.
+/// `saved[key]` of the resume record: a missing key is Python's KeyError (a traceback, after the
+/// records written so far: the 'Running' note).
 fn key<'a>(saved: &'a Object, name: &str) -> Result<&'a Value, Failure> {
-    saved.get(name).ok_or(Failure::Fallback)
+    saved.get(name).ok_or_else(|| Failure::key_error(name))
 }
 
 fn setup_locked(root: &Root, automatic: bool, confirm_serial: &Value) -> Result<Object, Failure> {
@@ -976,17 +978,6 @@ fn setup_locked(root: &Root, automatic: bool, confirm_serial: &Value) -> Result<
         );
     };
     let device = format!("/dev/{}", name(&entry));
-    // A resume record of this partition without a phase is Python's KeyError after its 'Running'
-    // note: handed to Python before the probe, so it runs the same commands.
-    if let Some(Value::Object(saved)) = root.json(SETUP) {
-        if get_eq(&saved, "device", &json!(device))
-            && get_eq(&saved, "start", &json!(START))
-            && get_eq(&saved, "size", &json!(SIZE))
-            && !saved.contains_key("phase")
-        {
-            return Err(Failure::Fallback);
-        }
-    }
     let props = probe(root, &entry);
     let stored = root.json(SETUP);
     if exists(&root.path(SETUP)) && !matches!(stored, Some(Value::Object(_))) {
@@ -1105,8 +1096,10 @@ fn setup_locked(root: &Root, automatic: bool, confirm_serial: &Value) -> Result<
     )?;
 
     if key(&saved, "phase")?.as_str() == Some("staging") {
-        let serial = key(&saved, "serial")?.clone();
-        if get(&props, "TYPE").as_str() != Some("vfat") || !py_eq(get(&props, "UUID"), &serial) {
+        // `TYPE != 'vfat' or UUID != saved['serial']`: the serial is looked up only for a FAT.
+        if get(&props, "TYPE").as_str() != Some("vfat")
+            || !py_eq(get(&props, "UUID"), key(&saved, "serial")?)
+        {
             return note(root, "Failed", Some("old_storage_changed"), &[]);
         }
         if let Some(problem) = mount_old(root, &device)? {
@@ -1135,8 +1128,10 @@ fn setup_locked(root: &Root, automatic: bool, confirm_serial: &Value) -> Result<
         }
         let props = probe(root, &entry);
         if !valid(&props) {
-            let serial = key(&saved, "serial")?;
-            if get(&props, "TYPE").as_str() == Some("vfat") && !py_eq(get(&props, "UUID"), serial) {
+            // `TYPE == 'vfat' and UUID != saved['serial']`: the serial only for a FAT.
+            if get(&props, "TYPE").as_str() == Some("vfat")
+                && !py_eq(get(&props, "UUID"), key(&saved, "serial")?)
+            {
                 return note(root, "Failed", Some("old_storage_changed"), &[]);
             }
             // The recorded stock FAT, or what an interrupted format left: only this record
