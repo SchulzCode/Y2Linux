@@ -1,16 +1,20 @@
-//! The shutdown coordinator tests of tests/test_platform_power_contract.py, on the port.
-//!
-//! Python gave the coordinator an injected clock; here it reads CLOCK_MONOTONIC, so "the grace has
-//! passed" is the intent's deadline moved to now (`expire`) and waits are compared with a tolerance.
+//! The shutdown coordinator tests of tests/test_platform_power_contract.py, on the port: the
+//! coordinator reads its fixture root's clock (a `clock::Manual` the tests move on, also through the
+//! Wi-Fi removal wait) and its commands are answered by the root's runner.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::*;
-use crate::testing::{failed, ok, scripted, Fixture};
+use crate::testing::{failed, ok, Fixture};
 use serde_json::Value;
+use std::sync::{Arc, Mutex};
 use std::time::Instant;
+use y2p_core::clock::{Clock, Manual};
 use y2p_core::command::Outcome;
 
 type Answers = Vec<(Vec<String>, Outcome)>;
 type Calls = Vec<(Vec<String>, f64)>;
+
+/// Where the test clock starts: 1000 s after boot.
+const START_NS: u64 = 1_000_000_000_000;
 
 /// Every command a shutdown asks for, answered ok or `injected_failure` (the Python test's runner).
 fn answers(succeed: bool) -> Answers {
@@ -39,11 +43,37 @@ fn answers(succeed: bool) -> Answers {
         .collect()
 }
 
-/// The Python `setUp`: a boot id, every command failing.
-fn fixture() -> Fixture {
-    let fixture = Fixture::new();
+/// The Python `setUp`: a boot id, every command answered ok or failing, a test clock.
+fn player(succeed: bool) -> (Fixture, Arc<Manual>) {
+    let clock = Arc::new(Manual::at(START_NS, START_NS));
+    let fixture = Fixture::new()
+        .with_answers(answers(succeed))
+        .with_clock(clock.clone());
     fixture.put("/proc/sys/kernel/random/boot_id", "one");
-    fixture
+    (fixture, clock)
+}
+
+/// A player whose runner answers every command ok and notes what the panel's `bl_power` held when
+/// Reborn was stopped.
+fn player_watching_the_panel() -> (Fixture, Arc<Mutex<Option<String>>>) {
+    let fixture = Fixture::new();
+    let node = fixture.path("/sys/class/backlight/panel/bl_power");
+    let seen = Arc::new(Mutex::new(None));
+    let noted = seen.clone();
+    let fixture = fixture
+        .responding(move |argv, _| {
+            if argv == ["/etc/init.d/S90reborn", "stop"] {
+                *noted.lock().unwrap() = std::fs::read_to_string(&node).ok();
+            }
+            Outcome {
+                ok: true,
+                reason: None,
+                output: None,
+            }
+        })
+        .with_clock(Arc::new(Manual::at(START_NS, START_NS)));
+    fixture.put("/proc/sys/kernel/random/boot_id", "one");
+    (fixture, seen)
 }
 
 fn json(text: &str) -> Value {
@@ -55,19 +85,24 @@ fn request(c: &mut Coordinator, action: &str, reason: &str, grace: i64) -> Objec
         .expect("request")
 }
 
-/// The grace has passed: the pending deadline is now.
-fn expire(c: &mut Coordinator) {
-    let now = clock::monotonic_ns() as i64;
+fn deadline(c: &Coordinator) -> u64 {
     c.intent
-        .as_mut()
-        .expect("intent")
-        .set("deadline_monotonic_ns", now);
+        .as_ref()
+        .and_then(|i| i.get("deadline_monotonic_ns"))
+        .and_then(Value::as_u64)
+        .expect("a deadline")
 }
 
-fn execute(c: &mut Coordinator, answers: Answers) -> Calls {
-    let (result, calls) = scripted(answers, || c.execute());
-    result.expect("execute");
-    calls
+/// The grace has passed: the clock is at the pending deadline.
+fn expire(c: &Coordinator, clock: &Manual) {
+    clock.advance(deadline(c).saturating_sub(clock.monotonic_ns()));
+}
+
+/// The commands `execute` asked for.
+fn execute(c: &mut Coordinator, fixture: &Fixture) -> Calls {
+    let before = fixture.calls().len();
+    c.execute();
+    fixture.calls().split_off(before)
 }
 
 /// `c.intent['stop_results'][name]` as (ok, reason).
@@ -128,11 +163,13 @@ fn reborn(fixture: &Fixture, start: u32) {
 
 #[test]
 fn ignored_app_and_failed_sync_do_not_block_final_init_request() {
-    let fixture = fixture();
+    let (fixture, clock) = player(false);
     let mut c = Coordinator::new(&fixture.root);
     request(&mut c, "poweroff", "user", 3);
     assert!(!c.due());
-    expire(&mut c);
+    clock.advance(2_999_999_999);
+    assert!(!c.due(), "one nanosecond before the deadline");
+    expire(&c, &clock);
     assert!(c.due());
     // Same request cannot extend grace; conflicting intent is rejected.
     let deadline = c.intent.as_ref().unwrap().value("deadline_monotonic_ns");
@@ -141,7 +178,7 @@ fn ignored_app_and_failed_sync_do_not_block_final_init_request() {
         deadline
     );
     assert!(c.request(&json("reboot"), &json("service"), 10).is_err());
-    let calls = execute(&mut c, answers(false));
+    let calls = execute(&mut c, &fixture);
     assert_eq!(last(&calls), ["/bin/busybox", "poweroff"]);
     assert!(calls.iter().all(|(_, timeout)| *timeout <= 5.0));
     assert!(c.intent.as_ref().unwrap().value("state").is_str("Failed"));
@@ -149,13 +186,28 @@ fn ignored_app_and_failed_sync_do_not_block_final_init_request() {
 }
 
 #[test]
+fn the_grace_is_measured_on_the_roots_clock() {
+    let (fixture, clock) = player(false);
+    let mut c = Coordinator::new(&fixture.root);
+    let intent = request(&mut c, "reboot", "update", 10);
+    assert_eq!(intent.value("requested_monotonic_ns"), START_NS);
+    assert_eq!(
+        intent.value("deadline_monotonic_ns"),
+        START_NS + 10_000_000_000
+    );
+    // Time asleep is no grace: only monotonic time counts.
+    clock.suspend(60_000_000_000);
+    assert!(!c.due());
+}
+
+#[test]
 fn backlight_is_off_before_init_powers_down_even_without_reborn() {
-    let fixture = fixture();
+    let (fixture, clock) = player(false);
     fixture.put("/sys/class/backlight/panel/bl_power", "0\n");
     let mut c = Coordinator::new(&fixture.root);
     request(&mut c, "reboot", "user", 3);
-    expire(&mut c);
-    let calls = execute(&mut c, answers(false));
+    expire(&c, &clock);
+    let calls = execute(&mut c, &fixture);
     assert_eq!(
         fixture
             .root
@@ -170,13 +222,14 @@ fn backlight_is_off_before_init_powers_down_even_without_reborn() {
 #[test]
 fn unacknowledged_shutdown_blanks_the_panel_before_reborn_is_killed() {
     // Reborn hung or crashed: the deadline fires without an acknowledgement.
-    let fixture = fixture();
+    let (fixture, seen) = player_watching_the_panel();
     fixture.put("/sys/class/backlight/panel/bl_power", "0\n");
     let mut c = Coordinator::new(&fixture.root);
     request(&mut c, "poweroff", "user", 3);
-    expire(&mut c);
-    execute(&mut c, answers(true));
+    execute(&mut c, &fixture);
     assert_eq!(stop_result(&c, "backlight_early"), passed());
+    // The panel is already dark when Reborn is stopped.
+    assert_eq!(seen.lock().unwrap().as_deref(), Some("4\n"));
     assert_eq!(
         fixture
             .root
@@ -184,39 +237,39 @@ fn unacknowledged_shutdown_blanks_the_panel_before_reborn_is_killed() {
             .as_deref(),
         Some("4")
     );
-    // The panel is already dark when Reborn is stopped (Python recorded the light at the stop call;
-    // scripted answers cannot read files, so the order is pinned on the source).
-    let source = include_str!("coordinator.rs");
-    let early = source
-        .find("results.push((\"backlight_early\".into(), backlight_off(&self.root)));")
-        .expect("early backlight");
-    let stop = source
-        .find("self.step(\"S90reborn\", Some(&[\"/etc/init.d/S90reborn\", \"stop\"]), 3.0)")
-        .expect("Reborn stop");
-    assert!(early < stop, "panel is already dark when Reborn is stopped");
 }
 
 #[test]
 fn acknowledged_shutdown_leaves_reborns_dark_frame_alone_until_the_end() {
-    let fixture = fixture();
+    let (fixture, seen) = player_watching_the_panel();
     reborn(&fixture, 900);
-    fixture.put("/sys/class/backlight/panel/bl_power", "4\n");
+    // Reborn's dark frame is on a lit panel until its own backlight write lands; the platform does
+    // not touch the light before Reborn is stopped.
+    fixture.put("/sys/class/backlight/panel/bl_power", "0\n");
     let mut c = Coordinator::new(&fixture.root);
     let intent = request(&mut c, "poweroff", "user", 3);
     c.ack(&intent.value("id"), 123, &json("Ready"))
         .expect("ack");
-    execute(&mut c, answers(false));
+    execute(&mut c, &fixture);
+    assert_eq!(seen.lock().unwrap().as_deref(), Some("0\n"));
     assert_eq!(stop_result(&c, "backlight_early"), None);
     assert_eq!(stop_result(&c, "backlight"), passed());
+    assert_eq!(
+        fixture
+            .root
+            .read("/sys/class/backlight/panel/bl_power")
+            .as_deref(),
+        Some("4")
+    );
 }
 
 #[test]
 fn missing_backlight_is_recorded_not_fatal() {
-    let fixture = fixture();
+    let (fixture, clock) = player(false);
     let mut c = Coordinator::new(&fixture.root);
     request(&mut c, "poweroff", "user", 3);
-    expire(&mut c);
-    let calls = execute(&mut c, answers(false));
+    expire(&c, &clock);
+    let calls = execute(&mut c, &fixture);
     assert_eq!(
         stop_result(&c, "backlight").and_then(|r| r.1).as_deref(),
         Some("no_backlight")
@@ -227,12 +280,12 @@ fn missing_backlight_is_recorded_not_fatal() {
 #[test]
 fn shutdown_steps_reach_pmsg_and_stage_writes_get_three_seconds() {
     // F39 (471831b6): an update restart left no stage and no trail.
-    let fixture = fixture();
+    let (fixture, clock) = player(false);
     fixture.put("/dev/pmsg0", "");
     let mut c = Coordinator::new(&fixture.root);
     request(&mut c, "reboot", "update", 3);
-    expire(&mut c);
-    let calls = execute(&mut c, answers(false));
+    expire(&c, &clock);
+    let calls = execute(&mut c, &fixture);
     // F39 (8.39-8.41): every step is announced before it runs, so a stall
     // names the step it happened in; the radio stop is split and comes
     // after the sync, before shutdown_complete.
@@ -264,6 +317,11 @@ fn shutdown_steps_reach_pmsg_and_stage_writes_get_three_seconds() {
             "init_reboot injected_failure",
         ]
     );
+    // Each line starts with the root's monotonic seconds.
+    assert!(fixture
+        .read("/dev/pmsg0")
+        .lines()
+        .all(|line| line.starts_with("1003.00 shutdown ")));
     let stages: Vec<f64> = calls
         .iter()
         .filter(|(argv, _)| argv.iter().any(|a| a == "boot-stage"))
@@ -289,11 +347,11 @@ fn shutdown_steps_reach_pmsg_and_stage_writes_get_three_seconds() {
 
 #[test]
 fn radio_stop_runs_after_sync_and_before_shutdown_complete() {
-    let fixture = fixture();
+    let (fixture, clock) = player(true);
     let mut c = Coordinator::new(&fixture.root);
     request(&mut c, "poweroff", "user", 3);
-    expire(&mut c);
-    let calls = execute(&mut c, answers(true));
+    expire(&c, &clock);
+    let calls = execute(&mut c, &fixture);
     let order: Vec<&str> = calls
         .iter()
         .map(|(argv, _)| argv.last().unwrap().as_str())
@@ -325,24 +383,52 @@ fn radio_stop_runs_after_sync_and_before_shutdown_complete() {
 
 #[test]
 fn wifi_removal_is_waited_for_but_bounded() {
-    let fixture = fixture();
+    let (fixture, clock) = player(false);
     fixture
         .put("/sys/class/net/wlan0/operstate", "up")
         .put("/dev/pmsg0", "");
     let mut c = Coordinator::new(&fixture.root);
     request(&mut c, "reboot", "update", 3);
-    // Python counted 19+ sleeps of 0.1 s on a mocked clock ending 2.0 s later; this one waits.
     let started = Instant::now();
-    execute(&mut c, answers(false));
-    let waited = started.elapsed().as_secs_f64();
+    let before = clock.monotonic_ns();
+    execute(&mut c, &fixture);
+    // 2 s of polls every 0.1 s on the root's clock (the only step here that waits), none of it real.
+    assert_eq!(clock.monotonic_ns() - before, 2_000_000_000);
+    assert!(started.elapsed().as_secs_f64() < 1.0);
     assert_eq!(
         stop_result(&c, "S41_wifi_removed"),
         refused("still_present")
     );
-    assert!((2.0..3.0).contains(&waited), "{waited}");
     assert!(fixture
         .read("/dev/pmsg0")
         .contains("shutdown S41_wifi_removed still_present"));
+}
+
+#[test]
+fn wifi_removal_ends_when_the_card_is_gone() {
+    let clock = Arc::new(Manual::at(START_NS, START_NS));
+    let fixture = Fixture::new();
+    let card = fixture.path("/sys/class/net/wlan0");
+    // The card goes away while S41 stops Wi-Fi (the kernel worker of blocking y2-wifi).
+    let fixture = fixture
+        .responding(move |argv, _| {
+            if argv == ["/etc/init.d/S41y2-connectivity", "stop-wifi"] {
+                let _ = std::fs::remove_dir_all(&card);
+            }
+            Outcome {
+                ok: true,
+                reason: None,
+                output: None,
+            }
+        })
+        .with_clock(clock.clone());
+    fixture.put("/sys/class/net/wlan0/operstate", "up");
+    let mut c = Coordinator::new(&fixture.root);
+    request(&mut c, "reboot", "update", 3);
+    let before = clock.monotonic_ns();
+    execute(&mut c, &fixture);
+    assert_eq!(clock.monotonic_ns(), before, "no poll was needed");
+    assert_eq!(stop_result(&c, "S41_wifi_removed"), passed());
 }
 
 #[test]
@@ -351,7 +437,7 @@ fn shutdown_arms_the_watchdog_and_a_power_off_reset_powers_off() {
     // looked off) ends in the SoC watchdog reset. For a power-off the
     // reset must not start the system: the loader's reason 3 charges or
     // powers off. A restart keeps AUTO_RESTART (update: MISC -> recovery).
-    let fixture = fixture();
+    let (fixture, _) = player(false);
     for (action, reason, expected) in [
         ("poweroff", "user", Some("1\n")),
         ("poweroff", "low_battery", Some("1\n")),
@@ -364,7 +450,7 @@ fn shutdown_arms_the_watchdog_and_a_power_off_reset_powers_off() {
             .put("/run/y2/shutdown.json", "null");
         let mut c = Coordinator::new(&fixture.root);
         request(&mut c, action, reason, 3);
-        execute(&mut c, answers(false));
+        execute(&mut c, &fixture);
         assert_eq!(stop_result(&c, "watchdog"), passed(), "{action} {reason}");
         assert_eq!(
             fixture.root.read(WATCHDOG_POWERS_OFF).as_deref(),
@@ -381,11 +467,11 @@ fn shutdown_arms_the_watchdog_and_a_power_off_reset_powers_off() {
 
 #[test]
 fn power_off_without_the_kernel_switch_still_arms_the_watchdog() {
-    let fixture = fixture();
+    let (fixture, _) = player(false);
     fixture.put("/dev/watchdog", "");
     let mut c = Coordinator::new(&fixture.root);
     request(&mut c, "poweroff", "user", 3);
-    execute(&mut c, answers(false));
+    execute(&mut c, &fixture);
     assert_eq!(
         stop_result(&c, "watchdog"),
         refused("powers_off_unavailable")
@@ -398,7 +484,7 @@ fn armed_watchdog_turns_the_long_press_reset_off_before_the_first_step() {
     // F57 (496f54ad): Power still held through the power-off let the PMIC
     // long-press reset cut it. From the watchdog on, that reset is off, for
     // a restart as for a power-off; the preloader sets it again at the start.
-    let fixture = fixture();
+    let (fixture, _) = player(true);
     for action in ["poweroff", "reboot"] {
         fixture
             .put("/dev/watchdog", "")
@@ -407,12 +493,11 @@ fn armed_watchdog_turns_the_long_press_reset_off_before_the_first_step() {
             .put("/run/y2/shutdown.json", "null");
         let mut c = Coordinator::new(&fixture.root);
         request(&mut c, action, "user", 3);
-        let calls = execute(&mut c, answers(true));
+        let calls = execute(&mut c, &fixture);
         assert!(!calls.is_empty());
         assert_eq!(fixture.root.read(LONG_PRESS_RESET).as_deref(), Some("0"));
         assert_eq!(stop_result(&c, "long_press_reset"), passed(), "{action}");
-        // Python read the switch at the first command; the trail shows it was written before the
-        // first shutdown step began.
+        // The trail shows the switch was written before the first shutdown step began.
         let steps = trail(&fixture);
         assert_eq!(steps[2], "long_press_reset ok", "{action}");
         assert_eq!(
@@ -425,11 +510,11 @@ fn armed_watchdog_turns_the_long_press_reset_off_before_the_first_step() {
 #[test]
 fn long_press_reset_without_kernel_support_or_watchdog_never_blocks_the_shutdown() {
     // An older kernel has no switch: recorded, the shutdown goes on.
-    let fixture = fixture();
+    let (fixture, _) = player(false);
     fixture.put("/dev/watchdog", "");
     let mut c = Coordinator::new(&fixture.root);
     request(&mut c, "poweroff", "user", 3);
-    let calls = execute(&mut c, answers(false));
+    let calls = execute(&mut c, &fixture);
     assert_eq!(
         stop_result(&c, "long_press_reset"),
         refused("long_press_reset_unavailable")
@@ -444,7 +529,7 @@ fn long_press_reset_without_kernel_support_or_watchdog_never_blocks_the_shutdown
         .put("/run/y2/shutdown.json", "null");
     let mut c = Coordinator::new(&fixture.root);
     request(&mut c, "reboot", "user", 3);
-    let calls = execute(&mut c, answers(false));
+    let calls = execute(&mut c, &fixture);
     assert_eq!(
         stop_result(&c, "long_press_reset"),
         refused("kept_without_watchdog")
@@ -455,7 +540,7 @@ fn long_press_reset_without_kernel_support_or_watchdog_never_blocks_the_shutdown
 
 #[test]
 fn ack_requires_same_request_pid_start_time_and_boot() {
-    let fixture = fixture();
+    let (fixture, _) = player(false);
     reborn(&fixture, 900);
     let mut c = Coordinator::new(&fixture.root);
     let intent = request(&mut c, "reboot", "update", 10);
@@ -474,37 +559,56 @@ fn ack_requires_same_request_pid_start_time_and_boot() {
     assert!(Coordinator::new(&fixture.root).intent.is_none());
 }
 
-/// `c.wait_seconds(next)` against the real clock: within 20 ms of `expected` seconds.
-fn assert_wait(c: &Coordinator, next_sample_ns: i128, expected: f64) {
-    let waited = c.wait_ns(next_sample_ns) as f64 / 1e9;
-    assert!(
-        waited <= expected && waited >= (expected - 0.02).max(0.),
-        "{waited} vs {expected}"
-    );
+#[test]
+fn a_resumed_intent_with_a_damaged_acknowledgement_waits_for_its_deadline() {
+    // The Python daemon ended on these (TypeError, KeyError, AttributeError) and its supervisor
+    // restarted it into the same file; now it is no acknowledgement and the deadline decides.
+    for ack in [
+        serde_json::json!("Ready"),
+        serde_json::json!(["Ready"]),
+        serde_json::json!({"monotonic_ns": 5}),
+        serde_json::json!(7),
+    ] {
+        let (fixture, clock) = player(false);
+        fixture.put("/sys/class/backlight/panel/bl_power", "0\n");
+        fixture.put_json(
+            "/run/y2/shutdown.json",
+            &serde_json::json!({"schema": 1, "id": "x", "boot_id": "one", "state": "ShutdownPending",
+                "action": "poweroff", "reason": "user", "requested_monotonic_ns": START_NS,
+                "deadline_monotonic_ns": START_NS + 3_000_000_000, "client": null,
+                "acknowledgement": ack, "failure": null}),
+        );
+        let mut c = Coordinator::new(&fixture.root);
+        assert!(c.intent.as_ref().is_some_and(|i| i.pending()), "{ack}");
+        assert!(!c.due(), "{ack}");
+        clock.advance(3_000_000_000);
+        assert!(c.due(), "{ack}");
+        let calls = execute(&mut c, &fixture);
+        assert_eq!(stop_result(&c, "backlight_early"), passed(), "{ack}");
+        assert_eq!(last(&calls), ["/bin/busybox", "poweroff"]);
+        // The damaged value stays as it was; only the steps' results are added.
+        assert_eq!(c.intent.as_ref().unwrap()["acknowledgement"], ack);
+    }
 }
 
-fn now() -> i128 {
-    i128::from(clock::monotonic_ns())
+fn now(clock: &Manual) -> i128 {
+    i128::from(clock.monotonic_ns())
 }
 
 #[test]
 fn idle_waits_for_observation_but_never_past_shutdown_deadline() {
-    let fixture = fixture();
+    let (fixture, clock) = player(false);
     let mut c = Coordinator::new(&fixture.root);
     // One observation wake each second instead of four accept timeouts.
-    assert_wait(&c, now() + 1_000_000_000, 1.0);
+    assert_eq!(c.wait_ns(now(&clock) + 1_000_000_000), 1_000_000_000);
     request(&mut c, "poweroff", "low_battery", 3);
-    let deadline = now() + 125_000_000;
-    c.intent
-        .as_mut()
-        .unwrap()
-        .set("deadline_monotonic_ns", deadline as i64);
-    assert_wait(&c, now() + 1_000_000_000, 0.125);
-    expire(&mut c);
-    assert_eq!(c.wait_ns(now() + 1_000_000_000), 0);
+    clock.advance(2_875_000_000);
+    assert_eq!(c.wait_ns(now(&clock) + 1_000_000_000), 125_000_000);
+    expire(&c, &clock);
+    assert_eq!(c.wait_ns(now(&clock) + 1_000_000_000), 0);
     assert!(c.due());
-    execute(&mut c, answers(false));
+    execute(&mut c, &fixture);
     // A failed init request must not turn an expired deadline into a spin.
-    assert_wait(&c, now() + 1_000_000_000, 1.0);
-    assert_eq!(c.wait_ns(now() - 1), 0);
+    assert_eq!(c.wait_ns(now(&clock) + 1_000_000_000), 1_000_000_000);
+    assert_eq!(c.wait_ns(now(&clock) - 1), 0);
 }

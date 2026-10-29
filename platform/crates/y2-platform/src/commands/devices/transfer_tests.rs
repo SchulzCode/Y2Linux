@@ -1,19 +1,37 @@
-//! transfer.py's tests (tests/test_platform_transfer.py `Transfer`): verified uploads below a fixture
-//! root with a verified /data (and Y2Media) as tests/platform_cases/devices.py mounts them; `blkid`
-//! answers their UUIDs.
+//! Transfer tests: verified uploads below a fixture root with a verified /data (and Y2Media) as the
+//! golden cases (tests/platform_cases/devices.py) mount them; `blkid` answers their UUIDs.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::*;
-use crate::testing::{ok, scripted, Fixture};
-use std::{fs, os::unix::fs::MetadataExt};
+use crate::testing::{ok, Fixture, Outcome};
+use std::{fs, io::Write, os::unix::fs::MetadataExt, thread};
 
 const DATA: &str = "22 1 179:2 / / ro - ext4 /dev/mmcblk0p2 ro\n\
                     30 22 259:1 / /data rw,noatime - ext4 /dev/mmcblk0p9 rw\n";
 const MEDIA: &str = "31 22 259:2 / /media/internal rw,noatime - ext4 /dev/mmcblk0p8 rw\n";
 const TRACK: &str = "/media/internal/music/Album/track.flac";
+const BLKID: [&str; 6] = ["blkid", "-p", "-s", "UUID", "-o", "value"];
+
+/// `blkid`'s answer for a partition: Y2DATA's UUID for p9, Y2Media's for p8.
+fn uuid(device: &str) -> Option<&'static str> {
+    match device {
+        "/dev/mmcblk0p9" => Some("79324c69-6e75-4801-8000-000000000102"),
+        "/dev/mmcblk0p8" => Some("79324c69-6e75-4801-8000-000000000103"),
+        _ => None,
+    }
+}
 
 /// A verified /data (device 259:1 on the eMMC controller, Y2DATA's UUID).
 fn fixture() -> Fixture {
-    let fixture = Fixture::new();
+    let answers = ["/dev/mmcblk0p9", "/dev/mmcblk0p8"]
+        .map(|device| {
+            let argv: Vec<&str> = BLKID.iter().copied().chain([device]).collect();
+            ok(&argv, uuid(device).unwrap_or_default())
+        })
+        .to_vec();
+    prepared(Fixture::new().with_answers(answers))
+}
+
+fn prepared(fixture: Fixture) -> Fixture {
     fixture
         .put("/proc/sys/kernel/random/boot_id", "boot-a")
         .put("/proc/self/mountinfo", DATA)
@@ -52,16 +70,6 @@ fn use_internal_media(fixture: &Fixture, media: Option<&Path>) {
     } else {
         fixture.mkdir("/media/internal");
     }
-}
-
-fn session<T>(f: impl FnOnce() -> T) -> T {
-    let blkid =
-        |device: &str, uuid: &str| ok(&["blkid", "-p", "-s", "UUID", "-o", "value", device], uuid);
-    let answers = vec![
-        blkid("/dev/mmcblk0p9", "79324c69-6e75-4801-8000-000000000102"),
-        blkid("/dev/mmcblk0p8", "79324c69-6e75-4801-8000-000000000103"),
-    ];
-    scripted(answers, f).0
 }
 
 fn payload() -> Vec<u8> {
@@ -148,17 +156,15 @@ impl Drop for Elsewhere {
 fn interrupted_upload_bad_hash_and_reserve_never_publish() {
     let fixture = fixture();
     let root = &fixture.root;
-    session(|| {
-        let (id, path) = start(&fixture, "Album/track.flac");
-        let payload = payload();
-        fs::write(&path, &payload[..100]).unwrap();
-        assert!(message(locked(|| commit(root, &id))).contains("incomplete"));
-        assert!(!fixture.exists("/data/music"));
-        fs::write(&path, vec![b'x'; payload.len()]).unwrap();
-        assert!(message(locked(|| commit(root, &id))).contains("hash"));
-        assert!(!fixture.exists("/data/music"));
-        locked(|| discard(root, &id)).unwrap();
-    });
+    let (id, path) = start(&fixture, "Album/track.flac");
+    let payload = payload();
+    fs::write(&path, &payload[..100]).unwrap();
+    assert!(message(locked(|| commit(root, &id))).contains("incomplete"));
+    assert!(!fixture.exists("/data/music"));
+    fs::write(&path, vec![b'x'; payload.len()]).unwrap();
+    assert!(message(locked(|| commit(root, &id))).contains("hash"));
+    assert!(!fixture.exists("/data/music"));
+    locked(|| discard(root, &id)).unwrap();
     // 97 MiB free cannot keep a 1 MiB upload, its seal and the 96 MiB reserve (begin's admission).
     let low = Volume {
         path: "/data",
@@ -176,27 +182,25 @@ fn interrupted_upload_bad_hash_and_reserve_never_publish() {
 fn verified_copy_does_not_change_with_old_upload_fd_and_never_overwrites() {
     let fixture = fixture();
     let root = &fixture.root;
-    session(|| {
-        let payload = payload();
-        let (id, path) = start(&fixture, "Album/track.flac");
-        fs::write(&path, &payload).unwrap();
-        let mut old = fs::OpenOptions::new()
-            .read(true)
-            .write(true)
-            .open(&path)
-            .unwrap();
-        assert_eq!(locked(|| commit(root, &id)).unwrap()["state"], "Committed");
-        old.write_all(b"changed").unwrap();
-        old.flush().unwrap();
-        let target = fixture.path("/data/music/Album/track.flac");
-        assert_eq!(fs::read(&target).unwrap(), payload);
-        assert_eq!(locked(|| commit(root, &id)).unwrap()["state"], "Committed");
-        locked(|| discard(root, &id)).unwrap();
-        let (id, path) = start(&fixture, "Album/track.flac");
-        fs::write(&path, &payload).unwrap();
-        assert_eq!(class(locked(|| commit(root, &id))), "FileExistsError");
-        assert_eq!(fs::read(&target).unwrap(), payload);
-    });
+    let payload = payload();
+    let (id, path) = start(&fixture, "Album/track.flac");
+    fs::write(&path, &payload).unwrap();
+    let mut old = fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .open(&path)
+        .unwrap();
+    assert_eq!(locked(|| commit(root, &id)).unwrap()["state"], "Committed");
+    old.write_all(b"changed").unwrap();
+    old.flush().unwrap();
+    let target = fixture.path("/data/music/Album/track.flac");
+    assert_eq!(fs::read(&target).unwrap(), payload);
+    assert_eq!(locked(|| commit(root, &id)).unwrap()["state"], "Committed");
+    locked(|| discard(root, &id)).unwrap();
+    let (id, path) = start(&fixture, "Album/track.flac");
+    fs::write(&path, &payload).unwrap();
+    assert_eq!(class(locked(|| commit(root, &id))), "FileExistsError");
+    assert_eq!(fs::read(&target).unwrap(), payload);
 }
 
 #[test]
@@ -208,33 +212,31 @@ fn uploads_publish_on_y2media_by_copy_across_filesystems_and_never_replace() {
     };
     use_internal_media(&fixture, Some(&elsewhere.0));
     let root = &fixture.root;
-    session(|| {
-        let payload = payload();
-        let (id, path) = start(&fixture, "Album/track.flac");
-        fs::write(&path, &payload).unwrap();
-        let stage = fs::metadata(path.parent().unwrap()).unwrap().dev();
-        assert_ne!(
-            stage,
-            fs::metadata(fixture.path("/media/internal")).unwrap().dev()
-        );
-        assert_eq!(locked(|| commit(root, &id)).unwrap()["state"], "Committed");
-        assert_eq!(fs::read(fixture.path(TRACK)).unwrap(), payload);
-        assert!(!fixture.exists("/data/music"));
-        // The temporary name is gone.
-        assert_eq!(
-            names(&fixture, "/media/internal/music/Album"),
-            ["track.flac"]
-        );
-        locked(|| discard(root, &id)).unwrap();
-        let (id, path) = start(&fixture, "Album/track.flac");
-        fs::write(&path, &payload).unwrap();
-        assert_eq!(class(locked(|| commit(root, &id))), "FileExistsError");
-        assert_eq!(fs::read(fixture.path(TRACK)).unwrap(), payload);
-        assert_eq!(
-            names(&fixture, "/media/internal/music/Album"),
-            ["track.flac"]
-        );
-    });
+    let payload = payload();
+    let (id, path) = start(&fixture, "Album/track.flac");
+    fs::write(&path, &payload).unwrap();
+    let stage = fs::metadata(path.parent().unwrap()).unwrap().dev();
+    assert_ne!(
+        stage,
+        fs::metadata(fixture.path("/media/internal")).unwrap().dev()
+    );
+    assert_eq!(locked(|| commit(root, &id)).unwrap()["state"], "Committed");
+    assert_eq!(fs::read(fixture.path(TRACK)).unwrap(), payload);
+    assert!(!fixture.exists("/data/music"));
+    // The temporary name is gone.
+    assert_eq!(
+        names(&fixture, "/media/internal/music/Album"),
+        ["track.flac"]
+    );
+    locked(|| discard(root, &id)).unwrap();
+    let (id, path) = start(&fixture, "Album/track.flac");
+    fs::write(&path, &payload).unwrap();
+    assert_eq!(class(locked(|| commit(root, &id))), "FileExistsError");
+    assert_eq!(fs::read(fixture.path(TRACK)).unwrap(), payload);
+    assert_eq!(
+        names(&fixture, "/media/internal/music/Album"),
+        ["track.flac"]
+    );
 }
 
 #[test]
@@ -244,38 +246,65 @@ fn same_filesystem_media_still_uses_an_atomic_link() {
     // publish_copy's exclusive temporary name is taken: only the link can publish.
     fixture.mkdir("/media/internal/music/Album/.track.flac.y2part");
     let root = &fixture.root;
-    session(|| {
-        let payload = payload();
-        let (id, path) = start(&fixture, "Album/track.flac");
-        fs::write(&path, &payload).unwrap();
-        assert_eq!(locked(|| commit(root, &id)).unwrap()["state"], "Committed");
-        assert_eq!(fs::read(fixture.path(TRACK)).unwrap(), payload);
-    });
+    let payload = payload();
+    let (id, path) = start(&fixture, "Album/track.flac");
+    fs::write(&path, &payload).unwrap();
+    assert_eq!(locked(|| commit(root, &id)).unwrap()["state"], "Committed");
+    assert_eq!(fs::read(fixture.path(TRACK)).unwrap(), payload);
 }
 
-/// Python replaced the media volume between the two reads and raised RESERVE above any free space;
-/// neither can be changed from outside here, so the order of the checks is pinned: the volume is
-/// read again after the target directories are opened and before anything is published, and the
-/// copy checks its reserve before it writes a byte and removes its temporary name either way.
+/// Y2Media mounted again while a commit runs: the volume is read again after the target directories
+/// are opened, and a new generation refuses before anything is published. Once the upload is sealed
+/// the commit reads the volumes twice before it opens the target (/data, then Y2Media); the runner
+/// remounts Y2Media (a new mount id) as it answers the second of these reads' `blkid`, so the read
+/// after the target is open sees it.
 #[test]
-fn media_replacement_and_low_space_fail_closed_before_publishing() {
-    let source = include_str!("transfer.rs");
-    let commit =
-        &source[source.find("fn commit(").unwrap()..source.find("fn publish_copy(").unwrap()];
-    let check = commit
-        .find("if media_volume(root)?.generation != destination.generation {")
-        .unwrap();
-    assert!(commit[check..].starts_with(
-        "if media_volume(root)?.generation != destination.generation {\n            return Err(Failure::value(\"media_generation_changed\"));"
-    ));
-    assert!(
-        commit
-            .find("open_directory(base, \"music\", true)")
-            .unwrap()
-            < check
+fn media_replacement_fails_closed_before_publishing() {
+    let fixture = Fixture::new();
+    let mountinfo = fixture.path("/proc/self/mountinfo");
+    let staging = fixture.path("/data/transfer-staging");
+    let sealed_reads = std::sync::atomic::AtomicUsize::new(0);
+    let fixture = prepared(fixture.responding(move |argv, _| {
+        let device = argv.last().copied().unwrap_or_default();
+        let sealed = fs::read_dir(&staging)
+            .into_iter()
+            .flatten()
+            .flatten()
+            .any(|stage| stage.path().join("sealed.part").exists());
+        if device == "/dev/mmcblk0p8"
+            && sealed
+            && sealed_reads.fetch_add(1, std::sync::atomic::Ordering::SeqCst) == 1
+        {
+            fs::write(
+                &mountinfo,
+                format!("{DATA}{}", MEDIA.replace("31 22", "33 22")),
+            )
+            .unwrap();
+        }
+        Outcome {
+            ok: uuid(device).is_some(),
+            reason: None,
+            output: uuid(device).map(str::to_owned),
+        }
+    }));
+    use_internal_media(&fixture, None);
+    let root = &fixture.root;
+    let payload = payload();
+    let (id, path) = start(&fixture, "Album/track.flac");
+    fs::write(&path, &payload).unwrap();
+    assert_eq!(
+        message(locked(|| commit(root, &id))),
+        "media_generation_changed"
     );
-    assert!(check < commit.find("publish_copy(").unwrap());
-    assert!(check < commit.rfind("linkat(").unwrap());
+    assert!(fixture.exists("/media/internal/music/Album"));
+    assert!(names(&fixture, "/media/internal/music/Album").is_empty());
+}
+
+/// The copy checks its reserve before it writes a byte and removes its temporary name either way.
+/// The free space of the target filesystem cannot be lowered from here: the order is pinned.
+#[test]
+fn low_space_fails_closed_before_copying() {
+    let source = include_str!("transfer.rs");
     let copy =
         &source[source.find("fn publish_copy(").unwrap()..source.find("fn inspect(").unwrap()];
     let reserve = copy
@@ -294,30 +323,49 @@ fn media_replacement_and_low_space_fail_closed_before_publishing() {
 fn mount_replacement_and_symlink_escape_fail_closed() {
     let fixture = fixture();
     let root = &fixture.root;
-    session(|| {
-        let payload = payload();
-        let (id, path) = start(&fixture, "Album/track.flac");
-        fs::write(&path, &payload).unwrap();
-        // /data mounted again (a new mount id): another generation.
-        fixture.put(
-            "/proc/self/mountinfo",
-            &DATA.replace("30 22 259:1", "32 22 259:1"),
+    let payload = payload();
+    let (id, path) = start(&fixture, "Album/track.flac");
+    fs::write(&path, &payload).unwrap();
+    // /data mounted again (a new mount id): another generation.
+    fixture.put(
+        "/proc/self/mountinfo",
+        &DATA.replace("30 22 259:1", "32 22 259:1"),
+    );
+    assert!(message(locked(|| commit(root, &id))).contains("generation_changed"));
+    locked(|| discard(root, &id)).unwrap();
+    let outside = fixture.path("/outside");
+    fs::create_dir(&outside).unwrap();
+    std::os::unix::fs::symlink(&outside, fixture.path("/data/music")).unwrap();
+    let (id, path) = start(&fixture, "Album/track.flac");
+    fs::write(&path, &payload).unwrap();
+    assert!(matches!(
+        locked(|| commit(root, &id)),
+        Err(Failure::Os { .. })
+    ));
+    assert_eq!(fs::read_dir(&outside).unwrap().count(), 0);
+    for name in ["../state/db", "/root/key", "ok/../bad", "ok\nput secret"] {
+        let result = begin(root, Some(name), Some(5), &"a".repeat(64));
+        assert!(matches!(result, Err(Failure::Value(_))), "{name:?}");
+    }
+}
+
+#[test]
+fn a_tampered_manifest_refuses_before_publishing() {
+    let fixture = fixture();
+    let root = &fixture.root;
+    let payload = payload();
+    let (id, path) = start(&fixture, "Album/track.flac");
+    fs::write(&path, &payload).unwrap();
+    let manifest = path.with_file_name("manifest.json");
+    let mut staged: Value = serde_json::from_slice(&fs::read(&manifest).unwrap()).unwrap();
+    staged["record"] = Value::Null;
+    for tampered in [staged.to_string(), "[]".to_owned()] {
+        fs::write(&manifest, &tampered).unwrap();
+        assert_eq!(
+            message(locked(|| commit(root, &id))),
+            "invalid_transfer_manifest"
         );
-        assert!(message(locked(|| commit(root, &id))).contains("generation_changed"));
-        locked(|| discard(root, &id)).unwrap();
-        let outside = fixture.path("/outside");
-        fs::create_dir(&outside).unwrap();
-        std::os::unix::fs::symlink(&outside, fixture.path("/data/music")).unwrap();
-        let (id, path) = start(&fixture, "Album/track.flac");
-        fs::write(&path, &payload).unwrap();
-        assert!(matches!(
-            locked(|| commit(root, &id)),
-            Err(Failure::Os { .. })
-        ));
-        assert_eq!(fs::read_dir(&outside).unwrap().count(), 0);
-        for name in ["../state/db", "/root/key", "ok/../bad", "ok\nput secret"] {
-            let result = begin(root, Some(name), Some(5), &"a".repeat(64));
-            assert!(matches!(result, Err(Failure::Value(_))), "{name:?}");
-        }
-    });
+        assert!(!fixture.exists("/data/music"));
+        assert_eq!(fs::read_to_string(&manifest).unwrap(), tampered);
+    }
 }

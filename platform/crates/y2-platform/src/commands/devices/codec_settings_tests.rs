@@ -1,6 +1,5 @@
-//! Codec quality settings (`codec-settings`, codec_controls.configure/status) against BlueALSA's start
-//! arguments (`codec-runtime`): what tests/test_radio_policy.py (CodecQuality) checked of the Python
-//! platform. A non-boolean `*_abr` value cannot reach `configure` here (argparse's on|off choices; see
+//! Codec quality settings (`codec-settings`) against BlueALSA's start arguments (`codec-runtime`). A
+//! non-boolean `*_abr` value cannot reach `configure` here (the parser's on|off choices; see
 //! tests/connectivity.rs).
 // SPDX-License-Identifier: GPL-2.0-only
 use super::*;

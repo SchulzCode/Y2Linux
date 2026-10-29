@@ -1,0 +1,66 @@
+{
+ "argv": [
+  "dhcp-event",
+  "renew"
+ ],
+ "calls": [],
+ "exit": 0,
+ "stdout": {
+  "address": "192.168.1.40",
+  "boot_id": "boot-a",
+  "dns_servers": [
+   "192.168.1.1",
+   "9.9.9.9"
+  ],
+  "epoch": "b6a2f0de-6a1c-4b7e-9c0e-3f1d2a4b5c6d",
+  "error": null,
+  "lease_seconds": "43200",
+  "monotonic_s": "<volatile>",
+  "prefix_length": 24,
+  "routes": [
+   [
+    "default",
+    "192.168.1.1"
+   ]
+  ],
+  "schema": 1,
+  "state": "Authenticated"
+ },
+ "tree": {
+  "added": {
+   "/run/y2/dhcp.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {
+   "/run/y2/dhcp.json": {
+    "content": {
+     "address": "192.168.1.40",
+     "boot_id": "boot-a",
+     "dns_servers": [
+      "192.168.1.1",
+      "9.9.9.9"
+     ],
+     "epoch": "b6a2f0de-6a1c-4b7e-9c0e-3f1d2a4b5c6d",
+     "error": null,
+     "lease_seconds": "43200",
+     "monotonic_s": "<volatile>",
+     "prefix_length": 24,
+     "routes": [
+      [
+       "default",
+       "192.168.1.1"
+      ]
+     ],
+     "schema": 1,
+     "state": "Authenticated"
+    },
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "removed": []
+ }
+}

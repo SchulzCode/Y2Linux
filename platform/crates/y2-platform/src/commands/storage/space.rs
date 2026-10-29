@@ -1,4 +1,4 @@
-//! `space.py`: Y2DATA admission policy and bounded cleanup of explicitly disposable files
+//! Y2DATA admission policy and bounded cleanup of explicitly disposable files
 //! (`y2-platform space [--cleanup]`).
 // SPDX-License-Identifier: GPL-2.0-only
 use super::observe::volumes;
@@ -34,7 +34,7 @@ fn admission(volume: &Object, purpose: &str) -> Value {
     } else {
         96 << 20
     };
-    // isinstance(free, int): a bool is one too.
+    // A flag counts as 0 or 1 bytes, as older records had it.
     let free = match get(volume, "available_bytes") {
         Value::Bool(b) => Some(i64::from(*b)),
         Value::Number(n) => n.as_i64(),
@@ -100,7 +100,7 @@ fn regular(meta: &y2p_core::sys::Stat) -> bool {
     meta.mode & libc::S_IFMT == libc::S_IFREG
 }
 
-/// `os.scandir(fd)`: the names of an open directory in its order (without `.` and `..`), at most
+/// The names of an open directory in its order (without `.` and `..`), at most
 /// `limit`.
 fn names(fd: libc::c_int, limit: usize) -> io::Result<Vec<CString>> {
     // SAFETY: fdopendir takes over a duplicate of the descriptor; closedir releases it.
@@ -152,12 +152,9 @@ fn disposable_cleanup(root: &Root, max_files: u64, max_bytes: u64) -> Result<Val
         (["cache", "platform"], "platform", 0),
     ] {
         let mut attempt = || -> io::Result<()> {
-            let mut fd: Option<Fd> = None;
-            for part in parts {
-                let at = fd.as_ref().map_or(rootfd.0, |f| f.0);
-                fd = Some(open_directory(at, &cstring(part)?)?);
-            }
-            let fd = fd.expect("two parts");
+            let [parent, child] = parts;
+            let parent = open_directory(rootfd.0, &cstring(parent)?)?;
+            let fd = open_directory(parent.0, &cstring(child)?)?;
             if fstat(fd.0)?.dev != fstat(rootfd.0)?.dev {
                 return Err(io::Error::from_raw_os_error(libc::EXDEV)); // cleanup_submount_refused
             }
@@ -208,11 +205,7 @@ fn disposable_cleanup(root: &Root, max_files: u64, max_bytes: u64) -> Result<Val
 }
 
 pub fn policy(root: &Root, cleanup: bool) -> Result<Value, Failure> {
-    let volumes = volumes(root);
-    let data = volumes
-        .into_iter()
-        .find(|v| get(v, "path").as_str() == Some("/data"))
-        .expect("the /data volume");
+    let [_, data, _, _] = volumes(root);
     let admission: Object = PURPOSES
         .iter()
         .map(|p| (p.to_string(), admission(&data, p)))

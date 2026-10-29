@@ -20,41 +20,55 @@ use std::{
 use y2p_core::lock;
 use y2p_core::{py::is_true, Root};
 
-/// An exception main.py prints as its error record (an OSError here: `cli` ends a crash itself).
+/// The error record of a lock or state directory that cannot be used (an OS error, or a value error
+/// for a state directory that is no private directory).
 fn failure(error: E) -> Failure {
-    match cli(Err(error)) {
-        Err(failure) => failure,
-        Ok(_) => unreachable!("an error stays an error"),
+    match error {
+        E::Value {
+            class: "ValueError",
+            text,
+        } => Failure::Value(text),
+        other => Failure::Os {
+            text: other.text().to_owned(),
+            class: other.class(),
+        },
     }
 }
 
-/// `sleep.prepare`: Reborn must acknowledge the screen is off and it is ready to sleep.
+/// `sleep.prepare`: Reborn must acknowledge the screen is off and it is ready to sleep; then the
+/// receipt records it.
 pub fn prepare_owned(root: &Root) -> Result<Map<String, Value>, E> {
+    acknowledge_prepare(root)?;
+    record_prepared(root)
+}
+
+/// Reborn's acknowledgement that the screen is off and it is ready to sleep; a refusal or no answer
+/// is recorded (`refused_reborn_preparation`) and returned.
+pub fn acknowledge_prepare(root: &Root) -> Result<Map<String, Value>, E> {
     let ack = application_rpc(root, "sleep_prepare", false).and_then(|ack| {
         if !is_true(ack.get("sleep_ready")) || !is_true(ack.get("screen_off")) {
             return Err(E::value("reborn_sleep_preparation_failed"));
         }
         Ok(ack)
     });
-    if let Err(error) = ack {
+    if let Err(error) = &ack {
         if error.is_os() || error.is_value() {
             record(
                 root,
                 Stage::new("refused_reborn_preparation", Some(1)).reason(error.text()),
             )?;
         }
-        return Err(error);
     }
+    ack
+}
+
+/// The receipt row of an acknowledged preparation: the product state after it.
+pub fn record_prepared(root: &Root) -> Result<Map<String, Value>, E> {
     let prepared = Stage {
         reborn_ack: Some(true),
         ..Stage::new("reborn_prepared", Some(0))
     };
-    let value = record(root, prepared)?;
-    Ok(value
-        .get("product")
-        .and_then(Value::as_object)
-        .cloned()
-        .unwrap_or_default())
+    Ok(record(root, prepared)?.into_product())
 }
 
 /// `y2-platform sleep prepare` (y2-suspend's owner path): takes no lock itself.
@@ -62,9 +76,18 @@ pub fn prepare(root: &Root) -> Outcome {
     cli(prepare_owned(root).and_then(|p| Reply::sorted(&p, 0).map_err(|_| E::value("json"))))
 }
 
+/// Starts the product sleep helper with the request's lock (`launch` on the player; a test passes
+/// its own).
+pub type Launcher<'a> = &'a mut dyn FnMut(&Root, &File) -> Result<(), E>;
+
 /// `y2-platform sleep request`: acknowledge an owned request; the detached helper owns the blocking
 /// PM. Installed 04 lacks the built-in context-ownership ABI and stays refused.
 pub fn request(root: &Root) -> Outcome {
+    request_with(root, &mut launch)
+}
+
+/// `sleep request` with the helper started by `launcher`.
+pub fn request_with(root: &Root, launcher: Launcher) -> Outcome {
     let directory = root.path("/run/y2");
     y2p_core::record::private_directory(&directory)
         .map_err(|e| failure(E::os(&e, Some(&directory))))?;
@@ -77,18 +100,22 @@ pub fn request(root: &Root) -> Outcome {
             let current = super::super::sleep::product(
                 &root.json_object(receipt::RECEIPT),
                 root.boot_id().as_deref(),
-            )?;
-            let mut busy = current;
+            );
+            let mut busy = match current {
+                Ok(current) => current,
+                Err(failure) => return super::refused(failure),
+            };
             busy.insert("state".into(), "refused".into());
             busy.insert("reason".into(), "sleep_operation_in_progress".into());
             return Reply::sorted(&busy, 0);
         }
         Err(error) => return cli(Err(E::os(&error, None))),
     }
-    cli(admit(root, &lock).and_then(|p| Reply::sorted(&p, 0).map_err(|_| E::value("json"))))
+    cli(admit(root, &lock, launcher)
+        .and_then(|p| Reply::sorted(&p, 0).map_err(|_| E::value("json"))))
 }
 
-fn admit(root: &Root, lock: &File) -> Result<Map<String, Value>, E> {
+fn admit(root: &Root, lock: &File, launcher: Launcher) -> Result<Map<String, Value>, E> {
     let attempt = (|| {
         admission(root)?;
         battery_and_cable(root)?;
@@ -97,7 +124,7 @@ fn admit(root: &Root, lock: &File) -> Result<Map<String, Value>, E> {
             ..Stage::new("requested", Some(0))
         };
         let value = record(root, requested)?;
-        launch(root, lock)?;
+        launcher(root, lock)?;
         Ok(value)
     })();
     let value = match attempt {
@@ -111,21 +138,13 @@ fn admit(root: &Root, lock: &File) -> Result<Map<String, Value>, E> {
         }
         Err(error) => return Err(error),
     };
-    Ok(value
-        .get("product")
-        .and_then(Value::as_object)
-        .cloned()
-        .unwrap_or_default())
+    Ok(value.into_product())
 }
 
 /// Start the product sleep helper, detached, with this request's lock. The inherited open file
 /// description retains the request's flock across this process's exit, so another request cannot
 /// pass between acknowledgement and entry.
 fn launch(root: &Root, lock: &File) -> Result<(), E> {
-    #[cfg(test)]
-    if let Some(result) = super::helper::seams::with(|s| &mut s.launch, |f| f(root, lock)) {
-        return result;
-    }
     if !root.is_real() {
         return Err(E::refused("fixture_launcher_unavailable"));
     }
@@ -147,7 +166,7 @@ fn launch(root: &Root, lock: &File) -> Result<(), E> {
             if libc::setsid() < 0 {
                 return Err(std::io::Error::last_os_error());
             }
-            // Python's close_fds=True with pass_fds=(fd,): nothing else is inherited.
+            // Only the request's lock is inherited: every other descriptor closes on exec.
             let ranged = libc::syscall(
                 libc::SYS_close_range,
                 3u32,

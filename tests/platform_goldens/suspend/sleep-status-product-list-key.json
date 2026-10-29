@@ -5,7 +5,10 @@
  ],
  "calls": [],
  "exit": 1,
- "stdout": [],
+ "stdout": {
+  "failure": "cannot use 'list' as a dict key (unhashable type: 'list')",
+  "state": "Failed"
+ },
  "tree": {
   "added": {},
   "changed": {},

@@ -1,4 +1,4 @@
-//! `bt_control.py`: an explicit user radio action, serialized with the sole automatic reconnect owner
+//! `bluetooth-power on|off`: an explicit user radio action, serialized with the sole automatic reconnect owner
 //! (`y2-bt-reconnect` holds `bt-operation.lock` while it reconnects and reads `bt-control.ini`,
 //! tools/connectivity/reconnect.c: version 1, the same boot, a sequence in CLOCK_MONOTONIC µs not
 //! after its own clock, a deadline at most 30 s later).
@@ -27,7 +27,7 @@ const OPERATIONS: [&str; 8] = [
     "power_pending",
 ];
 
-/// `intent(ctx, operation)`: replace `/run/y2/bt-intent/bt-control.ini`.
+/// Tell the reconnect owner what the user is doing: replace `/run/y2/bt-intent/bt-control.ini`.
 pub fn intent(root: &Root, operation: &str) -> Result<(), Failure> {
     if !OPERATIONS.contains(&operation) {
         return Err(Failure::value("invalid_bluetooth_intent"));
@@ -36,7 +36,7 @@ pub fn intent(root: &Root, operation: &str) -> Result<(), Failure> {
         .boot_id()
         .filter(|b| b.chars().count() == 36)
         .ok_or_else(|| Failure::value("boot_identity_unavailable"))?;
-    let now = clock::monotonic_ns() / 1000;
+    let now = root.clock().monotonic_ns() / 1000;
     // The reconnect observer must not wake for unrelated power/USB status files.
     let directory = root.path("/run/y2/bt-intent");
     private_directory(&directory)?;
@@ -66,12 +66,13 @@ pub fn intent(root: &Root, operation: &str) -> Result<(), Failure> {
     result.map_err(|e| Failure::os(e, &temporary))
 }
 
-/// `power(ctx, value)`: the command's result, or the busy refusal.
+/// Switch the radio with the reconnect owner held off: bluetoothctl's result, or the busy refusal
+/// while y2-bt-reconnect holds the operation lock.
 pub fn power(root: &Root, value: &str) -> Result<Object, Failure> {
     if value != "on" && value != "off" {
         return Err(Failure::value("invalid_bluetooth_power"));
     }
-    // os.open without private_directory: a missing /run/y2 is Python's FileNotFoundError.
+    // /run/y2 is not made here: without it the boot never started the radio (FileNotFoundError).
     let path = root.path("/run/y2/bt-operation.lock");
     let Some(_lock) = y2p_core::lock::try_exclusive(&path).map_err(|e| Failure::os(e, &path))?
     else {
@@ -99,7 +100,7 @@ pub fn power(root: &Root, value: &str) -> Result<Object, Failure> {
     Ok(outcome(&result))
 }
 
-/// A `ctx.command` result as Python's dict (`ok`, `reason`, `output`).
+/// A command's outcome as the reply prints it (`ok`, `reason`, `output`).
 pub fn outcome(result: &command::Outcome) -> Object {
     Object::new()
         .with("ok", result.ok)

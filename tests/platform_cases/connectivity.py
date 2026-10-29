@@ -86,7 +86,7 @@ CASES = [
         '/run/y2/calibration.pid': '0042\n', '/run/y2/calibration-ready': ''})),
     ('connectivity-daemon-no-codec-policy', ['connectivity-daemon'], daemon(files={
         '/data/bluetooth/codec-policy.json': '{"schema": 2}'})),
-    ('connectivity-daemon-codec-crash', ['connectivity-daemon'], daemon(files={
+    ('connectivity-daemon-codec-list', ['connectivity-daemon'], daemon(files={
         '/etc/y2linux/bluetooth-codecs.json': '{"schema": 1, "codecs": []}'})),
     ('connectivity-daemon-codec-null', ['connectivity-daemon'], daemon(files={
         '/etc/y2linux/bluetooth-codecs.json': '{"schema": 1, "codecs": {"AAC": {}, "aptX": null}}'})),

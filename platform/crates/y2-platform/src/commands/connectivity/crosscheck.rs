@@ -154,7 +154,9 @@ pub fn run(files: &[(&str, String)], answers: Value, rust: impl FnOnce(&Root) ->
             (argv, outcome)
         })
         .collect();
-    let (result, requests) = crate::testing::scripted(script, || rust(&Root::new(&root)));
+    let fixture = Root::fixture(&root).with_answers(script);
+    let result = rust(&fixture);
+    let requests = fixture.calls();
     let replace = |text: String| text.replace(&root.display().to_string(), "<root>");
     let outcome = Outcome {
         result: normalise(serde_json::from_str(&replace(result.to_string())).unwrap()),

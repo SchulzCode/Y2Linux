@@ -50,6 +50,12 @@ pub trait Clock: Send + Sync {
     fn monotonic(&self) -> f64 {
         self.monotonic_ns() as f64 / 1e9
     }
+
+    /// Pause a polling loop for `duration` (the kernel's clock sleeps; a test's clock only moves
+    /// on, so a bounded wait on it ends without real time passing).
+    fn sleep(&self, duration: std::time::Duration) {
+        std::thread::sleep(duration);
+    }
 }
 
 /// CLOCK_MONOTONIC and CLOCK_BOOTTIME.
@@ -118,6 +124,11 @@ impl Clock for Manual {
     fn wall_ns(&self) -> u64 {
         self.wall_ns.load(std::sync::atomic::Ordering::SeqCst)
     }
+
+    /// A sleep on a test's clock: every clock runs on by `duration`, at once.
+    fn sleep(&self, duration: std::time::Duration) {
+        self.advance(u64::try_from(duration.as_nanos()).unwrap_or(u64::MAX));
+    }
 }
 
 #[cfg(test)]
@@ -133,6 +144,9 @@ mod tests {
         assert_eq!(clock.boottime_ns(), 11_000_000_000);
         assert_eq!(clock.wall_ns(), 13_000_000_000);
         assert!(super::Kernel.wall_ns() > 1_700_000_000_000_000_000);
+        clock.sleep(std::time::Duration::from_millis(250));
+        assert_eq!(clock.monotonic(), 6.25);
+        assert_eq!(clock.wall_ns(), 13_250_000_000);
         let monotonic = super::Kernel.monotonic_ns();
         assert!(super::Kernel.boottime_ns() >= monotonic);
     }

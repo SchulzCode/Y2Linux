@@ -25,9 +25,11 @@ fn clock_at_start() -> Manual {
     Manual::at(1_000_000_000_000, 1_000_000_000_000).with_wall(START as u64 * 1_000_000_000)
 }
 
-/// Move the test clock `seconds` on.
-fn later(clock: &Manual, seconds: f64) {
+/// Move the test clock `seconds` on; the clock was synchronised again meanwhile (`time` holds the
+/// anchor to the clock's monotonic and boottime readings).
+fn later(fixture: &Fixture, clock: &Manual, seconds: f64) {
     clock.advance((seconds * 1e9) as u64);
+    player::clock_ready_on(fixture.base(), clock);
 }
 
 fn setup_with(clock: &Arc<Manual>) -> Fixture {
@@ -36,7 +38,7 @@ fn setup_with(clock: &Arc<Manual>) -> Fixture {
     fixture.put_json(state::UPLOAD_KEY, &json!({"upload_key": KEY}));
     player::online(fixture.base(), "Online", "boot-1");
     player::battery(fixture.base(), 80, false);
-    player::clock_ready(fixture.base());
+    player::clock_ready_on(fixture.base(), &**clock);
     fixture
 }
 
@@ -179,9 +181,10 @@ fn retry(root: &Root, name: &str) -> Py {
 }
 
 /// The clock moved on just past `name`'s retry time.
-fn due_now(clock: &Manual, root: &Root, name: &str) {
+fn due_now(fixture: &Fixture, clock: &Manual, name: &str) {
+    let root = &fixture.root;
     let at = retry(root, name).get("next").and_then(Py::number).unwrap();
-    later(clock, at - wall(root) + 1.0);
+    later(fixture, clock, at - wall(root) + 1.0);
 }
 
 fn next(root: &Root) -> Option<f64> {
@@ -282,7 +285,7 @@ fn reports_wait_for_opt_in_wifi_clock_battery_and_no_update() {
             &json!({"state": "Acknowledged"}),
         );
         fixture.remove("/data/system/platform/maintenance-pending");
-        player::clock_ready(base);
+        player::clock_ready_on(base, fixture.root.clock());
     };
     let cases: Vec<(Change, &str)> = vec![
         (
@@ -359,11 +362,11 @@ fn server_errors_back_off_and_stop_the_run_then_succeed() {
     let at = entry.get("next").and_then(Py::number).unwrap();
     assert_eq!(at, START + RETRY_S[0]);
     // A later run sends the untried one; the failed one waits for its time.
-    later(&clock, 60.0);
+    later(&fixture, &clock, 60.0);
     let (result, _) = send(root, vec![stored(root, &second), stored(root, &first)]);
     assert_eq!(outcomes(&result), ["sent"]);
     assert_eq!(next(root), Some(at));
-    due_now(&clock, root, &first);
+    due_now(&fixture, &clock, &first);
     let (result, _) = send(root, vec![stored(root, &first)]);
     assert_eq!(outcomes(&result), ["sent"]);
     assert!(queue_names(root).is_empty());
@@ -431,7 +434,7 @@ fn the_last_reports_failure_shows_and_backoff_grows() {
             text(&item, "report_id")
         )
     );
-    due_now(&clock, root, &name);
+    due_now(&fixture, &clock, &name);
     let now = wall(root);
     send(root, vec![http(root, &name, 502, Py::dict())]);
     let entry = retry(root, &name);
@@ -484,7 +487,7 @@ fn a_report_unsent_for_three_days_is_dropped_without_sending() {
     let root = &fixture.root;
     state::set_enabled(root, true).unwrap();
     queued(root);
-    later(&clock, GIVE_UP_S + 1.0);
+    later(&fixture, &clock, GIVE_UP_S + 1.0);
     let (result, curls) = send(root, Vec::new());
     assert_eq!(text(&uploaded(&result, 0), "reason"), "expired");
     assert!(curls.is_empty());

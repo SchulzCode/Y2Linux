@@ -3,10 +3,16 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use super::*;
 use crate::commands::observation::snapshot;
-use crate::testing::{scripted, Fixture};
+use crate::testing::Fixture;
 
+/// The storage observation's controllers, every command answered `fixture`.
 fn controllers(fixture: &Fixture) -> Value {
-    scripted(vec![], || snapshot::storage(&fixture.root).unwrap()).0["controllers"].clone()
+    snapshot::storage(&fixture.root).unwrap()["controllers"].clone()
+}
+
+/// A fixture whose root answers no command.
+fn quiet() -> Fixture {
+    Fixture::new().with_answers(vec![])
 }
 
 #[test]
@@ -23,7 +29,7 @@ fn zero_uuid_whole_card_uses_cid_and_zero_start() {
 
 #[test]
 fn status_exposes_passive_runtime_pm_and_tuning() {
-    let fixture = Fixture::new();
+    let fixture = quiet();
     fixture.mkdir("/data");
     fixture.put("/proc/sys/kernel/random/boot_id", "boot-one");
     let base = "/sys/bus/platform/devices/11240000.mmc";
@@ -54,7 +60,7 @@ fn status_exposes_passive_runtime_pm_and_tuning() {
 
 #[test]
 fn platform_status_reports_the_negotiated_mode_without_register_decoding() {
-    let fixture = Fixture::new();
+    let fixture = quiet();
     let base = "/sys/bus/platform/devices";
     for (name, mode) in [
         (

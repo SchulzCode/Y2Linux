@@ -262,6 +262,12 @@ pub fn player(base: &Path) {
 /// `time` says `tls_ready` (the Python tests patched timekeeping.status): an NTP anchor of this boot
 /// made now and a build floor a day back.
 pub fn clock_ready(base: &Path) {
+    clock_ready_on(base, &y2p_core::clock::Kernel);
+}
+
+/// `clock_ready` for a root reading `clock` (`time` compares the anchor with its monotonic and
+/// boottime readings, and with the kernel's wall clock).
+pub fn clock_ready_on(base: &Path, clock: &dyn y2p_core::clock::Clock) {
     let wall = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
@@ -275,8 +281,8 @@ pub fn clock_ready(base: &Path) {
         base,
         "/run/y2/time.json",
         json!({"schema": 1, "boot_id": "boot-1", "epoch": wall,
-            "monotonic_s": y2p_core::clock::monotonic(),
-            "boottime_s": y2p_core::clock::boottime_ns() as f64 / 1e9, "source": "ntp"})
+            "monotonic_s": clock.monotonic(),
+            "boottime_s": clock.boottime_ns() as f64 / 1e9, "source": "ntp"})
         .to_string(),
     );
 }

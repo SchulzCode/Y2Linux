@@ -7,7 +7,10 @@
 #[test]
 fn reborn_is_installed_last_and_everything_else_runs_before_it() {
     for (name, text) in [
-        ("power/coordinator.rs", include_str!("power/coordinator.rs")),
+        (
+            "power/coordinator/steps.rs",
+            include_str!("power/coordinator/steps.rs"),
+        ),
         (
             "reports/maintenance/plan.rs",
             include_str!("reports/maintenance/plan.rs"),

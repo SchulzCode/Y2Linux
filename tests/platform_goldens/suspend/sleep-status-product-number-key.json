@@ -5,7 +5,10 @@
  ],
  "calls": [],
  "exit": 1,
- "stdout": [],
+ "stdout": {
+  "failure": "'<' not supported between instances of 'int' and 'str'",
+  "state": "Failed"
+ },
  "tree": {
   "added": {},
   "changed": {},

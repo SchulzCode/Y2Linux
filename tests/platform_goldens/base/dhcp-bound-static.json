@@ -94,6 +94,17 @@
   "error": null,
   "lease_seconds": "86400",
   "monotonic_s": "<volatile>",
+  "prefix_length": 24,
+  "routes": [
+   [
+    "10.0.0.0/8",
+    "192.168.1.2"
+   ],
+   [
+    "0.0.0.0/0",
+    "0.0.0.0"
+   ]
+  ],
   "schema": 1,
   "state": "Authenticated"
  },
@@ -111,6 +122,17 @@
      "error": null,
      "lease_seconds": "86400",
      "monotonic_s": "<volatile>",
+     "prefix_length": 24,
+     "routes": [
+      [
+       "10.0.0.0/8",
+       "192.168.1.2"
+      ],
+      [
+       "0.0.0.0/0",
+       "0.0.0.0"
+      ]
+     ],
      "schema": 1,
      "state": "Authenticated"
     },

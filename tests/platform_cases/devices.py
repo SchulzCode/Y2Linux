@@ -3,8 +3,8 @@ transfer, codec-settings, time-set, time-bootstrap, rtc-alarm.
 
 EXTRA_CASES (tests/test_platform_devices.py runs them): a successful `transfer begin` (its stage directory is
 named by a random id, renamed to a fixed one before the comparison), `transfer commit` past its stage lock, an
-ssh-daemon that starts dropbear (a direct exec: skipped on a host that has /usr/sbin/dropbear), and inputs the
-platform ends on with a traceback.
+ssh-daemon that starts dropbear (a direct exec: skipped on a host that has /usr/sbin/dropbear), and tampered
+records it refuses (exit 1 with a failure record).
 """
 import json
 import os
@@ -230,7 +230,7 @@ EXTRA_CASES = [
         **UPLOAD, STAGE + '/manifest.json': manifest(record=None)}}),
     ('transfer-commit-manifest-list', COMMIT, {'commands': BLKID, 'files': {
         **UPLOAD, STAGE + '/manifest.json': '[]'}}),
-    # Python's TypeError/AttributeError (a traceback, nothing on stdout); a change takes the lock first.
+    # Broken codec records: a refusal (exit 1, the codec-settings failure record); a change takes the lock first.
     ('codec-settings-live-null-arguments', ['codec-settings'], {'files': {
         **LIVE, '/run/y2/codec-runtime.json': '{"boot_id": "boot-a", "arguments": null}'}}),
     ('codec-settings-live-number-arguments', ['codec-settings', '--sbc-abr', 'off'], {'files': {

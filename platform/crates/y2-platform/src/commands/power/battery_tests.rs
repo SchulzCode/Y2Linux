@@ -2,6 +2,7 @@
 //! `sample` and `boot_kind`, with `LowBattery` where the Python tests combined them.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::*;
+use super::{profile::*, soc::*, status::*};
 use crate::commands::power::policy::{self, load_policy, LowBattery};
 use crate::testing::Fixture;
 use serde_json::Value;
@@ -41,42 +42,44 @@ fn saved(text: &str) -> Option<Value> {
 
 /// `soc.state()` as the daemon writes it: `{'schema': 1, 'ui_percent': ..., 'anchor_percent': ...}`.
 fn state_json(soc: &Soc) -> Option<Value> {
-    soc.state().map(|(ui, anchor)| {
-        Object::new()
-            .with("schema", 1i64)
-            .with("ui_percent", ui)
-            .with("anchor_percent", anchor)
-            .into()
-    })
+    soc.state()
+        .map(|state| serde_json::to_value(DisplayRecord::new(state)).unwrap())
 }
 
-fn percent(value: &Object) -> Option<i64> {
-    value.get("percent").and_then(Value::exact_int)
+/// One field of a published reading as power.json holds it (null when the reading has none).
+fn field(value: &BatteryStatus, key: &str) -> Value {
+    serde_json::to_value(value).unwrap()[key].clone()
 }
 
-fn shown(value: &Object) -> i64 {
+fn percent(value: &BatteryStatus) -> Option<i64> {
+    value.percent
+}
+
+fn shown(value: &BatteryStatus) -> i64 {
     percent(value).expect("a percent")
 }
 
-fn int(value: &Object, key: &str) -> Option<i64> {
-    value.get(key).and_then(Value::exact_int)
+fn int(value: &BatteryStatus, key: &str) -> Option<i64> {
+    field(value, key).as_i64()
 }
 
-fn text(value: &Object, key: &str) -> Option<String> {
-    value.get(key).and_then(Value::as_str).map(str::to_owned)
+fn text(value: &BatteryStatus, key: &str) -> Option<String> {
+    field(value, key).as_str().map(str::to_owned)
 }
 
-fn flag(value: &Object, key: &str) -> bool {
-    match value.get(key) {
-        Some(Value::Bool(b)) => *b,
+fn flag(value: &BatteryStatus, key: &str) -> bool {
+    match field(value, key) {
+        Value::Bool(b) => b,
         other => panic!("{key}: {other:?}"),
     }
 }
 
-fn estimate(percent: i64, confidence: &str) -> Object {
-    Object::new()
-        .with("percent", percent)
-        .with("confidence", confidence)
+fn estimate(percent: i64, confidence: &'static str) -> BatteryStatus {
+    BatteryStatus {
+        percent: Some(percent),
+        confidence,
+        ..BatteryStatus::default()
+    }
 }
 
 fn stock_policy(fixture: &Fixture) -> policy::Policy {
@@ -154,9 +157,9 @@ fn no_fake_sensors_charge_limit_or_die_temperature() {
         0.,
     );
     assert_eq!(text(&value, "source").as_deref(), Some("voltage_estimate"));
-    assert!(value.value("current_ua").is_null());
-    assert!(value.value("temperature_millicelsius").is_null());
-    assert!(value.value("charge_counter_uah").is_null());
+    assert!(field(&value, "current_ua").is_null());
+    assert!(field(&value, "temperature_millicelsius").is_null());
+    assert!(field(&value, "charge_counter_uah").is_null());
 }
 
 #[test]
@@ -206,7 +209,7 @@ fn rest_and_hybrid_require_actual_calibration() {
     let mut p = stock(&fixture);
     p.calibrated_resistance = Some(100);
     let mut soc = Soc::new(Some(p), None);
-    let mut value = Object::new();
+    let mut value = BatteryStatus::default();
     for now in 0..121 {
         value = soc.observe(
             now as f64,
@@ -239,7 +242,7 @@ fn sleep_gap_exposes_voltage_loss_without_changing_curve_or_rate() {
     assert_eq!(shown(&after_two_hours), 54);
     assert!(!flag(&after_two_hours, "resting"));
     assert!(!flag(&after_two_hours, "provisional"));
-    assert!(after_two_hours.value("current_ua").is_null());
+    assert!(field(&after_two_hours, "current_ua").is_null());
 }
 
 #[test]
@@ -374,7 +377,7 @@ fn charging_shows_at_most_99_until_full() {
         assert!(shown(&value) <= 99);
     }
     // 28 finish stage at the target, 70 mA: the estimate reaches 100, shown 99.
-    let mut value = Object::new();
+    let mut value = BatteryStatus::default();
     for now in (3600..7200).step_by(10) {
         value = soc.observe(
             now as f64,
@@ -450,7 +453,7 @@ fn restart_keeps_the_display_instead_of_the_boot_sag() {
         },
     );
     assert_eq!(shown(&again), 100);
-    assert_eq!(again.value("anchor_percent"), Value::from(anchor));
+    assert_eq!(field(&again, "anchor_percent"), Value::from(anchor));
 }
 
 #[test]
@@ -476,7 +479,7 @@ fn saved_value_is_refused_beyond_40_points_and_charger_moved_ocv() {
     )
     .observe(0., &at(3779000, 1, "Discharging"));
     assert_eq!(
-        (percent(&junk), junk.value("anchor_percent")),
+        (percent(&junk), field(&junk, "anchor_percent")),
         (Some(50), Value::Null)
     );
 }
@@ -491,7 +494,7 @@ fn start_on_a_charger_after_a_low_battery_poweroff_runs() {
     for (now, voltage, ocv) in [(3850, 4027148, 3620000), (17, 3714257, 3700000)] {
         let mut soc = Soc::new(Some(stock(&fixture)), saved(low));
         let mut guard = LowBattery::default();
-        let mut value = Object::new();
+        let mut value = BatteryStatus::default();
         let mut state = "";
         for tick in 0..6 {
             value = soc.observe(
@@ -534,9 +537,11 @@ fn start_on_a_charger_after_a_low_battery_poweroff_runs() {
     assert_eq!(state, "ShutdownPending");
     // A charger that cannot carry the load is still caught by the voltage floor.
     let mut guard = LowBattery::default();
-    let charging = estimate(40, "calibrated_estimate")
-        .with("charging", true)
-        .with("status", "Charging");
+    let charging = BatteryStatus {
+        charging: true,
+        status: Some("Charging".into()),
+        ..estimate(40, "calibrated_estimate")
+    };
     for _ in 0..5 {
         state = guard.observe(Some(&policy), Some(3390000), Some(1), &charging);
     }
@@ -580,7 +585,7 @@ fn warm_restart_keeps_the_saved_percent_not_the_old_power_on_ocv() {
         )
     };
     let high = r#"{"schema": 1, "ui_percent": 95, "anchor_percent": null}"#;
-    let mut value = Object::new();
+    let mut value = BatteryStatus::default();
     for boot in [Some("warm"), None] {
         value = restart(high, 4021655, Some(3545000), boot);
         assert_eq!(shown(&value), 95);

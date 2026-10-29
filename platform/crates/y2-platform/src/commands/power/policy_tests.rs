@@ -1,6 +1,7 @@
 //! The low-battery policy test of tests/test_platform_power_contract.py, on the port.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::*;
+use crate::commands::power::battery::BatteryStatus;
 use crate::testing::Fixture;
 
 #[test]
@@ -20,7 +21,7 @@ fn thresholds_disabled_missing_sensor_and_synthetic_debounce() {
     assert_eq!(reason, None);
     let configured = configured.as_ref();
     let mut battery = LowBattery::default();
-    let none = Object::new(); // observe(policy, voltage, present) without a SOC
+    let none = BatteryStatus::default(); // observe(policy, voltage, present) without a SOC
     assert_eq!(
         battery.observe(configured, None, Some(1), &none),
         "Unavailable"

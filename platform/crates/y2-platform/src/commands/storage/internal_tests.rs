@@ -1,29 +1,25 @@
 //! Y2Media (eMMC p8) on a fixture (from tests/test_internal_media.py, test_filesystems.py and
 //! test_exfat_readahead.py): exact-identity mount, owner-confirmed provisioning, verified migration,
-//! the automatic setup. The fake answers commands as the Python fixture's runner did.
+//! the automatic setup. The player's root answers commands with a fake whose state follows them.
 // SPDX-License-Identifier: GPL-2.0-only
-use super::*;
+use super::{provision::*, setup::*, *};
 use crate::commands::observation::snapshot;
-use crate::testing::{responding, Fixture, Outcome};
+use crate::commands::storage::{observe::setup_status, sys::statvfs};
+use crate::testing::{Fixture, Outcome};
 use std::{
-    cell::{Cell, RefCell},
-    fs::FileTimes,
+    cell::Cell,
+    fs::{self, FileTimes},
+    os::unix::fs::MetadataExt,
     os::unix::fs::{symlink, PermissionsExt},
     process::Command,
-    rc::Rc,
+    sync::{Arc, Mutex},
     time::{Duration, UNIX_EPOCH},
 };
 
-thread_local! {
-    static FAKE_DIGEST: Cell<bool> = const { Cell::new(false) };
-}
-
-/// While FAKE_DIGEST is set every copy reads back wrong (Python patched `digest`).
-pub(super) fn digest(path: &Path) -> Option<String> {
-    FAKE_DIGEST.with(Cell::get).then(|| {
-        let part = path.to_string_lossy().ends_with(".part");
-        (if part { "x" } else { "y" }).to_owned()
-    })
+/// A digest under which every copy reads back wrong.
+fn mismatching(path: &Path) -> Result<String, Failure> {
+    let part = path.to_string_lossy().ends_with(".part");
+    Ok((if part { "x" } else { "y" }).to_owned())
 }
 
 const STOCK_SERIAL: &str = "3F93-07E6";
@@ -47,8 +43,8 @@ fn command_failed(output: Option<&str>) -> Outcome {
     answer(false, Some("command_failed"), output)
 }
 
-/// The Python Fixture's runner: blkid prints `fs`, mkfs.ext4 makes Y2Media's filesystem, a mount
-/// adds the Y2Media or the old storage line, umount removes it.
+/// The player's commands: blkid prints `fs`, mkfs.ext4 makes Y2Media's filesystem, a mount adds the
+/// Y2Media or the old storage line, umount removes it.
 struct Fake {
     mountinfo: PathBuf,
     phase: PathBuf,
@@ -127,8 +123,9 @@ impl Fake {
 
 struct Player {
     fixture: Fixture,
-    fake: Rc<RefCell<Fake>>,
-    calls: RefCell<Vec<Vec<String>>>,
+    fake: Arc<Mutex<Fake>>,
+    /// The commands before this many were cleared.
+    cleared: Cell<usize>,
 }
 
 fn stock() -> Vec<(&'static str, String)> {
@@ -149,7 +146,7 @@ impl Player {
         let fixture = Fixture::new();
         fixture.put("/proc/sys/kernel/random/boot_id", "boot-one");
         fixture.put("/proc/self/mountinfo", "");
-        let fake = Fake {
+        let fake = Arc::new(Mutex::new(Fake {
             mountinfo: fixture.path("/proc/self/mountinfo"),
             phase: fixture.path("/run/reborn-splash/phase"),
             fs: stock(),
@@ -158,11 +155,12 @@ impl Player {
             mkfs_ok: true,
             phases: Vec::new(),
             everything: None,
-        };
+        }));
+        let answering = Arc::clone(&fake);
         let player = Player {
-            fixture,
-            fake: Rc::new(RefCell::new(fake)),
-            calls: RefCell::new(Vec::new()),
+            fixture: fixture.responding(move |argv, _| answering.lock().unwrap().answer(argv)),
+            fake,
+            cleared: Cell::new(0),
         };
         player.add_partition("mmcblk0p8", "3742720", "11460608", "179:8");
         player.add_partition("mmcblk0p7", "2104320", "1638400", "179:7");
@@ -216,35 +214,23 @@ impl Player {
     }
 
     fn set(&self, change: impl FnOnce(&mut Fake)) {
-        change(&mut self.fake.borrow_mut());
+        change(&mut self.fake.lock().unwrap());
     }
 
     fn provisioned(&self) {
         self.set(|f| f.fs = y2media());
     }
 
-    fn with<T>(&self, f: impl FnOnce(&Root) -> T) -> T {
-        let fake = Rc::clone(&self.fake);
-        let (value, calls) = responding(
-            move |argv, _| fake.borrow_mut().answer(argv),
-            || f(&self.fixture.root),
-        );
-        self.calls
-            .borrow_mut()
-            .extend(calls.into_iter().map(|(argv, _)| argv));
-        value
-    }
-
     fn mount(&self) -> Value {
-        Value::Object(self.with(|root| mount(root).unwrap()))
+        Value::Object(mount(self.root()).unwrap())
     }
 
     fn unmount(&self) -> Value {
-        Value::Object(self.with(|root| unmount(root).unwrap()))
+        Value::Object(unmount(self.root()).unwrap())
     }
 
     fn status(&self) -> Value {
-        Value::Object(self.with(status))
+        Value::Object(status(self.root()))
     }
 
     fn ready(&self) -> bool {
@@ -252,11 +238,17 @@ impl Player {
     }
 
     fn provision(&self, confirm: Option<&str>) -> Value {
-        Value::Object(self.with(|root| provision(root, &json!(confirm), true).unwrap()))
+        Value::Object(provision(self.root(), &json!(confirm), true).unwrap())
     }
 
     fn set_up(&self, automatic: bool, confirm: Option<&str>) -> Value {
-        Value::Object(self.with(|root| setup(root, automatic, &json!(confirm)).unwrap()))
+        Value::Object(setup(self.root(), automatic, &json!(confirm)).unwrap())
+    }
+
+    /// The argv of every command since the last `clear`.
+    fn calls(&self) -> Vec<Vec<String>> {
+        let calls = self.fixture.calls().split_off(self.cleared.get());
+        calls.into_iter().map(|(argv, _)| argv).collect()
     }
 
     fn automatic(&self) -> Value {
@@ -264,7 +256,7 @@ impl Player {
     }
 
     fn names(&self) -> Vec<String> {
-        self.calls.borrow().iter().map(|a| a[0].clone()).collect()
+        self.calls().into_iter().map(|a| a[0].clone()).collect()
     }
 
     fn ran(&self, name: &str) -> bool {
@@ -276,16 +268,11 @@ impl Player {
     }
 
     fn clear(&self) {
-        self.calls.borrow_mut().clear();
+        self.cleared.set(self.fixture.calls().len());
     }
 
     fn first(&self, name: &str) -> Vec<String> {
-        self.calls
-            .borrow()
-            .iter()
-            .find(|a| a[0] == name)
-            .unwrap()
-            .clone()
+        self.calls().into_iter().find(|a| a[0] == name).unwrap()
     }
 
     fn put_bytes(&self, name: &str, data: &[u8]) {
@@ -431,7 +418,6 @@ fn nothing_else_is_ever_mounted() {
         );
         assert!(!player.ran("mount") && !player.ran("e2fsck"));
     }
-    // (Python's music_root, never ported, was MUSIC exactly when ready.)
     assert!(!player.ready());
 }
 
@@ -485,11 +471,11 @@ fn storage_reports_the_fourth_volume_and_rejects_the_wrong_uuid() {
     player.provisioned();
     player.fixture.put("/proc/self/mountinfo", MOUNT_LINE);
     player.fixture.mkdir("/media/internal");
-    let volumes = player.with(|root| snapshot::storage(root).unwrap())["volumes"].clone();
+    let volumes = snapshot::storage(player.root()).unwrap()["volumes"].clone();
     assert_eq!(volumes.as_array().unwrap().len(), 4);
     assert_eq!(volumes[3]["path"], "/media/internal");
     player.set(|f| f.everything = Some(answer(true, None, Some("something-else"))));
-    let volumes = player.with(|root| snapshot::storage(root).unwrap())["volumes"].clone();
+    let volumes = snapshot::storage(player.root()).unwrap()["volumes"].clone();
     assert_eq!(volumes[3]["reason"], "filesystem_identity_invalid");
 }
 
@@ -545,8 +531,7 @@ fn a_mounted_foreign_filesystem_is_never_replaced() {
 fn provision_formats_the_confirmed_stock_fat_mounts_and_creates_the_music_folder() {
     let player = Player::new();
     player.fixture.mkdir("/media/internal");
-    let result =
-        Value::Object(player.with(|root| provision(root, &json!(STOCK_SERIAL), false).unwrap()));
+    let result = Value::Object(provision(player.root(), &json!(STOCK_SERIAL), false).unwrap());
     assert_eq!(pair(&result, "state", "reason"), json!(["Ready", null]));
     let mkfs = player.first("mkfs.ext4");
     let after = |flag: &str| mkfs[mkfs.iter().position(|a| a == flag).unwrap() + 1].clone();
@@ -614,9 +599,8 @@ fn provision_moves_the_library_with_hashes_and_removes_only_verified_originals()
 fn any_migration_problem_keeps_every_original() {
     let player = Player::new();
     player.music(&[("a.flac", &[b'A'; 100]), ("b.flac", &[b'B'; 100])]);
-    FAKE_DIGEST.with(|d| d.set(true));
-    let result = player.provision(Some(STOCK_SERIAL));
-    FAKE_DIGEST.with(|d| d.set(false));
+    let confirm = json!(STOCK_SERIAL);
+    let result = Value::Object(provision_with(player.root(), &confirm, true, mismatching).unwrap());
     assert_eq!(result["state"], "Degraded");
     assert!(result["reason"]
         .as_str()
@@ -647,7 +631,7 @@ fn symlinks_special_files_and_oversized_libraries_are_refused_untouched() {
     assert!(player.fixture.exists("/data/music/a.flac"));
     fs::remove_file(player.path("/data/music/link")).unwrap();
     player.provisioned();
-    // A library larger than the free space (Python raised RESERVE instead): a sparse file.
+    // A library larger than the free space: a sparse file.
     let free = statvfs(&player.path(PATH)).unwrap().available();
     sparse(&player.path("/data/music/huge.flac"), free * 2 + (1 << 30));
     let result = player.provision(None);
@@ -745,7 +729,7 @@ fn stock_leftovers_only_set_up_at_once_with_the_pinned_layout() {
     assert!(!player.fixture.exists(SETUP));
     assert!(!player.fixture.exists(&format!("{MUSIC}/{KEPT}")));
     // The start screen showed step 0 first (before the old storage was read) and 100 last.
-    let phases = player.fake.borrow().phases.clone();
+    let phases = player.fake.lock().unwrap().phases.clone();
     assert_eq!(phases.first().map(String::as_str), Some("media_setup\n"));
     assert_eq!(
         player.fixture.read("/run/reborn-splash/phase").trim(),
@@ -811,7 +795,7 @@ fn a_few_files_are_kept_in_old_player_files_with_hashes_and_times() {
 #[test]
 fn a_large_library_waits_for_the_listener_and_nothing_is_written() {
     let player = Player::on_battery();
-    // More than KEEP_LIMIT (Python lowered the limit to 1000 bytes instead): sparse files.
+    // More than KEEP_LIMIT: sparse files.
     sparse(&player.path(&format!("{OLD}/Music/a.flac")), 200_000_000);
     sparse(&player.path(&format!("{OLD}/Music/b.flac")), 300_000_000);
     let result = player.automatic();
@@ -848,8 +832,8 @@ fn a_large_library_waits_for_the_listener_and_nothing_is_written() {
 
 #[test]
 fn y2data_must_keep_its_reserve() {
-    // Python raised DATA_RESERVE above any free space; a fixture's /data is a real filesystem, so
-    // the decision is checked at its edge: a few files are kept only with the reserve left over.
+    // A fixture's /data is a real filesystem, so the decision is checked at its edge: a few files
+    // are kept only with the reserve left over.
     let kept = [("Music/a.flac".to_string(), 2000)];
     assert_eq!(decide(&kept, DATA_RESERVE + 1999), 3);
     assert_eq!(decide(&kept, DATA_RESERVE + 2000), 2);

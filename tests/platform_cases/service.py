@@ -434,9 +434,7 @@ def wifi_online(status='wpa_state=COMPLETED\nbssid=00:11:22:33:44:55\nid=0\n', d
             answer(['ip', '-j', '-4', 'route', 'show', 'default', 'dev', 'wlan0'],
                    '[{"dst": "default", "gateway": "192.168.1.1"}]'),
             answer(['wpa_cli', '-i', 'wlan0', 'signal_poll'], 'RSSI=-52\nLINKSPEED=72\n'),
-            answer(['/usr/bin/python3', '-I', '-c',
-                    'import socket,sys; print(len(socket.getaddrinfo(sys.argv[1],None,socket.AF_INET)))',
-                    'pool.ntp.org'], dns),
+            answer(['getaddrinfo', 'pool.ntp.org'], dns),
             answer(['/usr/sbin/iw', 'dev', 'wlan0', 'get', 'power_save'], 'Power save: off')]
 
 

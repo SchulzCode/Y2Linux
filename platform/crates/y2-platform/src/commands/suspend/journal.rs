@@ -6,11 +6,13 @@
 //! signature) and always writes, because an event is given. Every failure is counted and dropped:
 //! a journal failure must never delay or disable battery protection.
 // SPDX-License-Identifier: GPL-2.0-only
-use super::{append, diagnostics, text_value, E};
+use super::{as_map, diagnostics, name, text_value, E};
+use serde::Serialize;
 use serde_json::Value;
-use std::path::Path;
+use y2p_core::py::PyValue;
 use y2p_core::{
-    json::{dumps, Separators},
+    json::{dumps, Object, Separators},
+    power_journal::append_bounded,
     root::{python_int, read},
     suspend_text::{split, splitlines},
     Root,
@@ -40,12 +42,6 @@ pub fn plain(value: Value) -> Value {
 /// A dict built in this order (`{k: v, ...}` written without `sort_keys`).
 pub fn object(entries: Vec<(String, Value)>) -> Value {
     Value::Object(entries.into_iter().collect())
-}
-
-fn name(path: &Path) -> String {
-    path.file_name()
-        .map(|n| n.to_string_lossy().into_owned())
-        .unwrap_or_default()
 }
 
 fn int(value: Option<i64>) -> Value {
@@ -158,9 +154,9 @@ pub fn suspend(root: &Root, battery: &Value, event: &str) -> Result<bool, E> {
     let now = super::monotonic();
     // signature = (state, battery.get('status'), battery.get('charging')): outside the try.
     if !battery.is_object() {
-        return Err(E::Crash(format!(
+        return Err(E::Invalid(format!(
             "'{}' object has no attribute 'get'",
-            python_type(battery)
+            battery.type_name()
         )));
     }
     match row(root, battery, event, now) {
@@ -170,16 +166,52 @@ pub fn suspend(root: &Root, battery: &Value, event: &str) -> Result<bool, E> {
     }
 }
 
-fn python_type(value: &Value) -> &'static str {
-    match value {
-        Value::Null => "NoneType",
-        Value::Bool(_) => "bool",
-        Value::Number(n) if n.is_f64() => "float",
-        Value::Number(_) => "int",
-        Value::String(_) => "str",
-        Value::Array(_) => "list",
-        Value::Object(_) => "dict",
-    }
+/// The receipt's fields a journal row keeps, so that a later refusal replacing suspend-last.json
+/// does not lose the completed intervals.
+const SUMMARY: [&str; 8] = [
+    "mode",
+    "stage",
+    "first_entry",
+    "resume",
+    "cycles",
+    "suspended_seconds",
+    "maintenance_wakes",
+    "error",
+];
+
+/// One rfkill switch.
+#[derive(Serialize)]
+struct Radio {
+    #[serde(rename = "type")]
+    kind: Option<String>,
+    blocked: Option<String>,
+}
+
+/// One `power-journal.jsonl` row of a suspend stage (compact JSON in this order; the power
+/// daemon's rows have the same fields).
+#[derive(Serialize)]
+struct Row<'a> {
+    schema: u8,
+    event: &'a str,
+    wall_time: f64,
+    monotonic_s: f64,
+    boottime_s: f64,
+    boot_id: Option<String>,
+    build: Value,
+    state: &'static str,
+    battery: Value,
+    shutdown: Option<Value>,
+    usb: Object,
+    usb_net: diagnostics::UsbNet,
+    charger: Option<String>,
+    backlight: Object,
+    #[serde(serialize_with = "as_map")]
+    radios: Vec<(String, Radio)>,
+    idle_policy: Value,
+    idle_counters: Value,
+    sleep: Value,
+    suspend: Object,
+    kernel_pm: Option<String>,
 }
 
 fn row(root: &Root, battery: &Value, event: &str, now: f64) -> Result<bool, E> {
@@ -192,7 +224,7 @@ fn row(root: &Root, battery: &Value, event: &str, now: f64) -> Result<bool, E> {
     let usb = root
         .glob("/sys/class/udc/*")
         .iter()
-        .map(|p| (name(p), plain(text_value(read(&p.join("state"), 131_072)))))
+        .map(|p| (name(p), text_value(read(&p.join("state"), 131_072))))
         .collect();
     let usb_net = diagnostics::usb_net(root)?;
     let backlight = root
@@ -201,29 +233,22 @@ fn row(root: &Root, battery: &Value, event: &str, now: f64) -> Result<bool, E> {
         .map(|p| {
             (
                 p.parent().map(name).unwrap_or_default(),
-                plain(text_value(read(p, 131_072))),
+                text_value(read(p, 131_072)),
             )
         })
         .collect();
-    let radios = root
-        .glob("/sys/class/rfkill/*")
-        .iter()
-        .map(|p| {
-            (
-                name(p),
-                object(vec![
-                    (
-                        "type".into(),
-                        plain(text_value(read(&p.join("type"), 131_072))),
-                    ),
-                    (
-                        "blocked".into(),
-                        plain(text_value(read(&p.join("soft"), 131_072))),
-                    ),
-                ]),
-            )
-        })
-        .collect();
+    let mut radios: Vec<(String, Radio)> = Vec::new();
+    for path in root.glob("/sys/class/rfkill/*") {
+        let radio = Radio {
+            kind: read(&path.join("type"), 131_072),
+            blocked: read(&path.join("soft"), 131_072),
+        };
+        let key = name(&path);
+        match radios.iter_mut().find(|(k, _)| *k == key) {
+            Some(entry) => entry.1 = radio,
+            None => radios.push((key, radio)),
+        }
+    }
     let idle_policy = root
         .json("/run/y2/cpu-idle-policy.json")
         .unwrap_or(Value::Null);
@@ -233,82 +258,56 @@ fn row(root: &Root, battery: &Value, event: &str, now: f64) -> Result<bool, E> {
         boot_id.as_deref(),
     )
     .map_err(super::receipt::raised)?;
-    let mut summary: Vec<(String, Value)> = [
-        "mode",
-        "stage",
-        "first_entry",
-        "resume",
-        "cycles",
-        "suspended_seconds",
-        "maintenance_wakes",
-        "error",
-    ]
-    .iter()
-    .map(|k| {
-        (
-            (*k).to_owned(),
-            plain(receipt.get(*k).cloned().unwrap_or(Value::Null)),
-        )
-    })
-    .collect();
+    let mut suspend: Object = SUMMARY
+        .iter()
+        .map(|k| {
+            (
+                (*k).to_owned(),
+                plain(receipt.get(*k).cloned().unwrap_or(Value::Null)),
+            )
+        })
+        .collect();
     // POWER-FINAL-18: 17 lost why two requests were refused.
     let reason = match receipt.get("product") {
         Some(Value::Object(product)) => product.get("reason").cloned().unwrap_or(Value::Null),
         Some(other) if y2p_core::py::truthy(other) => {
-            return Err(E::Crash(format!(
+            return Err(E::Invalid(format!(
                 "'{}' object has no attribute 'get'",
-                python_type(other)
+                other.type_name()
             )))
         }
         _ => Value::Null,
     };
-    summary.push(("reason".into(), plain(reason)));
-    let node = object(vec![
-        ("schema".into(), plain(1.into())),
-        ("event".into(), plain(event.into())),
-        ("wall_time".into(), plain(super::wall().into())),
-        ("monotonic_s".into(), plain(now.into())),
-        ("boottime_s".into(), plain(super::boottime().into())),
-        ("boot_id".into(), plain(text_value(boot_id))),
-        (
-            "build".into(),
-            plain(
-                root.json("/etc/y2linux/versions.json")
-                    .unwrap_or(Value::Null),
-            ),
+    suspend.insert("reason".into(), plain(reason));
+    let row = Row {
+        schema: 1,
+        event,
+        wall_time: super::wall(),
+        monotonic_s: now,
+        boottime_s: super::boottime(),
+        boot_id,
+        build: plain(
+            root.json("/etc/y2linux/versions.json")
+                .unwrap_or(Value::Null),
         ),
-        ("state".into(), plain("Suspend".into())),
-        ("battery".into(), plain(battery.clone())),
-        ("shutdown".into(), plain(Value::Null)),
-        ("usb".into(), object(usb)),
-        ("usb_net".into(), usb_net),
-        (
-            "charger".into(),
-            plain(text_value(
-                root.read("/sys/class/power_supply/BAT0/charging_state"),
-            )),
-        ),
-        ("backlight".into(), object(backlight)),
-        ("radios".into(), object(radios)),
-        ("idle_policy".into(), plain(idle_policy)),
-        ("idle_counters".into(), idle_counters),
-        ("sleep".into(), plain(Value::Object(sleep))),
-        // Preserve completed intervals when a later refusal replaces suspend-last.json. This
-        // shares the existing event cadence.
-        ("suspend".into(), object(summary)),
-        (
-            "kernel_pm".into(),
-            plain(text_value(
-                root.read_limited("/sys/firmware/y2_pm/state", 8192),
-            )),
-        ),
-    ]);
-    let encoded = dumps(&node, Separators::Compact).map_err(|e| E::value(e.to_string()))? + "\n";
+        state: "Suspend",
+        battery: plain(battery.clone()),
+        shutdown: None,
+        usb,
+        usb_net,
+        charger: root.read("/sys/class/power_supply/BAT0/charging_state"),
+        backlight,
+        radios,
+        idle_policy: plain(idle_policy),
+        idle_counters,
+        sleep: plain(Value::Object(sleep)),
+        suspend,
+        kernel_pm: root.read_limited("/sys/firmware/y2_pm/state", 8192),
+    };
+    let encoded = dumps(&row, Separators::Compact).map_err(|e| E::value(e.to_string()))? + "\n";
     if encoded.len() > 16384 {
         return Err(E::value("power_journal_row_too_large"));
     }
-    let path = root.path(PATH);
-    append::append_bounded(&path, encoded.as_bytes(), LIMIT, true)
-        .map_err(|e| E::os(&e, Some(&path)))?;
+    append_bounded(root, PATH, encoded.as_bytes(), LIMIT, true).map_err(E::from)?;
     Ok(true)
 }

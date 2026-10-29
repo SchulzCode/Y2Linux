@@ -21,8 +21,7 @@ fn low_space_denies_disposable_writes_but_reserves_checkpoint_budget() {
     assert_eq!(admission(&low, "cache")["allowed"], false);
     assert_eq!(admission(&low, "update")["allowed"], false);
     assert_eq!(admission(&low, "user_state")["allowed"], true);
-    // Python asked for 60 MiB of 80; the port never takes a request size (the command asks for
-    // none), so the same 20 MiB are left over.
+    // The command never asks for a size: 20 MiB left is below the 32 MiB reserve.
     assert_eq!(
         admission(&volume("LowSpace", 20 << 20), "database")["allowed"],
         false

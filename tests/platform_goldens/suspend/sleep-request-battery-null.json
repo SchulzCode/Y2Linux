@@ -5,7 +5,10 @@
  ],
  "calls": [],
  "exit": 1,
- "stdout": [],
+ "stdout": {
+  "failure": "'NoneType' object has no attribute 'get'",
+  "state": "Failed"
+ },
  "tree": {
   "added": {
    "/run/y2/suspend.lock": {

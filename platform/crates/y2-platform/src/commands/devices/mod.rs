@@ -1,9 +1,7 @@
-//! Group `devices` of the port (docs/planning/PLATFORM-RUST-PORT-PLAN.md, "Remaining port groups"):
-//! `ssh-daemon` (ssh.py), `usb-mode` (usb.request_mode), `transfer` (transfer.py), `codec-settings`
-//! (codec_controls.configure/status) and `time-set`, `time-bootstrap`, `rtc-alarm` (timekeeping.py).
-//! Rust takes only the argument forms below; every other one (`--help`, abbreviations, an invalid
-//! choice or integer, a value that starts with `-`, a repeated option, options before the positional)
-//! is argparse's and runs in Python.
+//! The devices commands: `ssh-daemon` (owner SSH over USB), `usb-mode` (the gadget mode), `transfer`
+//! (verified uploads), `codec-settings` (Bluetooth codec quality) and the clock commands `time-set`,
+//! `time-bootstrap`, `rtc-alarm`. `route` sees the parser's canonical form (cli.rs); it takes exactly
+//! the forms below and nothing else (`None`: no implementation).
 // SPDX-License-Identifier: GPL-2.0-only
 use super::Command;
 use std::collections::BTreeMap;
@@ -58,7 +56,7 @@ pub fn route(args: &[&str]) -> Option<Command> {
             if ["begin", "commit", "status", "discard"].contains(action) =>
         {
             let mut given = options(rest, &["--id", "--name", "--bytes", "--sha256"])?;
-            // `type=int`: a value int() refuses is argparse's error (exit 2).
+            // An integer option; the parser has already refused any other value (exit 2).
             let bytes = match given.remove("--bytes") {
                 Some(text) => Some(python_int(&text)?),
                 None => None,
@@ -93,8 +91,8 @@ const CODEC_CHOICES: [&[&str]; 6] = [
     &["on", "off"],
 ];
 
-/// A positional `type=int` argument: Python `int()` of it. argparse takes a leading `-` only for a
-/// plain negative number (`-5`); anything else starting with `-` is an option to it.
+/// A positional integer argument (sign, digits, `_` between digits). A leading `-` is taken only for a
+/// plain negative number (`-5`); anything else starting with `-` would be an option.
 fn integer(text: &str) -> Option<i64> {
     if let Some(digits) = text.strip_prefix('-') {
         if digits.is_empty() || !digits.bytes().all(|b| b.is_ascii_digit()) {
@@ -106,7 +104,7 @@ fn integer(text: &str) -> Option<i64> {
 
 /// Options given as `--name value` or `--name=value`, each at most once and spelled in full; `None`
 /// for anything else (an abbreviation, an unknown option, a stray positional, a value that starts
-/// with `-`, which argparse may read as an option).
+/// with `-`, which would be an option).
 fn options(args: &[&str], names: &[&str]) -> Option<BTreeMap<String, String>> {
     let mut given = BTreeMap::new();
     let mut rest = args.iter();

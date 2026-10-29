@@ -1,7 +1,7 @@
 """Golden cases of port group `devices` that need more than tests/test_platform_differential.py's plain run
 (tests/platform_cases/devices.py, EXTRA_CASES): the stage directory `transfer begin` names by a random id is
-renamed to a fixed one, `transfer commit` past its stage lock, an ssh-daemon that starts dropbear, and inputs the
-platform ends on with a traceback. Run by the Rust host build (`Y2_PLATFORM_RUST`) and compared with
+renamed to a fixed one, `transfer commit` past its stage lock, an ssh-daemon that starts dropbear, and tampered
+records it refuses. Run by the Rust host build (`Y2_PLATFORM_RUST`) and compared with
 tests/platform_goldens/devices/<case>.json (tests/platform_golden.py)."""
 import os
 from pathlib import Path
@@ -76,9 +76,11 @@ class DevicesGoldens(unittest.TestCase):
         self.assertEqual(results['transfer-commit-sealed-left']['stdout']['reason'],
                          "[Errno 17] File exists: 'sealed.part'")
         self.assertEqual(results['transfer-commit-wrong-hash']['stdout']['reason'], 'upload_hash_or_size_mismatch')
-        crashed = results['transfer-commit-record-not-dict']
-        self.assertEqual((crashed['exit'], crashed['stdout']), (1, []))
-        self.assertIn('/data/music/Album/song.flac', touched(crashed))
+        # A tampered manifest is refused before anything is sealed or published.
+        for name in ('transfer-commit-record-not-dict', 'transfer-commit-manifest-list'):
+            refused = results[name]
+            self.assertEqual((refused['exit'], refused['stdout']['reason']), (1, 'invalid_transfer_manifest'))
+            self.assertNotIn('/data/music/Album/song.flac', touched(refused))
         self.assertEqual(results['ssh-starts-dropbear']['stdout']['type'], 'FileNotFoundError')
 
 
