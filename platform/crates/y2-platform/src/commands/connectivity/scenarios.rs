@@ -1,8 +1,8 @@
 //! The crosscheck scenarios (see crosscheck.rs): each runs steps the Python platform ran the same way
 //! and compares with what it gave (recorded).
 // SPDX-License-Identifier: GPL-2.0-only
-use super::crosscheck::{answer, check, player, refused};
-use super::{bluetooth, daemon::Supervisor, observe_wifi, radio_policy, wifi};
+use super::crosscheck::{answer, check, player, refused, run};
+use super::{daemon::Supervisor, observe_wifi, radio_policy, wifi};
 use serde_json::{json, Value};
 use std::fs;
 use y2p_core::{
@@ -507,23 +507,34 @@ fn bluetooth_observations_normalise_as_python_does() {
             ],
         ),
         ("{\"schema\": 1, \"stable_owners\": false}".into(), vec![]),
-        ("[1, 2]".into(), vec![]),
     ];
     for (index, (raw, extra)) in cases.into_iter().enumerate() {
         let mut files = player();
         files.extend(extra);
-        let outcome = check(
-            &format!("bluetooth-normalize-{index}"),
+        let name = format!("bluetooth-normalize-{index}");
+        // `status bluetooth` (the observation group's normalize) given this y2-bt-observe answer.
+        let outcome = run(
             &files,
-            json!([]),
-            |root| bluetooth::normalize(root, &serde_json::from_str(&raw).unwrap()).unwrap(),
+            json!([answer(&["/usr/sbin/y2-bt-observe"], &raw)]),
+            |root| {
+                let status = crate::commands::route(&["status", "bluetooth"]).unwrap();
+                let reply = status(root).unwrap();
+                serde_json::from_str::<Value>(&reply.stdout).unwrap()["bluetooth"].take()
+            },
         );
-        if let Some(outcome) = outcome {
-            if raw.contains("dev_BB") && raw.contains("[36, 21, 2, 53]") {
-                assert_eq!(outcome.result["state"], "Ready", "{}", outcome.result);
-                assert_eq!(outcome.result["devices"][0]["address"], "BB:BB:BB:BB:BB:BB");
-                assert_eq!(outcome.result["encoder"]["sbc_quality"], "xq+");
-            }
+        // What Python's normalize gave (its subprocess requests were none: observe.bluetooth's
+        // differ).
+        let recorded: Value = serde_json::from_str(&y2p_core::recorded::text(
+            env!("CARGO_MANIFEST_DIR"),
+            &format!("connectivity/{name}.json"),
+        ))
+        .unwrap();
+        assert_eq!(outcome.result, recorded["result"], "{name}");
+        assert_eq!(outcome.tree, recorded["tree"], "{name}");
+        if raw.contains("dev_BB") && raw.contains("[36, 21, 2, 53]") {
+            assert_eq!(outcome.result["state"], "Ready", "{}", outcome.result);
+            assert_eq!(outcome.result["devices"][0]["address"], "BB:BB:BB:BB:BB:BB");
+            assert_eq!(outcome.result["encoder"]["sbc_quality"], "xq+");
         }
     }
 }

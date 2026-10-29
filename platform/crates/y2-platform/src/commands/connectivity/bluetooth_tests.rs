@@ -1,8 +1,9 @@
-//! Bluetooth observations (`bluetooth.normalize`) and the live encoder (`codec_observation.quality`):
-//! what tests/test_platform_bluetooth.py and tests/test_radio_policy.py checked of the Python platform.
+//! Bluetooth observations as `status bluetooth` gives them (the observation group's normalize and
+//! live-encoder reading): what tests/test_platform_bluetooth.py and tests/test_radio_policy.py checked of
+//! the Python platform.
 // SPDX-License-Identifier: GPL-2.0-only
-use super::*;
-use crate::testing::Fixture;
+use crate::testing::{ok, Fixture};
+use serde_json::{json, Value};
 
 const DEVICE: &str = "/org/bluez/hci0/dev_00_11_22_33_44_55";
 const PCM: &str = "/org/bluealsa/hci0/dev_00_11_22_33_44_55/a2dpsrc/sink";
@@ -21,9 +22,15 @@ fn raw() -> Value {
            "mutually_available_codecs": {"SBC": {"Rates": [44100, 48000], "Channels": [2]}}})
 }
 
+/// `status bluetooth` with y2-bt-observe printing `raw`: its `bluetooth` section.
 fn observe(fixture: &Fixture, raw: &Value) -> Value {
-    // As a sorted text read back (the order these cases were written for).
-    normalize(&fixture.root, &sorted(raw.clone())).unwrap()
+    let root = fixture
+        .root
+        .clone()
+        .with_answers(vec![ok(&["/usr/sbin/y2-bt-observe"], &raw.to_string())]);
+    let status = crate::commands::route(&["status", "bluetooth"]).expect("routed");
+    let reply = status(&root).expect("status");
+    serde_json::from_str::<Value>(&reply.stdout).unwrap()["bluetooth"].take()
 }
 
 fn pcm(raw: &mut Value) -> &mut Value {
@@ -129,8 +136,15 @@ fn native_observer_private_bus_with_missing_owners_is_not_ready() {
 
 // ---- codec_observation.quality (tests/test_radio_policy.py, CodecQuality) ----------------------
 
-fn encoder(codec: &str, pcm: &Value) -> Value {
-    quality(Some(codec), &sorted(pcm.clone()), &json!({}))
+/// The live encoder as observed for the selected headphone's PCM playing `codec` with these fields.
+fn encoder(codec: &str, fields: &Value) -> Value {
+    let mut raw = raw();
+    let pcm = pcm(&mut raw);
+    pcm["Codec"] = json!(codec);
+    for (key, value) in fields.as_object().unwrap() {
+        pcm[key] = value.clone();
+    }
+    observe(&Fixture::new(), &raw)["encoder"].take()
 }
 
 #[test]
