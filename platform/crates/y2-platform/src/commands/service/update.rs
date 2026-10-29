@@ -300,8 +300,8 @@ struct Space {
 fn fstatvfs(file: &File) -> Result<Space> {
     use std::os::fd::AsRawFd;
     // SAFETY: a zeroed statvfs filled by the kernel for an open descriptor.
-    let mut info: libc::statvfs = unsafe { std::mem::zeroed() };
-    if unsafe { libc::fstatvfs(file.as_raw_fd(), &mut info) } != 0 {
+    let mut info: libc::statvfs64 = unsafe { std::mem::zeroed() };
+    if unsafe { libc::fstatvfs64(file.as_raw_fd(), &mut info) } != 0 {
         return Err(Raise::Os(
             py::os_error(&std::io::Error::last_os_error(), None).0,
         ));

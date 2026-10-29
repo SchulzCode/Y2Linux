@@ -107,7 +107,7 @@ pub fn local_fields(secs: i64) -> (Fields, i64) {
             minute: tm.tm_min as u32,
             second: tm.tm_sec as u32,
         },
-        tm.tm_gmtoff,
+        y2p_core::wide(tm.tm_gmtoff),
     )
 }
 

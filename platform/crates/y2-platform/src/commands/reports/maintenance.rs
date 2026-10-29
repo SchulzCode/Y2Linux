@@ -91,7 +91,7 @@ fn dup(fd: &OwnedFd) -> Result<OwnedFd, Failure> {
 }
 
 /// `identity(meta)`.
-fn identity(meta: &libc::stat) -> Py {
+fn identity(meta: &libc::stat64) -> Py {
     Py::dict()
         .with("device", Py::from(meta.st_dev))
         .with("inode", Py::from(meta.st_ino))
@@ -99,7 +99,9 @@ fn identity(meta: &libc::stat) -> Py {
         .with("size", Py::int(meta.st_size))
         .with(
             "mtime_ns",
-            Py::int(meta.st_mtime * 1_000_000_000 + meta.st_mtime_nsec),
+            Py::int(
+                y2p_core::wide(meta.st_mtime) * 1_000_000_000 + y2p_core::wide(meta.st_mtime_nsec),
+            ),
         )
 }
 

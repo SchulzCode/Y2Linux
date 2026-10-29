@@ -247,9 +247,9 @@ fn write_into(mount: &Path, top: &str, data: &[u8], stamp: &str) -> io::Result<S
         return Err(io::Error::from_raw_os_error(libc::EXDEV)); // report_folder_elsewhere
     }
     // SAFETY: a zeroed statvfs is a valid output buffer.
-    let mut space: libc::statvfs = unsafe { std::mem::zeroed() };
+    let mut space: libc::statvfs64 = unsafe { std::mem::zeroed() };
     // SAFETY: a valid fd and buffer.
-    if unsafe { libc::fstatvfs(folder.as_raw_fd(), &mut space) } != 0 {
+    if unsafe { libc::fstatvfs64(folder.as_raw_fd(), &mut space) } != 0 {
         return Err(io::Error::last_os_error());
     }
     if (space.f_bavail as u128) * (space.f_frsize as u128) < data.len() as u128 + (1 << 20) {
@@ -313,23 +313,23 @@ pub fn open_at(dir: Option<&OwnedFd>, name: &str, flags: i32, mode: u32) -> io::
     Ok(unsafe { OwnedFd::from_raw_fd(fd) })
 }
 
-pub fn fstat(fd: &OwnedFd) -> io::Result<libc::stat> {
+pub fn fstat(fd: &OwnedFd) -> io::Result<libc::stat64> {
     // SAFETY: a zeroed stat is a valid output buffer.
-    let mut meta: libc::stat = unsafe { std::mem::zeroed() };
+    let mut meta: libc::stat64 = unsafe { std::mem::zeroed() };
     // SAFETY: a valid fd and buffer.
-    if unsafe { libc::fstat(fd.as_raw_fd(), &mut meta) } != 0 {
+    if unsafe { libc::fstat64(fd.as_raw_fd(), &mut meta) } != 0 {
         return Err(io::Error::last_os_error());
     }
     Ok(meta)
 }
 
-pub fn stat_at(dir: &OwnedFd, name: &str) -> io::Result<libc::stat> {
+pub fn stat_at(dir: &OwnedFd, name: &str) -> io::Result<libc::stat64> {
     let c = CString::new(name).map_err(|_| io::Error::from_raw_os_error(libc::EINVAL))?;
     // SAFETY: a zeroed stat is a valid output buffer.
-    let mut meta: libc::stat = unsafe { std::mem::zeroed() };
+    let mut meta: libc::stat64 = unsafe { std::mem::zeroed() };
     // SAFETY: a valid fd, name and buffer.
     if unsafe {
-        libc::fstatat(
+        libc::fstatat64(
             dir.as_raw_fd(),
             c.as_ptr(),
             &mut meta,

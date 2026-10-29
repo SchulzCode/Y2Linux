@@ -1086,11 +1086,11 @@ fn media_identity(entry: &Path, filesystem: &Value, uuid: &Value) -> Value {
     identity
 }
 
-fn statvfs(path: &Path) -> Option<libc::statvfs> {
+fn statvfs(path: &Path) -> Option<libc::statvfs64> {
     let name = std::ffi::CString::new(path.as_os_str().as_encoded_bytes()).ok()?;
-    let mut vfs = std::mem::MaybeUninit::<libc::statvfs>::uninit();
+    let mut vfs = std::mem::MaybeUninit::<libc::statvfs64>::uninit();
     // SAFETY: a NUL-terminated path and a buffer for the result.
-    (unsafe { libc::statvfs(name.as_ptr(), vfs.as_mut_ptr()) } == 0)
+    (unsafe { libc::statvfs64(name.as_ptr(), vfs.as_mut_ptr()) } == 0)
         // SAFETY: statvfs filled it.
         .then(|| unsafe { vfs.assume_init() })
 }

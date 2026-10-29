@@ -428,14 +428,16 @@ fn digest(path: &Path) -> Result<String, Failure> {
 /// `os.utime(path, ns=(atime_ns, mtime_ns))`.
 fn utime(path: &Path, source: &fs::Metadata) -> Result<(), Failure> {
     let name = CString::new(path.as_os_str().as_bytes()).map_err(Failure::value)?;
+    // time_t and c_long are 32 bits on the ARM target, 64 on the host.
+    #[allow(clippy::unnecessary_cast)]
     let times = [
         libc::timespec {
-            tv_sec: source.atime(),
-            tv_nsec: source.atime_nsec(),
+            tv_sec: source.atime() as libc::time_t,
+            tv_nsec: source.atime_nsec() as libc::c_long,
         },
         libc::timespec {
-            tv_sec: source.mtime(),
-            tv_nsec: source.mtime_nsec(),
+            tv_sec: source.mtime() as libc::time_t,
+            tv_nsec: source.mtime_nsec() as libc::c_long,
         },
     ];
     // SAFETY: a NUL-terminated path and two valid timespecs.

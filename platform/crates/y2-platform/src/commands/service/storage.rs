@@ -83,8 +83,8 @@ fn statvfs(path: &std::path::Path) -> std::io::Result<()> {
     let text = std::ffi::CString::new(path.as_os_str().as_encoded_bytes())
         .map_err(|_| std::io::Error::from(std::io::ErrorKind::InvalidInput))?;
     // SAFETY: a valid C string and a zeroed, writable statvfs.
-    let mut info: libc::statvfs = unsafe { std::mem::zeroed() };
-    if unsafe { libc::statvfs(text.as_ptr(), &mut info) } != 0 {
+    let mut info: libc::statvfs64 = unsafe { std::mem::zeroed() };
+    if unsafe { libc::statvfs64(text.as_ptr(), &mut info) } != 0 {
         return Err(std::io::Error::last_os_error());
     }
     Ok(())

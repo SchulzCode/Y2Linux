@@ -25,3 +25,9 @@ pub mod storage_media;
 pub mod suspend_text;
 
 pub use root::Root;
+
+/// Widen a C field whose type is narrower on 32-bit ARM (time_t, tm_gmtoff, nlink_t, …) than on the
+/// host, without a cast that is useless on one of the two targets.
+pub fn wide<T: Into<i64>>(value: T) -> i64 {
+    value.into()
+}

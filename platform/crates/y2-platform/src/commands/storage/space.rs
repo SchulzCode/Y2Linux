@@ -81,29 +81,29 @@ fn open_directory(at: libc::c_int, name: &CString) -> io::Result<Fd> {
     }
 }
 
-fn fstat(fd: libc::c_int) -> io::Result<libc::stat> {
+fn fstat(fd: libc::c_int) -> io::Result<libc::stat64> {
     // SAFETY: a zeroed stat filled by the kernel for an open descriptor.
     unsafe {
-        let mut meta: libc::stat = std::mem::zeroed();
-        if libc::fstat(fd, &mut meta) != 0 {
+        let mut meta: libc::stat64 = std::mem::zeroed();
+        if libc::fstat64(fd, &mut meta) != 0 {
             return Err(last_error());
         }
         Ok(meta)
     }
 }
 
-fn lstat_at(fd: libc::c_int, name: &CString) -> io::Result<libc::stat> {
+fn lstat_at(fd: libc::c_int, name: &CString) -> io::Result<libc::stat64> {
     // SAFETY: as fstat, for a name in an open directory, not following a symlink.
     unsafe {
-        let mut meta: libc::stat = std::mem::zeroed();
-        if libc::fstatat(fd, name.as_ptr(), &mut meta, libc::AT_SYMLINK_NOFOLLOW) != 0 {
+        let mut meta: libc::stat64 = std::mem::zeroed();
+        if libc::fstatat64(fd, name.as_ptr(), &mut meta, libc::AT_SYMLINK_NOFOLLOW) != 0 {
             return Err(last_error());
         }
         Ok(meta)
     }
 }
 
-fn regular(meta: &libc::stat) -> bool {
+fn regular(meta: &libc::stat64) -> bool {
     meta.st_mode & libc::S_IFMT == libc::S_IFREG
 }
 

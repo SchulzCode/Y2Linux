@@ -108,7 +108,7 @@ fn open_absolute_directory(path: &Path) -> Result<OwnedFd, Failure> {
     let name = CString::new(path.as_os_str().as_bytes()).expect("paths hold no NUL");
     // SAFETY: as openat.
     let fd = unsafe {
-        libc::open(
+        libc::open64(
             name.as_ptr(),
             libc::O_RDONLY | libc::O_DIRECTORY | libc::O_NOFOLLOW | libc::O_CLOEXEC,
         )
@@ -120,10 +120,10 @@ fn open_absolute_directory(path: &Path) -> Result<OwnedFd, Failure> {
     Ok(unsafe { OwnedFd::from_raw_fd(fd) })
 }
 
-fn fstat(fd: RawFd) -> Result<libc::stat, Failure> {
+fn fstat(fd: RawFd) -> Result<libc::stat64, Failure> {
     // SAFETY: a writable stat buffer for an open descriptor.
-    let mut stat: libc::stat = unsafe { std::mem::zeroed() };
-    if unsafe { libc::fstat(fd, &mut stat) } != 0 {
+    let mut stat: libc::stat64 = unsafe { std::mem::zeroed() };
+    if unsafe { libc::fstat64(fd, &mut stat) } != 0 {
         return Err(unnamed(io::Error::last_os_error()));
     }
     Ok(stat)
@@ -132,8 +132,8 @@ fn fstat(fd: RawFd) -> Result<libc::stat, Failure> {
 /// `f_bavail * f_frsize` of the filesystem holding `fd`.
 fn available(fd: RawFd) -> Result<u64, Failure> {
     // SAFETY: a writable statvfs buffer for an open descriptor.
-    let mut vfs: libc::statvfs = unsafe { std::mem::zeroed() };
-    if unsafe { libc::fstatvfs(fd, &mut vfs) } != 0 {
+    let mut vfs: libc::statvfs64 = unsafe { std::mem::zeroed() };
+    if unsafe { libc::fstatvfs64(fd, &mut vfs) } != 0 {
         return Err(unnamed(io::Error::last_os_error()));
     }
     Ok(vfs.f_bavail as u64 * vfs.f_frsize as u64)

@@ -148,11 +148,11 @@ fn data(root: &Root) -> Volume {
     result.expect("the /data target")
 }
 
-fn statvfs(path: &Path) -> Option<libc::statvfs> {
+fn statvfs(path: &Path) -> Option<libc::statvfs64> {
     let name = CString::new(path.as_os_str().as_bytes()).ok()?;
     // SAFETY: a zeroed statvfs is a valid output buffer; the path is NUL-terminated.
-    let mut vfs: libc::statvfs = unsafe { std::mem::zeroed() };
-    (unsafe { libc::statvfs(name.as_ptr(), &mut vfs) } == 0).then_some(vfs)
+    let mut vfs: libc::statvfs64 = unsafe { std::mem::zeroed() };
+    (unsafe { libc::statvfs64(name.as_ptr(), &mut vfs) } == 0).then_some(vfs)
 }
 
 /// `transfer.data_volume(ctx)`.
@@ -181,9 +181,9 @@ pub fn admitted(volume: &Volume, requested: u64) -> bool {
 /// `update.free(fd, size)`.
 pub fn free(fd: &OwnedFd, size: u64) -> Result<(), Failure> {
     // SAFETY: a zeroed statvfs is a valid output buffer.
-    let mut info: libc::statvfs = unsafe { std::mem::zeroed() };
+    let mut info: libc::statvfs64 = unsafe { std::mem::zeroed() };
     // SAFETY: a valid descriptor and buffer.
-    if unsafe { libc::fstatvfs(fd.as_raw_fd(), &mut info) } != 0 {
+    if unsafe { libc::fstatvfs64(fd.as_raw_fd(), &mut info) } != 0 {
         return Err(super::os_plain(std::io::Error::last_os_error()));
     }
     let available = info.f_bavail as u128 * info.f_frsize as u128;

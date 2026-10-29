@@ -139,8 +139,8 @@ struct Space {
 fn statvfs(path: &Path) -> Option<Space> {
     let name = CString::new(path.as_os_str().as_bytes()).ok()?;
     // SAFETY: a NUL-terminated path and a writable statvfs buffer.
-    let mut vfs: libc::statvfs = unsafe { std::mem::zeroed() };
-    if unsafe { libc::statvfs(name.as_ptr(), &mut vfs) } != 0 {
+    let mut vfs: libc::statvfs64 = unsafe { std::mem::zeroed() };
+    if unsafe { libc::statvfs64(name.as_ptr(), &mut vfs) } != 0 {
         return None;
     }
     let frsize = vfs.f_frsize as u64;

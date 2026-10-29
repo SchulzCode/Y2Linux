@@ -149,8 +149,8 @@ pub fn main(root: &Root, args: &[String]) -> crate::reply::Outcome {
 /// Python's `os.path.samestat(os.fstat(fd), path.stat())`.
 fn inherited(root: &Root, fd: i32) -> Result<(), E> {
     // SAFETY: fstat into a zeroed stat buffer.
-    let mut meta: libc::stat = unsafe { std::mem::zeroed() };
-    if unsafe { libc::fstat(fd, &mut meta) } != 0 {
+    let mut meta: libc::stat64 = unsafe { std::mem::zeroed() };
+    if unsafe { libc::fstat64(fd, &mut meta) } != 0 {
         return Err(E::os(&io::Error::last_os_error(), None));
     }
     let path = root.path("/run/y2/suspend.lock");

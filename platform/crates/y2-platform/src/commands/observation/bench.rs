@@ -98,18 +98,18 @@ fn openat(directory: RawFd, name: &str, flags: i32, mode: libc::mode_t) -> Resul
     Ok(File::from(unsafe { OwnedFd::from_raw_fd(fd) }))
 }
 
-fn fstat(fd: RawFd) -> Result<libc::stat> {
-    let mut meta = std::mem::MaybeUninit::<libc::stat>::uninit();
+fn fstat(fd: RawFd) -> Result<libc::stat64> {
+    let mut meta = std::mem::MaybeUninit::<libc::stat64>::uninit();
     // SAFETY: a descriptor and a buffer for the result.
-    check(unsafe { libc::fstat(fd, meta.as_mut_ptr()) }).map_err(|e| Error::os(e, None))?;
+    check(unsafe { libc::fstat64(fd, meta.as_mut_ptr()) }).map_err(|e| Error::os(e, None))?;
     // SAFETY: fstat filled it.
     Ok(unsafe { meta.assume_init() })
 }
 
-fn fstatvfs(fd: RawFd) -> Result<libc::statvfs> {
-    let mut vfs = std::mem::MaybeUninit::<libc::statvfs>::uninit();
+fn fstatvfs(fd: RawFd) -> Result<libc::statvfs64> {
+    let mut vfs = std::mem::MaybeUninit::<libc::statvfs64>::uninit();
     // SAFETY: a descriptor and a buffer for the result.
-    check(unsafe { libc::fstatvfs(fd, vfs.as_mut_ptr()) }).map_err(|e| Error::os(e, None))?;
+    check(unsafe { libc::fstatvfs64(fd, vfs.as_mut_ptr()) }).map_err(|e| Error::os(e, None))?;
     // SAFETY: fstatvfs filled it.
     Ok(unsafe { vfs.assume_init() })
 }
@@ -132,11 +132,11 @@ fn write_all(fd: RawFd, data: &[u8], offset: usize) -> Result<()> {
     while written < data.len() {
         // SAFETY: the unwritten tail of `data`.
         let n = unsafe {
-            libc::pwrite(
+            libc::pwrite64(
                 fd,
                 data[written..].as_ptr().cast(),
                 data.len() - written,
-                (offset + written) as libc::off_t,
+                (offset + written) as libc::off64_t,
             )
         };
         if n < 0 {
@@ -154,7 +154,14 @@ fn write_all(fd: RawFd, data: &[u8], offset: usize) -> Result<()> {
 fn pread(fd: RawFd, size: usize, offset: usize) -> Result<Vec<u8>> {
     let mut buffer = vec![0u8; size];
     // SAFETY: a buffer of `size` bytes.
-    let n = unsafe { libc::pread(fd, buffer.as_mut_ptr().cast(), size, offset as libc::off_t) };
+    let n = unsafe {
+        libc::pread64(
+            fd,
+            buffer.as_mut_ptr().cast(),
+            size,
+            offset as libc::off64_t,
+        )
+    };
     if n < 0 {
         return Err(Error::os(io::Error::last_os_error(), None));
     }
@@ -835,10 +842,10 @@ impl Bench<'_> {
             0,
             |s, n| {
                 let path = cname(&format!("f{n}"));
-                let mut meta = std::mem::MaybeUninit::<libc::stat>::uninit();
+                let mut meta = std::mem::MaybeUninit::<libc::stat64>::uninit();
                 // SAFETY: a NUL-terminated name relative to the run directory and a result buffer.
                 check(unsafe {
-                    libc::fstatat(
+                    libc::fstatat64(
                         s.fd(),
                         path.as_ptr(),
                         meta.as_mut_ptr(),

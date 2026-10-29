@@ -190,12 +190,12 @@ pub fn mkdir(path: &Path, mode: u32) -> Result<(), Failure> {
 }
 
 /// `os.statvfs(path)`.
-pub fn statvfs(path: &Path) -> io::Result<libc::statvfs> {
+pub fn statvfs(path: &Path) -> io::Result<libc::statvfs64> {
     let name = CString::new(path.as_os_str().as_bytes()).map_err(io::Error::other)?;
     // SAFETY: a NUL-terminated path and a zeroed, writable statvfs.
     unsafe {
-        let mut out: libc::statvfs = std::mem::zeroed();
-        if libc::statvfs(name.as_ptr(), &mut out) != 0 {
+        let mut out: libc::statvfs64 = std::mem::zeroed();
+        if libc::statvfs64(name.as_ptr(), &mut out) != 0 {
             return Err(io::Error::last_os_error());
         }
         Ok(out)
@@ -204,7 +204,7 @@ pub fn statvfs(path: &Path) -> io::Result<libc::statvfs> {
 
 /// `f_bavail * f_frsize`.
 #[allow(clippy::unnecessary_cast)] // the field widths differ on the player's 32-bit ARM
-pub fn available(vfs: &libc::statvfs) -> u64 {
+pub fn available(vfs: &libc::statvfs64) -> u64 {
     vfs.f_bavail as u64 * vfs.f_frsize as u64
 }
 
