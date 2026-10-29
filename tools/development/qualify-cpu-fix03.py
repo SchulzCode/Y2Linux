@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 """One owner-run CPU Final Fix03 qualification over authenticated SSH.
+RETIRED for the player: its device side runs Python, and the player has none since test build 169
+(docs/planning/PLATFORM-RUST-REFACTOR-PLAN.md §2.6). Kept for its host-side logic and history.
 
 Default prints the plan and contacts nothing. --run executes it against the
 installed candidate using the owner's existing SSH configuration (pinned host

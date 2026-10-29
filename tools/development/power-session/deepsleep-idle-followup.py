@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 """One endpoint-only runtime window on the already documented diagnostic boot.
+RETIRED for the player: its device side runs Python, and the player has none since test build 169
+(docs/planning/PLATFORM-RUST-REFACTOR-PLAN.md §2.6). Kept for its host-side logic and history.
 
 No sleep request, CPU-policy change, synthetic input or periodic observation.
 The matching context probe is idle outside system PM; its taint stays explicit.

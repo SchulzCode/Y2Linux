@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 """Read-only Platform v1 worktree inventory; write receipts only below --output.
+RETIRED for the player: its device side runs Python, and the player has none since test build 169
+(docs/planning/PLATFORM-RUST-REFACTOR-PLAN.md §2.6). Kept for its host-side logic and history.
 
 Never infer completion, acceptance, physical success or candidate currency from
 Git activity. Each snapshot is a bounded observation of independently live trees.

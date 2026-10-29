@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Bounded synthetic brief Power gesture through the real evdev path."""
+"""Bounded synthetic brief Power gesture through the real evdev path.
+
+RETIRED for the player: it runs Python there, and the player has none since test build 169
+(docs/planning/PLATFORM-RUST-REFACTOR-PLAN.md §2.6). Kept for history.
+"""
 import json, struct, sys, time
 from pathlib import Path
 sys.path.insert(0, '/usr/lib/y2-platform')

@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 """Bounded real-host USB transfer matrix. No flash, raw sectors or formatting.
+RETIRED for the player: its device side runs Python, and the player has none since test build 169
+(docs/planning/PLATFORM-RUST-REFACTOR-PLAN.md §2.6). Kept for its host-side logic and history.
 
 Every device/USB access is inside the shared nonblocking flock. Workloads use
 unique scratch directories; cleanup refuses a changed boot/mount identity.

@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 """Resident clean-image PM stages and bounded, source-matched real trials.
+RETIRED for the player: its device side runs Python, and the player has none since test build 169
+(docs/planning/PLATFORM-RUST-REFACTOR-PLAN.md §2.6). Kept for its host-side logic and history.
 
 The host owns the device lease and supplies the freshly verified boot ID.
 A live maintenance lock excludes product auto-entry during this diagnostic;

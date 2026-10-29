@@ -1,4 +1,5 @@
 python3 - <<'PY'
+# RETIRED for the player: its device side runs Python, and the player has none since test build 169 (docs/planning/PLATFORM-RUST-REFACTOR-PLAN.md §2.6). Kept for its host-side logic and history.
 import json,struct,sys,time,subprocess
 from pathlib import Path
 sys.path.insert(0,'/usr/lib/y2-platform')
