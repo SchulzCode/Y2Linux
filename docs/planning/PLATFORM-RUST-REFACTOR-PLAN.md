@@ -5,6 +5,19 @@ hardware checks on test build 170 ("can you just do the refactoring plan now and
 ota"); the result goes to the player as test build 171, and the hardware checks then cover both. If one fails, 170
 (sequence 11150) is the comparison point.
 
+**Progress (2026-10-29, stopped at the usage limit):** wave 1 is merged on `main` (2f5b5075): the argparse emulation
+is replaced by `crates/y2-platform/src/cli.rs` (table-driven, `y2-platform __arguments` feeds platform-contract.py)
+and one shared core exists (y2p-core `json::{Object, ObjectExt, dumps_sorted}` with serde_json `preserve_order`,
+`py::PyValue`, `mounts`, `Root::boot_id`, `record::atomic_json`, `lock`, `volume`, `sys` libc wrappers, `Runner`/
+`Clock` carried by `Root` with `Root::fixture(..).with_answers(..)`); goldens unchanged except the parser's
+deliberate ones. The golden suite sorts JSON before comparing: key order/spacing must be checked by comparing
+raw output against a baseline binary (wave 1 did this for all 1 063 cases). **Next: wave 2**, one agent per group
+(observation, connectivity, devices, storage, service, reports, power, suspend): adopt the core, typed records,
+tests from `scripted` to `Root` injection (then delete the thread-local and `#[cfg(test)]` seams), crash paths →
+refusal records, split long modules, merge the duplicated Python text helpers (suspend_text, power_text,
+observation util, reports pyre), per-tick work in the daemons, connectivity: same-lease renew no-op and the DNS
+fixture argv. Then host suite, build 171, OTA. Not built or installed yet; the player runs 170.
+
 **Owner decisions (2026-10-29, §7):** replace the argparse emulation with a small declarative parser (exact option
 names and `--opt=value`, errors exit 2, help says y2-platform); every fake-traceback crash path becomes a refusal
 record (exit 1, JSON `{"state": "Failed", "failure": …}`); **keep the exact JSON output format** (json.dumps
