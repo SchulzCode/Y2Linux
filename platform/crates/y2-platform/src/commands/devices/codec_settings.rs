@@ -10,7 +10,7 @@ use crate::{
 use serde::Serialize;
 use serde_json::{json, Value};
 use y2p_core::{
-    json::{sorted, Ordered},
+    json::{sorted, Build, Object},
     py::{is_true, truthy},
     Root,
 };
@@ -61,7 +61,7 @@ pub fn configure(root: &Root, changes: Changes) -> Outcome {
         // `except (ValueError, OSError)`: anything else leaves the command.
         Err(error) if !error.caught() => Err(error),
         Err(error) => Reply::unsorted(
-            &Ordered::new()
+            &Object::new()
                 .with("schema", SCHEMA)
                 .with("failure", error.message()),
             1,
@@ -107,12 +107,12 @@ fn configure_inner(root: &Root, changes: Changes) -> Result<Status, Failure> {
 #[derive(Serialize)]
 struct Status {
     schema: &'static str,
-    requested: Ordered,
+    requested: Object,
     effective: Value,
     effective_scope: &'static str,
     pending_restart: bool,
     apply_action: &'static str,
-    supported: Ordered,
+    supported: Object,
 }
 
 impl Status {
@@ -151,7 +151,7 @@ fn status(root: &Root) -> Result<Status, Failure> {
     } else {
         Value::Null
     };
-    let mut requested = Ordered::new();
+    let mut requested = Object::new();
     for key in KEYS {
         requested.set(key, policy.get(key).cloned().unwrap_or(Value::Null));
     }
@@ -167,7 +167,7 @@ fn status(root: &Root) -> Result<Status, Failure> {
             json!([])
         }
     };
-    let supported = Ordered::new()
+    let supported = Object::new()
         .with("sbc_quality", json!(["high", "xq", "xq+"]))
         .with("sbc_abr", true)
         .with("aac_quality", listed(&aac, json!(["standard", "high"])))

@@ -31,7 +31,7 @@ use std::{
 };
 use y2p_core::{
     clock, command,
-    json::Ordered,
+    json::{sorted_object, Build, Object},
     py::{self, is_true, truthy},
     root::read,
     Root,
@@ -205,7 +205,7 @@ fn health_settled(answer: &command::Outcome) -> bool {
 /// Start the daily release check (update.automatic_check) in its own process when Wi-Fi is online and
 /// it is due; the download may take seconds and must never stall this loop. Returns the still-running
 /// child, if any.
-fn daily_update_check(root: &Root, network: &Ordered, child: Option<Child>) -> Option<Child> {
+fn daily_update_check(root: &Root, network: &Object, child: Option<Child>) -> Option<Child> {
     if let Some(mut child) = child {
         if child.running() {
             return Some(child);
@@ -285,7 +285,7 @@ struct Reports {
 /// report may be sent and Wi-Fi is online.
 fn error_reports(
     root: &Root,
-    network: &Ordered,
+    network: &Object,
     run: Option<Reports>,
     now: f64,
 ) -> Result<Reports, Failure> {
@@ -391,7 +391,7 @@ impl Coexistence {
     fn observe(
         &mut self,
         root: &Root,
-        wifi: &Ordered,
+        wifi: &Object,
         now: f64,
     ) -> Result<Map<String, Value>, Failure> {
         let stats = match wifi.get("traffic_counters") {
@@ -490,7 +490,7 @@ fn remember_time(root: &Root) -> Result<(), Failure> {
     {
         return Ok(());
     }
-    let mut value = Ordered::from_map(&anchor);
+    let mut value = sorted_object(&anchor);
     value
         .set("epoch", now)
         .set("monotonic_s", monotonic)

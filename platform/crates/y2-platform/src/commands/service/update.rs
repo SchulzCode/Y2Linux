@@ -24,7 +24,7 @@ use std::{
 };
 use y2p_core::{
     clock, command,
-    json::Ordered,
+    json::{Build, Object},
     py::{self, is_true, truthy},
     record,
     service_digest::Sha256,
@@ -1190,7 +1190,7 @@ fn battery_gate(root: &Root) -> Result<()> {
 /// `power.rpc`: one request to the power daemon's socket.
 fn rpc(root: &Root, action: &str) -> Result<Value> {
     use std::os::unix::net::UnixStream;
-    let request = Ordered::new()
+    let request = Object::new()
         .with("action", action)
         .with("reason", "update");
     let data = y2p_core::json::dumps(&request, y2p_core::json::Separators::Spaced)
@@ -1607,7 +1607,7 @@ pub fn run(root: &Root, action: &str, url: Option<&str>, package: Option<&str>) 
             "a record of an unexpected type",
         )),
         Err(error) => Reply::unsorted(
-            &Ordered::new()
+            &Object::new()
                 .with("state", "Failed")
                 .with("failure", error.text()),
             1,

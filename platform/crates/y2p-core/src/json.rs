@@ -192,55 +192,33 @@ fn decimal(text: &str) -> (String, i32) {
     )
 }
 
-/// A dict in insertion order, for the commands that print `json.dumps(result)` without `sort_keys`
-/// (a `serde_json::Map` keeps its keys sorted). Setting an existing key keeps its position, as a dict.
-#[derive(Clone, Debug, Default, PartialEq)]
-pub struct Ordered(pub Vec<(String, serde_json::Value)>);
+/// A JSON object: a dict in insertion order (serde_json's `preserve_order`).
+pub type Object = serde_json::Map<String, serde_json::Value>;
 
-impl Ordered {
-    pub fn new() -> Self {
-        Self::default()
-    }
+/// Building an object as a dict literal or `dict[key] = value`: a new key goes last, an existing one
+/// keeps its position.
+pub trait Build {
+    fn set(&mut self, key: &str, value: impl Into<serde_json::Value>) -> &mut Self;
+    fn with(self, key: &str, value: impl Into<serde_json::Value>) -> Self;
+}
 
-    /// `dict[key] = value`. The value's own objects are sorted.
-    pub fn set(&mut self, key: &str, value: impl Into<serde_json::Value>) -> &mut Self {
-        let value = sorted(value.into());
-        match self.0.iter_mut().find(|(k, _)| k == key) {
-            Some(entry) => entry.1 = value,
-            None => self.0.push((key.to_owned(), value)),
-        }
+impl Build for Object {
+    fn set(&mut self, key: &str, value: impl Into<serde_json::Value>) -> &mut Self {
+        self.insert(key.to_owned(), value.into());
         self
     }
 
-    pub fn with(mut self, key: &str, value: impl Into<serde_json::Value>) -> Self {
+    fn with(mut self, key: &str, value: impl Into<serde_json::Value>) -> Self {
         self.set(key, value);
         self
     }
-
-    pub fn get(&self, key: &str) -> Option<&serde_json::Value> {
-        self.0.iter().find(|(k, _)| k == key).map(|(_, v)| v)
-    }
-
-    /// The keys of a parsed record in their file order (sorted: records are written with sort_keys).
-    pub fn from_map(map: &serde_json::Map<String, serde_json::Value>) -> Self {
-        let mut keys: Vec<&String> = map.keys().collect();
-        keys.sort();
-        Self(
-            keys.into_iter()
-                .map(|k| (k.clone(), sorted(map[k].clone())))
-                .collect(),
-        )
-    }
 }
 
-impl Serialize for Ordered {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        use serde::ser::SerializeMap;
-        let mut map = serializer.serialize_map(Some(self.0.len()))?;
-        for (key, value) in &self.0 {
-            map.serialize_entry(key, value)?;
-        }
-        map.end()
+/// A parsed record's object with its keys sorted, nested objects too (records are written sorted).
+pub fn sorted_object(map: &Object) -> Object {
+    match sorted(serde_json::Value::Object(map.clone())) {
+        serde_json::Value::Object(map) => map,
+        _ => unreachable!("an object stays an object"),
     }
 }
 
@@ -367,7 +345,7 @@ mod tests {
 
     #[test]
     fn ordered_objects_keep_insertion_order() {
-        let mut value = Ordered::new().with("state", "Ready").with("boot_id", "b");
+        let mut value = Object::new().with("state", "Ready").with("boot_id", "b");
         value.set("state", "Failed").set("monotonic_s", 1.5);
         assert_eq!(
             dumps(&value, Separators::Spaced).unwrap(),

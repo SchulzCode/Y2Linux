@@ -25,6 +25,7 @@ pub(crate) mod workload;
 use super::Command;
 use crate::reply::{Failure, Outcome, Reply};
 use pyjson::Py;
+use y2p_core::json::Build;
 use y2p_core::Root;
 
 const TOPICS: [&str; 7] = [
@@ -191,7 +192,7 @@ fn report(root: &Root, action: &str, to: Option<&str>, topic: Option<&str>) -> O
         // A TypeError, KeyError or AttributeError: main.py's traceback.
         Err(error) if !error.caught() => Err(error),
         Err(error) => Reply::unsorted(
-            &y2p_core::json::Ordered::new()
+            &y2p_core::json::Object::new()
                 .with("failure", "report_failed")
                 .with("reason", class(&error)),
             1,

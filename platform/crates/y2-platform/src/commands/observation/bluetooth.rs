@@ -263,8 +263,8 @@ struct Keys(Vec<String>);
 
 impl<'de> serde::Deserialize<'de> for Keys {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        struct Ordered;
-        impl<'de> Visitor<'de> for Ordered {
+        struct Object;
+        impl<'de> Visitor<'de> for Object {
             type Value = Keys;
             fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
                 f.write_str("any value")
@@ -302,7 +302,7 @@ impl<'de> serde::Deserialize<'de> for Keys {
                 Ok(Keys(Vec::new()))
             }
         }
-        deserializer.deserialize_any(Ordered)
+        deserializer.deserialize_any(Object)
     }
 }
 

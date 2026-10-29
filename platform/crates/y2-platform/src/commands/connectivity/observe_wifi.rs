@@ -5,7 +5,7 @@
 use serde_json::{json, Map, Value};
 use y2p_core::{
     clock, command,
-    json::Ordered,
+    json::{sorted_object, Build, Object},
     py::{number, truthy},
     root::{python_int, read, READ_LIMIT},
     Root,
@@ -153,7 +153,7 @@ fn addresses(ip: Option<&str>, routes: Option<&str>) -> (Vec<Value>, Value) {
 }
 
 /// `observe.wifi(ctx, signal_cache)`.
-pub fn wifi(root: &Root, signal_cache: Option<&Ordered>) -> Ordered {
+pub fn wifi(root: &Root, signal_cache: Option<&Object>) -> Object {
     let radio = root.path("/sys/class/net/wlan0").exists();
     let status_started = clock::monotonic_ns();
     // Station statistics can hold the control loop for about 2.1 s on this firmware. Bound the
@@ -227,7 +227,7 @@ pub fn wifi(root: &Root, signal_cache: Option<&Ordered>) -> Ordered {
         dns_ready,
         error.as_ref(),
     );
-    let mut stats = Ordered::new();
+    let mut stats = Object::new();
     for path in root.glob("/sys/class/net/wlan0/statistics/*") {
         let name = path
             .file_name()
@@ -238,7 +238,7 @@ pub fn wifi(root: &Root, signal_cache: Option<&Ordered>) -> Ordered {
     }
     let previous = match signal_cache {
         Some(cache) => cache.clone(),
-        None => Ordered::from_map(&root.json_object("/run/y2/network.json")),
+        None => sorted_object(&root.json_object("/run/y2/network.json")),
     };
     let signal = object(previous.get("signal_observation").cloned().filter(truthy));
     let signal_fresh = eq_text(signal.get("boot_id"), boot.as_deref())
@@ -258,7 +258,7 @@ pub fn wifi(root: &Root, signal_cache: Option<&Ordered>) -> Ordered {
             .get("RSSI")
             .and_then(Value::as_str)
             .and_then(python_int));
-        signal_value = Ordered::new()
+        signal_value = Object::new()
             .with("boot_id", json!(boot))
             .with(
                 "bssid",
@@ -274,7 +274,7 @@ pub fn wifi(root: &Root, signal_cache: Option<&Ordered>) -> Ordered {
     }
     let failed = state.as_str() == Some("Failed")
         && py_eq(Some(&reason), properties.get("credential_failure"));
-    Ordered::new()
+    Object::new()
         .with("state", state)
         .with("reason", reason)
         .with("radio_present", radio)
@@ -287,7 +287,7 @@ pub fn wifi(root: &Root, signal_cache: Option<&Ordered>) -> Ordered {
         // latency separately from event counters.
         .with(
             "supplicant_observation",
-            Ordered::new()
+            Object::new()
                 .with("ok", json!(wpa.as_ref().map(|w| w.ok)))
                 .with(
                     "reason",
@@ -319,15 +319,15 @@ pub fn wifi(root: &Root, signal_cache: Option<&Ordered>) -> Ordered {
         .with("coexistence", json!(root.json("/run/y2/coexistence.json")))
 }
 
-/// A nested `Ordered` as a plain value (`serde_json::Map` sorts its keys): the observation is written
+/// A nested `Object` as a plain value, its keys sorted: the observation is written
 /// sorted (`network.json`, `status`) or compared, never printed in insertion order.
 trait IntoValue {
     fn into_value(self) -> Value;
 }
 
-impl IntoValue for Ordered {
+impl IntoValue for Object {
     fn into_value(self) -> Value {
-        Value::Object(self.0.into_iter().collect())
+        Value::Object(sorted_object(&self))
     }
 }
 

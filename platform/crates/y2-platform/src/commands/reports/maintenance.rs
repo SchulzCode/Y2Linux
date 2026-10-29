@@ -26,6 +26,7 @@ use std::{
     os::unix::fs::{DirBuilderExt, MetadataExt, OpenOptionsExt, PermissionsExt},
     path::Path,
 };
+use y2p_core::json::Build;
 use y2p_core::{clock as kernel, command, Root};
 
 const SETTINGS: &str = "reborn/state/session.json";
@@ -45,7 +46,7 @@ fn failed(error: Failure) -> Outcome {
     match error {
         error if !error.caught() => Err(error),
         error => Reply::unsorted(
-            &y2p_core::json::Ordered::new()
+            &y2p_core::json::Object::new()
                 .with("state", "Failed")
                 .with("failure", error.message()),
             1,

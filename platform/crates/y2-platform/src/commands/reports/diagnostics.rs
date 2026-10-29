@@ -21,6 +21,7 @@ use crate::reply::{private_directory, Failure, Outcome, Reply};
 use regex::Regex;
 use sha2::{Digest, Sha256};
 use std::{io::Write, os::unix::fs::OpenOptionsExt, sync::OnceLock};
+use y2p_core::json::Build;
 use y2p_core::{command, Root};
 
 const MAX_BYTES: usize = 2 * 1024 * 1024;
@@ -431,7 +432,7 @@ pub fn export(root: &Root) -> Outcome {
         // exist, which Python makes the same way again.
         Err(error @ Failure::Crash { .. }) => Err(error),
         Err(_) => Reply::unsorted(
-            &y2p_core::json::Ordered::new()
+            &y2p_core::json::Object::new()
                 .with("state", "Failed")
                 .with("failure", "diagnostic_export_failed"),
             1,

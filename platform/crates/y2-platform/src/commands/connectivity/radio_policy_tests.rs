@@ -15,7 +15,7 @@ fn fixture() -> Fixture {
 
 /// `wifi_policy(root, activity)` with cfg80211's flag reading `enabled`; the record and whether a
 /// set was sent.
-fn policy(fixture: &Fixture, enabled: bool, activity: Option<Value>) -> (Ordered, bool) {
+fn policy(fixture: &Fixture, enabled: bool, activity: Option<Value>) -> (Object, bool) {
     let state = if enabled { "on" } else { "off" };
     let answers = vec![
         ok(&GET, &format!("Power save: {state}")),
@@ -38,7 +38,7 @@ fn policy(fixture: &Fixture, enabled: bool, activity: Option<Value>) -> (Ordered
     (value, set)
 }
 
-fn applied(value: &Ordered) -> bool {
+fn applied(value: &Object) -> bool {
     value.get("applied") == Some(&json!(true))
 }
 

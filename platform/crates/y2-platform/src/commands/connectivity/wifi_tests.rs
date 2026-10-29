@@ -8,7 +8,7 @@ use crate::commands::network::wifi_event;
 use crate::testing::{ok, scripted, Fixture};
 use serde_json::Map;
 use std::time::Instant;
-use y2p_core::command::Outcome;
+use y2p_core::{command::Outcome, json::sorted_object};
 
 type Answer = (Vec<String>, Outcome);
 
@@ -18,8 +18,8 @@ fn wpa_answer(args: &[&str], output: &str) -> Answer {
     ok(&argv, output)
 }
 
-fn ordered(value: Value) -> Ordered {
-    Ordered::from_map(value.as_object().expect("object"))
+fn ordered(value: Value) -> Object {
+    sorted_object(value.as_object().expect("object"))
 }
 
 fn player() -> Fixture {
@@ -137,7 +137,7 @@ fn network_not_found_records_what_the_scan_saw_without_names() {
     assert!(scan.get("saved_channel").is_none());
 }
 
-fn link(association: Option<&str>, id: &str, addresses: &[&str], route: bool) -> Ordered {
+fn link(association: Option<&str>, id: &str, addresses: &[&str], route: bool) -> Object {
     let route = if route { json!([{}]) } else { json!([]) };
     ordered(json!({"association": association, "association_id": id,
                    "ip_addresses": addresses, "default_route": route}))

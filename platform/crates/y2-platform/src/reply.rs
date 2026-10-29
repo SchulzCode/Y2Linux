@@ -10,7 +10,7 @@ use std::{
     path::Path,
 };
 use y2p_core::{
-    json::{dumps, dumps_sorted, Ordered, Separators},
+    json::{dumps, dumps_sorted, Build, Object, Separators},
     py,
 };
 
@@ -29,7 +29,7 @@ impl Reply {
         })
     }
 
-    /// `print(json.dumps(result))`: insertion order (an `Ordered`, or a struct's field order).
+    /// `print(json.dumps(result))`: insertion order (an `Object`, or a struct's field order).
     pub fn unsorted<T: Serialize + ?Sized>(value: &T, code: u8) -> Result<Reply, Failure> {
         Ok(Reply {
             stdout: dumps(value, Separators::Spaced).map_err(Failure::value)?,
@@ -174,12 +174,12 @@ impl Failure {
     }
 
     /// main.py's record for an error no command caught (exit 1).
-    pub fn record(&self) -> Ordered {
+    pub fn record(&self) -> Object {
         let kind = match self {
             Failure::Os { class, .. } | Failure::Crash { class, .. } => class,
             _ => "ValueError",
         };
-        Ordered::new()
+        Object::new()
             .with("schema", y2p_contract::schema::ERROR)
             .with("state", "Failed")
             .with("reason", self.message())

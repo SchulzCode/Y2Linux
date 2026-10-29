@@ -23,7 +23,13 @@ use std::{
     path::{Path, PathBuf},
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
-use y2p_core::{clock, command, json::Ordered, py, record, service_digest::sha256_hex, Root};
+use y2p_core::{
+    clock, command,
+    json::{Build, Object},
+    py, record,
+    service_digest::sha256_hex,
+    Root,
+};
 
 /// docs/knowledge/evidence/m5-firmware-inventory.json (stock v3.2.0 FM, /etc/firmware).
 pub const FILES: [(&str, u64, &str); 5] = [
@@ -692,7 +698,7 @@ fn scan(root: &Root, reviewed: &Reviewed) -> Result<Value> {
 /// that name stays.
 fn leftover(root: &Root, reviewed: &Reviewed) -> Result<Value> {
     let previous = root.json_object(STATE);
-    let mut value = Ordered::new()
+    let mut value = Object::new()
         .with("schema", 1)
         .with("state", "Ready")
         .with("kept", get_or_null(&previous, "kept").clone());
@@ -717,7 +723,6 @@ fn leftover(root: &Root, reviewed: &Reviewed) -> Result<Value> {
         tidy(root);
     }
     let differs = value
-        .0
         .iter()
         .any(|(k, v)| !py_eq(v, get_or_null(&previous, k)))
         || previous.keys().any(|k| value.get(k).is_none());
@@ -778,7 +783,7 @@ pub fn run(root: &Root, action: &str, path: Option<&str>) -> Outcome {
             u8::from(value.get("state") == Some(&json!("Failed"))),
         ),
         Err(error) => Reply::unsorted(
-            &Ordered::new()
+            &Object::new()
                 .with("state", "Failed")
                 .with("failure", error.text()),
             1,

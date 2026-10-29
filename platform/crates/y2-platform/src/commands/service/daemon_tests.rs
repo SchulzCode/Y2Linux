@@ -118,7 +118,7 @@ fn media_verify_runs_one_background_check_while_a_card_is_checking() {
 fn service_spawns_the_check_only_when_due() {
     // Which states start the check: tests/service.rs (the started argv).
     let fixture = fixture();
-    let network = |state: &str| Ordered::new().with("state", state);
+    let network = |state: &str| Object::new().with("state", state);
     assert!(daily_update_check(&fixture.root, &network("Scanning"), None).is_none());
     // A running check is kept, whatever the network does.
     let child = running();

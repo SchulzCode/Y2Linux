@@ -8,14 +8,14 @@ use serde_json::{json, Map, Value};
 use std::{env, fs, os::unix::fs::PermissionsExt, path::Path};
 use y2p_core::{
     clock, command,
-    json::Ordered,
+    json::{sorted_object, Build, Object},
     power_text::python_split,
     py::{self, is_true, truthy},
     Root,
 };
 
 /// `publish(ctx, name, value)`: `value.update(schema, boot_id, monotonic_s)` and the runtime record.
-pub(crate) fn publish(root: &Root, name: &str, mut value: Ordered) -> Result<Ordered, Failure> {
+pub(crate) fn publish(root: &Root, name: &str, mut value: Object) -> Result<Object, Failure> {
     private_directory(&root.path("/run/y2"))?;
     value
         .set("schema", 1)
@@ -105,7 +105,7 @@ pub fn wifi_event(root: &Root, event: &str) -> Outcome {
     };
     // Action calls include supervisory cleanup as well as native link events. Keep their historical
     // raw counts, but count a real loss only once after a known connection.
-    let mut record = Ordered::from_map(&old);
+    let mut record = sorted_object(&old);
     if record.get("link_counts_since_s").is_none() {
         record.set("link_counts_since_s", clock::monotonic());
     }
@@ -140,7 +140,7 @@ pub fn wifi_event(root: &Root, event: &str) -> Outcome {
         command::run(root, argv, command::TIMEOUT);
     }
     resolv(root, &[])?;
-    let state = Ordered::new()
+    let state = Object::new()
         .with("epoch", epoch)
         .with(
             "state",
@@ -331,7 +331,7 @@ pub fn dhcp_event(root: &Root, event: &str) -> Outcome {
     if !(event == "renew" && renews(root, &previous, epoch.as_deref(), &var)) {
         unlink_missing_ok(&runtime.join("dns.json"))?;
     }
-    let mut state = Ordered::new()
+    let mut state = Object::new()
         .with("epoch", json!(epoch))
         .with("state", "AcquiringIP")
         .with("error", Value::Null)

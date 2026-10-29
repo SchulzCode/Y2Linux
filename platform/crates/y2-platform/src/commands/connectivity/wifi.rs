@@ -21,7 +21,7 @@ use std::{
 use y2p_core::{
     clock, command,
     connectivity_journal::{append_bounded, data_ready},
-    json::{dumps, Ordered, Separators},
+    json::{dumps, Build, Object, Separators},
     py::truthy,
     Root,
 };
@@ -173,8 +173,8 @@ pub fn journal(root: &Root, event: &str, fields: Json) -> bool {
     .is_ok()
 }
 
-fn value_of(ordered: Ordered) -> Value {
-    Value::Object(ordered.0.into_iter().collect())
+fn value_of(ordered: Object) -> Value {
+    Value::Object(y2p_core::json::sorted_object(&ordered))
 }
 
 /// Python's `\w` (a Unicode letter, digit or `_`), for `\b`.
@@ -309,7 +309,7 @@ fn getaddrinfo(host: &str) -> Option<usize> {
 }
 
 /// `probe_dns(ctx, observed)`: the published `dns.json`, or None when the lease changed meanwhile.
-pub fn probe_dns(root: &Root, observed: &Ordered) -> Result<Option<Ordered>, Failure> {
+pub fn probe_dns(root: &Root, observed: &Object) -> Result<Option<Object>, Failure> {
     let empty = |key: &str| !observed.get(key).is_some_and(truthy);
     if empty("ip_addresses") || empty("default_route") {
         return Ok(None);
@@ -359,7 +359,7 @@ pub fn probe_dns(root: &Root, observed: &Ordered) -> Result<Option<Ordered>, Fai
         .and_then(|a| a.first())
         .cloned()
         .unwrap_or(Value::Null);
-    let value = Ordered::new()
+    let value = Object::new()
         .with("epoch", json!(epoch))
         .with("ok", ok)
         .with("address", first)
@@ -405,7 +405,7 @@ impl DnsProbeSchedule {
         self.deadline = now + Self::CONFIRMED_S;
     }
 
-    pub fn due(&mut self, observed: &Ordered, epoch: Option<&str>, now: f64) -> bool {
+    pub fn due(&mut self, observed: &Object, epoch: Option<&str>, now: f64) -> bool {
         let epoch = epoch.unwrap_or_default();
         if observed.get("association").and_then(Value::as_str) != Some("COMPLETED")
             || epoch.is_empty()
@@ -461,11 +461,11 @@ fn wpa(root: &Root, argv: &[&str]) -> command::Outcome {
 /// cause unproven): how many networks the last scan saw, whether a saved one was among them, its best
 /// signal and channel, and the regulatory country (country=00 scans channels 12/13 passively). Never a
 /// network name or address.
-pub fn scan_evidence(root: &Root) -> Ordered {
+pub fn scan_evidence(root: &Root) -> Object {
     let scan = wpa(root, &["scan_results"]);
     let saved = wpa(root, &["list_networks"]);
     if !scan.ok || !saved.ok {
-        return Ordered::new().with("available", false);
+        return Object::new().with("available", false);
     }
     let saved_rows = rows(saved.output.as_deref());
     let mut names: Vec<&str> = Vec::new();
@@ -478,7 +478,7 @@ pub fn scan_evidence(root: &Root) -> Ordered {
         .into_iter()
         .filter(|row| row.len() >= 3 && digits(&row[1]) && signed(&row[2]))
         .collect();
-    let mut result = Ordered::new()
+    let mut result = Object::new()
         .with("available", true)
         .with("networks", found.len())
         .with("saved_networks", names.len())
@@ -819,7 +819,7 @@ impl EventMonitor {
                 _ => 1,
             };
             wrong_key = Some(value_of(
-                Ordered::new()
+                Object::new()
                     .with("network_id", json!(network))
                     .with("count", count)
                     .with("boot_id", json!(boot)),
@@ -833,7 +833,7 @@ impl EventMonitor {
             Some(Value::Bool(b)) => i64::from(*b),
             Some(v) => v.as_i64().unwrap_or(0),
         };
-        let mut record = Ordered::new()
+        let mut record = Object::new()
             .with("error", json!(error))
             .with("epoch", json!(root.read("/run/y2/wifi-epoch")))
             .with("failures", failures + i64::from(error.is_some()));
@@ -857,7 +857,7 @@ impl EventMonitor {
         };
         if let Some(Value::Object(last)) = last {
             if last.get("error").is_some_and(truthy) {
-                let mut kept = Ordered::new();
+                let mut kept = Object::new();
                 for key in LAST_FAILURE_KEYS {
                     if let Some(value) = last.get(key) {
                         kept.set(key, value.clone());
@@ -874,7 +874,7 @@ impl EventMonitor {
             record.set(
                 "credential",
                 value_of(
-                    Ordered::new()
+                    Object::new()
                         .with("error", json!(error))
                         .with("reason", reason)
                         .with("boot_id", json!(boot))
@@ -942,7 +942,7 @@ impl WifiRecovery {
 
     pub fn observe(
         &mut self,
-        value: &Ordered,
+        value: &Object,
         now: f64,
         monitor: Option<&EventMonitor>,
     ) -> Option<&'static str> {

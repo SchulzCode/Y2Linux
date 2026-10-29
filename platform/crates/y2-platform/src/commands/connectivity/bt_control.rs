@@ -10,7 +10,11 @@ use std::{
     io::{self, Write},
     os::unix::fs::OpenOptionsExt,
 };
-use y2p_core::{clock, command, json::Ordered, Root};
+use y2p_core::{
+    clock, command,
+    json::{Build, Object},
+    Root,
+};
 
 const OPERATIONS: [&str; 8] = [
     "connect",
@@ -63,7 +67,7 @@ pub fn intent(root: &Root, operation: &str) -> Result<(), Failure> {
 }
 
 /// `power(ctx, value)`: the command's result, or the busy refusal.
-pub fn power(root: &Root, value: &str) -> Result<Ordered, Failure> {
+pub fn power(root: &Root, value: &str) -> Result<Object, Failure> {
     if value != "on" && value != "off" {
         return Err(Failure::value("invalid_bluetooth_power"));
     }
@@ -71,7 +75,7 @@ pub fn power(root: &Root, value: &str) -> Result<Ordered, Failure> {
     let path = root.path("/run/y2/bt-operation.lock");
     let Some(_lock) = y2p_core::lock::try_exclusive(&path).map_err(|e| Failure::os(e, &path))?
     else {
-        return Ok(Ordered::new()
+        return Ok(Object::new()
             .with("ok", false)
             .with("reason", "platform_bluetooth_operation_in_progress"));
     };
@@ -96,8 +100,8 @@ pub fn power(root: &Root, value: &str) -> Result<Ordered, Failure> {
 }
 
 /// A `ctx.command` result as Python's dict (`ok`, `reason`, `output`).
-pub fn outcome(result: &command::Outcome) -> Ordered {
-    Ordered::new()
+pub fn outcome(result: &command::Outcome) -> Object {
+    Object::new()
         .with("ok", result.ok)
         .with(
             "reason",

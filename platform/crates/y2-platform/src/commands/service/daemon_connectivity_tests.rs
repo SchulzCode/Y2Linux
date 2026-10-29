@@ -12,7 +12,7 @@ fn heavy_transfer_is_observed_without_a_codec_override() {
     let fixture = Fixture::new();
     fixture.mkdir("/run/y2");
     let mut observe = Coexistence::default();
-    let online = Ordered::new().with("state", "Online");
+    let online = Object::new().with("state", "Online");
     let first = observe.observe(&fixture.root, &online, 1.0).unwrap();
     assert!(first["wifi_bytes_per_second"].is_null());
     let busy = online.with("traffic_counters", json!({"rx_bytes": 3000000}));

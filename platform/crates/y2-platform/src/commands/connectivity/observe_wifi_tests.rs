@@ -21,8 +21,8 @@ fn associated() -> Fixture {
 fn look(
     fixture: &Fixture,
     peer: &str,
-    cache: Option<&Ordered>,
-) -> (Ordered, Vec<(Vec<String>, f64)>) {
+    cache: Option<&Object>,
+) -> (Object, Vec<(Vec<String>, f64)>) {
     let answers = vec![
         ok(&STATUS, &format!("wpa_state=COMPLETED\nbssid={peer}")),
         ok(
@@ -42,7 +42,7 @@ fn polled(calls: &[(Vec<String>, f64)]) -> bool {
     calls.iter().any(|(argv, _)| argv[..] == SIGNAL)
 }
 
-fn plain(value: &Ordered) -> Value {
+fn plain(value: &Object) -> Value {
     serde_json::to_value(value).unwrap()
 }
 

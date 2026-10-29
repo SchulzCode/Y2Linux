@@ -12,7 +12,7 @@ use std::{
 use y2p_contract::BootStage;
 use y2p_core::{
     clock,
-    json::{dumps, Ordered, Separators},
+    json::{dumps, Build, Object, Separators},
     py::{number, truthy},
     Root,
 };
@@ -265,7 +265,7 @@ pub fn mark(root: &Root, stage: &str) -> Outcome {
         .size()
         < 8192
     {
-        let line = Ordered::new()
+        let line = Object::new()
             .with("stage", stage.as_str())
             .with("monotonic_s", clock::monotonic());
         let text = dumps(&line, Separators::Spaced).map_err(Failure::value)? + "\n";

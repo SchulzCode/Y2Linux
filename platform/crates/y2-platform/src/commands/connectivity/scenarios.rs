@@ -5,7 +5,11 @@ use super::crosscheck::{answer, check, player, refused};
 use super::{bluetooth, daemon::Supervisor, observe_wifi, radio_policy, wifi};
 use serde_json::{json, Value};
 use std::fs;
-use y2p_core::{clock, json::Ordered, Root};
+use y2p_core::{
+    clock,
+    json::{Build, Object},
+    Root,
+};
 
 const SCAN: &[&str] = &["wpa_cli", "-i", "wlan0", "scan_results"];
 const LIST: &[&str] = &["wpa_cli", "-i", "wlan0", "list_networks"];
@@ -161,7 +165,7 @@ fn the_self_heal_reselects_and_rescans_as_python_does() {
             let result: Vec<Value> = plan
                 .iter()
                 .map(|(at, state, reason)| {
-                    let value = Ordered::new()
+                    let value = Object::new()
                         .with("association", *state)
                         .with("radio_present", true)
                         .with("reason", json!(reason));
@@ -314,11 +318,11 @@ fn the_dns_probe_confirms_a_lease_as_python_does() {
                 let epoch = root.read("/run/y2/wifi-epoch");
                 let due = s.due(&v, epoch.as_deref(), 100.0);
                 let dns = match wifi::probe_dns(root, &v) {
-                    Ok(dns) => json!(dns.map(|d| Value::Object(d.0.into_iter().collect()))),
+                    Ok(dns) => json!(dns.map(|d| Value::Object(y2p_core::json::sorted_object(&d)))),
                     Err(error) => json!(error.message()),
                 };
                 s.confirmed(100.0);
-                let value = |o: Ordered| Value::Object(o.0.into_iter().collect());
+                let value = |o: Object| Value::Object(y2p_core::json::sorted_object(&o));
                 let again = s.due(&v, epoch.as_deref(), 101.0);
                 let after = observe_wifi::wifi(root, Some(&v));
                 json!([
@@ -359,7 +363,7 @@ fn power_save_with_a_heavy_transfer_as_python_does() {
                 let activity =
                     json!({"wifi_heavy_transfer": if heavy { json!(true) } else { json!(0) }});
                 let value = radio_policy::wifi_policy(root, activity.as_object()).unwrap();
-                Value::Object(value.0.into_iter().collect())
+                Value::Object(y2p_core::json::sorted_object(&value))
             },
         );
     }
