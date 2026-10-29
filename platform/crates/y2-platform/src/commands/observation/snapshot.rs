@@ -1697,6 +1697,10 @@ pub fn snapshot(root: &Root, pids: &[i64], pss: bool, interval: f64) -> Result<S
 }
 
 #[cfg(test)]
+#[path = "snapshot_tests.rs"]
+mod snapshot_tests;
+
+#[cfg(test)]
 mod tests {
     use super::*;
 

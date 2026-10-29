@@ -178,3 +178,7 @@ pub fn run(root: &Root, options: &Options) -> Outcome {
         "growth": growth, "bytes": bytes, "elapsed_seconds": clock::monotonic() - start});
     Reply::sorted(&summary, 0)
 }
+
+#[cfg(test)]
+#[path = "collect_tests.rs"]
+mod collect_tests;
