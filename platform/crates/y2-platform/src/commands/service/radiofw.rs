@@ -788,6 +788,10 @@ pub fn run(root: &Root, action: &str, path: Option<&str>) -> Outcome {
 }
 
 #[cfg(test)]
+#[path = "radiofw_tests.rs"]
+mod radiofw_tests;
+
+#[cfg(test)]
 mod tests {
     use super::*;
 
