@@ -9571,3 +9571,26 @@ status` 8 ms, `time` 8 ms, `time-remember` 17 ms, `codec-runtime` 9 ms (Python 5
 2.57 s; journal_pending 0.02 s, time_remember 0.01 s, journal_complete 0.02 s, each 0.54–0.59 s before), orderly;
 plain boot platform_start 8.23 s, services_started 22.06 s, **application_ready 40.59 s** (166: 8.72/23.75/44.44).
 Owner (2026-10-28): continue until all phases are done and Python is removed; the owner runs the hardware tests.
+
+## PLATFORM-RUST phases 2–6 (whole platform in Rust, no Python on the player): entry audit — 2026-10-29
+
+**Boundary:** the owner's "continue till all phases are done and python is removed" and "i want a full
+implementation"; the owner runs the hardware tests. Hardware evidence so far: test builds 166 (dispatcher) and
+168 (short commands in Rust: calls 8–17 ms, restart trail 1.20 s, boot 3.9 s sooner). Change: **packaging and
+architecture** — every subcommand, the four daemons, the sleep helper and the platform scripts run in the Rust
+`y2-platform` (groups in plan §5a, merged on `main`); the dispatcher parses arguments as argparse did; the image
+has no Python (`BR2_PACKAGE_PYTHON3*` removed, post-build links the programme names to `y2-platform` and refuses
+an image with Python); validators updated. No kernel, device tree, memory map, partition or recovery change.
+
+| Area | Host evidence | Device gap (owner) |
+| --- | --- | --- |
+| Every command | differential cases per group, Rust = Python (stdout, exit, files, subprocess requests), argparse corpus 5 700 | OWED on test build 169 |
+| Daemons (power, service, connectivity, ssh) | tick cases, live socket test (power) | boot, idle CPU/RSS vs Phase 0, Wi-Fi/BT, USB MTP/SSH |
+| Sleep, battery, charging, shutdown | product-sleep and power cases | 10 sleep/wake cycles, **two overnight runs**, low battery to power-off, charger plug/unplug, power-off on a charger, update restart |
+| Storage, update, reports | cases incl. archives, scrubber, update stage/apply | SD insert/remove/repair, OTA + rollback, report save/send |
+| Image | — | Python gone (≈21 MB), y2-platform size |
+
+Known host-test issue: two product-sleep differential cases are timing-sensitive under load (Python against
+Python too); they pass when run alone. **Gate decision:** ready for an owner-installed test build (label 169,
+sequence 11140, `release.py build --clean`: Buildroot does not remove a disabled package from the target); not
+release-qualified until the owner's device checks above pass.

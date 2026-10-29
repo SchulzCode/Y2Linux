@@ -1,6 +1,6 @@
 # Platform service: port from Python to Rust, then remove Python from the player
 
-Status: **Phase 0 done (2026-10-28); owner decisions taken (§4 contract crate in Y2Linux, defects ported 1:1 and fixed after parity); Phase 1 done (test build 166 device-checked); Phase 2 in progress: the short commands are ported (see below), `status`/`health`/`boot-evidence`/`network-check` next; the overnight drain is still owed.** Owner's goal: everything that runs on the player is Rust (Reborn), C
+Status: **Phases 2–6 implemented on `main` (2026-10-29): the whole platform is Rust and the image has no Python; test build 169 and the owner's hardware checks (incl. two overnight runs) are next.** Owner's goal: everything that runs on the player is Rust (Reborn), C
 (kernel, early boot, installer) or shell (init scripts); **no Python in the image**. Host-side tooling (release,
 build, validation, the test harness) may stay Python.
 
