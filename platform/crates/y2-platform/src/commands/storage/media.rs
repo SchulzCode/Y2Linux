@@ -36,6 +36,15 @@ pub use repair::repair;
 use window::{protect, PROTECT_OFF};
 pub use window::{window_expired, write_window};
 
+/// Whether the SD card takes writes now or on a window: our mount of this boot, read-write or a
+/// protected card (never a damaged one or one being checked).
+pub fn can_write(root: &Root) -> bool {
+    let (claim, mount) = window::sd_state(root);
+    mount.is_some_and(|m| {
+        m.has_option("rw") || matches!(claim.read_only(), Some(ReadOnly::Protected))
+    })
+}
+
 const SD: &str = "/media/sd";
 const CONTROLLER: &str = "/11240000.mmc/";
 

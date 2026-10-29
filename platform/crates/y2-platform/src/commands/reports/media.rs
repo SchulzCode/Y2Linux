@@ -3,160 +3,36 @@
 //! destination without following a link out of it.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{
-    build, clock, json_dict, or_dict,
+    build, clock,
     pyjson::Py,
     state::{self, Reports, DESTINATIONS},
 };
-use crate::reply::{atomic_json, Failure};
+use crate::reply::Failure;
 use std::os::fd::AsFd;
 use std::{
     ffi::CString,
     io,
     os::fd::{AsRawFd, OwnedFd},
     path::Path,
-    time::Duration,
 };
-pub use y2p_core::mounts::{mountinfo, mounts_at, Mount};
-use y2p_core::{command, Root};
-
-/// The mounts on /media/sd.
-fn mounts(root: &Root) -> Vec<Mount> {
-    mounts_at(root, "/media/sd")
-}
-
-fn eq(value: Option<&Py>, other: &Py) -> bool {
-    value.unwrap_or(&Py::None).py_eq(other)
-}
-
-fn text(value: Option<String>) -> Py {
-    value.map_or(Py::None, Py::Str)
-}
-
-/// `media.owned_mount`.
-fn owned_mount(root: &Root, mounted: &Mount) -> bool {
-    let device = root.path(&format!("/sys/dev/block/{}", mounted.device_id));
-    if device.exists() {
-        return std::fs::canonicalize(&device)
-            .is_ok_and(|real| real.to_string_lossy().contains("/11240000.mmc/"));
-    }
-    let claim = json_dict(root, "/run/y2/media-mount.json");
-    // Removed cards no longer have a sysfs controller path. The retained claim permits only the
-    // exact mount we created, never an arbitrary mountpoint.
-    eq(claim.get("boot_id"), &text(root.boot_id()))
-        && eq(claim.get("mount_id"), &Py::int(mounted.mount_id))
-        && eq(claim.get("device_id"), &Py::str(mounted.device_id.clone()))
-        && eq(claim.get("device"), &Py::str(mounted.source.clone()))
-}
-
-/// The SD claim and our current SD mount (None when the card is not mounted by us this boot).
-fn sd_state(root: &Root) -> (Py, Option<Mount>) {
-    let claim = or_dict(json_dict(root, "/run/y2/media-mount.json"));
-    let mut old = mounts(root);
-    if old.len() == 1
-        && owned_mount(root, &old[0])
-        && eq(claim.get("mount_id"), &Py::int(old[0].mount_id))
-        && eq(claim.get("boot_id"), &text(root.boot_id()))
-    {
-        let mount = old.remove(0);
-        return (claim, Some(mount));
-    }
-    (claim, None)
-}
+pub use y2p_core::mounts::mountinfo;
+use y2p_core::Root;
 
 /// `media.can_write`: True when the SD takes writes now or on a window (not for a damaged card).
-pub fn can_write(root: &Root) -> bool {
-    let (claim, mount) = sd_state(root);
-    mount.is_some_and(|m| {
-        m.options.iter().any(|o| o == "rw")
-            || claim.get("read_only").and_then(Py::as_str) == Some("protected")
-    })
-}
+pub use crate::commands::storage::media::can_write;
 
-const SD_WRITE: &str = "/run/y2/sd-write.json";
-const WRITE_HOLD_MAX: i64 = 600;
-const WRITE_HOLDERS: [&str; 4] = ["usb", "reborn", "report", "radiofw"];
-
-/// `media._writers`.
-fn writers(root: &Root, mount: &Mount) -> Vec<(String, Py)> {
-    let value = or_dict(json_dict(root, SD_WRITE));
-    if !eq(value.get("boot_id"), &text(root.boot_id()))
-        || !eq(value.get("mount_id"), &Py::int(mount.mount_id))
-    {
-        return Vec::new();
-    }
-    let now = root.clock().monotonic();
-    match value.get("holders") {
-        Some(Py::Dict(holders)) => holders
+/// Open the report's write window for `seconds` (or close it, `release`) on a protected card
+/// (the storage group's window, holder `report`); the holders of the window then (none when there
+/// is no window: no card of ours, a card that is not protected, or a check or repair holding it).
+fn write_window(root: &Root, seconds: i64, release: bool) -> Result<Vec<String>, Failure> {
+    let answer = crate::commands::storage::media::write_window(root, "report", seconds, release)?;
+    Ok(match answer.get("holders") {
+        Some(serde_json::Value::Array(names)) => names
             .iter()
-            .filter(|(k, v)| {
-                WRITE_HOLDERS.contains(&k.as_str()) && v.number().is_some_and(|t| t > now)
-            })
-            .cloned()
+            .filter_map(|n| n.as_str().map(str::to_owned))
             .collect(),
         _ => Vec::new(),
-    }
-}
-
-/// `media._apply_window`: remount to match the holders; records them. Returns writable now.
-fn apply_window(root: &Root, mount: &Mount, holders: &[(String, Py)]) -> Result<bool, Failure> {
-    let record = Py::dict()
-        .with("schema", Py::int(1))
-        .with("boot_id", text(root.boot_id()))
-        .with("mount_id", Py::int(mount.mount_id))
-        .with("holders", Py::Dict(holders.to_vec()));
-    atomic_json(&root.path(SD_WRITE), &record, false)?;
-    let mut writable = mount.options.iter().any(|o| o == "rw");
-    if !holders.is_empty() != writable {
-        let mode = if holders.is_empty() {
-            "remount,ro"
-        } else {
-            "remount,rw"
-        };
-        command::run(root, &["mount", "-o", mode, "/media/sd"], 10.0);
-        let now = mounts(root);
-        writable = now
-            .first()
-            .is_some_and(|m| m.options.iter().any(|o| o == "rw"));
-    }
-    Ok(writable)
-}
-
-/// Open the report's write window for `seconds` (or close it, `release`) on a protected card; the
-/// holders of the window then (none when there is no window).
-fn write_window(root: &Root, seconds: i64, release: bool) -> Result<Vec<String>, Failure> {
-    let runtime = root.path("/run/y2");
-    crate::reply::mkdir_parents(&runtime, 0o700)?;
-    let path = runtime.join("media.lock");
-    // At most 5 s on the root's clock (a test's clock moves on at each sleep instead of waiting).
-    let clock = root.clock();
-    let deadline = clock.monotonic() + 5.0;
-    let _lock = loop {
-        match y2p_core::lock::try_exclusive(&path).map_err(|e| super::os(e, &path))? {
-            Some(lock) => break lock,
-            // A check or a repair holds the card; a short admission passes.
-            None if clock.monotonic() >= deadline => return Ok(Vec::new()),
-            None => clock.sleep(Duration::from_millis(200)),
-        }
-    };
-    let (claim, mount) = sd_state(root);
-    let Some(mount) = mount else {
-        return Ok(Vec::new());
-    };
-    match claim.get("read_only") {
-        None | Some(Py::None) => return Ok(Vec::new()),
-        Some(Py::Str(s)) if s == "protected" => {}
-        _ => return Ok(Vec::new()), // being checked or damaged: never a window
-    }
-    let mut holders = writers(root, &mount);
-    holders.retain(|(k, _)| k != "report");
-    if !release {
-        let hold = seconds.clamp(1, WRITE_HOLD_MAX) as f64;
-        holders.push(("report".into(), Py::Float(root.clock().monotonic() + hold)));
-    }
-    apply_window(root, &mount, &holders)?;
-    let mut names: Vec<String> = holders.into_iter().map(|(k, _)| k).collect();
-    names.sort();
-    Ok(names)
+    })
 }
 
 /// `_write_into(mount, top, data, stamp)`: write data as top/FOLDER/y2linux-report-<stamp>.tar.gz
