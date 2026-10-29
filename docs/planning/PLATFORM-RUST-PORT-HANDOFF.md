@@ -1,4 +1,14 @@
-# Platform Rust port — handoff (2026-10-29)
+# Platform Rust port — handoff (2026-10-29, updated after test build 170)
+
+**Update 2026-10-29 (afternoon): test build 170 is on the owner's player.** The ten defects carried 1:1 are fixed
+(CONTRACT.md table), the Python reference platform (`tools/platform`) is deleted, its ≈630 unit tests are Rust
+tests (608 Rust tests in all), the differential harness is a golden suite against the Rust binary
+(`tests/platform_golden.py`, `tests/platform_goldens/`, 1 063 goldens recorded from Python), host tools live in
+`tools/host/` and `tools/production/`. 170 (sequence 11150) was installed by the **first Rust `update
+stage`/`apply` on a player** (stage 8.8 s, apply to Acknowledged 86 s, application_ready 37.7 s) and Acknowledged;
+SFTP opens Internal Storage there (the fixed defect, checked over a real SFTP session). Owed: the owner's hardware
+checks (§6 A) on 170. Next after them: [PLATFORM-RUST-REFACTOR-PLAN.md](PLATFORM-RUST-REFACTOR-PLAN.md). Next free
+label **171**, sequence above 11150. Sections below are from the port's end (build 169) where not updated.
 
 Read this first when you pick the platform port up again. It says where things stand, where everything lives, how to
 build, test and install, what the owner decided, what is owed, and what we learned. The plan is
@@ -59,8 +69,9 @@ RSS. Reborn itself (45 s/h, 26.7 MB) is now the largest consumer.
     service-daemon), reports, power, suspend.
 - `platform/CONTRACT.md` + `platform/contract.json` — the contract inventory (106 entries), callers, locks, the
   accepted differences, the defect list.
-- `tools/platform/` — the former **Python reference** (no longer in the image; the platform goldens were
-  recorded from it and no test needs it).
+- `tools/platform/` — deleted 2026-10-29 (the former Python reference; the goldens and recordings were made
+  from it). Host tools that lived beside it: `tools/host/` (transfer, diagnostics, qualify, sftp_check,
+  audio_precision) and `tools/production/codec_manifest.py`; `platform/capabilities.json`.
 - Tests: `tests/platform_golden.py` (harness), goldens in `tests/platform_goldens/`, cases in
   `tests/test_platform_differential.py` and `tests/platform_cases/<group>.py`, and
   `tests/test_platform_{argparse,devices,power_rpc,observation,suspend,reports}.py`, all in `tools/production/tests.sh`
@@ -117,19 +128,19 @@ After the restart: `y2-platform update status` must show Acknowledged; check the
 
 ## 6. What is owed
 
-**A. The owner's hardware tests on 169** (sleep, battery and charging are now Rust, so these matter most):
+**A. The owner's hardware tests (now on 170)** (sleep, battery and charging are now Rust, so these matter most):
 
 1. Several sleep/wake cycles, then **two overnight runs** off the charger — the drain comparison (Python reference:
    Beta 6.3 ≈7.8 mA, Beta 1 ≈9.4 mA; read the power journal afterwards).
 2. Low battery all the way to power-off.
 3. Charger plug/unplug, awake and asleep; power off on a charger (must open the charging screen, F46).
 4. SD card insert, remove and Repair; Internal Storage; copying over MTP; SSH/SFTP.
-5. An OTA from 169 to the next build, and a rollback.
+5. An OTA from 170 to the next build, and a rollback (169 → 170 by OTA worked).
 6. Save and send an error report (upload now goes through `curl`).
 7. Wi-Fi join and a wrong password; Bluetooth headphones.
 
-**B. Then fix the defects carried 1:1** (plan §8), each as its own change with a test, the golden re-recorded
-(`Y2_RECORD_GOLDENS=1`) with the fixed behaviour, and a device check where hardware is involved. Markers: `grep -rn DEFECT platform/crates`.
+**B. DONE 2026-10-29: the defects carried 1:1 are fixed**, each with a test and the goldens re-recorded
+(CONTRACT.md has the fix per row; the table below is the original list, its line numbers are gone).
 
 | Defect | Where |
 | --- | --- |

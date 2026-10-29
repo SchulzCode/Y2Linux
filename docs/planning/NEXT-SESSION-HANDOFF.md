@@ -1,6 +1,17 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.4 candidate (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-29): NO PYTHON ON THE PLAYER — TEST BUILD 169 (WHOLE PLATFORM IN RUST) INSTALLED, NOT PUBLISHED.**
+> **START HERE (2026-10-29, afternoon): TEST BUILD 170 ON THE OWNER'S PLAYER — PLATFORM DEFECTS FIXED, RUST-ONLY TESTS, NOT PUBLISHED.**
+> Owner: "start fixing the defects … no python … going forward, we only have the rust code"; then "just put it on
+> the player and then review and see what works", and a code-quality refactor later. Done on `main` (not pushed):
+> the ten carried defects fixed (CONTRACT.md table; Reborn `9859348` adds the `update_in_progress` message),
+> `tools/platform` deleted, its ≈630 unit tests are Rust (608 Rust tests), the differential harness is a golden
+> suite against the Rust binary (1 063 goldens recorded from Python), host tools in `tools/host`/`tools/production`,
+> release's firmware check reads the stock files with the Rust reader. Test build **170** (seq 11150) installed by
+> the first Rust stage/apply on a player (apply → Acknowledged 86 s, application_ready 37.7 s); SFTP opens
+> Internal Storage (checked). **Owed:** the owner's hardware checks (PLATFORM-RUST-PORT-HANDOFF.md §6 A), then the
+> [refactor plan](PLATFORM-RUST-REFACTOR-PLAN.md). Next free label 171, sequence above 11150.
+>
+> Previous entry: **START HERE (2026-10-29): NO PYTHON ON THE PLAYER — TEST BUILD 169 (WHOLE PLATFORM IN RUST) INSTALLED, NOT PUBLISHED.**
 > All phases implemented on `main` (not pushed): Linux `5640949` + docs, Reborn `dc38c55`, sequence 11140, label 169,
 > Acknowledged by the Rust health-ack. Device (audit "PLATFORM-RUST phases 2–6"): daemons 15.2 MB RSS (Python 58.4),
 > idle 19.6 s/h CPU (91.8), restart trail 0.46 s (2.57), boot 36.8 s (44.4), root 111 MB (130). **Owed (owner's

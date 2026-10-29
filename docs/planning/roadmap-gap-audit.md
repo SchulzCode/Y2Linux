@@ -9637,3 +9637,10 @@ Host: `tools/development/host-tests.sh` 577 OK (1:40, was 7:43 with the Python c
 (label 170, sequence 11150); not release-qualified until the owner's device checks above pass. The code-quality
 refactor is planned separately ([PLATFORM-RUST-REFACTOR-PLAN.md](PLATFORM-RUST-REFACTOR-PLAN.md)) and starts
 only after these checks.
+
+**Device result (2026-10-29, owner's player, from 169 by staged OTA):** `update stage --package` (Rust, first time on
+a player) Queued sequence 11150 in 8.8 s, `update apply` restarted into the installer, Acknowledged by the Rust
+health-ack 86 s after apply; boot platform_start 6.63 s, services_started 20.06 s, application_ready 37.67 s; the
+four daemons 3.4–4.4 MB RSS each; no Python in /usr/bin. Fixed defects visible on the player: SFTP opens
+`/media/internal/music` (real SFTP session), `update auto-check` prints `{"result": "skipped", "reason": "not_due"}`,
+`media status` exits 0. The owner's hardware checks above are still owed.
