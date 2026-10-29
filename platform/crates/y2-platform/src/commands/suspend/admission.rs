@@ -133,7 +133,7 @@ pub fn admission(root: &Root) -> Result<(), E> {
         let p = match receipt.get("product") {
             Some(Value::Object(p)) => p,
             Some(other) if truthy(other) => {
-                return Err(E::Crash("'product' object has no attribute 'get'".into()))
+                return Err(E::Invalid("'product' object has no attribute 'get'".into()))
             }
             _ => &empty,
         };

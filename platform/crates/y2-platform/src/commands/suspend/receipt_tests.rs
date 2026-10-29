@@ -267,6 +267,29 @@ fn older_or_malformed_receipt_is_idle_without_resume_claim() {
 }
 
 #[test]
+fn a_product_that_is_no_object_is_a_refusal_record() {
+    let fixture = player();
+    for (product, failure) in [
+        ("5", "'int' object is not iterable"),
+        (
+            "[[1, \"a\"], [\"state\", \"requested\"]]",
+            "'<' not supported between instances of 'int' and 'str'",
+        ),
+    ] {
+        fixture.put(
+            "/data/system/platform/suspend-last.json",
+            &format!("{{\"product\": {product}}}"),
+        );
+        let reply = status(&fixture.root).unwrap();
+        assert_eq!(reply.code, 1);
+        assert_eq!(
+            reply.stdout,
+            format!("{{\"failure\": \"{failure}\", \"state\": \"Failed\"}}")
+        );
+    }
+}
+
+#[test]
 fn pm_test_return_never_proves_deep_sleep() {
     let fixture = player();
     for mode in ["freezer", "devices", "platform", "processors", "core"] {

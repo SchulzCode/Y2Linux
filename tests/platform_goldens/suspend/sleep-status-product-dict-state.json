@@ -5,7 +5,10 @@
  ],
  "calls": [],
  "exit": 1,
- "stdout": [],
+ "stdout": {
+  "failure": "cannot use 'dict' as a set element (unhashable type: 'dict')",
+  "state": "Failed"
+ },
  "tree": {
   "added": {},
   "changed": {},

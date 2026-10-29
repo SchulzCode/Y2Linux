@@ -172,7 +172,11 @@ fn finish(mut result: Map<String, Value>, boot_id: Option<&str>) -> Map<String, 
     result
 }
 
+/// A receipt whose product it cannot read is the command's refusal record (exit 1).
 pub fn status(root: &Root) -> Outcome {
     let value = root.json_object(RECEIPT);
-    Reply::sorted(&product(&value, root.boot_id().as_deref())?, 0)
+    match product(&value, root.boot_id().as_deref()) {
+        Ok(product) => Reply::sorted(&product, 0),
+        Err(failure) => super::suspend::refused(failure),
+    }
 }

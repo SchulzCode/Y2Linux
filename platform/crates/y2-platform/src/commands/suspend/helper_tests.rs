@@ -329,6 +329,10 @@ impl Player {
     }
 
     fn run_sleep(&self) -> i64 {
+        self.try_sleep().unwrap()
+    }
+
+    fn try_sleep(&self) -> Result<i64, E> {
         let requested = Stage {
             mode: Some("product"),
             ..Stage::new("requested", Some(0))
@@ -338,7 +342,7 @@ impl Player {
             hooks: &self.hooks,
             clock: &self.clock,
         };
-        execute(&self.root, self.lock.as_raw_fd(), &mut kernel).unwrap()
+        execute(&self.root, self.lock.as_raw_fd(), &mut kernel)
     }
 
     fn receipt(&self) -> Value {
@@ -588,6 +592,61 @@ fn pm_writes_keep_their_order() {
             "/sys/firmware/y2_pm/stage COMPLETE",
         ]
     );
+}
+
+/// Change the receipt on disk as `change` says.
+fn edit_receipt(path: &std::path::Path, change: impl FnOnce(&mut Value)) {
+    let mut value: Value = serde_json::from_str(&fs::read_to_string(path).unwrap()).unwrap();
+    change(&mut value);
+    fs::write(path, value.to_string()).unwrap();
+}
+
+#[test]
+fn an_unreadable_receipt_after_the_return_is_a_failure_that_still_restores() {
+    // A receipt counter the helper cannot add to once Linux returned: the failure is recorded,
+    // Reborn and the radios come back, and the unproven kernel return stays quarantined.
+    let p = Player::new();
+    p.write("/data/network/enabled", "1");
+    let (tree, receipt) = (p.tree.clone(), p.fixture.path(RECEIPT));
+    p.enter(move || {
+        tree.returned(false, false);
+        edit_receipt(&receipt, |value| value["cycles"] = json!("x"));
+        Ok(())
+    });
+    assert_eq!(p.run_sleep(), 1);
+    let receipt = p.receipt();
+    assert_eq!(receipt["product"]["state"], "restore_failed");
+    assert_eq!(
+        receipt["product"]["reason"],
+        "unsupported operand type(s) for +"
+    );
+    assert_eq!(stages(&receipt).last().unwrap(), "complete_result_1");
+    assert_eq!(p.rpc(), ["sleep_prepare", "sleep_restore"]);
+    let on = ["/usr/sbin/y2-radio", "wifi", "on-runtime"].map(String::from);
+    assert!(p.commands().contains(&on.to_vec()));
+    assert_eq!(p.guard()["pending"], true);
+}
+
+#[test]
+fn reborn_is_restored_when_its_preparation_cannot_be_recorded() {
+    // Reborn quiesced, then the receipt could not take the row: the helper still restores it.
+    let p = Player::new();
+    let receipt = p.fixture.path(RECEIPT);
+    p.reborn.handle(Box::new(move |op, dark| {
+        if op == "sleep_prepare" {
+            edit_receipt(&receipt, |value| value["stages"] = Value::Null);
+        }
+        ready(op, dark)
+    }));
+    p.never_enter("slept without a recorded preparation");
+    let result = p.try_sleep();
+    assert!(
+        matches!(&result, Err(E::Invalid(text)) if text.contains("append")),
+        "{result:?}"
+    );
+    assert_eq!(p.rpc(), ["sleep_prepare", "sleep_restore"]);
+    assert!(p.commands().is_empty()); // the radios were never quiesced
+    assert_eq!(p.guard()["pending"], false);
 }
 
 #[test]
@@ -1286,13 +1345,13 @@ fn early_screen_restore_is_reused_and_a_failed_one_retried() {
         &fixture,
         Box::new(|_, _| answer(json!({"sleep_ready": true, "screen_off": false}))),
     );
-    let ack = screen_first(root, false).unwrap();
+    let ack = screen_first(root, false);
     assert_eq!(
         ack.clone().map(Value::Object),
         Some(json!({"sleep_ready": true, "screen_off": false}))
     );
     drop(reborn);
-    assert_eq!(screen_first(root, false).unwrap(), None);
+    assert_eq!(screen_first(root, false), None);
     let reborn = Reborn::serve(
         &fixture,
         Box::new(|_, _| answer(json!({"sleep_ready": true, "screen_off": false}))),

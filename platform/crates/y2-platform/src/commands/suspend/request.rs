@@ -28,23 +28,35 @@ fn failure(error: E) -> Failure {
     }
 }
 
-/// `sleep.prepare`: Reborn must acknowledge the screen is off and it is ready to sleep.
+/// `sleep.prepare`: Reborn must acknowledge the screen is off and it is ready to sleep; then the
+/// receipt records it.
 pub fn prepare_owned(root: &Root) -> Result<Map<String, Value>, E> {
+    acknowledge_prepare(root)?;
+    record_prepared(root)
+}
+
+/// Reborn's acknowledgement that the screen is off and it is ready to sleep; a refusal or no answer
+/// is recorded (`refused_reborn_preparation`) and returned.
+pub fn acknowledge_prepare(root: &Root) -> Result<Map<String, Value>, E> {
     let ack = application_rpc(root, "sleep_prepare", false).and_then(|ack| {
         if !is_true(ack.get("sleep_ready")) || !is_true(ack.get("screen_off")) {
             return Err(E::value("reborn_sleep_preparation_failed"));
         }
         Ok(ack)
     });
-    if let Err(error) = ack {
+    if let Err(error) = &ack {
         if error.is_os() || error.is_value() {
             record(
                 root,
                 Stage::new("refused_reborn_preparation", Some(1)).reason(error.text()),
             )?;
         }
-        return Err(error);
     }
+    ack
+}
+
+/// The receipt row of an acknowledged preparation: the product state after it.
+pub fn record_prepared(root: &Root) -> Result<Map<String, Value>, E> {
     let prepared = Stage {
         reborn_ack: Some(true),
         ..Stage::new("reborn_prepared", Some(0))
@@ -81,8 +93,11 @@ pub fn request_with(root: &Root, launcher: Launcher) -> Outcome {
             let current = super::super::sleep::product(
                 &root.json_object(receipt::RECEIPT),
                 root.boot_id().as_deref(),
-            )?;
-            let mut busy = current;
+            );
+            let mut busy = match current {
+                Ok(current) => current,
+                Err(failure) => return super::refused(failure),
+            };
             busy.insert("state".into(), "refused".into());
             busy.insert("reason".into(), "sleep_operation_in_progress".into());
             return Reply::sorted(&busy, 0);

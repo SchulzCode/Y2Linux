@@ -111,7 +111,7 @@ pub fn raised(failure: crate::reply::Failure) -> E {
             class: "TypeError",
             message,
         } => E::TypeError(message),
-        other => E::Crash(other.message()),
+        other => E::Invalid(other.message()),
     }
 }
 
@@ -662,7 +662,7 @@ pub fn record(root: &Root, s: Stage) -> Result<Receipt, E> {
 fn append_stage(value: &mut Map<String, Value>, row: Value) -> Result<(), E> {
     let stages = value.entry("stages").or_insert_with(|| json!([]));
     let Value::Array(list) = stages else {
-        return Err(E::Crash("object has no attribute 'append'".into()));
+        return Err(E::Invalid("object has no attribute 'append'".into()));
     };
     list.push(row);
     if list.len() > 32 {

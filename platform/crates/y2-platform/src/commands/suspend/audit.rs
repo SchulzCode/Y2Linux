@@ -6,7 +6,7 @@
 //! `--help`; abbreviations, `--x=y`, argparse's errors and texts at 80 columns, `prog` y2-power-audit),
 //! then its `bounded windows only` refusal (exit 2).
 // SPDX-License-Identifier: GPL-2.0-only
-use super::{as_map, journal::plain, monotonic, process_time, receipt, traceback, wall, E};
+use super::{as_map, fail, journal::plain, monotonic, process_time, receipt, wall, E};
 use crate::{argparse::python, reply::Outcome};
 use serde::Serialize;
 use serde_json::Value;
@@ -383,7 +383,7 @@ pub fn main(root: &Root, args: &[String]) -> Outcome {
     };
     match run(root, &parsed) {
         Ok(()) => super::exit(0),
-        Err(error) => traceback(&error, 1),
+        Err(error) => fail("y2-power-audit", &error),
     }
 }
 
@@ -869,7 +869,7 @@ fn delta(a: &Sample, b: &Sample, duration: f64) -> Result<Summary, E> {
             match get(&s.files, &usage) {
                 Some(Some(text)) => int(text),
                 Some(None) => Err(E::TypeError("int() argument must be a string".into())),
-                None => Err(E::Crash(format!(
+                None => Err(E::Invalid(format!(
                     "KeyError: {}",
                     y2p_core::py::repr(&usage)
                 ))),
@@ -966,7 +966,9 @@ fn delta(a: &Sample, b: &Sample, duration: f64) -> Result<Summary, E> {
             let parts = split(line);
             if let Some(&first) = parts.first() {
                 if ["ctxt", "processes", "intr"].contains(&first) {
-                    let value = int(parts.get(1).ok_or_else(|| E::Crash("IndexError".into()))?)?;
+                    let value = int(parts
+                        .get(1)
+                        .ok_or_else(|| E::Invalid("IndexError".into()))?)?;
                     match map.iter_mut().find(|(k, _)| k == first) {
                         Some(entry) => entry.1 = value,
                         None => map.push((first.to_owned(), value)),

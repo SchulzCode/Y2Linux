@@ -161,7 +161,7 @@ pub fn suspend(root: &Root, battery: &Value, event: &str) -> Result<bool, E> {
     let now = super::monotonic();
     // signature = (state, battery.get('status'), battery.get('charging')): outside the try.
     if !battery.is_object() {
-        return Err(E::Crash(format!(
+        return Err(E::Invalid(format!(
             "'{}' object has no attribute 'get'",
             battery.type_name()
         )));
@@ -278,7 +278,7 @@ fn row(root: &Root, battery: &Value, event: &str, now: f64) -> Result<bool, E> {
     let reason = match receipt.get("product") {
         Some(Value::Object(product)) => product.get("reason").cloned().unwrap_or(Value::Null),
         Some(other) if y2p_core::py::truthy(other) => {
-            return Err(E::Crash(format!(
+            return Err(E::Invalid(format!(
                 "'{}' object has no attribute 'get'",
                 other.type_name()
             )))

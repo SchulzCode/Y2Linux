@@ -5,7 +5,10 @@
  ],
  "calls": [],
  "exit": 1,
- "stdout": [],
+ "stdout": {
+  "failure": "'float' object is not iterable",
+  "state": "Failed"
+ },
  "tree": {
   "added": {},
   "changed": {},
