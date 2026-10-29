@@ -238,10 +238,8 @@ pub fn read(path: &Path, limit: usize) -> Option<String> {
     Some(python_strip(&text).to_owned())
 }
 
-/// Python `str.strip()`: Unicode whitespace plus the separators U+001C..U+001F.
-pub fn python_strip(text: &str) -> &str {
-    text.trim_matches(|c: char| c.is_whitespace() || ('\u{1c}'..='\u{1f}').contains(&c))
-}
+/// Python `str.strip()` (`text::strip`).
+pub use crate::text::strip as python_strip;
 
 /// Python `int(text)` for the decimal forms the platform reads (sign, digits, `_` between digits).
 pub fn python_int(text: &str) -> Option<i64> {

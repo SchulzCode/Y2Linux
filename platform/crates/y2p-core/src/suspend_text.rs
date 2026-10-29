@@ -2,56 +2,10 @@
 //! `split()`, `isdecimal`, `int(text, 16)` and `re.findall(r'(\w+)=(\S+)', text)`. The `regex` crate
 //! is re-exported so the command crate needs no dependency of its own.
 // SPDX-License-Identifier: GPL-2.0-only
+pub use crate::text::{is_space, split, splitlines};
 pub use regex::Regex;
 use serde_json::{Map, Value};
 use std::sync::OnceLock;
-
-/// Python's `str.isspace` (Unicode whitespace plus the separators U+001C..U+001F).
-pub fn is_space(c: char) -> bool {
-    c.is_whitespace() || ('\u{1c}'..='\u{1f}').contains(&c)
-}
-
-/// `str.split()`.
-pub fn split(text: &str) -> Vec<&str> {
-    text.split(is_space).filter(|s| !s.is_empty()).collect()
-}
-
-/// `str.splitlines()`: `\n`, `\r`, `\r\n`, `\v`, `\f`, U+001C..U+001E, U+0085, U+2028, U+2029.
-pub fn splitlines(text: &str) -> Vec<&str> {
-    let mut lines = Vec::new();
-    let mut start = 0;
-    let mut chars = text.char_indices().peekable();
-    while let Some((index, c)) = chars.next() {
-        let breaks = matches!(
-            c,
-            '\n' | '\r'
-                | '\u{b}'
-                | '\u{c}'
-                | '\u{1c}'
-                | '\u{1d}'
-                | '\u{1e}'
-                | '\u{85}'
-                | '\u{2028}'
-                | '\u{2029}'
-        );
-        if !breaks {
-            continue;
-        }
-        lines.push(&text[start..index]);
-        let mut end = index + c.len_utf8();
-        if c == '\r' {
-            if let Some((next, '\n')) = chars.peek().copied() {
-                chars.next();
-                end = next + 1;
-            }
-        }
-        start = end;
-    }
-    if start < text.len() {
-        lines.push(&text[start..]);
-    }
-    lines
-}
 
 /// `str.isdecimal()` for the ASCII text sysfs gives (`''` is not decimal).
 pub fn is_decimal(text: &str) -> bool {

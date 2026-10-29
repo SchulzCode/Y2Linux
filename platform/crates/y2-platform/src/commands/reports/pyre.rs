@@ -15,6 +15,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use regex::{Captures, Regex};
 use std::sync::OnceLock;
+pub use y2p_core::text::{is_space as isspace, splitlines};
 
 /// Python's `\s` inside a character class.
 pub const S: &str = r"\s\x1C-\x1F";
@@ -48,51 +49,9 @@ pub fn is_word(c: char) -> bool {
     c == '_' || isalnum(c)
 }
 
-/// `str.isspace()` (`y2p_core::root::python_strip` strips the same set).
-pub fn isspace(c: char) -> bool {
-    c.is_whitespace() || ('\u{1c}'..='\u{1f}').contains(&c)
-}
-
 /// `str.rstrip()`.
 pub fn rstrip(text: &str) -> &str {
     text.trim_end_matches(isspace)
-}
-
-/// `str.splitlines()`.
-pub fn splitlines(text: &str) -> Vec<&str> {
-    let mut lines = Vec::new();
-    let mut start = 0;
-    let mut chars = text.char_indices().peekable();
-    while let Some((index, c)) = chars.next() {
-        let separator = matches!(
-            c,
-            '\n' | '\r'
-                | '\u{b}'
-                | '\u{c}'
-                | '\u{1c}'
-                | '\u{1d}'
-                | '\u{1e}'
-                | '\u{85}'
-                | '\u{2028}'
-                | '\u{2029}'
-        );
-        if !separator {
-            continue;
-        }
-        lines.push(&text[start..index]);
-        let mut end = index + c.len_utf8();
-        if c == '\r' {
-            if let Some((_, '\n')) = chars.peek() {
-                chars.next();
-                end += 1;
-            }
-        }
-        start = end;
-    }
-    if start < text.len() {
-        lines.push(&text[start..]);
-    }
-    lines
 }
 
 /// The character before byte offset `at`.

@@ -27,6 +27,7 @@ pub mod service_digest;
 pub mod storage_media;
 pub mod suspend_text;
 pub mod sys;
+pub mod text;
 pub mod volume;
 
 pub use root::Root;

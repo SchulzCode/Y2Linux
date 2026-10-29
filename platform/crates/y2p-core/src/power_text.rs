@@ -1,6 +1,7 @@
 //! The regular expressions and Python string rules the power and sleep records parse sysfs text with
 //! (`re.findall` with Python's leftmost-first, non-overlapping matches; `str.split()`).
 // SPDX-License-Identifier: GPL-2.0-only
+pub use crate::text::{is_space as python_space, split as python_split};
 use regex::Regex;
 use std::sync::OnceLock;
 
@@ -59,16 +60,6 @@ pub fn trie_address(text: &str) -> Option<String> {
     static PATTERN: OnceLock<Regex> = OnceLock::new();
     let pattern = cached(&PATTERN, r"^[|+`-]*\s*([0-9]+(?:\.[0-9]+){3})$");
     pattern.captures(text).map(|c| c[1].to_owned())
-}
-
-/// Python `str.isspace()` for one character (also the separators U+001C..U+001F).
-pub fn python_space(c: char) -> bool {
-    c.is_whitespace() || ('\u{1c}'..='\u{1f}').contains(&c)
-}
-
-/// Python `str.split()` without arguments.
-pub fn python_split(text: &str) -> Vec<&str> {
-    text.split(python_space).filter(|s| !s.is_empty()).collect()
 }
 
 /// Python `int(text, 16)`: sign, optional `0x`, hex digits with single `_` between them.

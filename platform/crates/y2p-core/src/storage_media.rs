@@ -3,53 +3,12 @@
 //! the space cleanup. The patterns are Unicode-aware (`\d`, `\S`, `\s`, `\b`), as the classes were
 //! recorded with.
 // SPDX-License-Identifier: GPL-2.0-only
+pub use crate::text::splitlines;
+use crate::text::strip;
 use regex::Regex;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::{collections::BTreeSet, sync::OnceLock};
-
-/// Lines split at every Unicode line boundary (`\r\n` counts once), no trailing empty line.
-pub fn splitlines(text: &str) -> Vec<&str> {
-    let boundary = |c: char| {
-        matches!(
-            c,
-            '\n' | '\r'
-                | '\x0b'
-                | '\x0c'
-                | '\x1c'
-                | '\x1d'
-                | '\x1e'
-                | '\u{85}'
-                | '\u{2028}'
-                | '\u{2029}'
-        )
-    };
-    let mut lines = Vec::new();
-    let mut start = 0;
-    let mut chars = text.char_indices().peekable();
-    while let Some((index, c)) = chars.next() {
-        if !boundary(c) {
-            continue;
-        }
-        lines.push(&text[start..index]);
-        let mut end = index + c.len_utf8();
-        if c == '\r' {
-            if let Some((next, '\n')) = chars.peek().copied() {
-                chars.next();
-                end = next + 1;
-            }
-        }
-        start = end;
-    }
-    if start < text.len() {
-        lines.push(&text[start..]);
-    }
-    lines
-}
-
-fn strip(text: &str) -> &str {
-    crate::root::python_strip(text)
-}
 
 fn full(pattern: &str) -> Regex {
     Regex::new(&format!(r"\A(?:{pattern})\z")).expect("pattern")

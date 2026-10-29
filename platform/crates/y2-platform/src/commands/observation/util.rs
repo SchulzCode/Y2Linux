@@ -12,6 +12,7 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 use y2p_core::py::PyValue;
+pub use y2p_core::text::{split as split_ws, splitlines};
 use y2p_core::{
     observation_support::regex::Regex,
     root::{self, python_strip},
@@ -25,53 +26,6 @@ pub fn read(path: &Path) -> Option<String> {
 
 pub fn read_limited(path: &Path, limit: usize) -> Option<String> {
     root::read(path, limit)
-}
-
-/// `str.splitlines()`.
-pub fn splitlines(text: &str) -> Vec<&str> {
-    let mut lines = Vec::new();
-    let mut start = 0;
-    let mut chars = text.char_indices().peekable();
-    while let Some((index, c)) = chars.next() {
-        let breaks = matches!(
-            c,
-            '\n' | '\r'
-                | '\u{b}'
-                | '\u{c}'
-                | '\u{1c}'
-                | '\u{1d}'
-                | '\u{1e}'
-                | '\u{85}'
-                | '\u{2028}'
-                | '\u{2029}'
-        );
-        if !breaks {
-            continue;
-        }
-        lines.push(&text[start..index]);
-        let mut end = index + c.len_utf8();
-        if c == '\r' {
-            if let Some(&(next, '\n')) = chars.peek() {
-                chars.next();
-                end = next + 1;
-            }
-        }
-        start = end;
-    }
-    if start < text.len() {
-        lines.push(&text[start..]);
-    }
-    lines
-}
-
-/// Python `str.isspace()` for one character.
-pub fn is_space(c: char) -> bool {
-    c.is_whitespace() || ('\u{1c}'..='\u{1f}').contains(&c)
-}
-
-/// `str.split()` without arguments.
-pub fn split_ws(text: &str) -> Vec<&str> {
-    text.split(is_space).filter(|s| !s.is_empty()).collect()
 }
 
 /// `int(text)` (`common.number`) of a str: any Unicode decimal digits, surrounding whitespace and
