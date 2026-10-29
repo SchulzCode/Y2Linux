@@ -1036,3 +1036,7 @@ mod tests {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "battery_tests.rs"]
+mod battery_tests;
