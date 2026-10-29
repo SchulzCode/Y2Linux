@@ -1,0 +1,196 @@
+{
+  "calls": [
+    {
+      "argv": [
+        "/usr/sbin/iw",
+        "dev",
+        "wlan0",
+        "get",
+        "power_save"
+      ],
+      "timeout": 3.0
+    },
+    {
+      "argv": [
+        "/usr/sbin/iw",
+        "dev",
+        "wlan0",
+        "set",
+        "power_save",
+        "off"
+      ],
+      "timeout": 2.0
+    },
+    {
+      "argv": [
+        "/usr/sbin/iw",
+        "dev",
+        "wlan0",
+        "get",
+        "power_save"
+      ],
+      "timeout": 3.0
+    }
+  ],
+  "result": {
+    "applied": true,
+    "boot_id": "boot-a",
+    "enabled": true,
+    "epoch": "b6a2f0de-6a1c-4b7e-9c0e-3f1d2a4b5c6d",
+    "ifindex": null,
+    "mode": "automatic",
+    "monotonic_s": "<volatile>",
+    "provisional": true,
+    "reason": "power_save_readback_unavailable",
+    "requested": false,
+    "requested_driver_profile": "CAM",
+    "schema": 1,
+    "state": "Unavailable"
+  },
+  "tree": {
+    "data": {
+      "dir": 493
+    },
+    "data/.y2data-schema": {
+      "content": 1,
+      "mode": 420
+    },
+    "data/network": {
+      "dir": 493
+    },
+    "data/network/power-save.json": {
+      "content": {
+        "automatic_standard": true,
+        "mode": "automatic",
+        "schema": 1
+      },
+      "mode": 420
+    },
+    "data/system": {
+      "dir": 448
+    },
+    "data/system/platform": {
+      "dir": 448
+    },
+    "etc": {
+      "dir": 493
+    },
+    "etc/y2linux": {
+      "dir": 493
+    },
+    "etc/y2linux/bluetooth-codecs.json": {
+      "content": {
+        "codecs": {
+          "AAC": {
+            "compiled_locally": true,
+            "distribution_approved": true,
+            "platform_qualified": true
+          },
+          "LDAC": {
+            "compiled_locally": true,
+            "owner_private_experiment": true
+          },
+          "SBC": {
+            "compiled_locally": true,
+            "platform_qualified": true
+          },
+          "aptX": {
+            "compiled_locally": false
+          }
+        },
+        "schema": 1
+      },
+      "mode": 420
+    },
+    "proc": {
+      "dir": 493
+    },
+    "proc/self": {
+      "dir": 493
+    },
+    "proc/self/mountinfo": {
+      "content": "22 1 179:2 / / ro - ext4 /dev/mmcblk0p2 ro\n30 22 179:9 / /data rw,noatime - ext4 /dev/mmcblk0p9 rw\n",
+      "mode": 420
+    },
+    "proc/sys": {
+      "dir": 493
+    },
+    "proc/sys/kernel": {
+      "dir": 493
+    },
+    "proc/sys/kernel/random": {
+      "dir": 493
+    },
+    "proc/sys/kernel/random/boot_id": {
+      "content": "boot-a\n",
+      "mode": 420
+    },
+    "run": {
+      "dir": 493
+    },
+    "run/y2": {
+      "dir": 448
+    },
+    "run/y2-data-device": {
+      "content": "/dev/mmcblk0p9\n",
+      "mode": 420
+    },
+    "run/y2/wifi-epoch": {
+      "content": "b6a2f0de-6a1c-4b7e-9c0e-3f1d2a4b5c6d\n",
+      "mode": 420
+    },
+    "run/y2/wifi-power.json": {
+      "content": {
+        "applied": true,
+        "boot_id": "boot-a",
+        "enabled": true,
+        "epoch": "b6a2f0de-6a1c-4b7e-9c0e-3f1d2a4b5c6d",
+        "ifindex": null,
+        "mode": "automatic",
+        "monotonic_s": "<volatile>",
+        "provisional": true,
+        "reason": "power_save_readback_unavailable",
+        "requested": false,
+        "requested_driver_profile": "CAM",
+        "schema": 1,
+        "state": "Unavailable"
+      },
+      "mode": 384
+    },
+    "sys": {
+      "dir": 493
+    },
+    "sys/class": {
+      "dir": 493
+    },
+    "sys/class/rfkill": {
+      "dir": 493
+    },
+    "sys/class/rfkill/rfkill0": {
+      "dir": 493
+    },
+    "sys/class/rfkill/rfkill0/hard": {
+      "content": 0,
+      "mode": 420
+    },
+    "sys/class/rfkill/rfkill0/soft": {
+      "content": 0,
+      "mode": 420
+    },
+    "sys/class/rfkill/rfkill0/type": {
+      "content": "wlan\n",
+      "mode": 420
+    },
+    "sys/class/rfkill/rfkill1": {
+      "dir": 493
+    },
+    "sys/class/rfkill/rfkill1/soft": {
+      "content": 1,
+      "mode": 420
+    },
+    "sys/class/rfkill/rfkill1/type": {
+      "content": "bluetooth\n",
+      "mode": 420
+    }
+  }
+}

@@ -1,0 +1,1164 @@
+{
+  "calls": [
+    {
+      "argv": [
+        "wpa_cli",
+        "-i",
+        "wlan0",
+        "scan_results"
+      ],
+      "timeout": 2.0
+    },
+    {
+      "argv": [
+        "wpa_cli",
+        "-i",
+        "wlan0",
+        "list_networks"
+      ],
+      "timeout": 2.0
+    },
+    {
+      "argv": [
+        "wpa_cli",
+        "-i",
+        "wlan0",
+        "bss",
+        "00:11:22:33:44:55"
+      ],
+      "timeout": 2.0
+    },
+    {
+      "argv": [
+        "wpa_cli",
+        "-i",
+        "wlan0",
+        "get_network",
+        "0",
+        "key_mgmt"
+      ],
+      "timeout": 2.0
+    },
+    {
+      "argv": [
+        "wpa_cli",
+        "-i",
+        "wlan0",
+        "get_network",
+        "4",
+        "key_mgmt"
+      ],
+      "timeout": 2.0
+    },
+    {
+      "argv": [
+        "wpa_cli",
+        "-i",
+        "wlan0",
+        "get",
+        "country"
+      ],
+      "timeout": 2.0
+    },
+    {
+      "argv": [
+        "wpa_cli",
+        "-i",
+        "wlan0",
+        "scan_results"
+      ],
+      "timeout": 2.0
+    },
+    {
+      "argv": [
+        "wpa_cli",
+        "-i",
+        "wlan0",
+        "list_networks"
+      ],
+      "timeout": 2.0
+    },
+    {
+      "argv": [
+        "wpa_cli",
+        "-i",
+        "wlan0",
+        "bss",
+        "00:11:22:33:44:55"
+      ],
+      "timeout": 2.0
+    },
+    {
+      "argv": [
+        "wpa_cli",
+        "-i",
+        "wlan0",
+        "get_network",
+        "0",
+        "key_mgmt"
+      ],
+      "timeout": 2.0
+    },
+    {
+      "argv": [
+        "wpa_cli",
+        "-i",
+        "wlan0",
+        "get_network",
+        "4",
+        "key_mgmt"
+      ],
+      "timeout": 2.0
+    },
+    {
+      "argv": [
+        "wpa_cli",
+        "-i",
+        "wlan0",
+        "get",
+        "country"
+      ],
+      "timeout": 2.0
+    }
+  ],
+  "result": [
+    [
+      {
+        "boot_id": "boot-a",
+        "epoch": "b6a2f0de-6a1c-4b7e-9c0e-3f1d2a4b5c6d",
+        "error": "handshake_failed",
+        "failures": 1,
+        "monotonic_s": "<volatile>",
+        "reason": "WRONG_KEY",
+        "schema": 1,
+        "wrong_key": {
+          "boot_id": "boot-a",
+          "count": 1,
+          "network_id": 0
+        }
+      },
+      false
+    ],
+    [
+      {
+        "boot_id": "boot-a",
+        "credential": {
+          "boot_id": "boot-a",
+          "error": "wrong_credentials",
+          "monotonic_s": "<volatile>",
+          "network_id": 0,
+          "reason": "WRONG_KEY"
+        },
+        "epoch": "b6a2f0de-6a1c-4b7e-9c0e-3f1d2a4b5c6d",
+        "error": "wrong_credentials",
+        "failures": 2,
+        "last_failure": {
+          "boot_id": "boot-a",
+          "epoch": "b6a2f0de-6a1c-4b7e-9c0e-3f1d2a4b5c6d",
+          "error": "handshake_failed",
+          "failures": 1,
+          "monotonic_s": "<volatile>",
+          "reason": "WRONG_KEY"
+        },
+        "monotonic_s": "<volatile>",
+        "reason": "WRONG_KEY",
+        "schema": 1,
+        "wrong_key": {
+          "boot_id": "boot-a",
+          "count": 2,
+          "network_id": 0
+        }
+      },
+      false
+    ],
+    [
+      {
+        "boot_id": "boot-a",
+        "credential": {
+          "boot_id": "boot-a",
+          "error": "wrong_credentials",
+          "monotonic_s": "<volatile>",
+          "network_id": 0,
+          "reason": "WRONG_KEY"
+        },
+        "epoch": "b6a2f0de-6a1c-4b7e-9c0e-3f1d2a4b5c6d",
+        "error": "ap_unavailable",
+        "failures": 3,
+        "last_failure": {
+          "boot_id": "boot-a",
+          "epoch": "b6a2f0de-6a1c-4b7e-9c0e-3f1d2a4b5c6d",
+          "error": "wrong_credentials",
+          "failures": 2,
+          "monotonic_s": "<volatile>",
+          "reason": "WRONG_KEY"
+        },
+        "monotonic_s": "<volatile>",
+        "scan": {
+          "available": true,
+          "band_2ghz": 2,
+          "band_5ghz": 1,
+          "country": "DE",
+          "networks": 3,
+          "saved_access_points": 2,
+          "saved_age_s": 12,
+          "saved_channel": 6,
+          "saved_flags": "[WPA2-PSK-CCMP][ESS]",
+          "saved_frequency_mhz": 2437,
+          "saved_key_mgmt": [
+            "SAE WPA-PSK",
+            "WPA-PSK"
+          ],
+          "saved_networks": 2,
+          "saved_seen": true,
+          "saved_signal_dbm": -66
+        },
+        "scan_monotonic_s": "<volatile>",
+        "schema": 1,
+        "wrong_key": {
+          "boot_id": "boot-a",
+          "count": 2,
+          "network_id": 0
+        }
+      },
+      false
+    ],
+    [
+      {
+        "boot_id": "boot-a",
+        "credential": {
+          "boot_id": "boot-a",
+          "error": "wrong_credentials",
+          "monotonic_s": "<volatile>",
+          "network_id": 0,
+          "reason": "WRONG_KEY"
+        },
+        "epoch": "b6a2f0de-6a1c-4b7e-9c0e-3f1d2a4b5c6d",
+        "error": "ap_unavailable",
+        "failures": 4,
+        "last_failure": {
+          "boot_id": "boot-a",
+          "epoch": "b6a2f0de-6a1c-4b7e-9c0e-3f1d2a4b5c6d",
+          "error": "ap_unavailable",
+          "failures": 3,
+          "monotonic_s": "<volatile>",
+          "scan": {
+            "available": true,
+            "band_2ghz": 2,
+            "band_5ghz": 1,
+            "country": "DE",
+            "networks": 3,
+            "saved_access_points": 2,
+            "saved_age_s": 12,
+            "saved_channel": 6,
+            "saved_flags": "[WPA2-PSK-CCMP][ESS]",
+            "saved_frequency_mhz": 2437,
+            "saved_key_mgmt": [
+              "SAE WPA-PSK",
+              "WPA-PSK"
+            ],
+            "saved_networks": 2,
+            "saved_seen": true,
+            "saved_signal_dbm": -66
+          },
+          "scan_monotonic_s": "<volatile>"
+        },
+        "monotonic_s": "<volatile>",
+        "scan": {
+          "available": true,
+          "band_2ghz": 2,
+          "band_5ghz": 1,
+          "country": "DE",
+          "networks": 3,
+          "saved_access_points": 2,
+          "saved_age_s": 12,
+          "saved_channel": 6,
+          "saved_flags": "[WPA2-PSK-CCMP][ESS]",
+          "saved_frequency_mhz": 2437,
+          "saved_key_mgmt": [
+            "SAE WPA-PSK",
+            "WPA-PSK"
+          ],
+          "saved_networks": 2,
+          "saved_seen": true,
+          "saved_signal_dbm": -66
+        },
+        "scan_monotonic_s": "<volatile>",
+        "schema": 1,
+        "wrong_key": {
+          "boot_id": "boot-a",
+          "count": 2,
+          "network_id": 0
+        }
+      },
+      false
+    ],
+    [
+      {
+        "boot_id": "boot-a",
+        "credential": {
+          "boot_id": "boot-a",
+          "error": "wrong_credentials",
+          "monotonic_s": "<volatile>",
+          "network_id": 0,
+          "reason": "WRONG_KEY"
+        },
+        "epoch": "b6a2f0de-6a1c-4b7e-9c0e-3f1d2a4b5c6d",
+        "error": "ap_unavailable",
+        "failures": 4,
+        "last_failure": {
+          "boot_id": "boot-a",
+          "epoch": "b6a2f0de-6a1c-4b7e-9c0e-3f1d2a4b5c6d",
+          "error": "ap_unavailable",
+          "failures": 3,
+          "monotonic_s": "<volatile>",
+          "scan": {
+            "available": true,
+            "band_2ghz": 2,
+            "band_5ghz": 1,
+            "country": "DE",
+            "networks": 3,
+            "saved_access_points": 2,
+            "saved_age_s": 12,
+            "saved_channel": 6,
+            "saved_flags": "[WPA2-PSK-CCMP][ESS]",
+            "saved_frequency_mhz": 2437,
+            "saved_key_mgmt": [
+              "SAE WPA-PSK",
+              "WPA-PSK"
+            ],
+            "saved_networks": 2,
+            "saved_seen": true,
+            "saved_signal_dbm": -66
+          },
+          "scan_monotonic_s": "<volatile>"
+        },
+        "monotonic_s": "<volatile>",
+        "scan": {
+          "available": true,
+          "band_2ghz": 2,
+          "band_5ghz": 1,
+          "country": "DE",
+          "networks": 3,
+          "saved_access_points": 2,
+          "saved_age_s": 12,
+          "saved_channel": 6,
+          "saved_flags": "[WPA2-PSK-CCMP][ESS]",
+          "saved_frequency_mhz": 2437,
+          "saved_key_mgmt": [
+            "SAE WPA-PSK",
+            "WPA-PSK"
+          ],
+          "saved_networks": 2,
+          "saved_seen": true,
+          "saved_signal_dbm": -66
+        },
+        "scan_monotonic_s": "<volatile>",
+        "schema": 1,
+        "wrong_key": {
+          "boot_id": "boot-a",
+          "count": 2,
+          "network_id": 0
+        }
+      },
+      true
+    ],
+    [
+      {
+        "boot_id": "boot-a",
+        "credential": {
+          "boot_id": "boot-a",
+          "error": "wrong_credentials",
+          "monotonic_s": "<volatile>",
+          "network_id": 0,
+          "reason": "WRONG_KEY"
+        },
+        "epoch": "b6a2f0de-6a1c-4b7e-9c0e-3f1d2a4b5c6d",
+        "error": "ap_unavailable",
+        "failures": 4,
+        "last_failure": {
+          "boot_id": "boot-a",
+          "epoch": "b6a2f0de-6a1c-4b7e-9c0e-3f1d2a4b5c6d",
+          "error": "ap_unavailable",
+          "failures": 3,
+          "monotonic_s": "<volatile>",
+          "scan": {
+            "available": true,
+            "band_2ghz": 2,
+            "band_5ghz": 1,
+            "country": "DE",
+            "networks": 3,
+            "saved_access_points": 2,
+            "saved_age_s": 12,
+            "saved_channel": 6,
+            "saved_flags": "[WPA2-PSK-CCMP][ESS]",
+            "saved_frequency_mhz": 2437,
+            "saved_key_mgmt": [
+              "SAE WPA-PSK",
+              "WPA-PSK"
+            ],
+            "saved_networks": 2,
+            "saved_seen": true,
+            "saved_signal_dbm": -66
+          },
+          "scan_monotonic_s": "<volatile>"
+        },
+        "monotonic_s": "<volatile>",
+        "scan": {
+          "available": true,
+          "band_2ghz": 2,
+          "band_5ghz": 1,
+          "country": "DE",
+          "networks": 3,
+          "saved_access_points": 2,
+          "saved_age_s": 12,
+          "saved_channel": 6,
+          "saved_flags": "[WPA2-PSK-CCMP][ESS]",
+          "saved_frequency_mhz": 2437,
+          "saved_key_mgmt": [
+            "SAE WPA-PSK",
+            "WPA-PSK"
+          ],
+          "saved_networks": 2,
+          "saved_seen": true,
+          "saved_signal_dbm": -66
+        },
+        "scan_monotonic_s": "<volatile>",
+        "schema": 1,
+        "wrong_key": {
+          "boot_id": "boot-a",
+          "count": 2,
+          "network_id": 0
+        }
+      },
+      false
+    ],
+    [
+      {
+        "boot_id": "boot-a",
+        "credential": {
+          "boot_id": "boot-a",
+          "error": "wrong_credentials",
+          "monotonic_s": "<volatile>",
+          "network_id": 0,
+          "reason": "WRONG_KEY"
+        },
+        "epoch": "b6a2f0de-6a1c-4b7e-9c0e-3f1d2a4b5c6d",
+        "error": "ap_unavailable",
+        "failures": 4,
+        "last_failure": {
+          "boot_id": "boot-a",
+          "epoch": "b6a2f0de-6a1c-4b7e-9c0e-3f1d2a4b5c6d",
+          "error": "ap_unavailable",
+          "failures": 3,
+          "monotonic_s": "<volatile>",
+          "scan": {
+            "available": true,
+            "band_2ghz": 2,
+            "band_5ghz": 1,
+            "country": "DE",
+            "networks": 3,
+            "saved_access_points": 2,
+            "saved_age_s": 12,
+            "saved_channel": 6,
+            "saved_flags": "[WPA2-PSK-CCMP][ESS]",
+            "saved_frequency_mhz": 2437,
+            "saved_key_mgmt": [
+              "SAE WPA-PSK",
+              "WPA-PSK"
+            ],
+            "saved_networks": 2,
+            "saved_seen": true,
+            "saved_signal_dbm": -66
+          },
+          "scan_monotonic_s": "<volatile>"
+        },
+        "monotonic_s": "<volatile>",
+        "scan": {
+          "available": true,
+          "band_2ghz": 2,
+          "band_5ghz": 1,
+          "country": "DE",
+          "networks": 3,
+          "saved_access_points": 2,
+          "saved_age_s": 12,
+          "saved_channel": 6,
+          "saved_flags": "[WPA2-PSK-CCMP][ESS]",
+          "saved_frequency_mhz": 2437,
+          "saved_key_mgmt": [
+            "SAE WPA-PSK",
+            "WPA-PSK"
+          ],
+          "saved_networks": 2,
+          "saved_seen": true,
+          "saved_signal_dbm": -66
+        },
+        "scan_monotonic_s": "<volatile>",
+        "schema": 1,
+        "wrong_key": {
+          "boot_id": "boot-a",
+          "count": 2,
+          "network_id": 0
+        }
+      },
+      false
+    ],
+    [
+      {
+        "boot_id": "boot-a",
+        "credential": {
+          "boot_id": "boot-a",
+          "error": "wrong_credentials",
+          "monotonic_s": "<volatile>",
+          "network_id": 0,
+          "reason": "WRONG_KEY"
+        },
+        "epoch": "b6a2f0de-6a1c-4b7e-9c0e-3f1d2a4b5c6d",
+        "error": "ap_unavailable",
+        "failures": 4,
+        "last_failure": {
+          "boot_id": "boot-a",
+          "epoch": "b6a2f0de-6a1c-4b7e-9c0e-3f1d2a4b5c6d",
+          "error": "ap_unavailable",
+          "failures": 3,
+          "monotonic_s": "<volatile>",
+          "scan": {
+            "available": true,
+            "band_2ghz": 2,
+            "band_5ghz": 1,
+            "country": "DE",
+            "networks": 3,
+            "saved_access_points": 2,
+            "saved_age_s": 12,
+            "saved_channel": 6,
+            "saved_flags": "[WPA2-PSK-CCMP][ESS]",
+            "saved_frequency_mhz": 2437,
+            "saved_key_mgmt": [
+              "SAE WPA-PSK",
+              "WPA-PSK"
+            ],
+            "saved_networks": 2,
+            "saved_seen": true,
+            "saved_signal_dbm": -66
+          },
+          "scan_monotonic_s": "<volatile>"
+        },
+        "monotonic_s": "<volatile>",
+        "scan": {
+          "available": true,
+          "band_2ghz": 2,
+          "band_5ghz": 1,
+          "country": "DE",
+          "networks": 3,
+          "saved_access_points": 2,
+          "saved_age_s": 12,
+          "saved_channel": 6,
+          "saved_flags": "[WPA2-PSK-CCMP][ESS]",
+          "saved_frequency_mhz": 2437,
+          "saved_key_mgmt": [
+            "SAE WPA-PSK",
+            "WPA-PSK"
+          ],
+          "saved_networks": 2,
+          "saved_seen": true,
+          "saved_signal_dbm": -66
+        },
+        "scan_monotonic_s": "<volatile>",
+        "schema": 1,
+        "wrong_key": {
+          "boot_id": "boot-a",
+          "count": 2,
+          "network_id": 0
+        }
+      },
+      false
+    ],
+    [
+      {
+        "boot_id": "boot-a",
+        "credential": {
+          "boot_id": "boot-a",
+          "error": "wrong_credentials",
+          "monotonic_s": "<volatile>",
+          "network_id": 0,
+          "reason": "WRONG_KEY"
+        },
+        "epoch": "b6a2f0de-6a1c-4b7e-9c0e-3f1d2a4b5c6d",
+        "error": "authentication_rejected",
+        "failures": 5,
+        "last_failure": {
+          "boot_id": "boot-a",
+          "epoch": "b6a2f0de-6a1c-4b7e-9c0e-3f1d2a4b5c6d",
+          "error": "ap_unavailable",
+          "failures": 4,
+          "monotonic_s": "<volatile>",
+          "scan": {
+            "available": true,
+            "band_2ghz": 2,
+            "band_5ghz": 1,
+            "country": "DE",
+            "networks": 3,
+            "saved_access_points": 2,
+            "saved_age_s": 12,
+            "saved_channel": 6,
+            "saved_flags": "[WPA2-PSK-CCMP][ESS]",
+            "saved_frequency_mhz": 2437,
+            "saved_key_mgmt": [
+              "SAE WPA-PSK",
+              "WPA-PSK"
+            ],
+            "saved_networks": 2,
+            "saved_seen": true,
+            "saved_signal_dbm": -66
+          },
+          "scan_monotonic_s": "<volatile>"
+        },
+        "monotonic_s": "<volatile>",
+        "reason": "15",
+        "schema": 1,
+        "wrong_key": {
+          "boot_id": "boot-a",
+          "count": 2,
+          "network_id": 0
+        }
+      },
+      false
+    ],
+    [
+      {
+        "boot_id": "boot-a",
+        "credential": {
+          "boot_id": "boot-a",
+          "error": "wrong_credentials",
+          "monotonic_s": "<volatile>",
+          "network_id": 0,
+          "reason": "WRONG_KEY"
+        },
+        "epoch": "b6a2f0de-6a1c-4b7e-9c0e-3f1d2a4b5c6d",
+        "error": "authentication_rejected",
+        "failures": 5,
+        "last_failure": {
+          "boot_id": "boot-a",
+          "epoch": "b6a2f0de-6a1c-4b7e-9c0e-3f1d2a4b5c6d",
+          "error": "ap_unavailable",
+          "failures": 4,
+          "monotonic_s": "<volatile>",
+          "scan": {
+            "available": true,
+            "band_2ghz": 2,
+            "band_5ghz": 1,
+            "country": "DE",
+            "networks": 3,
+            "saved_access_points": 2,
+            "saved_age_s": 12,
+            "saved_channel": 6,
+            "saved_flags": "[WPA2-PSK-CCMP][ESS]",
+            "saved_frequency_mhz": 2437,
+            "saved_key_mgmt": [
+              "SAE WPA-PSK",
+              "WPA-PSK"
+            ],
+            "saved_networks": 2,
+            "saved_seen": true,
+            "saved_signal_dbm": -66
+          },
+          "scan_monotonic_s": "<volatile>"
+        },
+        "monotonic_s": "<volatile>",
+        "reason": "15",
+        "schema": 1,
+        "wrong_key": {
+          "boot_id": "boot-a",
+          "count": 2,
+          "network_id": 0
+        }
+      },
+      false
+    ],
+    [
+      {
+        "boot_id": "boot-a",
+        "epoch": "b6a2f0de-6a1c-4b7e-9c0e-3f1d2a4b5c6d",
+        "error": null,
+        "failures": 5,
+        "last_failure": {
+          "boot_id": "boot-a",
+          "epoch": "b6a2f0de-6a1c-4b7e-9c0e-3f1d2a4b5c6d",
+          "error": "authentication_rejected",
+          "failures": 5,
+          "monotonic_s": "<volatile>",
+          "reason": "15"
+        },
+        "monotonic_s": "<volatile>",
+        "schema": 1
+      },
+      false
+    ],
+    [
+      {
+        "boot_id": "boot-a",
+        "epoch": "b6a2f0de-6a1c-4b7e-9c0e-3f1d2a4b5c6d",
+        "error": null,
+        "failures": 5,
+        "last_failure": {
+          "boot_id": "boot-a",
+          "epoch": "b6a2f0de-6a1c-4b7e-9c0e-3f1d2a4b5c6d",
+          "error": "authentication_rejected",
+          "failures": 5,
+          "monotonic_s": "<volatile>",
+          "reason": "15"
+        },
+        "monotonic_s": "<volatile>",
+        "schema": 1
+      },
+      false
+    ],
+    [
+      {
+        "boot_id": "boot-a",
+        "epoch": "b6a2f0de-6a1c-4b7e-9c0e-3f1d2a4b5c6d",
+        "error": "authentication_failed",
+        "failures": 6,
+        "last_failure": {
+          "boot_id": "boot-a",
+          "epoch": "b6a2f0de-6a1c-4b7e-9c0e-3f1d2a4b5c6d",
+          "error": "authentication_rejected",
+          "failures": 5,
+          "monotonic_s": "<volatile>",
+          "reason": "15"
+        },
+        "monotonic_s": "<volatile>",
+        "reason": "CONN_FAILED",
+        "schema": 1
+      },
+      false
+    ],
+    [
+      {
+        "boot_id": "boot-a",
+        "epoch": "b6a2f0de-6a1c-4b7e-9c0e-3f1d2a4b5c6d",
+        "error": "handshake_failed",
+        "failures": 7,
+        "last_failure": {
+          "boot_id": "boot-a",
+          "epoch": "b6a2f0de-6a1c-4b7e-9c0e-3f1d2a4b5c6d",
+          "error": "authentication_failed",
+          "failures": 6,
+          "monotonic_s": "<volatile>",
+          "reason": "CONN_FAILED"
+        },
+        "monotonic_s": "<volatile>",
+        "reason": "WRONG_KEY",
+        "schema": 1,
+        "wrong_key": {
+          "boot_id": "boot-a",
+          "count": 1,
+          "network_id": 1
+        }
+      },
+      false
+    ],
+    [
+      {
+        "boot_id": "boot-a",
+        "credential": {
+          "boot_id": "boot-a",
+          "error": "wrong_credentials",
+          "monotonic_s": "<volatile>",
+          "network_id": 1,
+          "reason": "WRONG_KEY"
+        },
+        "epoch": "b6a2f0de-6a1c-4b7e-9c0e-3f1d2a4b5c6d",
+        "error": "wrong_credentials",
+        "failures": 8,
+        "last_failure": {
+          "boot_id": "boot-a",
+          "epoch": "b6a2f0de-6a1c-4b7e-9c0e-3f1d2a4b5c6d",
+          "error": "handshake_failed",
+          "failures": 7,
+          "monotonic_s": "<volatile>",
+          "reason": "WRONG_KEY"
+        },
+        "monotonic_s": "<volatile>",
+        "reason": "WRONG_KEY",
+        "schema": 1,
+        "wrong_key": {
+          "boot_id": "boot-a",
+          "count": 2,
+          "network_id": 1
+        }
+      },
+      false
+    ],
+    [
+      {
+        "boot_id": "boot-a",
+        "credential": {
+          "boot_id": "boot-a",
+          "error": "wrong_credentials",
+          "monotonic_s": "<volatile>",
+          "network_id": 1,
+          "reason": "WRONG_KEY"
+        },
+        "epoch": "b6a2f0de-6a1c-4b7e-9c0e-3f1d2a4b5c6d",
+        "error": "wrong_credentials",
+        "failures": 8,
+        "last_failure": {
+          "boot_id": "boot-a",
+          "epoch": "b6a2f0de-6a1c-4b7e-9c0e-3f1d2a4b5c6d",
+          "error": "handshake_failed",
+          "failures": 7,
+          "monotonic_s": "<volatile>",
+          "reason": "WRONG_KEY"
+        },
+        "monotonic_s": "<volatile>",
+        "reason": "WRONG_KEY",
+        "schema": 1,
+        "wrong_key": {
+          "boot_id": "boot-a",
+          "count": 2,
+          "network_id": 1
+        }
+      },
+      false
+    ],
+    [
+      {
+        "boot_id": "boot-a",
+        "credential": {
+          "boot_id": "boot-a",
+          "error": "wrong_credentials",
+          "monotonic_s": "<volatile>",
+          "network_id": 1,
+          "reason": "WRONG_KEY"
+        },
+        "epoch": "b6a2f0de-6a1c-4b7e-9c0e-3f1d2a4b5c6d",
+        "error": "wrong_credentials",
+        "failures": 8,
+        "last_failure": {
+          "boot_id": "boot-a",
+          "epoch": "b6a2f0de-6a1c-4b7e-9c0e-3f1d2a4b5c6d",
+          "error": "handshake_failed",
+          "failures": 7,
+          "monotonic_s": "<volatile>",
+          "reason": "WRONG_KEY"
+        },
+        "monotonic_s": "<volatile>",
+        "reason": "WRONG_KEY",
+        "schema": 1,
+        "wrong_key": {
+          "boot_id": "boot-a",
+          "count": 2,
+          "network_id": 1
+        }
+      },
+      false
+    ],
+    [
+      {
+        "boot_id": "boot-a",
+        "credential": {
+          "boot_id": "boot-a",
+          "error": "wrong_credentials",
+          "monotonic_s": "<volatile>",
+          "network_id": 1,
+          "reason": "WRONG_KEY"
+        },
+        "epoch": "b6a2f0de-6a1c-4b7e-9c0e-3f1d2a4b5c6d",
+        "error": "wrong_credentials",
+        "failures": 8,
+        "last_failure": {
+          "boot_id": "boot-a",
+          "epoch": "b6a2f0de-6a1c-4b7e-9c0e-3f1d2a4b5c6d",
+          "error": "handshake_failed",
+          "failures": 7,
+          "monotonic_s": "<volatile>",
+          "reason": "WRONG_KEY"
+        },
+        "monotonic_s": "<volatile>",
+        "reason": "WRONG_KEY",
+        "schema": 1,
+        "wrong_key": {
+          "boot_id": "boot-a",
+          "count": 2,
+          "network_id": 1
+        }
+      },
+      false
+    ],
+    [
+      {
+        "boot_id": "boot-a",
+        "credential": {
+          "boot_id": "boot-a",
+          "error": "wrong_credentials",
+          "monotonic_s": "<volatile>",
+          "network_id": 1,
+          "reason": "WRONG_KEY"
+        },
+        "epoch": "b6a2f0de-6a1c-4b7e-9c0e-3f1d2a4b5c6d",
+        "error": "wrong_credentials",
+        "failures": 8,
+        "last_failure": {
+          "boot_id": "boot-a",
+          "epoch": "b6a2f0de-6a1c-4b7e-9c0e-3f1d2a4b5c6d",
+          "error": "handshake_failed",
+          "failures": 7,
+          "monotonic_s": "<volatile>",
+          "reason": "WRONG_KEY"
+        },
+        "monotonic_s": "<volatile>",
+        "reason": "WRONG_KEY",
+        "schema": 1,
+        "wrong_key": {
+          "boot_id": "boot-a",
+          "count": 2,
+          "network_id": 1
+        }
+      },
+      false
+    ],
+    [
+      {
+        "boot_id": "boot-a",
+        "credential": {
+          "boot_id": "boot-a",
+          "error": "wrong_credentials",
+          "monotonic_s": "<volatile>",
+          "network_id": 1,
+          "reason": "WRONG_KEY"
+        },
+        "epoch": "b6a2f0de-6a1c-4b7e-9c0e-3f1d2a4b5c6d",
+        "error": "ap_unavailable",
+        "failures": 9,
+        "last_failure": {
+          "boot_id": "boot-a",
+          "epoch": "b6a2f0de-6a1c-4b7e-9c0e-3f1d2a4b5c6d",
+          "error": "wrong_credentials",
+          "failures": 8,
+          "monotonic_s": "<volatile>",
+          "reason": "WRONG_KEY"
+        },
+        "monotonic_s": "<volatile>",
+        "scan": {
+          "available": true,
+          "band_2ghz": 2,
+          "band_5ghz": 1,
+          "country": "DE",
+          "networks": 3,
+          "saved_access_points": 2,
+          "saved_age_s": 12,
+          "saved_channel": 6,
+          "saved_flags": "[WPA2-PSK-CCMP][ESS]",
+          "saved_frequency_mhz": 2437,
+          "saved_key_mgmt": [
+            "SAE WPA-PSK",
+            "WPA-PSK"
+          ],
+          "saved_networks": 2,
+          "saved_seen": true,
+          "saved_signal_dbm": -66
+        },
+        "scan_monotonic_s": "<volatile>",
+        "schema": 1,
+        "wrong_key": {
+          "boot_id": "boot-a",
+          "count": 2,
+          "network_id": 1
+        }
+      },
+      false
+    ],
+    {
+      "connected": 1,
+      "held": false,
+      "summary": {
+        "ago_s": "<volatile>",
+        "counts": {
+          "AUTH-REJECT": 1,
+          "AUTH-TIMEOUT": 1,
+          "CONNECTED": 1,
+          "DISCONNECTED": 4,
+          "NETWORK-NOT-FOUND": 3,
+          "SCAN-STARTED": 1,
+          "SSID-REENABLED": 1,
+          "SSID-TEMP-DISABLED": 7
+        },
+        "interrupted_handshakes": 2,
+        "last_disconnect": {
+          "local": true,
+          "reason": 3,
+          "timeout": false
+        },
+        "since_s": "<volatile>"
+      }
+    }
+  ],
+  "tree": {
+    "data": {
+      "dir": 493
+    },
+    "data/.y2data-schema": {
+      "content": 1,
+      "mode": 420
+    },
+    "data/system": {
+      "dir": 448
+    },
+    "data/system/platform": {
+      "dir": 448
+    },
+    "etc": {
+      "dir": 493
+    },
+    "etc/y2linux": {
+      "dir": 493
+    },
+    "etc/y2linux/bluetooth-codecs.json": {
+      "content": {
+        "codecs": {
+          "AAC": {
+            "compiled_locally": true,
+            "distribution_approved": true,
+            "platform_qualified": true
+          },
+          "LDAC": {
+            "compiled_locally": true,
+            "owner_private_experiment": true
+          },
+          "SBC": {
+            "compiled_locally": true,
+            "platform_qualified": true
+          },
+          "aptX": {
+            "compiled_locally": false
+          }
+        },
+        "schema": 1
+      },
+      "mode": 420
+    },
+    "proc": {
+      "dir": 493
+    },
+    "proc/self": {
+      "dir": 493
+    },
+    "proc/self/mountinfo": {
+      "content": "22 1 179:2 / / ro - ext4 /dev/mmcblk0p2 ro\n30 22 179:9 / /data rw,noatime - ext4 /dev/mmcblk0p9 rw\n",
+      "mode": 420
+    },
+    "proc/sys": {
+      "dir": 493
+    },
+    "proc/sys/kernel": {
+      "dir": 493
+    },
+    "proc/sys/kernel/random": {
+      "dir": 493
+    },
+    "proc/sys/kernel/random/boot_id": {
+      "content": "boot-a\n",
+      "mode": 420
+    },
+    "run": {
+      "dir": 493
+    },
+    "run/y2": {
+      "dir": 448
+    },
+    "run/y2-data-device": {
+      "content": "/dev/mmcblk0p9\n",
+      "mode": 420
+    },
+    "run/y2/wifi-epoch": {
+      "content": "b6a2f0de-6a1c-4b7e-9c0e-3f1d2a4b5c6d\n",
+      "mode": 420
+    },
+    "run/y2/wifi-failure.json": {
+      "content": {
+        "boot_id": "boot-a",
+        "credential": {
+          "boot_id": "boot-a",
+          "error": "wrong_credentials",
+          "monotonic_s": "<volatile>",
+          "network_id": 1,
+          "reason": "WRONG_KEY"
+        },
+        "epoch": "b6a2f0de-6a1c-4b7e-9c0e-3f1d2a4b5c6d",
+        "error": "ap_unavailable",
+        "failures": 9,
+        "last_failure": {
+          "boot_id": "boot-a",
+          "epoch": "b6a2f0de-6a1c-4b7e-9c0e-3f1d2a4b5c6d",
+          "error": "wrong_credentials",
+          "failures": 8,
+          "monotonic_s": "<volatile>",
+          "reason": "WRONG_KEY"
+        },
+        "monotonic_s": "<volatile>",
+        "scan": {
+          "available": true,
+          "band_2ghz": 2,
+          "band_5ghz": 1,
+          "country": "DE",
+          "networks": 3,
+          "saved_access_points": 2,
+          "saved_age_s": 12,
+          "saved_channel": 6,
+          "saved_flags": "[WPA2-PSK-CCMP][ESS]",
+          "saved_frequency_mhz": 2437,
+          "saved_key_mgmt": [
+            "SAE WPA-PSK",
+            "WPA-PSK"
+          ],
+          "saved_networks": 2,
+          "saved_seen": true,
+          "saved_signal_dbm": -66
+        },
+        "scan_monotonic_s": "<volatile>",
+        "schema": 1,
+        "wrong_key": {
+          "boot_id": "boot-a",
+          "count": 2,
+          "network_id": 1
+        }
+      },
+      "mode": 384
+    },
+    "sys": {
+      "dir": 493
+    },
+    "sys/class": {
+      "dir": 493
+    },
+    "sys/class/rfkill": {
+      "dir": 493
+    },
+    "sys/class/rfkill/rfkill0": {
+      "dir": 493
+    },
+    "sys/class/rfkill/rfkill0/hard": {
+      "content": 0,
+      "mode": 420
+    },
+    "sys/class/rfkill/rfkill0/soft": {
+      "content": 1,
+      "mode": 420
+    },
+    "sys/class/rfkill/rfkill0/type": {
+      "content": "wlan\n",
+      "mode": 420
+    },
+    "sys/class/rfkill/rfkill1": {
+      "dir": 493
+    },
+    "sys/class/rfkill/rfkill1/soft": {
+      "content": 1,
+      "mode": 420
+    },
+    "sys/class/rfkill/rfkill1/type": {
+      "content": "bluetooth\n",
+      "mode": 420
+    }
+  }
+}

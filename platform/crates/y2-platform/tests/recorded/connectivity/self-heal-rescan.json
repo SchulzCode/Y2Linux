@@ -1,0 +1,237 @@
+{
+  "calls": [
+    {
+      "argv": [
+        "wpa_cli",
+        "-i",
+        "wlan0",
+        "list_networks"
+      ],
+      "timeout": 2.0
+    },
+    {
+      "argv": [
+        "wpa_cli",
+        "-i",
+        "wlan0",
+        "scan_results"
+      ],
+      "timeout": 2.0
+    },
+    {
+      "argv": [
+        "wpa_cli",
+        "-i",
+        "wlan0",
+        "scan"
+      ],
+      "timeout": 2.0
+    },
+    {
+      "argv": [
+        "wpa_cli",
+        "-i",
+        "wlan0",
+        "list_networks"
+      ],
+      "timeout": 2.0
+    },
+    {
+      "argv": [
+        "wpa_cli",
+        "-i",
+        "wlan0",
+        "scan_results"
+      ],
+      "timeout": 2.0
+    },
+    {
+      "argv": [
+        "wpa_cli",
+        "-i",
+        "wlan0",
+        "scan"
+      ],
+      "timeout": 2.0
+    },
+    {
+      "argv": [
+        "wpa_cli",
+        "-i",
+        "wlan0",
+        "list_networks"
+      ],
+      "timeout": 2.0
+    },
+    {
+      "argv": [
+        "wpa_cli",
+        "-i",
+        "wlan0",
+        "scan_results"
+      ],
+      "timeout": 2.0
+    },
+    {
+      "argv": [
+        "wpa_cli",
+        "-i",
+        "wlan0",
+        "scan"
+      ],
+      "timeout": 2.0
+    }
+  ],
+  "result": [
+    null,
+    "wifi_rescan",
+    null,
+    "wifi_rescan",
+    null,
+    null,
+    null,
+    "wifi_rescan",
+    null
+  ],
+  "tree": {
+    "data": {
+      "dir": 493
+    },
+    "data/.y2data-schema": {
+      "content": 1,
+      "mode": 420
+    },
+    "data/system": {
+      "dir": 448
+    },
+    "data/system/platform": {
+      "dir": 448
+    },
+    "data/system/platform/.wifi-journal.lock": {
+      "content": "",
+      "mode": 384
+    },
+    "data/system/platform/wifi-journal.jsonl": {
+      "content": [
+        "{\"schema\":1,\"event\":\"wifi_rescan\",\"wall_time\":\"<volatile>\",\"monotonic_s\":\"<volatile>\",\"boot_id\":\"boot-a\",\"state\":\"DISCONNECTED\",\"idle_s\":31.0,\"tries\":1,\"saved\":3,\"in_range\":0,\"scan_entries\":1,\"temp_disabled\":1,\"ok\":true,\"events\":{\"since_s\":\"<volatile>\",\"counts\":{\"CONNECTED\":1},\"ago_s\":\"<volatile>\",\"last_disconnect\":null,\"interrupted_handshakes\":0}}",
+        "{\"schema\":1,\"event\":\"wifi_rescan\",\"wall_time\":\"<volatile>\",\"monotonic_s\":\"<volatile>\",\"boot_id\":\"boot-a\",\"state\":\"INACTIVE\",\"idle_s\":62.0,\"tries\":2,\"saved\":3,\"in_range\":0,\"scan_entries\":1,\"temp_disabled\":1,\"ok\":true,\"events\":{\"since_s\":\"<volatile>\",\"counts\":{\"CONNECTED\":1},\"ago_s\":\"<volatile>\",\"last_disconnect\":null,\"interrupted_handshakes\":0}}",
+        "{\"schema\":1,\"event\":\"wifi_rescan\",\"wall_time\":\"<volatile>\",\"monotonic_s\":\"<volatile>\",\"boot_id\":\"boot-a\",\"state\":\"DISCONNECTED\",\"idle_s\":135.0,\"tries\":3,\"saved\":3,\"in_range\":0,\"scan_entries\":1,\"temp_disabled\":1,\"ok\":true,\"events\":{\"since_s\":\"<volatile>\",\"counts\":{\"CONNECTED\":1},\"ago_s\":\"<volatile>\",\"last_disconnect\":null,\"interrupted_handshakes\":0}}",
+        "{\"schema\":1,\"event\":\"wifi_recovered\",\"wall_time\":\"<volatile>\",\"monotonic_s\":\"<volatile>\",\"boot_id\":\"boot-a\",\"tries\":3,\"seconds\":170.0}"
+      ],
+      "mode": 384
+    },
+    "etc": {
+      "dir": 493
+    },
+    "etc/y2linux": {
+      "dir": 493
+    },
+    "etc/y2linux/bluetooth-codecs.json": {
+      "content": {
+        "codecs": {
+          "AAC": {
+            "compiled_locally": true,
+            "distribution_approved": true,
+            "platform_qualified": true
+          },
+          "LDAC": {
+            "compiled_locally": true,
+            "owner_private_experiment": true
+          },
+          "SBC": {
+            "compiled_locally": true,
+            "platform_qualified": true
+          },
+          "aptX": {
+            "compiled_locally": false
+          }
+        },
+        "schema": 1
+      },
+      "mode": 420
+    },
+    "proc": {
+      "dir": 493
+    },
+    "proc/self": {
+      "dir": 493
+    },
+    "proc/self/mountinfo": {
+      "content": "22 1 179:2 / / ro - ext4 /dev/mmcblk0p2 ro\n30 22 179:9 / /data rw,noatime - ext4 /dev/mmcblk0p9 rw\n",
+      "mode": 420
+    },
+    "proc/sys": {
+      "dir": 493
+    },
+    "proc/sys/kernel": {
+      "dir": 493
+    },
+    "proc/sys/kernel/random": {
+      "dir": 493
+    },
+    "proc/sys/kernel/random/boot_id": {
+      "content": "boot-a\n",
+      "mode": 420
+    },
+    "run": {
+      "dir": 493
+    },
+    "run/y2": {
+      "dir": 448
+    },
+    "run/y2-data-device": {
+      "content": "/dev/mmcblk0p9\n",
+      "mode": 420
+    },
+    "run/y2/wifi-epoch": {
+      "content": "b6a2f0de-6a1c-4b7e-9c0e-3f1d2a4b5c6d\n",
+      "mode": 420
+    },
+    "run/y2/wifi-failure.json": {
+      "content": {
+        "boot_id": "boot-a",
+        "epoch": "b6a2f0de-6a1c-4b7e-9c0e-3f1d2a4b5c6d",
+        "error": null,
+        "failures": 0,
+        "monotonic_s": "<volatile>",
+        "schema": 1
+      },
+      "mode": 384
+    },
+    "sys": {
+      "dir": 493
+    },
+    "sys/class": {
+      "dir": 493
+    },
+    "sys/class/rfkill": {
+      "dir": 493
+    },
+    "sys/class/rfkill/rfkill0": {
+      "dir": 493
+    },
+    "sys/class/rfkill/rfkill0/hard": {
+      "content": 0,
+      "mode": 420
+    },
+    "sys/class/rfkill/rfkill0/soft": {
+      "content": 0,
+      "mode": 420
+    },
+    "sys/class/rfkill/rfkill0/type": {
+      "content": "wlan\n",
+      "mode": 420
+    },
+    "sys/class/rfkill/rfkill1": {
+      "dir": 493
+    },
+    "sys/class/rfkill/rfkill1/soft": {
+      "content": 1,
+      "mode": 420
+    },
+    "sys/class/rfkill/rfkill1/type": {
+      "content": "bluetooth\n",
+      "mode": 420
+    }
+  }
+}

@@ -456,30 +456,11 @@ mod tests {
         let ours = pyjson::dumps(&project(&value, "", 0), Style::Spaced);
         let log = "msdc0: cmd timeout error=-110\nwifi: reconnect failed ret: 5\nnothing here\nBattery charger warning\n";
         let ours_events = pyjson::dumps(&events(Some(log)), Style::Spaced);
-        let script = r#"
-import json, sys
-sys.path.insert(0, sys.argv[1])
-from y2_platform import diagnostics
-print(json.dumps(diagnostics.project(json.loads(sys.argv[2])), sort_keys=True))
-print(json.dumps(diagnostics.events(sys.argv[3]), sort_keys=True))
-"#;
-        let platform = concat!(env!("CARGO_MANIFEST_DIR"), "/../../../tools/platform");
-        let Ok(python) = std::process::Command::new("python3")
-            .args(["-I", "-c", script, platform])
-            .arg(pyjson::dumps(&value, Style::Spaced))
-            .arg(log)
-            .output()
-        else {
-            return;
-        };
-        assert!(
-            python.status.success(),
-            "{}",
-            String::from_utf8_lossy(&python.stderr)
+        // What the Python platform's diagnostics.project and events gave (recorded).
+        y2p_core::recorded::check(
+            env!("CARGO_MANIFEST_DIR"),
+            "diagnostics-projection.txt",
+            format!("{ours}\n{ours_events}\n").as_bytes(),
         );
-        let text = String::from_utf8(python.stdout).unwrap();
-        let mut lines = text.lines();
-        assert_eq!(ours, lines.next().unwrap());
-        assert_eq!(ours_events, lines.next().unwrap());
     }
 }

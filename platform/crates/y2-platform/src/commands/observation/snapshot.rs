@@ -1724,31 +1724,12 @@ mod tests {
         let values: Vec<f64> = (1..4000u32)
             .map(|total| 100.0 * f64::from(total * 7 % 997) / f64::from(total))
             .collect();
-        let script = "import sys\nfor line in sys.stdin:\n    print(repr(round(float(line), 3)))";
-        let Ok(mut python) = std::process::Command::new("python3")
-            .args(["-I", "-c", script])
-            .stdin(std::process::Stdio::piped())
-            .stdout(std::process::Stdio::piped())
-            .spawn()
-        else {
-            return; // no host Python
-        };
-        let input: String = values.iter().map(|v| format!("{v:?}\n")).collect();
-        let mut stdin = python.stdin.take().unwrap();
-        let writer = std::thread::spawn(move || {
-            use std::io::Write;
-            stdin.write_all(input.as_bytes())
-        });
-        let output = python.wait_with_output().unwrap();
-        writer.join().unwrap().unwrap();
-        let expected = String::from_utf8(output.stdout).unwrap();
-        for (value, line) in values.iter().zip(expected.lines()) {
-            assert_eq!(
-                y2p_core::json::float_repr(round3(*value)),
-                line,
-                "{value:?}"
-            );
-        }
+        // round(x, 3) as CPython printed it (recorded from host Python 3.15).
+        let ours: String = values
+            .iter()
+            .map(|v| y2p_core::json::float_repr(round3(*v)) + "\n")
+            .collect();
+        y2p_core::recorded::check(env!("CARGO_MANIFEST_DIR"), "round3.txt", ours.as_bytes());
     }
 
     #[test]

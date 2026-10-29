@@ -892,41 +892,13 @@ mod tests {
         ];
         let mut ours = scrubber(known);
         let rust: Vec<String> = samples.iter().map(|s| ours.text(s)).collect();
-        let script = r#"
-import json, sys
-sys.path.insert(0, sys.argv[1])
-from y2_platform import report
-known = {name: set(values) for name, values in json.loads(sys.argv[2])}
-scrubber = report.Scrubber(known, b'0123456789abcdef')
-out = [scrubber.text(s) for s in json.loads(sys.argv[3])]
-print(json.dumps([out, dict(sorted(scrubber.counts.items()))]))
-"#;
-        let platform = concat!(env!("CARGO_MANIFEST_DIR"), "/../../../tools/platform");
-        let known_json = serde_json::to_string(
-            &known
-                .iter()
-                .map(|(n, v)| (n, v.to_vec()))
-                .collect::<Vec<_>>(),
-        )
-        .unwrap();
-        let Ok(python) = std::process::Command::new("python3")
-            .args(["-I", "-c", script, platform, &known_json])
-            .arg(serde_json::to_string(&samples).unwrap())
-            .output()
-        else {
-            return;
-        };
-        assert!(
-            python.status.success(),
-            "{}",
-            String::from_utf8_lossy(&python.stderr)
+        // The texts and counts the Python platform's report.Scrubber gave (recorded).
+        let recorded = serde_json::to_string(&(&rust, &ours.counts)).unwrap() + "\n";
+        y2p_core::recorded::check(
+            env!("CARGO_MANIFEST_DIR"),
+            "scrubber.json",
+            recorded.as_bytes(),
         );
-        let (texts, counts): (Vec<String>, BTreeMap<String, u64>) =
-            serde_json::from_slice(&python.stdout).unwrap();
-        for (r, p) in rust.iter().zip(&texts) {
-            assert_eq!(r, p);
-        }
-        assert_eq!(ours.counts, counts);
     }
 
     #[test]

@@ -659,19 +659,7 @@ mod tests {
 
     #[test]
     fn archives_match_python_tarfile() {
-        let script = "import io, sys, tarfile\nout = io.BytesIO()\n\
-            with tarfile.open(fileobj=out, mode='w') as archive:\n\
-            \x20   for name, data in [('pm/state', b'abc'), ('pstore/' + 'x' * 120, b''), ('pstore/\\u00e9', b'z'), ('manifest.json', b'{}' * 300)]:\n\
-            \x20       info = tarfile.TarInfo(name)\n\
-            \x20       info.size, info.mode = len(data), 0o600\n\
-            \x20       archive.addfile(info, io.BytesIO(data))\n\
-            sys.stdout.buffer.write(out.getvalue())";
-        let Ok(output) = std::process::Command::new("python3")
-            .args(["-I", "-c", script])
-            .output()
-        else {
-            return; // no host Python
-        };
+        // The bytes host Python's tarfile wrote for these members (recorded, Python 3.15).
         let dir = std::env::temp_dir().join(format!("y2-tar-{}", std::process::id()));
         let file = File::create(&dir).unwrap();
         let mut archive = Archive { file, offset: 0 };
@@ -688,8 +676,7 @@ mod tests {
         drop(archive);
         let ours = fs::read(&dir).unwrap();
         fs::remove_file(&dir).unwrap();
-        assert_eq!(ours.len(), output.stdout.len());
-        assert!(ours == output.stdout, "archive bytes differ");
+        y2p_core::recorded::check(env!("CARGO_MANIFEST_DIR"), "evidence-tarfile.tar", &ours);
     }
 
     #[test]

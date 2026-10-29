@@ -1,4 +1,5 @@
-//! The crosscheck scenarios (see crosscheck.rs): each runs the same steps in Python and in Rust.
+//! The crosscheck scenarios (see crosscheck.rs): each runs steps the Python platform ran the same way
+//! and compares with what it gave (recorded).
 // SPDX-License-Identifier: GPL-2.0-only
 use super::crosscheck::{answer, check, player, refused};
 use super::{bluetooth, daemon::Supervisor, observe_wifi, radio_policy, wifi};
@@ -75,45 +76,33 @@ fn write(root: &Root, step: &Value) -> bool {
     true
 }
 
-const STEPS: &str = r#"
-def steps(ctx, items, each):
-    for item in items:
-        if isinstance(item, dict):
-            ctx.path(item['write']).write_text(item['text'])
-        else:
-            each(item)
-"#;
-
 #[test]
 fn supplicant_events_latch_a_wrong_password_as_python_does() {
     let steps = events();
-    let script = format!(
-        "{STEPS}\nfrom y2_platform import network\nm = network.EventMonitor(ctx)\nresult = []\n\
-         def each(text):\n    m.event(text)\n    result.append([ctx.json('/run/y2/wifi-failure.json'), m.held])\n\
-         steps(ctx, json.loads({:?}), each)\n\
-         result.append({{'summary': m.summary(time.monotonic()), 'held': m.held, 'connected': m.connected_network}})",
-        serde_json::to_string(&steps).unwrap()
-    );
-    let script = format!("import json\n{script}");
-    let outcome = check(&player(), json!(scan_answers()), &script, |root| {
-        let mut monitor = wifi::EventMonitor::new(root);
-        let mut result = Vec::new();
-        for step in &steps {
-            if write(root, step) {
-                continue;
+    let outcome = check(
+        "supplicant-events",
+        &player(),
+        json!(scan_answers()),
+        |root| {
+            let mut monitor = wifi::EventMonitor::new(root);
+            let mut result = Vec::new();
+            for step in &steps {
+                if write(root, step) {
+                    continue;
+                }
+                monitor.event(step.as_str().unwrap()).unwrap();
+                result.push(json!([
+                    root.json("/run/y2/wifi-failure.json"),
+                    monitor.held
+                ]));
             }
-            monitor.event(step.as_str().unwrap()).unwrap();
-            result.push(json!([
-                root.json("/run/y2/wifi-failure.json"),
-                monitor.held
-            ]));
-        }
-        result.push(
-            json!({"summary": monitor.summary(None).into_value(), "held": monitor.held,
+            result.push(
+                json!({"summary": monitor.summary(None).into_value(), "held": monitor.held,
                            "connected": monitor.connected_network}),
-        );
-        Value::Array(result)
-    });
+            );
+            Value::Array(result)
+        },
+    );
     if let Some(outcome) = outcome {
         // The F52 verdict Reborn reads: one failed handshake is not a wrong password, two are.
         assert_eq!(outcome.result[0][0]["error"], "handshake_failed");
@@ -157,25 +146,13 @@ fn the_self_heal_reselects_and_rescans_as_python_does() {
         (200.0, "DISCONNECTED", None),
         (201.0, "COMPLETED", None),
     ];
-    let plan_json = json!(plan
-        .iter()
-        .map(|(t, s, r)| json!([t, s, r]))
-        .collect::<Vec<_>>());
     for (name, rows) in [
         ("reselect", "a\t2437\t-60\t[ESS]\tHome\nb\t2437\t-50\t[ESS]\tWork\nc\t2437\t-50\t[ESS]\tOffice\nd\t2437\t-40\t[ESS]\tCafe"),
         ("rescan", "a\t2437\t-60\t[ESS]\tElsewhere"),
     ] {
         let answers = json!([list, scan(rows), wpa(&["select_network", "1"], "OK"),
                              wpa(&["enable_network", "all"], "FAIL"), wpa(&["scan"], "OK")]);
-        let script = format!(
-            "import json\nfrom y2_platform import network\nm = network.EventMonitor(ctx)\n\
-             m.event('<3>CTRL-EVENT-CONNECTED - Connection to x completed [id=2 id_str=]')\n\
-             r = network.WifiRecovery(ctx)\nt0 = 1000.0\nresult = []\n\
-             for at, state, reason in json.loads({:?}):\n\
-             \x20   result.append(r.observe({{'association': state, 'radio_present': True, 'reason': reason}}, t0 + at, m))\n",
-            plan_json.to_string()
-        );
-        let outcome = check(&player(), answers, &script, |root| {
+        let outcome = check(&format!("self-heal-{name}"), &player(), answers, |root| {
             let mut monitor = wifi::EventMonitor::new(root);
             monitor
                 .event("<3>CTRL-EVENT-CONNECTED - Connection to x completed [id=2 id_str=]")
@@ -245,20 +222,7 @@ fn the_supervisor_renews_a_disabled_or_replaced_interface_as_python_does() {
             ""
         )
     ]);
-    let script = "from y2_platform import connectivity\ns = connectivity.Supervisor(ctx)\n\
-        s.attached, s.ifindex = True, '3'\nt0 = 1000.0\nresult = []\n\
-        s.verify(t0); s.verify(t0 + 29); result.append(s.attached)\n\
-        s.verify(t0 + 31); result.append([s.attached, s.renewals, s.next_renew - t0])\n\
-        s.interface(t0 + 31); result.append([s.attached, s.ifindex, s.retry_at - t0])\n\
-        s.verify(t0 + 70); s.verify(t0 + 101); result.append([s.attached, s.renewals, s.next_renew - t0])\n\
-        s.interface(t0 + 101)\n\
-        ctx.path('/sys/class/net/wlan0/ifindex').write_text('4\\n')\n\
-        s.interface(t0 + 102); result.append([s.attached, s.ifindex, s.retry_at - t0])\n\
-        ctx.path('/sys/class/rfkill/rfkill0/soft').write_text('1\\n')\n\
-        s.verify(t0 + 300); s.verify(t0 + 400); result.append([s.attached, s.renewals])\n\
-        import shutil; shutil.rmtree(ctx.path('/sys/class/net/wlan0'))\n\
-        s.interface(t0 + 401); result.append([s.attached, s.ifindex, s.retry_at == 0])\n";
-    let outcome = check(&files, answers, script, |root| {
+    let outcome = check("supervisor-renewal", &files, answers, |root| {
         let mut s = Supervisor::new(root);
         s.attached = true;
         s.ifindex = Some("3".into());
@@ -340,34 +304,33 @@ fn the_dns_probe_confirms_a_lease_as_python_does() {
         if let Some(policy) = policy {
             files.push(("/etc/y2linux/network-policy.json", policy.into()));
         }
-        let script = "from y2_platform import network, observe\nv = observe.wifi(ctx)\n\
-            s = network.DnsProbeSchedule()\nepoch = ctx.read('/run/y2/wifi-epoch')\n\
-            due = s.due(v, epoch, 100.0)\n\
-            try:\n    dns = network.probe_dns(ctx, v)\nexcept ValueError as error:\n    dns = str(error)\n\
-            s.confirmed(100.0)\n\
-            result = [v, due, dns, s.due(v, epoch, 101.0), observe.wifi(ctx, signal_cache=v), s.due(v, epoch, 401.0)]";
-        check(&files, json!(lease_answers(dns)), script, |root| {
-            let v = observe_wifi::wifi(root, None);
-            let mut s = wifi::DnsProbeSchedule::new();
-            let epoch = root.read("/run/y2/wifi-epoch");
-            let due = s.due(&v, epoch.as_deref(), 100.0);
-            let dns = match wifi::probe_dns(root, &v) {
-                Ok(dns) => json!(dns.map(|d| Value::Object(d.0.into_iter().collect()))),
-                Err(error) => json!(error.message()),
-            };
-            s.confirmed(100.0);
-            let value = |o: Ordered| Value::Object(o.0.into_iter().collect());
-            let again = s.due(&v, epoch.as_deref(), 101.0);
-            let after = observe_wifi::wifi(root, Some(&v));
-            json!([
-                value(v.clone()),
-                due,
-                dns,
-                again,
-                value(after),
-                s.due(&v, epoch.as_deref(), 401.0)
-            ])
-        });
+        check(
+            &format!("dns-probe-{dns}"),
+            &files,
+            json!(lease_answers(dns)),
+            |root| {
+                let v = observe_wifi::wifi(root, None);
+                let mut s = wifi::DnsProbeSchedule::new();
+                let epoch = root.read("/run/y2/wifi-epoch");
+                let due = s.due(&v, epoch.as_deref(), 100.0);
+                let dns = match wifi::probe_dns(root, &v) {
+                    Ok(dns) => json!(dns.map(|d| Value::Object(d.0.into_iter().collect()))),
+                    Err(error) => json!(error.message()),
+                };
+                s.confirmed(100.0);
+                let value = |o: Ordered| Value::Object(o.0.into_iter().collect());
+                let again = s.due(&v, epoch.as_deref(), 101.0);
+                let after = observe_wifi::wifi(root, Some(&v));
+                json!([
+                    value(v.clone()),
+                    due,
+                    dns,
+                    again,
+                    value(after),
+                    s.due(&v, epoch.as_deref(), 401.0)
+                ])
+            },
+        );
     }
 }
 
@@ -388,16 +351,17 @@ fn power_save_with_a_heavy_transfer_as_python_does() {
             ),
             refused(&["/usr/sbin/iw", "dev", "wlan0", "set", "power_save", "on"])
         ]);
-        let script = format!(
-            "from y2_platform import radio_policy\nresult = radio_policy.wifi_policy(ctx, {{'wifi_heavy_transfer': {}}})",
-            if heavy { "True" } else { "0" }
+        check(
+            &format!("power-save-heavy-{heavy}"),
+            &files,
+            answers,
+            |root| {
+                let activity =
+                    json!({"wifi_heavy_transfer": if heavy { json!(true) } else { json!(0) }});
+                let value = radio_policy::wifi_policy(root, activity.as_object()).unwrap();
+                Value::Object(value.0.into_iter().collect())
+            },
         );
-        check(&files, answers, &script, |root| {
-            let activity =
-                json!({"wifi_heavy_transfer": if heavy { json!(true) } else { json!(0) }});
-            let value = radio_policy::wifi_policy(root, activity.as_object()).unwrap();
-            Value::Object(value.0.into_iter().collect())
-        });
     }
 }
 
@@ -541,15 +505,15 @@ fn bluetooth_observations_normalise_as_python_does() {
         ("{\"schema\": 1, \"stable_owners\": false}".into(), vec![]),
         ("[1, 2]".into(), vec![]),
     ];
-    for (raw, extra) in cases {
+    for (index, (raw, extra)) in cases.into_iter().enumerate() {
         let mut files = player();
         files.extend(extra);
-        let script = format!(
-            "import json\nfrom y2_platform import bluetooth\nresult = bluetooth.normalize(ctx, json.loads({raw:?}))"
+        let outcome = check(
+            &format!("bluetooth-normalize-{index}"),
+            &files,
+            json!([]),
+            |root| bluetooth::normalize(root, &wifi::Json::parse(&raw).unwrap()).unwrap(),
         );
-        let outcome = check(&files, json!([]), &script, |root| {
-            bluetooth::normalize(root, &wifi::Json::parse(&raw).unwrap()).unwrap()
-        });
         if let Some(outcome) = outcome {
             if raw.contains("dev_BB") && raw.contains("[36, 21, 2, 53]") {
                 assert_eq!(outcome.result["state"], "Ready", "{}", outcome.result);
@@ -576,36 +540,15 @@ fn python_rounding_to_one_digit() {
             "{value}"
         );
     }
-    // Ages and dwell times as the journal rows carry them, against the host's Python.
+    // Ages and dwell times as the journal rows carry them: round(x, 1) as CPython printed it
+    // (recorded from host Python 3.15).
     let values: Vec<f64> = (0..4000)
         .map(|i| f64::from(i) * 0.05 + f64::from(i % 7) * 1e-9 - 3.0)
         .chain((0..2000).map(|i| 1e5 + f64::from(i) * 0.123_456_7))
         .collect();
-    let input: String = values
+    let ours: String = values
         .iter()
-        .map(|v| format!("{}\n", v.to_bits()))
+        .map(|v| y2p_core::json::float_repr(wifi::round1(*v)) + "\n")
         .collect();
-    let script = "import struct, sys\nfor line in sys.stdin:\n    print(repr(round(struct.unpack('<d', int(line).to_bytes(8, 'little'))[0], 1)))";
-    let Ok(mut python) = std::process::Command::new("python3")
-        .args(["-I", "-c", script])
-        .stdin(std::process::Stdio::piped())
-        .stdout(std::process::Stdio::piped())
-        .spawn()
-    else {
-        return;
-    };
-    let mut stdin = python.stdin.take().unwrap();
-    let writer =
-        std::thread::spawn(move || std::io::Write::write_all(&mut stdin, input.as_bytes()));
-    let output = python.wait_with_output().unwrap();
-    writer.join().unwrap().unwrap();
-    let expected = String::from_utf8(output.stdout).unwrap();
-    assert_eq!(expected.lines().count(), values.len());
-    for (value, python) in values.iter().zip(expected.lines()) {
-        assert_eq!(
-            y2p_core::json::float_repr(wifi::round1(*value)),
-            python,
-            "{value:e}"
-        );
-    }
+    y2p_core::recorded::check(env!("CARGO_MANIFEST_DIR"), "round1.txt", ours.as_bytes());
 }

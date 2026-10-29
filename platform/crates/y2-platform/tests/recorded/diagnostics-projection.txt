@@ -1,0 +1,2 @@
+{"battery": {"temperature_c": 31.5}, "boot_id": "0123abcd-0123-4567-89ab-0123456789ab", "counters": [1, "2", "0x1f", "[redacted]", null], "cpu": {"nested": 1}, "release_version": "1.0.0-beta.8.44", "spm": {"power": "[redacted]", "sequence": "7", "valid": "1"}, "state": "Ready"}
+[{"components": ["msdc"], "errno": [-110], "events": ["timeout", "error"], "tail_line": 0}, {"components": ["wifi"], "errno": [5], "events": ["reconnect", "failed"], "tail_line": 1}, {"components": ["battery", "charger"], "errno": [], "events": ["warning"], "tail_line": 3}]

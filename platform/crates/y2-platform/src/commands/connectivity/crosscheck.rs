@@ -1,9 +1,8 @@
-//! Differential checks of the in-process pieces no subcommand of this group reaches (the service
-//! daemon's supplicant monitor, F52 self-heal and DNS probe, the F53 supervisor paths that need time to
-//! pass, `bluetooth.normalize`): the same steps run in the Python platform (tools/platform, a fixture
-//! `Context` answering from the same list) and here, on two copies of one tree; results, subprocess
-//! requests and the resulting trees must agree after clock readings are normalised. Skipped without a
-//! host `python3`.
+//! Checks of the in-process pieces no subcommand of this group reaches (the service daemon's supplicant
+//! monitor, F52 self-heal and DNS probe, the F53 supervisor paths that need time to pass,
+//! `bluetooth.normalize`): steps on a fixture tree with fixed command answers; the result, the
+//! subprocess requests and the resulting tree (clock readings normalised) must stay what the Python
+//! platform gave for the same steps (tests/recorded/connectivity, recorded while it existed).
 // SPDX-License-Identifier: GPL-2.0-only
 use super::wifi::Json;
 use serde_json::{json, Value};
@@ -11,8 +10,6 @@ use std::{
     env, fs,
     os::unix::fs::PermissionsExt,
     path::{Path, PathBuf},
-    process::Command,
-    sync::Mutex,
 };
 use y2p_core::{
     clock,
@@ -21,8 +18,9 @@ use y2p_core::{
 };
 
 /// Clock readings, and records of them, by key.
-const VOLATILE: [&str; 8] = [
+const VOLATILE: [&str; 9] = [
     "monotonic_s",
+    "monotonic_us",
     "wall_time",
     "since_s",
     "ago_s",
@@ -31,38 +29,6 @@ const VOLATILE: [&str; 8] = [
     "link_counts_since_s",
     "boottime_s",
 ];
-/// The fixture-command environment is the process's: one check at a time.
-static SERIAL: Mutex<()> = Mutex::new(());
-
-const DRIVER: &str = r#"
-import json, sys, time
-sys.path.insert(0, sys.argv[1])
-from y2_platform import common
-root, answers, calls, script = sys.argv[2:6]
-answers = json.load(open(answers))
-def runner(argv, timeout=1.0, **_):
-    with open(calls, 'a') as stream:
-        stream.write(json.dumps({'argv': list(argv), 'timeout': float(timeout)}) + '\n')
-    for answer in answers:
-        if answer['argv'] == list(argv):
-            return {'ok': answer['ok'], 'reason': answer.get('reason'), 'output': answer.get('output')}
-    return {'ok': False, 'reason': 'fixture', 'output': None}
-ctx = common.Context(root, runner)
-scope = {'ctx': ctx, 'time': time}
-exec(script, scope)
-print(json.dumps(scope.get('result')))
-"#;
-
-fn repository() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../..")
-}
-
-fn python_available() -> bool {
-    Command::new("python3")
-        .args(["-I", "-c", "pass"])
-        .status()
-        .is_ok_and(|s| s.success())
-}
 
 pub fn normalise(value: Value) -> Value {
     match value {
@@ -166,96 +132,62 @@ fn make_tree(scratch: &Path, side: &str, files: &[(&str, String)]) -> PathBuf {
     root
 }
 
-fn calls(path: &Path) -> Vec<Value> {
-    fs::read_to_string(path)
-        .unwrap_or_default()
-        .lines()
-        .map(|l| {
-            let mut call: Value = serde_json::from_str(l).unwrap();
-            let timeout = call["timeout"].as_f64().unwrap();
-            call["timeout"] = json!(timeout);
-            call
-        })
-        .collect()
-}
-
-/// Run `script` (Python, sets `result`) and `rust` on two copies of `files` with the same command
-/// answers; both outcomes, root paths replaced.
-pub fn run(
-    files: &[(&str, String)],
-    answers: Value,
-    script: &str,
-    rust: impl FnOnce(&Root) -> Value,
-) -> Option<(Outcome, Outcome)> {
-    if !python_available() {
-        return None;
-    }
-    let _serial = SERIAL.lock().unwrap_or_else(|e| e.into_inner());
+/// Run `rust` on a copy of `files` with these command answers; the outcome, root paths replaced.
+pub fn run(files: &[(&str, String)], answers: Value, rust: impl FnOnce(&Root) -> Value) -> Outcome {
     let scratch = env::temp_dir().join(format!(
         "y2-crosscheck-{}-{}",
         std::process::id(),
         clock::monotonic_ns()
     ));
     fs::create_dir_all(&scratch).unwrap();
-    let answers_path = scratch.join("answers.json");
-    fs::write(&answers_path, answers.to_string()).unwrap();
-    let python_root = make_tree(&scratch, "python", files);
-    let rust_root = make_tree(&scratch, "rust", files);
-    let output = Command::new("python3")
-        .arg("-I")
-        .arg("-c")
-        .arg(DRIVER)
-        .arg(repository().join("tools/platform"))
-        .arg(&python_root)
-        .arg(&answers_path)
-        .arg(scratch.join("python-calls.jsonl"))
-        .arg(script)
-        .output()
-        .unwrap();
-    assert!(
-        output.status.success(),
-        "{}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-    let replace = |text: String, root: &Path| text.replace(&root.display().to_string(), "<root>");
-    let python = Outcome {
-        result: normalise(
-            serde_json::from_str(&replace(
-                String::from_utf8(output.stdout).unwrap(),
-                &python_root,
-            ))
-            .unwrap(),
-        ),
-        calls: calls(&scratch.join("python-calls.jsonl")),
-        tree: tree(&python_root),
-    };
-    // SAFETY (edition 2021: safe): the fixture variables are only read while SERIAL is held.
-    env::set_var("Y2_FIXTURE_COMMANDS", &answers_path);
-    env::set_var("Y2_FIXTURE_CALLS", scratch.join("rust-calls.jsonl"));
-    let result = rust(&Root::new(&rust_root));
-    env::remove_var("Y2_FIXTURE_COMMANDS");
-    env::remove_var("Y2_FIXTURE_CALLS");
-    let rust = Outcome {
-        result: normalise(serde_json::from_str(&replace(result.to_string(), &rust_root)).unwrap()),
-        calls: calls(&scratch.join("rust-calls.jsonl")),
-        tree: tree(&rust_root),
+    let root = make_tree(&scratch, "rust", files);
+    let script = answers
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|a| {
+            let argv: Vec<String> = serde_json::from_value(a["argv"].clone()).unwrap();
+            let outcome = y2p_core::command::Outcome {
+                ok: a["ok"].as_bool().unwrap(),
+                reason: a["reason"].as_str().map(str::to_owned),
+                output: a["output"].as_str().map(str::to_owned),
+            };
+            (argv, outcome)
+        })
+        .collect();
+    let (result, requests) = crate::testing::scripted(script, || rust(&Root::new(&root)));
+    let replace = |text: String| text.replace(&root.display().to_string(), "<root>");
+    let outcome = Outcome {
+        result: normalise(serde_json::from_str(&replace(result.to_string())).unwrap()),
+        calls: requests
+            .into_iter()
+            .map(|(argv, timeout)| json!({"argv": argv, "timeout": timeout}))
+            .collect(),
+        tree: tree(&root),
     };
     fs::remove_dir_all(&scratch).unwrap();
-    Some((python, rust))
+    outcome
 }
 
-/// Assert both sides agree.
+/// The outcome must be the recording `connectivity/<name>.json`.
 pub fn check(
+    name: &str,
     files: &[(&str, String)],
     answers: Value,
-    script: &str,
     rust: impl FnOnce(&Root) -> Value,
 ) -> Option<Outcome> {
-    let (python, rust) = run(files, answers, script, rust)?;
-    assert_eq!(rust.result, python.result, "results");
-    assert_eq!(rust.calls, python.calls, "subprocess requests");
-    assert_eq!(rust.tree, python.tree, "trees");
-    Some(python)
+    let outcome = run(files, answers, rust);
+    let text = serde_json::to_string_pretty(
+        &json!({"result": outcome.result, "calls": outcome.calls, "tree": outcome.tree}),
+    )
+    .unwrap()
+        + "\n";
+    y2p_core::recorded::check(
+        env!("CARGO_MANIFEST_DIR"),
+        &format!("connectivity/{name}.json"),
+        text.as_bytes(),
+    );
+    Some(outcome)
 }
 
 /// The player-shaped files every check starts from: identity, the verified /data mount, a Wi-Fi epoch.

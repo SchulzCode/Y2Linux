@@ -637,7 +637,6 @@ pub fn sample_at(root: &Root, engine: &mut Soc, now: f64) -> Object {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::{io::Write, process::Command};
     use y2p_core::json::{dumps, Separators};
 
     fn profile() -> Profile {
@@ -701,14 +700,9 @@ mod tests {
         assert_eq!(boot_kind(None), None);
     }
 
-    /// Sequences of readings through the Python `Soc` and this one: every result identical.
+    /// Sequences of readings: every result as the Python platform's battery.Soc gave it (recorded).
     #[test]
     fn soc_matches_python_battery_py() {
-        let platform = concat!(env!("CARGO_MANIFEST_DIR"), "/../../../tools/platform");
-        let profile_path = concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/../../../buildroot/board/y2/production-overlay/etc/y2linux/battery-profile.json"
-        );
         // (name, saved state, [(now, voltage, present, status, capacity, current, ocv, boot, charge_current)])
         type Step = (
             f64,
@@ -989,40 +983,8 @@ mod tests {
                 ],
             ));
         }
-        let script = format!(
-            "import json, sys\nsys.path.insert(0, {platform:?})\nfrom y2_platform import battery\n\
-             profile = json.load(open({profile_path:?}))\n\
-             for line in sys.stdin:\n    case = json.loads(line)\n    p = dict(profile)\n\
-             \x20   if case['hybrid']: p['calibrated_resistance_milliohm'] = 180\n\
-             \x20   soc = battery.Soc(p, case['saved'])\n    out = []\n\
-             \x20   for now, v, present, status, cap, cur, ocv, boot, cc in case['steps']:\n\
-             \x20       out.append([soc.observe(now, v, present, status, cap, cur, None, None, cc, ocv, boot), soc.state()])\n\
-             \x20   print(json.dumps(out))\n"
-        );
-        let Ok(mut python) = Command::new("python3")
-            .args(["-I", "-c", &script])
-            .stdin(std::process::Stdio::piped())
-            .stdout(std::process::Stdio::piped())
-            .spawn()
-        else {
-            return; // no host Python
-        };
-        let mut input = String::new();
+        let mut ours = String::new();
         for (name, saved, steps) in &scenarios {
-            let line = serde_json::json!({"saved": serde_json::from_str::<Value>(saved).unwrap(),
-                                          "hybrid": *name == "hybrid", "steps": steps});
-            input += &(line.to_string() + "\n");
-        }
-        python
-            .stdin
-            .take()
-            .unwrap()
-            .write_all(input.as_bytes())
-            .unwrap();
-        let output = python.wait_with_output().unwrap();
-        let expected = String::from_utf8(output.stdout).unwrap();
-        assert_eq!(expected.lines().count(), scenarios.len(), "python failed");
-        for ((name, saved, steps), python) in scenarios.iter().zip(expected.lines()) {
             let mut p = profile();
             if *name == "hybrid" {
                 p.calibrated_resistance = Some(180);
@@ -1050,7 +1012,12 @@ mod tests {
                 });
                 out.push(Json::Array(vec![result.into(), state.into()]));
             }
-            assert_eq!(dumps(&out, Separators::Spaced).unwrap(), python, "{name}");
+            ours += &(dumps(&out, Separators::Spaced).unwrap() + "\n");
         }
+        y2p_core::recorded::check(
+            env!("CARGO_MANIFEST_DIR"),
+            "battery-soc.jsonl",
+            ours.as_bytes(),
+        );
     }
 }

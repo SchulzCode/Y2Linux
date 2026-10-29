@@ -303,7 +303,7 @@ pub fn members(
 mod tests {
     use super::*;
 
-    /// The same members through host Python's tarfile.
+    /// The bytes host Python's tarfile wrote for the same members (recorded, Python 3.15).
     #[test]
     fn archives_are_python_tarfile_bytes() {
         let long = format!("files/{}/x.txt", "d".repeat(120));
@@ -317,29 +317,7 @@ mod tests {
         owned.gname = "root".into();
         writer.add(&owned, b"x");
         let ours = writer.finish();
-        let script = r#"
-import io, sys, tarfile
-out = io.BytesIO()
-long = 'files/' + 'd' * 120 + '/x.txt'
-with tarfile.open(fileobj=out, mode='w') as tar:
-    for name, data, mtime, mode in (('report.json', b'{}\n', 1761650000, 0o600), (long, b'ab', 1761650000, 0o600),
-                                    ('files/é.log', b'', 5, 0o600), ('manifest.json', b'x', 1761650000.1234567, 0o100644)):
-        info = tarfile.TarInfo(name)
-        info.size, info.mtime, info.mode = len(data), mtime, mode
-        if name == 'manifest.json':
-            info.uname = info.gname = 'root'
-        tar.addfile(info, io.BytesIO(data))
-sys.stdout.buffer.write(out.getvalue())
-"#;
-        let Ok(python) = std::process::Command::new("python3")
-            .args(["-I", "-c", script])
-            .output()
-        else {
-            return; // no host Python
-        };
-        assert!(python.status.success());
-        assert_eq!(ours.len(), python.stdout.len());
-        assert!(ours == python.stdout, "tar bytes differ from Python's");
+        y2p_core::recorded::check(env!("CARGO_MANIFEST_DIR"), "report-tarfile.tar", &ours);
         let read = members(&ours, false, 64, |_| true).unwrap();
         assert_eq!(read.len(), 4);
         assert_eq!(read[1].0.name, long);

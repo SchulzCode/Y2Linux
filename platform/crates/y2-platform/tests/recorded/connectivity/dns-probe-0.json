@@ -1,0 +1,381 @@
+{
+  "calls": [
+    {
+      "argv": [
+        "wpa_cli",
+        "-i",
+        "wlan0",
+        "status"
+      ],
+      "timeout": 3.0
+    },
+    {
+      "argv": [
+        "ip",
+        "-j",
+        "-4",
+        "addr",
+        "show",
+        "dev",
+        "wlan0"
+      ],
+      "timeout": 1.0
+    },
+    {
+      "argv": [
+        "ip",
+        "-j",
+        "-4",
+        "route",
+        "show",
+        "default",
+        "dev",
+        "wlan0"
+      ],
+      "timeout": 1.0
+    },
+    {
+      "argv": [
+        "wpa_cli",
+        "-i",
+        "wlan0",
+        "signal_poll"
+      ],
+      "timeout": 3.0
+    },
+    {
+      "argv": [
+        "/usr/bin/python3",
+        "-I",
+        "-c",
+        "import socket,sys; print(len(socket.getaddrinfo(sys.argv[1],None,socket.AF_INET)))",
+        "pool.ntp.org"
+      ],
+      "timeout": 3.0
+    },
+    {
+      "argv": [
+        "wpa_cli",
+        "-i",
+        "wlan0",
+        "status"
+      ],
+      "timeout": 3.0
+    },
+    {
+      "argv": [
+        "ip",
+        "-j",
+        "-4",
+        "addr",
+        "show",
+        "dev",
+        "wlan0"
+      ],
+      "timeout": 1.0
+    },
+    {
+      "argv": [
+        "ip",
+        "-j",
+        "-4",
+        "route",
+        "show",
+        "default",
+        "dev",
+        "wlan0"
+      ],
+      "timeout": 1.0
+    },
+    {
+      "argv": [
+        "wpa_cli",
+        "-i",
+        "wlan0",
+        "status"
+      ],
+      "timeout": 3.0
+    },
+    {
+      "argv": [
+        "ip",
+        "-j",
+        "-4",
+        "addr",
+        "show",
+        "dev",
+        "wlan0"
+      ],
+      "timeout": 1.0
+    },
+    {
+      "argv": [
+        "ip",
+        "-j",
+        "-4",
+        "route",
+        "show",
+        "default",
+        "dev",
+        "wlan0"
+      ],
+      "timeout": 1.0
+    }
+  ],
+  "result": [
+    {
+      "association": "COMPLETED",
+      "association_id": "00:11:22:33:44:55",
+      "coexistence": null,
+      "default_route": [
+        {
+          "dev": "wlan0",
+          "dst": "default",
+          "gateway": "192.168.1.1"
+        }
+      ],
+      "dns_ready": false,
+      "events": null,
+      "failed_network_id": null,
+      "ip_addresses": [
+        "192.168.1.40"
+      ],
+      "power_save": null,
+      "radio_present": true,
+      "reason": "dns_unavailable",
+      "reconnect_owner": "wpa_supplicant",
+      "rssi_dbm": -60,
+      "signal_observation": {
+        "boot_id": "boot-a",
+        "bssid": "00:11:22:33:44:55",
+        "monotonic_s": "<volatile>",
+        "ok": true,
+        "reason": null
+      },
+      "state": "Authenticated",
+      "supplicant_observation": {
+        "duration_ns": "<volatile>",
+        "ok": true,
+        "reason": null
+      },
+      "traffic_counters": {
+        "rx_bytes": 1000,
+        "tx_bytes": null
+      }
+    },
+    true,
+    {
+      "address": "192.168.1.40",
+      "boot_id": "boot-a",
+      "bssid": "00:11:22:33:44:55",
+      "epoch": "b6a2f0de-6a1c-4b7e-9c0e-3f1d2a4b5c6d",
+      "monotonic_s": "<volatile>",
+      "ok": false,
+      "probe_host": "pool.ntp.org",
+      "reason": "dns_unavailable",
+      "schema": 1
+    },
+    false,
+    {
+      "association": "COMPLETED",
+      "association_id": "00:11:22:33:44:55",
+      "coexistence": null,
+      "default_route": [
+        {
+          "dev": "wlan0",
+          "dst": "default",
+          "gateway": "192.168.1.1"
+        }
+      ],
+      "dns_ready": false,
+      "events": null,
+      "failed_network_id": null,
+      "ip_addresses": [
+        "192.168.1.40"
+      ],
+      "power_save": null,
+      "radio_present": true,
+      "reason": "dns_unavailable",
+      "reconnect_owner": "wpa_supplicant",
+      "rssi_dbm": -60,
+      "signal_observation": {
+        "boot_id": "boot-a",
+        "bssid": "00:11:22:33:44:55",
+        "monotonic_s": "<volatile>",
+        "ok": true,
+        "reason": null
+      },
+      "state": "Authenticated",
+      "supplicant_observation": {
+        "duration_ns": "<volatile>",
+        "ok": true,
+        "reason": null
+      },
+      "traffic_counters": {
+        "rx_bytes": 1000,
+        "tx_bytes": null
+      }
+    },
+    true
+  ],
+  "tree": {
+    "data": {
+      "dir": 493
+    },
+    "data/.y2data-schema": {
+      "content": 1,
+      "mode": 420
+    },
+    "data/system": {
+      "dir": 448
+    },
+    "data/system/platform": {
+      "dir": 448
+    },
+    "etc": {
+      "dir": 493
+    },
+    "etc/y2linux": {
+      "dir": 493
+    },
+    "etc/y2linux/bluetooth-codecs.json": {
+      "content": {
+        "codecs": {
+          "AAC": {
+            "compiled_locally": true,
+            "distribution_approved": true,
+            "platform_qualified": true
+          },
+          "LDAC": {
+            "compiled_locally": true,
+            "owner_private_experiment": true
+          },
+          "SBC": {
+            "compiled_locally": true,
+            "platform_qualified": true
+          },
+          "aptX": {
+            "compiled_locally": false
+          }
+        },
+        "schema": 1
+      },
+      "mode": 420
+    },
+    "proc": {
+      "dir": 493
+    },
+    "proc/self": {
+      "dir": 493
+    },
+    "proc/self/mountinfo": {
+      "content": "22 1 179:2 / / ro - ext4 /dev/mmcblk0p2 ro\n30 22 179:9 / /data rw,noatime - ext4 /dev/mmcblk0p9 rw\n",
+      "mode": 420
+    },
+    "proc/sys": {
+      "dir": 493
+    },
+    "proc/sys/kernel": {
+      "dir": 493
+    },
+    "proc/sys/kernel/random": {
+      "dir": 493
+    },
+    "proc/sys/kernel/random/boot_id": {
+      "content": "boot-a\n",
+      "mode": 420
+    },
+    "run": {
+      "dir": 493
+    },
+    "run/y2": {
+      "dir": 448
+    },
+    "run/y2-data-device": {
+      "content": "/dev/mmcblk0p9\n",
+      "mode": 420
+    },
+    "run/y2/dhcp.json": {
+      "content": {
+        "boot_id": "boot-a",
+        "epoch": "b6a2f0de-6a1c-4b7e-9c0e-3f1d2a4b5c6d",
+        "error": null
+      },
+      "mode": 420
+    },
+    "run/y2/dns.json": {
+      "content": {
+        "address": "192.168.1.40",
+        "boot_id": "boot-a",
+        "bssid": "00:11:22:33:44:55",
+        "epoch": "b6a2f0de-6a1c-4b7e-9c0e-3f1d2a4b5c6d",
+        "monotonic_s": "<volatile>",
+        "ok": false,
+        "probe_host": "pool.ntp.org",
+        "reason": "dns_unavailable",
+        "schema": 1
+      },
+      "mode": 384
+    },
+    "run/y2/wifi-epoch": {
+      "content": "b6a2f0de-6a1c-4b7e-9c0e-3f1d2a4b5c6d\n",
+      "mode": 420
+    },
+    "sys": {
+      "dir": 493
+    },
+    "sys/class": {
+      "dir": 493
+    },
+    "sys/class/net": {
+      "dir": 493
+    },
+    "sys/class/net/wlan0": {
+      "dir": 493
+    },
+    "sys/class/net/wlan0/ifindex": {
+      "content": 3,
+      "mode": 420
+    },
+    "sys/class/net/wlan0/statistics": {
+      "dir": 493
+    },
+    "sys/class/net/wlan0/statistics/rx_bytes": {
+      "content": 1000,
+      "mode": 420
+    },
+    "sys/class/net/wlan0/statistics/tx_bytes": {
+      "content": "x\n",
+      "mode": 420
+    },
+    "sys/class/rfkill": {
+      "dir": 493
+    },
+    "sys/class/rfkill/rfkill0": {
+      "dir": 493
+    },
+    "sys/class/rfkill/rfkill0/hard": {
+      "content": 0,
+      "mode": 420
+    },
+    "sys/class/rfkill/rfkill0/soft": {
+      "content": 0,
+      "mode": 420
+    },
+    "sys/class/rfkill/rfkill0/type": {
+      "content": "wlan\n",
+      "mode": 420
+    },
+    "sys/class/rfkill/rfkill1": {
+      "dir": 493
+    },
+    "sys/class/rfkill/rfkill1/soft": {
+      "content": 1,
+      "mode": 420
+    },
+    "sys/class/rfkill/rfkill1/type": {
+      "content": "bluetooth\n",
+      "mode": 420
+    }
+  }
+}
