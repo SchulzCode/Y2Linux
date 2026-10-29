@@ -2,9 +2,13 @@
 //! test_platform_telemetry_regressions.py, test_cpu_final.py and test_cpu_idle_completion.py).
 // SPDX-License-Identifier: GPL-2.0-only
 use super::*;
+use super::{idle::idle_completion, storage::space_state};
 use crate::testing::{ok, Fixture};
 use std::{fs, path::PathBuf, sync::Arc, time::Instant};
-use y2p_core::{clock::Manual, command::Outcome};
+use y2p_core::{
+    clock::Manual,
+    command::{self, Outcome},
+};
 
 /// A clock standing at 1000 s (monotonic and boottime).
 fn at_1000_s() -> Arc<Manual> {

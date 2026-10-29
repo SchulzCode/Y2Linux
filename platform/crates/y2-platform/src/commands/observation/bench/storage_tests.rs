@@ -2,8 +2,10 @@
 //! tests passed a `guard` instead of a mount; the port has none, so /data is a fixture mount that
 //! the real identity checks accept, measured on the host's temporary filesystem.
 // SPDX-License-Identifier: GPL-2.0-only
+use super::device::{distribution, io_delta};
 use super::*;
 use crate::testing::{ok, Fixture};
+use std::os::fd::{BorrowedFd, RawFd};
 use std::{cell::RefCell, collections::VecDeque, fs, io::Write, os::unix::fs::symlink};
 
 /// The faults Python's tests patched into write_all, os.pread, os.posix_fadvise and io_snapshot;

@@ -1,0 +1,152 @@
+//! The `power` section: the power supplies, the power daemon's battery record and the sleep receipt.
+// SPDX-License-Identifier: GPL-2.0-only
+use crate::commands::observation::util::{get_eq, is_int, name, read, text};
+use crate::reply::Failure;
+use serde_json::{json, Map, Value};
+use y2p_core::{py::truthy, Root};
+
+pub fn power(root: &Root) -> Result<Value, Failure> {
+    let fields = [
+        "type",
+        "status",
+        "health",
+        "online",
+        "present",
+        "usb_type",
+        "voltage_now",
+        "voltage_min_design",
+        "voltage_max_design",
+        "constant_charge_current",
+        "constant_charge_current_max",
+        "constant_charge_voltage",
+        "constant_charge_voltage_max",
+        "input_current_limit",
+    ];
+    let mut supplies = Vec::new();
+    for path in root.glob("/sys/class/power_supply/*") {
+        let mut supply = Map::new();
+        for f in fields {
+            supply.insert(f.into(), text(read(&path.join(f))));
+        }
+        supply.insert("name".into(), json!(name(&path)));
+        supplies.push(Value::Object(supply));
+    }
+    let mut policy = root.json_object("/run/y2/power.json");
+    let boot = Value::from(root.boot_id());
+    let fresh = is_int(policy.get("monotonic_ns")).is_some_and(|t| {
+        (0..5_000_000_000).contains(&(i128::from(root.clock().monotonic_ns()) - t))
+    });
+    if !get_eq(&policy, "boot_id", &boot) || !fresh {
+        policy = serde_json::from_value(
+            json!({"state": "Unavailable", "reason": "policy_not_running_or_stale"}),
+        )
+        .expect("literal");
+    }
+    // No battery is an empty one; a battery that is no object is a broken record.
+    let battery = match policy.get("battery") {
+        None => Map::new(),
+        Some(Value::Object(map)) => map.clone(),
+        Some(_) => return Err(Failure::value("invalid_power_record")),
+    };
+    let get = |k: &str| battery.get(k).cloned().unwrap_or(Value::Null);
+    let mut receipt = root.json_object("/data/system/platform/suspend-last.json");
+    if let Some(product) = receipt
+        .get("product")
+        .filter(|p| truthy(p) && !p.is_object())
+    {
+        let product = pairs(product)?;
+        receipt.insert("product".into(), Value::Object(product));
+    }
+    let sleep = match crate::commands::sleep::product(&receipt, root.boot_id().as_deref()) {
+        Ok(sleep) => sleep,
+        Err(error @ Failure::Value(_)) => return Err(error),
+        Err(_) => return Err(invalid_sleep_receipt()),
+    };
+    Ok(json!({
+        "supplies": supplies, "units": {"voltage": "uV", "configured_current": "uA"},
+        "battery": battery.clone(),
+        "measured_current_ua": get("current_ua"), "soc_percent": get("percent"),
+        "soc_source": get("source"), "soc_confidence": get("confidence"),
+        "pack_temperature": get("temperature_millicelsius"),
+        "unavailable_reason": "not_exposed_by_qualified_y2_battery_driver",
+        "normal_boot": root.integer("/sys/firmware/y2_boot/normal_boot"),
+        "low_battery": policy, "sleep": sleep,
+    }))
+}
+
+/// A sleep receipt whose product the snapshot cannot show: no object and no list of pairs, a key
+/// that is a list or object, a state that is a list or object; or a key that is a number, bool or
+/// null, which only refuses where the power section is printed (`printable`).
+fn invalid_sleep_receipt() -> Failure {
+    Failure::value("invalid_sleep_receipt")
+}
+
+/// Where a sleep product's key is no text (a list of pairs with a number key), its entry is kept
+/// under this prefix: the snapshot holds it, but printing it is refused (`printable`).
+const NON_TEXT_KEY: &str = "\u{0}non-str-key:";
+
+/// The sleep product written as a list of pairs (two-item lists, two-character texts, two-key
+/// objects, by their sorted keys), as `dict()` builds it; a pair of the wrong length is the
+/// ValueError text `dict()` gives, anything else that is no pair `invalid_sleep_receipt`.
+fn pairs(value: &Value) -> Result<Map<String, Value>, Failure> {
+    let length = |index: usize, n: usize| {
+        Failure::value(format!(
+            "dictionary update sequence element #{index} has length {n}; 2 is required"
+        ))
+    };
+    let items = match value {
+        Value::Array(items) => items,
+        // A text's items are its characters (length 1).
+        Value::String(_) => return Err(length(0, 1)),
+        _ => return Err(invalid_sleep_receipt()),
+    };
+    let mut result = Map::new();
+    for (index, item) in items.iter().enumerate() {
+        let (key, value) = match item {
+            Value::Array(pair) if pair.len() == 2 => (pair[0].clone(), pair[1].clone()),
+            Value::Array(other) => return Err(length(index, other.len())),
+            Value::String(text) => {
+                let chars: Vec<char> = text.chars().collect();
+                if chars.len() != 2 {
+                    return Err(length(index, chars.len()));
+                }
+                (json!(chars[0].to_string()), json!(chars[1].to_string()))
+            }
+            Value::Object(map) if map.len() == 2 => {
+                let mut keys = map.keys().collect::<Vec<_>>();
+                keys.sort();
+                (json!(keys[0]), json!(keys[1]))
+            }
+            Value::Object(map) => return Err(length(index, map.len())),
+            _ => return Err(invalid_sleep_receipt()),
+        };
+        let key = match key {
+            Value::String(key) => key,
+            Value::Array(_) | Value::Object(_) => return Err(invalid_sleep_receipt()),
+            other => format!("{NON_TEXT_KEY}{other}"),
+        };
+        result.insert(key, value);
+    }
+    Ok(result)
+}
+
+/// Whether `value` holds a sleep product key that is no text.
+fn holds_non_text_key(value: &Value) -> bool {
+    match value {
+        Value::Object(map) => map
+            .iter()
+            .any(|(k, v)| k.starts_with(NON_TEXT_KEY) || holds_non_text_key(v)),
+        Value::Array(items) => items.iter().any(holds_non_text_key),
+        _ => false,
+    }
+}
+
+/// Whether a value holding (part of) a snapshot can be printed: one holding a sleep product key that
+/// is no text is refused (`invalid_sleep_receipt`). A section that leaves out the power section
+/// prints.
+pub fn printable(value: &Map<String, Value>) -> Result<(), Failure> {
+    if value.values().any(holds_non_text_key) || value.keys().any(|k| k.starts_with(NON_TEXT_KEY)) {
+        return Err(invalid_sleep_receipt());
+    }
+    Ok(())
+}
