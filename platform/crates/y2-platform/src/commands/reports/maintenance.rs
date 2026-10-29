@@ -10,6 +10,7 @@ use super::{
     media::{fstat, open_at, rename_between, stat_at},
     os, os_name, os_plain,
     pyjson::{self, Py, Style},
+    pyops,
     state::uuid4,
     tarball,
     volume::{self, data_volume, free, open_directory},
@@ -38,9 +39,11 @@ fn hex(bytes: &[u8]) -> String {
     bytes.iter().map(|b| format!("{b:02x}")).collect()
 }
 
+/// `except (OSError, ValueError, TimeoutError)`: `{"state": "Failed", "failure": str(error)}`; any
+/// other exception is main.py's traceback.
 fn failed(error: Failure) -> Outcome {
     match error {
-        Failure::Fallback => Err(Failure::Fallback),
+        error if !error.caught() => Err(error),
         error => Reply::unsorted(
             &y2p_core::json::Ordered::new()
                 .with("state", "Failed")
@@ -221,11 +224,31 @@ fn busy(root: &Root, scope: &str) -> Result<Vec<Py>, Failure> {
             .filter(|t| !t.is_empty())
             .any(|t| needles.contains(&base_name(t)))
         {
-            let pid: i64 = name.parse().map_err(|_| Failure::Fallback)?;
-            found.push(Py::int(pid));
+            // `int(entry.parent.name)`: the glob only asks for a leading digit.
+            found.push(pid(&name)?);
         }
     }
     Ok(found)
+}
+
+/// `int(name)` of a /proc entry name (whitespace around and single underscores between digits
+/// allowed, any size), or its ValueError.
+fn pid(name: &str) -> Result<Py, Failure> {
+    let text = y2p_core::root::python_strip(name);
+    let digits = text.strip_prefix('+').unwrap_or(text);
+    let valid = !digits.is_empty()
+        && !digits.starts_with('_')
+        && !digits.ends_with('_')
+        && !digits.contains("__")
+        && digits.chars().all(|c| c.is_ascii_digit() || c == '_');
+    if !valid {
+        return Err(Failure::int_literal(name));
+    }
+    let digits = digits.replace('_', "");
+    let trimmed = digits.trim_start_matches('0');
+    Ok(Py::Int(
+        if trimmed.is_empty() { "0" } else { trimmed }.to_owned(),
+    ))
 }
 
 fn child_paths(root: &Root, relative: &str) -> Result<Vec<String>, Failure> {
@@ -306,9 +329,8 @@ fn plan(root: &Root, scope: Option<&str>) -> Result<Py, Failure> {
     let scope = scope
         .filter(|s| SCOPES.contains(s))
         .ok_or_else(|| Failure::value("unknown_reset_scope"))?;
-    let update = volume::update_state(root)?; // read before any command: may hand the run to Python
     let volume = data_volume(root)?;
-    if !TERMINAL.contains(&update.as_str()) {
+    if !TERMINAL.contains(&volume::update_state(root)?.as_str()) {
         return Err(Failure::value("update_in_progress"));
     }
     if root
@@ -447,39 +469,30 @@ fn text(value: Option<&Py>) -> Py {
     value.cloned().unwrap_or(Py::None)
 }
 
-/// Shapes of a plan Python's execute crashes on (KeyError, TypeError): its run.
-fn plan_prechecks(root: &Root, plan: &Py, resume: bool) -> Result<(), Failure> {
-    if !matches!(plan.get("id"), None | Some(Py::Str(_))) {
-        return Err(Failure::Fallback);
-    }
-    let targets_ok = match plan.get("targets") {
-        Some(Py::List(items)) => items
-            .iter()
-            .all(|t| matches!(t.get("path"), Some(Py::Str(_))) && t.get("identity").is_some()),
-        _ => false,
+/// A plan target's path, identity and what is there now, in Python's order: `inspect(data,
+/// target['path']) != target['identity']` before the apply, `relative, expected = target['path'],
+/// target['identity']` then `inspect(data, relative)` in it (a path that is no str is an
+/// AttributeError at its `.split`).
+fn target(
+    data: &OwnedFd,
+    target: &Py,
+    identity_first: bool,
+) -> Result<(String, Py, Option<Py>), Failure> {
+    let path = pyops::index(target, "path")?.clone();
+    let expected = if identity_first {
+        Some(pyops::index(target, "identity")?.clone())
+    } else {
+        None
     };
-    let needed = ["scope", "preserved", "targets"];
-    if !targets_ok
-        || needed.iter().any(|k| plan.get(k).is_none())
-        || (!resume
-            && plan
-                .get("expires_monotonic_s")
-                .and_then(Py::number)
-                .is_none())
-        || (!resume && plan.get("data_generation").is_none())
-    {
-        return Err(Failure::Fallback);
-    }
-    volume::update_state(root)?;
-    if plan.get("scope").and_then(Py::as_str) == Some("settings") {
-        let session = std::fs::read(root.path(&format!("/data/{SETTINGS}")));
-        if let Ok(raw) = session {
-            if !matches!(pyjson::loads_bytes(&raw), Some(Py::Dict(_))) {
-                return Err(Failure::Fallback);
-            }
-        }
-    }
-    Ok(())
+    let Py::Str(path) = path else {
+        return Err(pyops::no_attribute(&path, "split"));
+    };
+    let source = inspect(data, &path)?;
+    let expected = match expected {
+        Some(expected) => expected,
+        None => pyops::index(target, "identity")?.clone(),
+    };
+    Ok((path, expected, source))
 }
 
 /// `execute(ctx, confirmation, erase_music, resume)`.
@@ -491,33 +504,39 @@ fn execute(root: &Root, confirm: Option<&str>, erase: bool, resume: bool) -> Res
         .map_err(|e| os(e, &lock_path))?
         .ok_or_else(|| os_plain(std::io::Error::from_raw_os_error(libc::EAGAIN)))?;
     let value = json_dict(root, "/data/system/platform/reset-plan.json");
-    let confirmation_given = confirm.filter(|c| !c.is_empty());
-    let id = value
-        .get("id")
-        .and_then(Py::as_str)
-        .unwrap_or("")
-        .to_owned();
-    if !matches!(value.get("id"), None | Some(Py::Str(_))) {
-        return Err(Failure::Fallback);
-    }
+    let required = || Failure::value("exact_reset_confirmation_required");
+    // `not confirmation or value.get('confirmation') != confirmation or not re.fullmatch(...,
+    // value.get('id', ''))`: an id that is no str is a TypeError once the confirmation matched.
+    let confirmation_given = confirm
+        .filter(|c| !c.is_empty())
+        .filter(|c| {
+            value
+                .get("confirmation")
+                .is_some_and(|v| v.py_eq(&Py::str(*c)))
+        })
+        .ok_or_else(required)?;
+    let id = match value.get("id") {
+        None => String::new(),
+        Some(Py::Str(id)) => id.clone(),
+        Some(other) => {
+            return Err(Failure::type_error(format!(
+                "expected string or bytes-like object, got '{}'",
+                pyops::type_name(other)
+            )))
+        }
+    };
     let id_ok = id.len() == 32
         && id
             .bytes()
             .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b));
-    let Some(confirmation_given) = confirmation_given.filter(|c| {
-        value
-            .get("confirmation")
-            .is_some_and(|v| v.py_eq(&Py::str(*c)))
-            && id_ok
-    }) else {
-        return Err(Failure::value("exact_reset_confirmation_required"));
-    };
+    if !id_ok {
+        return Err(required());
+    }
     let mut signed = value.clone();
     signed.remove("confirmation");
     if confirmation(&signed) != confirmation_given {
         return Err(Failure::value("reset_plan_changed"));
     }
-    plan_prechecks(root, &value, resume)?;
     let scope = value
         .get("scope")
         .and_then(Py::as_str)
@@ -533,14 +552,13 @@ fn execute(root: &Root, confirm: Option<&str>, erase: bool, resume: bool) -> Res
             "full_reset_requires_erase_user_music_confirmation",
         ));
     }
-    if !resume
-        && kernel::monotonic()
-            > value
-                .get("expires_monotonic_s")
-                .and_then(Py::number)
-                .expect("checked")
-    {
-        return Err(Failure::value("reset_plan_expired"));
+    if !resume {
+        // `time.monotonic() > value['expires_monotonic_s']`.
+        let expires = pyops::index(&value, "expires_monotonic_s")?;
+        let (now, expires) = pyops::ordered(&Py::Float(kernel::monotonic()), ">", expires)?;
+        if now > expires {
+            return Err(Failure::value("reset_plan_expired"));
+        }
     }
     if !busy(root, &scope)?.is_empty() {
         return Err(Failure::value("reset_consumers_still_running"));
@@ -550,7 +568,7 @@ fn execute(root: &Root, confirm: Option<&str>, erase: bool, resume: bool) -> Res
         let uuid = value.get("data_uuid").filter(|u| u.truthy());
         uuid.is_none_or(|u| !u.py_eq(&volume.uuid.clone().into()))
     } else {
-        !text(value.get("data_generation")).py_eq(&volume.generation.clone().into())
+        !pyops::index(&value, "data_generation")?.py_eq(&volume.generation.clone().into())
     };
     if changed {
         return Err(Failure::value("reset_data_generation_changed"));
@@ -570,15 +588,13 @@ fn execute(root: &Root, confirm: Option<&str>, erase: bool, resume: bool) -> Res
         crate::reply::unlink_missing_ok(&platform.join("maintenance-pending"))?;
         return Ok(finished);
     }
-    let targets = match value.get("targets") {
-        Some(Py::List(items)) => items.clone(),
-        _ => Vec::new(),
-    };
+    // `value['targets']`, iterated (a resume reads it first in the loop below, after the pending flag
+    // and the record are written).
+    let targets = || pyops::iterate(pyops::index(&value, "targets")?);
     if !resume {
-        for target in &targets {
-            let path = target.get("path").and_then(Py::as_str).expect("checked");
-            let now = inspect(&data, path)?.unwrap_or(Py::None);
-            if !now.py_eq(target.get("identity").expect("checked")) {
+        for item in targets()? {
+            let (_, expected, now) = target(&data, &item, false)?;
+            if !now.unwrap_or(Py::None).py_eq(&expected) {
                 return Err(Failure::value("reset_target_changed_before_apply"));
             }
         }
@@ -611,15 +627,9 @@ fn execute(root: &Root, confirm: Option<&str>, erase: bool, resume: bool) -> Res
         &progress(&completed, "Applying"),
         true,
     )?;
-    for (index, target) in targets.iter().enumerate() {
-        let relative = target
-            .get("path")
-            .and_then(Py::as_str)
-            .expect("checked")
-            .to_owned();
-        let expected = target.get("identity").expect("checked").clone();
+    for (index, item) in targets()?.iter().enumerate() {
+        let (relative, expected, source) = target(&data, item, true)?;
         let saved = format!("{index:03}");
-        let source = inspect(&data, &relative)?;
         let old = match stat_at(&quarantine, &saved) {
             Ok(meta) => Some(identity(&meta)),
             Err(e) if e.raw_os_error() == Some(libc::ENOENT) => None,
@@ -628,10 +638,14 @@ fn execute(root: &Root, confirm: Option<&str>, erase: bool, resume: bool) -> Res
         let field = |v: &Py, k: &str| v.get(k).cloned().unwrap_or(Py::None);
         let same_source = source.as_ref().is_some_and(|s| s.py_eq(&expected));
         if scope == "settings" && relative == SETTINGS {
-            let old_same_inode = old
-                .as_ref()
-                .is_some_and(|o| field(o, "inode").py_eq(&field(&expected, "inode")));
-            if !same_source && !(resume && old_same_inode) {
+            // `source != expected and not (resume and old and old['inode'] == expected['inode'])`.
+            let old_same_inode = || -> Result<bool, Failure> {
+                Ok(match &old {
+                    Some(o) if resume => field(o, "inode").py_eq(pyops::index(&expected, "inode")?),
+                    _ => false,
+                })
+            };
+            if !same_source && !old_same_inode()? {
                 // Settings backup is a copy, handled by completed hash below.
                 let record = super::json_at(
                     root,
@@ -650,8 +664,12 @@ fn execute(root: &Root, confirm: Option<&str>, erase: bool, resume: bool) -> Res
                 return Err(Failure::value("reset_settings_changed"));
             }
             let raw = regular_bytes(&data, &relative, 8 << 20)?;
-            let mut model = pyjson::loads_bytes(&raw).ok_or(Failure::Fallback)?;
-            let wrapped = model.get("schema").is_some();
+            let mut model = pyops::loads(&raw)?;
+            // `'schema' in model`, then `model.get('schema')`.
+            let wrapped = pyops::contains(&model, "schema")?;
+            if wrapped {
+                pyops::get(&model, "schema")?;
+            }
             // Schema 3 (Reborn Beta 8.33) stores the queue by reference; only the settings change
             // here, the rest is kept as read.
             if wrapped
@@ -674,13 +692,11 @@ fn execute(root: &Root, confirm: Option<&str>, erase: bool, resume: bool) -> Res
             }
             let reply = command::run(root, &["/usr/bin/reborn", "--default-settings"], 2.0);
             let defaults = if reply.ok {
-                pyjson::loads(&reply.output.clone().unwrap_or_default())
-                    .ok_or_else(|| Failure::value("Expecting value: line 1 column 1 (char 0)"))?
+                pyops::loads(reply.output.clone().unwrap_or_default().as_bytes())?
             } else {
                 Py::dict()
             };
-            let schema_ok = defaults
-                .get("session_schema")
+            let schema_ok = pyops::get(&defaults, "session_schema")?
                 .is_some_and(|s| s.py_eq(&Py::int(2)) || s.py_eq(&Py::int(3)));
             let Some(settings @ Py::Dict(_)) =
                 defaults.get("settings").cloned().filter(|_| schema_ok)
@@ -723,10 +739,12 @@ fn execute(root: &Root, confirm: Option<&str>, erase: bool, resume: bool) -> Res
             )?;
             atomic_json(&root.path(&format!("/data/{relative}")), &model, true)?;
         } else {
+            // `old and source is None and old['device'] == expected['device'] and old['inode'] ==
+            // expected['inode']`.
             let renamed_before = match (&old, &source) {
                 (Some(o), None) => {
-                    field(o, "device").py_eq(&field(&expected, "device"))
-                        && field(o, "inode").py_eq(&field(&expected, "inode"))
+                    field(o, "device").py_eq(pyops::index(&expected, "device")?)
+                        && field(o, "inode").py_eq(pyops::index(&expected, "inode")?)
                 }
                 _ => false,
             };
@@ -753,7 +771,7 @@ fn execute(root: &Root, confirm: Option<&str>, erase: bool, resume: bool) -> Res
         return Err(Failure::value("reset_data_generation_changed"));
     }
     let record = progress(&completed, "Complete")
-        .with("preserved", text(value.get("preserved")))
+        .with("preserved", pyops::index(&value, "preserved")?.clone())
         .with(
             "quarantine",
             Py::Str(format!("/data/reset-quarantine/{id}")),
@@ -809,19 +827,6 @@ fn purge(root: &Root, token: &str, confirm: Option<&str>) -> Result<Py, Failure>
         && token
             .bytes()
             .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b));
-    if id_ok {
-        // record.json Python's json.loads or .get would raise on (JSONDecodeError's text, a
-        // traceback): its run.
-        let path = root.path(&format!("/data/reset-quarantine/{token}/record.json"));
-        if let Ok(meta) = path.symlink_metadata() {
-            if meta.is_file() && meta.nlink() == 1 && meta.len() <= 16384 {
-                let raw = std::fs::read(&path).unwrap_or_default();
-                if !matches!(pyjson::loads_bytes(&raw), Some(Py::Dict(_))) {
-                    return Err(Failure::Fallback);
-                }
-            }
-        }
-    }
     let _lease = Lease::take(root, "Maintenance")?;
     if !id_ok {
         return Err(Failure::value("invalid_reset_id"));
@@ -831,9 +836,10 @@ fn purge(root: &Root, token: &str, confirm: Option<&str>) -> Result<Py, Failure>
     let parent = open_directory(&data, "reset-quarantine")?;
     let top = open_directory(&parent, token)?;
     drop((parent, data));
-    let record = pyjson::loads_bytes(&regular_bytes(&top, "record.json", 16384)?)
-        .ok_or(Failure::Fallback)?;
-    if !record.get("id").is_some_and(|v| v.py_eq(&Py::str(token)))
+    // `json.loads(...)` (its JSONDecodeError is a Failed answer), then `record.get(...)` (an
+    // AttributeError for a record that is no dict).
+    let record = pyops::loads(&regular_bytes(&top, "record.json", 16384)?)?;
+    if !pyops::get(&record, "id")?.is_some_and(|v| v.py_eq(&Py::str(token)))
         || !record
             .get("state")
             .is_some_and(|v| v.py_eq(&Py::str("Complete")))

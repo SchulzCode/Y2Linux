@@ -192,9 +192,9 @@ fn read(root: &Root, name: &str) -> Py {
 }
 
 /// `_session_projection`: every setting and technical playback fact of session.json; no queue entries.
-fn session_projection(session: Option<Py>) -> Py {
+fn session_projection(session: Option<Py>) -> Result<Py, Failure> {
     let Some(session @ Py::Dict(_)) = session else {
-        return Py::None;
+        return Ok(Py::None);
     };
     let model = match session.get("model") {
         Some(m @ Py::Dict(_)) => m.clone(),
@@ -224,10 +224,9 @@ fn session_projection(session: Option<Py>) -> Py {
         "online",
         "artwork",
     ];
-    let mut settings = match model.get("settings") {
-        Some(s @ Py::Dict(_)) => s.clone(),
-        _ => Py::dict(),
-    };
+    // `dict(model.get('settings') or {})`: a list of pairs is a dict too; a string's ValueError is
+    // report_failed, a number's TypeError main.py's traceback.
+    let mut settings = super::pyops::to_dict(model.get("settings").unwrap_or(&Py::None))?;
     if let Some(Py::Str(zone)) = settings.get("time_zone") {
         let set = if zone.is_empty() { "" } else { "set" };
         settings.set("time_zone", Py::str(set));
@@ -254,7 +253,7 @@ fn session_projection(session: Option<Py>) -> Py {
     };
     other.sort();
     let get = |key: &str| model.get(key).cloned().unwrap_or(Py::None);
-    Py::dict()
+    Ok(Py::dict()
         .with("schema", session.get("schema").cloned().unwrap_or(Py::None))
         .with("settings", settings)
         .with("playback", get("playback"))
@@ -266,7 +265,7 @@ fn session_projection(session: Option<Py>) -> Py {
         .with(
             "other_keys",
             Py::List(other.into_iter().map(Py::Str).collect()),
-        )
+        ))
 }
 
 /// `_library_statistics`: counts only (sqlite read-only); never a name, title or path.
@@ -800,7 +799,7 @@ pub fn build(
         return Err(Failure::value("unknown_trigger"));
     }
     progress.update("collect", 0.0, true, &[]);
-    let known = secrets::secrets(root);
+    let known = secrets::secrets(root)?;
     let mut scrubber = Scrubber::new(&known, random_key()?);
     let versions = json_dict(root, "/etc/y2linux/versions.json");
     let release = json_dict(root, "/etc/y2linux/release.json");
@@ -865,7 +864,7 @@ pub fn build(
         Py::str("sysfs"),
         false,
     );
-    let session = session_projection(large_json(root, "/data/reborn/state/session.json"));
+    let session = session_projection(large_json(root, "/data/reborn/state/session.json"))?;
     let session = scrubber.value(&session, None);
     add(
         &mut index,

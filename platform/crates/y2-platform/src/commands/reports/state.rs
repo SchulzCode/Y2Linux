@@ -40,60 +40,6 @@ pub fn state(root: &Root) -> Py {
     value
 }
 
-/// Shapes of reports.json and session.json Python's report code crashes on (TypeError, AttributeError):
-/// those runs stay Python's.
-pub fn prechecks(root: &Root, action: &str) -> Result<(), Failure> {
-    if action == "status" || action == "new-id" || action == "disable" {
-        return Ok(());
-    }
-    let value = state(root);
-    for key in ["daily", "boot_triggers", "seen"] {
-        if !value.get(key).is_some_and(Py::is_dict) {
-            return Err(Failure::Fallback);
-        }
-    }
-    let boot = super::boot_id(root).unwrap_or_default();
-    if let Some(triggers) = value.get("boot_triggers").and_then(|t| t.get(&boot)) {
-        if !matches!(triggers, Py::List(items) if items.iter().all(|t| matches!(t, Py::Str(_)))) {
-            return Err(Failure::Fallback);
-        }
-    }
-    if let Some(Py::Dict(daily)) = value.get("daily") {
-        if daily.iter().any(|(_, n)| n.number().is_none()) {
-            return Err(Failure::Fallback);
-        }
-    }
-    if value
-        .get("last")
-        .is_some_and(|l| l.truthy() && !l.is_dict())
-    {
-        return Err(Failure::Fallback);
-    }
-    if let Some(Py::Dict(uploads)) = value.get("uploads") {
-        let bad = |entry: &Py, key| entry.get(key).is_some_and(|v| v.number().is_none());
-        if uploads
-            .iter()
-            .any(|(_, e)| e.is_dict() && (bad(e, "next") || bad(e, "attempts")))
-        {
-            return Err(Failure::Fallback);
-        }
-    }
-    if !matches!(action, "upload") {
-        let session = super::build::large_json(root, "/data/reborn/state/session.json");
-        if let Some(model @ Py::Dict(_)) = session.as_ref().and_then(|s| s.get("model")) {
-            let queue = model.get("queue");
-            if queue.is_some_and(|q| q.truthy() && !matches!(q, Py::List(_) | Py::Str(_))) {
-                return Err(Failure::Fallback);
-            }
-            let settings = model.get("settings");
-            if settings.is_some_and(|s| s.truthy() && !s.is_dict()) {
-                return Err(Failure::Fallback);
-            }
-        }
-    }
-    Ok(())
-}
-
 /// `save(ctx, value)`.
 pub fn save(root: &Root, value: &Py) -> Result<(), Failure> {
     let path = root.path(STATE);

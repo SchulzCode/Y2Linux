@@ -10,6 +10,7 @@ mod fields;
 mod maintenance;
 mod media;
 mod pyjson;
+mod pyops;
 mod pyre;
 mod scrub;
 mod secrets;
@@ -158,8 +159,6 @@ fn lower_priority() {
 
 /// cli.py's `report` branch: OSError and ValueError print `report_failed` with the class name.
 fn report(root: &Root, action: &str, to: Option<&str>, topic: Option<&str>) -> Outcome {
-    // Inputs Python would crash on (a traceback, not an answer) go to Python before anything changes.
-    state::prechecks(root, action)?;
     if matches!(action, "send" | "save" | "check" | "work") {
         lower_priority();
     }
@@ -178,16 +177,17 @@ fn report(root: &Root, action: &str, to: Option<&str>, topic: Option<&str>) -> O
             }
         },
         "upload" => upload::upload(root, None, None),
-        "work" => checks::run_checks(root).map(|reports| {
-            Py::dict()
+        "work" => checks::run_checks(root).and_then(|reports| {
+            Ok(Py::dict()
                 .with("reports", reports)
-                .with("upload", upload::upload_now(root, None, None))
+                .with("upload", upload::upload_now(root, None, None)?))
         }),
         _ => checks::run_checks(root).map(|reports| Py::dict().with("reports", reports)),
     };
     match result {
         Ok(value) => Ok(Reply::text(pyjson::dumps(&value, pyjson::Style::Spaced))),
-        Err(Failure::Fallback) => Err(Failure::Fallback),
+        // A TypeError, KeyError or AttributeError: main.py's traceback.
+        Err(error) if !error.caught() => Err(error),
         Err(error) => Reply::unsorted(
             &y2p_core::json::Ordered::new()
                 .with("failure", "report_failed")
