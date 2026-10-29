@@ -2,12 +2,14 @@
 //! test_exfat_readahead.py): exact-identity mount, owner-confirmed provisioning, verified migration,
 //! the automatic setup. The player's root answers commands with a fake whose state follows them.
 // SPDX-License-Identifier: GPL-2.0-only
-use super::*;
+use super::{provision::*, setup::*, *};
 use crate::commands::observation::snapshot;
+use crate::commands::storage::{observe::setup_status, sys::statvfs};
 use crate::testing::{Fixture, Outcome};
 use std::{
     cell::Cell,
-    fs::FileTimes,
+    fs::{self, FileTimes},
+    os::unix::fs::MetadataExt,
     os::unix::fs::{symlink, PermissionsExt},
     process::Command,
     sync::{Arc, Mutex},
