@@ -301,3 +301,7 @@ pub fn secrets(root: &Root) -> Result<Known, Failure> {
         })
         .collect())
 }
+
+#[cfg(test)]
+#[path = "secrets_tests.rs"]
+mod secrets_tests;

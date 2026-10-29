@@ -1000,3 +1000,7 @@ mod tests {
         );
     }
 }
+
+#[cfg(test)]
+#[path = "build_tests.rs"]
+mod build_tests;

@@ -28,22 +28,40 @@ pub fn exclusive(path: &Path) -> io::Result<File> {
 
 /// `fcntl.flock(fd, LOCK_EX | LOCK_NB)`: `Ok(None)` while another process holds it.
 pub fn try_exclusive(path: &Path) -> io::Result<Option<File>> {
-    let file = open(path)?;
-    match file.try_lock() {
-        Ok(()) => Ok(Some(file)),
-        Err(TryLockError::WouldBlock) => Ok(None),
-        Err(TryLockError::Error(error)) => Err(error),
-    }
+    settle(|| {
+        let file = open(path)?;
+        match file.try_lock() {
+            Ok(()) => Ok(Some(file)),
+            Err(TryLockError::WouldBlock) => Ok(None),
+            Err(TryLockError::Error(error)) => Err(error),
+        }
+    })
 }
 
 /// `fcntl.flock(fd, LOCK_SH | LOCK_NB)`: a shared lease (the activity lease's holders).
 pub fn try_shared(path: &Path) -> io::Result<Option<File>> {
-    let file = open(path)?;
-    match file.try_lock_shared() {
-        Ok(()) => Ok(Some(file)),
-        Err(TryLockError::WouldBlock) => Ok(None),
-        Err(TryLockError::Error(error)) => Err(error),
+    settle(|| {
+        let file = open(path)?;
+        match file.try_lock_shared() {
+            Ok(()) => Ok(Some(file)),
+            Err(TryLockError::WouldBlock) => Ok(None),
+            Err(TryLockError::Error(error)) => Err(error),
+        }
+    })
+}
+
+/// One attempt on the player. In test builds (feature `testing`) a busy lock is tried again for up to
+/// 0.2 s: a test thread that forks a child shares every open descriptor until the child execs, which
+/// briefly holds another test's lock (O_CLOEXEC closes it only at the exec).
+fn settle(mut attempt: impl FnMut() -> io::Result<Option<File>>) -> io::Result<Option<File>> {
+    #[cfg(feature = "testing")]
+    for _ in 0..20 {
+        if let Some(file) = attempt()? {
+            return Ok(Some(file));
+        }
+        std::thread::sleep(std::time::Duration::from_millis(10));
     }
+    attempt()
 }
 
 #[cfg(test)]

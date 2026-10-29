@@ -235,7 +235,7 @@ fn daily_update_check(root: &Root, network: &Ordered, child: Option<Child>) -> O
 }
 
 /// `report.next_upload`: when the earliest queued report may be sent.
-enum Due {
+pub(crate) enum Due {
     None,
     At(f64),
     /// Not a number (`min()` of strings, a list): comparing it with the clock is a TypeError.
@@ -243,7 +243,7 @@ enum Due {
 }
 
 /// `report.next_upload(ctx)`; Err for `min()` over values Python cannot order (a TypeError).
-fn next_upload(root: &Root) -> Result<Due, ()> {
+pub(crate) fn next_upload(root: &Root) -> Result<Due, ()> {
     // A glob names each file once: the set Python builds.
     let queued: Vec<String> = reports::queued(root)
         .iter()
@@ -837,3 +837,11 @@ mod tests {
         std::fs::remove_dir_all(dir).unwrap();
     }
 }
+
+#[cfg(test)]
+#[path = "daemon_reports_tests.rs"]
+mod daemon_reports_tests;
+
+#[cfg(test)]
+#[path = "daemon_wake_tests.rs"]
+mod daemon_wake_tests;

@@ -165,9 +165,9 @@ fn classless_routes_and_untrusted_dhcp_syntax() {
 }
 
 #[test]
-fn dhcp_renew_deletes_the_dns_confirmation() {
-    // DEFECT (CONTRACT.md): a DHCP renew deletes /run/y2/dns.json, so Wi-Fi may show dns_unavailable
-    // for up to 300 s until the next probe. Ported 1:1; this asserts today's behaviour.
+fn dhcp_renew_of_the_same_lease_keeps_the_dns_confirmation() {
+    // A renew of this epoch's lease keeps dns.json (it was deleted, so Wi-Fi showed dns_unavailable
+    // for up to 300 s until the next probe); tests/dhcp_renew.rs covers the leases that drop it.
     let mut fixture = player();
     let epoch = link_event(&fixture, "CONNECTED");
     let env = [
@@ -187,7 +187,7 @@ fn dhcp_renew_deletes_the_dns_confirmation() {
     let renewed = dhcp(&fixture, "renew", &env);
     assert_eq!(renewed.code, Some(0));
     assert_eq!(renewed.json()["state"], "Authenticated");
-    assert!(!fixture.exists("/run/y2/dns.json"));
+    assert!(fixture.exists("/run/y2/dns.json"));
 }
 
 // ---- the clock (timekeeping) ---------------------------------------------------------------------

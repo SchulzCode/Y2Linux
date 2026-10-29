@@ -941,3 +941,7 @@ mod tests {
         assert_eq!(s.counts["private_key"], 2);
     }
 }
+
+#[cfg(test)]
+#[path = "scrub_tests.rs"]
+mod scrub_tests;
