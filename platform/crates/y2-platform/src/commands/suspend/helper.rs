@@ -1,4 +1,4 @@
-//! `product_sleep.py` (`/usr/lib/y2-platform/product-sleep.py <fd>`): the owned product suspend that
+//! The product sleep helper (`y2-platform __product-sleep <fd>`): the owned product suspend that
 //! `sleep request` launches with its `/run/y2/suspend.lock` open file description; no polling while
 //! asleep and no editable bypass on 04.
 //!
@@ -8,10 +8,9 @@
 //! of a PID file.
 //!
 //! The PM writes are single unbuffered `write(2)`s in this order: `wakeup_count`, backstop `30`,
-//! `mem`, backstop `0`. Python's SIGTERM/SIGINT handler raises `RuntimeError('sleep_helper_interrupted')`
-//! wherever the helper is; here the handler sets a flag that the same work checks between steps
-//! (`interrupted`), and a signal during the restore (Python's `finally`) is raised once the restore
-//! has finished (Python would abandon the restore part-way).
+//! `mem`, backstop `0` (`kernel`). A SIGTERM/SIGINT sets a flag that the work checks between steps
+//! (`interrupted`: the run ends as `sleep_helper_interrupted`); during the restore it is checked only
+//! once the restore has finished, so a signal never leaves Reborn quiesced or the radios off.
 // SPDX-License-Identifier: GPL-2.0-only
 mod kernel;
 
@@ -32,13 +31,7 @@ use std::{fs::File, io, os::unix::fs::MetadataExt, path::Path, sync::atomic::Ord
 use y2p_core::lock;
 use y2p_core::py::PyValue;
 use y2p_core::sys::{set_signal, Disposition, Handler};
-use y2p_core::{
-    command,
-    py::is_true,
-    root::python_int,
-    suspend_text::{is_decimal, Regex},
-    Root,
-};
+use y2p_core::{command, py::is_true, root::python_int, suspend_text::is_decimal, Root};
 
 const OPERATION_LOCKS: [(&str, &str); 3] = [
     ("activity_operation", "/run/y2/activity.lock"),
@@ -58,7 +51,8 @@ extern "C" fn stop(_: libc::c_int) {
     INTERRUPTED.store(true, Ordering::SeqCst);
 }
 
-/// `signal.signal(sig, handler)` as CPython installs it (SA_ONSTACK, no SA_RESTART): the old action.
+/// Install `handler` for `sig` (SA_ONSTACK, no SA_RESTART: a blocking read or wait returns EINTR so
+/// the flag is seen): the old action.
 fn install(sig: libc::c_int, handler: extern "C" fn(libc::c_int)) -> Option<Disposition> {
     // SAFETY: the handlers (stop, alarm) only store to atomics.
     unsafe { set_signal(sig, Handler::Call(handler), libc::SA_ONSTACK) }.ok()
@@ -104,7 +98,8 @@ pub fn main(root: &Root, args: &[String]) -> crate::reply::Outcome {
     }
 }
 
-/// Python's `os.path.samestat(os.fstat(fd), path.stat())`.
+/// The descriptor is the request's `/run/y2/suspend.lock` (same device and inode) and its flock is
+/// held: the helper sleeps only for the request that admitted it.
 fn inherited(root: &Root, fd: i32) -> Result<(), E> {
     // SAFETY: the descriptor this programme was given stays open until it closes it after the run
     // (one that is not open fails fstat with EBADF).
@@ -212,11 +207,15 @@ impl Run {
         for radio in ["wifi", "bluetooth"] {
             quiesce_radio(root, pm, radio)?;
         }
-        let stopped = Regex::new(r"powered=0 functions=(?:0x0|0) ").expect("pattern");
+        // The connectivity chip is off once its status says so (functions as 0 or 0x0).
+        let stopped = |status: String| {
+            ["powered=0 functions=0x0 ", "powered=0 functions=0 "]
+                .iter()
+                .any(|off| status.contains(off))
+        };
         let deadline = monotonic(root) + 15.0;
-        while !stopped.is_match(
-            &root
-                .read("/sys/devices/platform/18070000.connectivity/status")
+        while !stopped(
+            root.read("/sys/devices/platform/18070000.connectivity/status")
                 .unwrap_or_default(),
         ) {
             if monotonic(root) >= deadline {
@@ -282,7 +281,8 @@ impl Run {
                 }
                 return Err(error);
             }
-            // Read as Python does (the count is not used again: the next pass reads a fresh one).
+            // The read after the return completes the handshake; its count is not used (the next
+            // pass reads a fresh one).
             pm.wakeup_count(root)?;
             let value = record(root, Stage::new("kernel_resumed", Some(0)))?;
             self.restored_kernel = value.kernel_completed();
@@ -430,7 +430,7 @@ fn service(root: &Root, argv: &[&str]) -> Result<(), E> {
     let outcome = command::run(root, argv, 20.0);
     check()?;
     if !outcome.ok {
-        let name = Path::new(argv[0])
+        let name = Path::new(argv.first().copied().unwrap_or_default())
             .file_name()
             .map(|n| n.to_string_lossy().into_owned())
             .unwrap_or_default();

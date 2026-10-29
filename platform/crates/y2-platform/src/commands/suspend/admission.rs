@@ -3,10 +3,10 @@
 //! kernel-refusal retry gate. Also the two pieces of other modules the gates read: `power.load_policy`
 //! and `update.status(ctx).get('state')`.
 // SPDX-License-Identifier: GPL-2.0-only
-use super::{is_text, py_gt, text_value, wall, E};
+use super::{is_text, pattern, py_gt, text_value, wall, E};
 use serde::Serialize;
 use serde_json::{json, Map, Value};
-use std::{fs::Metadata, os::unix::fs::MetadataExt, path::Path};
+use std::{fs::Metadata, os::unix::fs::MetadataExt, path::Path, sync::OnceLock};
 use y2p_core::py::PyValue;
 use y2p_core::{
     py::{exact_int, is_true, truthy},
@@ -357,7 +357,10 @@ pub fn operation_state(root: &Root, workloads: bool) -> Result<(), E> {
     let Some(leases) = root.read("/sys/module/workload/parameters/leases") else {
         return Err(refused("workload_owner_unavailable"));
     };
-    let pattern = Regex::new(r"^(\w+) remaining_ms=(\d+) min_khz=-?\d+$").expect("pattern");
+    static LEASE: OnceLock<Option<Regex>> = OnceLock::new();
+    let Some(pattern) = pattern(&LEASE, r"^(\w+) remaining_ms=(\d+) min_khz=-?\d+$") else {
+        return Err(refused("workload_owner_unavailable"));
+    };
     for line in splitlines(&leases) {
         let Some(found) = pattern.captures(line) else {
             return Err(refused("workload_owner_unavailable"));
@@ -376,7 +379,10 @@ pub fn lock_holders(root: &Root, meta: &Metadata) -> Vec<String> {
     let (major, minor) = (libc::major(dev) as i64, libc::minor(dev) as i64);
     let inode = meta.ino() as i128;
     let mut holders = Vec::new();
-    let comm = Regex::new(r"[^\w.-]").expect("pattern");
+    static COMM: OnceLock<Option<Regex>> = OnceLock::new();
+    let Some(comm) = pattern(&COMM, r"[^\w.-]") else {
+        return holders;
+    };
     for line in splitlines(&root.read("/proc/locks").unwrap_or_default()) {
         let fields = split(line);
         if fields.len() < 6
@@ -452,8 +458,14 @@ pub fn failed_before_freeze(root: &Root) -> bool {
     if lines.first().is_none_or(|l| !l.starts_with("ring=valid ")) {
         return false;
     }
-    let pattern =
-        Regex::new(r"^\d+ phase=\d+ mark result=(-?\d+) ms=\d+ stage=(\w+)$").expect("pattern");
+    static MARK: OnceLock<Option<Regex>> = OnceLock::new();
+    // Without the pattern nothing is proven: the quarantine stays.
+    let Some(pattern) = pattern(
+        &MARK,
+        r"^\d+ phase=\d+ mark result=(-?\d+) ms=\d+ stage=(\w+)$",
+    ) else {
+        return false;
+    };
     let mut marks: Vec<(String, i64)> = Vec::new();
     for line in &lines[1..] {
         let Some(found) = pattern.captures(line) else {

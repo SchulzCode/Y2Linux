@@ -130,28 +130,32 @@ pub(super) fn parse(args: &[String]) -> Result<Args, Stop> {
         after_dashes |= arg == "--";
         tuples.push(found);
     }
-    let mut values: [Option<f64>; 2] = [Some(60.0), Some(10.0)];
+    let mut values: [f64; 2] = [60.0, 10.0];
     let mut texts: [Option<String>; 2] = [None, None];
     let mut seen = [false; 5];
     let mut extras: Vec<String> = Vec::new();
     // take_action: the help action ends the parse; a store converts its one string.
     let mut take = |action: usize, strings: &[String], seen: &mut [bool; 5]| -> Result<(), Stop> {
         seen[action] = true;
+        if action == 0 {
+            return Err(Stop::Help);
+        }
+        let Some(text) = strings.first() else {
+            return Err(argument_error(action, "expected one argument"));
+        };
         match action {
-            0 => Err(Stop::Help),
             1 | 2 => {
-                let text = &strings[0];
                 let value = python::float(text).ok_or_else(|| {
                     argument_error(
                         action,
                         &format!("invalid float value: {}", python::repr(text)),
                     )
                 })?;
-                values[action - 1] = Some(value);
+                values[action - 1] = value;
                 Ok(())
             }
             _ => {
-                texts[action - 3] = Some(strings[0].clone());
+                texts[action - 3] = Some(text.clone());
                 Ok(())
             }
         }
@@ -168,7 +172,9 @@ pub(super) fn parse(args: &[String]) -> Result<Args, Stop> {
             start = next;
         }
         // consume_optional
-        let found = tuples[start].clone().expect("option");
+        let Some(found) = tuples[start].clone() else {
+            break;
+        };
         if found.len() > 1 {
             let matches: Vec<&str> = found.iter().map(|t| t.option.as_str()).collect();
             return Err(Stop::Error(format!(
@@ -177,12 +183,15 @@ pub(super) fn parse(args: &[String]) -> Result<Args, Stop> {
                 matches.join(", ")
             )));
         }
-        let Tuple {
+        let Some(Tuple {
             mut action,
             mut option,
             mut sep,
             mut explicit,
-        } = found.into_iter().next().expect("tuple");
+        }) = found.into_iter().next()
+        else {
+            break;
+        };
         let mut actions: Vec<(usize, Vec<String>)> = Vec::new();
         let stop;
         loop {
@@ -202,9 +211,8 @@ pub(super) fn parse(args: &[String]) -> Result<Args, Stop> {
                         ));
                     }
                     actions.push((a, Vec::new()));
-                    let mut rest = argument.chars();
-                    let first = rest.next().expect("argument");
-                    let rest = rest.as_str();
+                    let (first, rest) =
+                        argument.split_at(argument.chars().next().map_or(0, char::len_utf8));
                     option = format!("-{first}");
                     if let Some(next) = lookup(&option) {
                         action = Some(next);
@@ -263,15 +271,15 @@ pub(super) fn parse(args: &[String]) -> Result<Args, Stop> {
             extras.join(" ")
         )));
     }
-    let [Some(seconds), Some(settle)] = values else {
-        unreachable!("defaults")
-    };
+    let [seconds, settle] = values;
     // `not 1 <= seconds <= 7200 or not 0 <= settle <= 120` (NaN fails both).
     if !((1.0..=7200.0).contains(&seconds) && (0.0..=120.0).contains(&settle)) {
         return Err(Stop::Error("bounded windows only".into()));
     }
     let [Some(state), Some(output)] = texts else {
-        unreachable!("required")
+        return Err(Stop::Error(
+            "the following arguments are required: --state, --output".into(),
+        ));
     };
     Ok(Args {
         seconds,

@@ -45,7 +45,9 @@ fn contains(container: Option<&Value>, name: &str) -> Result<bool, E> {
 /// `container[name]` once `name in container` held.
 fn index<'a>(container: Option<&'a Value>, name: &str) -> Result<&'a Value, E> {
     match container {
-        Some(Value::Object(map)) => Ok(map.get(name).expect("contains")),
+        Some(Value::Object(map)) => map
+            .get(name)
+            .ok_or_else(|| E::Invalid(format!("no {name} count"))),
         Some(Value::Array(_)) => Err(E::TypeError(
             "list indices must be integers or slices, not str".into(),
         )),

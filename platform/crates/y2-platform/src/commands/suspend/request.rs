@@ -20,11 +20,18 @@ use std::{
 use y2p_core::lock;
 use y2p_core::{py::is_true, Root};
 
-/// An exception main.py prints as its error record (an OSError here: `cli` ends a crash itself).
+/// The error record of a lock or state directory that cannot be used (an OS error, or a value error
+/// for a state directory that is no private directory).
 fn failure(error: E) -> Failure {
-    match cli(Err(error)) {
-        Err(failure) => failure,
-        Ok(_) => unreachable!("an error stays an error"),
+    match error {
+        E::Value {
+            class: "ValueError",
+            text,
+        } => Failure::Value(text),
+        other => Failure::Os {
+            text: other.text().to_owned(),
+            class: other.class(),
+        },
     }
 }
 

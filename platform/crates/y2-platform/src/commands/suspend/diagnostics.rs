@@ -6,10 +6,10 @@
 //! filtered kernel-log tail, appended to a bounded private file on Y2DATA. A failure is counted and
 //! never blocks, delays or changes sleep.
 // SPDX-License-Identifier: GPL-2.0-only
-use super::{journal::plain, text_value, E};
+use super::{journal::plain, pattern, text_value, E};
 use serde::Serialize;
 use serde_json::Value;
-use std::{fs::File, io::Read, os::unix::fs::OpenOptionsExt, path::Path};
+use std::{fs::File, io::Read, os::unix::fs::OpenOptionsExt, path::Path, sync::OnceLock};
 use y2p_core::mounts::data_ready;
 use y2p_core::{
     json::{dumps, Object, Separators},
@@ -80,10 +80,12 @@ fn parent_name(path: &Path) -> String {
 
 /// `key_values(text, keys)`: `\b([a-z0-9_]+)=(\S+)`, one entry per key (None when absent).
 fn key_values(text: Option<&str>, keys: &[&str]) -> Value {
-    let pattern = Regex::new(r"\b([a-z0-9_]+)=(\S+)").expect("pattern");
+    static PAIR: OnceLock<Option<Regex>> = OnceLock::new();
     let mut found = serde_json::Map::new();
-    for capture in pattern.captures_iter(text.unwrap_or_default()) {
-        found.insert(capture[1].to_owned(), Value::String(capture[2].to_owned()));
+    if let Some(pattern) = pattern(&PAIR, r"\b([a-z0-9_]+)=(\S+)") {
+        for capture in pattern.captures_iter(text.unwrap_or_default()) {
+            found.insert(capture[1].to_owned(), Value::String(capture[2].to_owned()));
+        }
     }
     let values: Object = keys
         .iter()
@@ -117,7 +119,9 @@ fn ipv4(root: &Root, interface: &str) -> Result<Vec<String>, E> {
             networks.push((hex(fields[1])?, hex(fields[7])?));
         }
     }
-    let address = Regex::new(r"^[|+`-]*\s*([0-9]+(?:\.[0-9]+){3})$").expect("pattern");
+    static ADDRESS: OnceLock<Option<Regex>> = OnceLock::new();
+    let address = pattern(&ADDRESS, r"^[|+`-]*\s*([0-9]+(?:\.[0-9]+){3})$")
+        .ok_or_else(|| E::value("address pattern"))?;
     let (mut found, mut previous): (Vec<String>, Option<String>) = (Vec::new(), None);
     let trie = root
         .read_limited("/proc/net/fib_trie", 262_144)

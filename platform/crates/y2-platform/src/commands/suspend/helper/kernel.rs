@@ -87,10 +87,10 @@ impl Pm for Kernel {
 
 /// Issue one sysfs command; a buffered close can replay a rejected write.
 ///
-/// Python's TextIOWrapper/BufferedWriter retry a failed flush during close. For PM that can
-/// suspend after EBUSY, yet still report the original refusal to the caller. This is one
-/// `write(2)` on an unbuffered descriptor. A short write is also a failure (EIO), never a reason to
-/// issue the remaining command again.
+/// A buffered writer retries a failed flush during close; for PM that can suspend after EBUSY, yet
+/// still report the original refusal to the caller. This is one `write(2)` on an unbuffered
+/// descriptor. A short write is also a failure (EIO), never a reason to issue the remaining command
+/// again.
 pub fn control_write(
     root: &Root,
     name: &str,
@@ -130,7 +130,7 @@ pub fn control_write(
 }
 
 /// The kernel entry: the backstop armed immediately before the blocking `mem` write and cleared
-/// immediately after it (Python's `try: enter(ctx) finally: backstop 0`).
+/// immediately after it, whatever the entry returned.
 pub(super) fn enter(root: &Root, pm: &mut dyn Pm) -> Result<(), E> {
     // The already qualified one-shot RGU backstop pauses during actual SPM residence and bounds
     // stalls in entry/restoration. A reset remains a failed sleep, quarantined by durable intent.

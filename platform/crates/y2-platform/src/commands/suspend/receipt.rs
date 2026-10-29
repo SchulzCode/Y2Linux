@@ -9,13 +9,14 @@ pub use rpc::application_rpc;
 pub use transition::{raised, transition, transition_keys};
 use transition::{set, state};
 
-use super::{admission::spm_state, diagnostics, journal, py_add, text_value, E};
+use super::{admission::spm_state, diagnostics, journal, pattern, py_add, text_value, E};
 use serde::Serialize;
 use serde_json::{json, Map, Value};
 use std::{
     fs::{self, File},
     os::unix::fs::OpenOptionsExt,
     path::Path,
+    sync::OnceLock,
 };
 use y2p_core::{
     py::{is_true, truthy},
@@ -198,9 +199,10 @@ pub fn record(root: &Root, s: Stage) -> Result<Receipt, E> {
     let mut value = root.json_object(RECEIPT);
     let boot = || text_value(root.boot_id());
     if starts_receipt(s.stage, &value) {
-        let pm_test = Regex::new(r"\[(\w+)\]")
-            .expect("pattern")
-            .captures(&root.read("/sys/power/pm_test").unwrap_or_default())
+        static SELECTED: OnceLock<Option<Regex>> = OnceLock::new();
+        let modes = root.read("/sys/power/pm_test").unwrap_or_default();
+        let pm_test = pattern(&SELECTED, r"\[(\w+)\]")
+            .and_then(|p| p.captures(&modes))
             .map_or(Value::Null, |c| json!(&c[1]));
         value = Map::new();
         set(

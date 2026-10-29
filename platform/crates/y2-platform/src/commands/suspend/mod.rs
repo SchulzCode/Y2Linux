@@ -1,7 +1,7 @@
-//! Group `suspend` of the port (docs/planning/PLATFORM-RUST-PORT-PLAN.md, "Remaining port groups"):
-//! `sleep request`, `sleep prepare`, the product sleep helper (`product-sleep.py`), the suspend receipt
-//! (`suspend-record.py`, `y2-suspend-record`), the sleep diagnostics and power journal rows a receipt
-//! writes, and the small programmes `y2-power-audit`, `y2-status`, `y2-health`, `y2-power-command`.
+//! Product sleep: `sleep request`, `sleep prepare`, the detached sleep helper (`__product-sleep`),
+//! the suspend receipt (`suspend-last.json`, also `y2-suspend-record`), the sleep diagnostics and
+//! power journal rows a receipt writes, and the small programmes `y2-power-audit`, `y2-status`,
+//! `y2-health`, `y2-power-command`.
 //!
 //! The programmes that are not `y2-platform` subcommands are hidden routes (`__product-sleep`,
 //! `__suspend-record`, `__power-audit`, `__power-command`; the parser refuses every one of them) and
@@ -35,9 +35,12 @@ use std::{
     io::{self, Write},
     path::Path,
     process,
-    sync::atomic::{AtomicBool, Ordering},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        OnceLock,
+    },
 };
-use y2p_core::{json::ObjectExt, py, Root};
+use y2p_core::{json::ObjectExt, py, suspend_text::Regex, Root};
 
 /// The Rust implementation of these exact (canonical) arguments, if this group has one.
 pub fn route(args: &[&str]) -> Option<Command> {
@@ -49,9 +52,9 @@ pub fn route(args: &[&str]) -> Option<Command> {
 }
 
 /// The group's programmes that are not y2-platform subcommands, as hidden first arguments: main.rs
-/// runs these before its argparse parser (which refuses every `__` name). Each handles every
-/// argument form itself (its own Python programme for what it does not read) and ends the process.
-#[allow(dead_code)] // main.rs runs it before argparse (see the report / plan §5a)
+/// runs these before its parser (which refuses every `__` name). Each reads its own arguments and
+/// ends the process.
+#[allow(dead_code)] // main.rs runs it before the parser
 pub fn programme(args: &[&str]) -> Option<Command> {
     let rest: Vec<String> = args.iter().skip(1).map(|a| a.to_string()).collect();
     Some(match args.first().copied()? {
@@ -69,10 +72,10 @@ pub fn programme(args: &[&str]) -> Option<Command> {
 /// anything else.
 ///
 /// - `y2-status`, `y2-health`: `exec /usr/sbin/y2-platform status|health "$@"`.
-/// - `y2-suspend-record`: `exec python3 -I /usr/lib/y2-platform/suspend-record.py "$@"`.
-/// - `y2-power-audit`: the Python programme of the same name.
-/// - `poweroff`, `reboot` (the Python platform's `y2-power-command`, installed under both names) and
-///   `y2-power-command` (which that script refused with exit 2).
+/// - `y2-suspend-record`: one receipt record for y2-suspend (`__suspend-record`).
+/// - `y2-power-audit`: the endpoint power audit (`__power-audit`).
+/// - `poweroff`, `reboot` (the normal shutdown through the platform coordinator) and
+///   `y2-power-command` (refused with exit 2).
 #[allow(dead_code)] // main.rs's argv[0] dispatch (phase 6 installs the names)
 pub fn program(name: &str, args: &[OsString]) -> Option<Vec<OsString>> {
     let with = |first: &[&str]| {
@@ -97,7 +100,8 @@ pub static INTERRUPTED: AtomicBool = AtomicBool::new(false);
 /// The helper's restore is running: a signal is raised once it has finished.
 pub static MASKED: AtomicBool = AtomicBool::new(false);
 
-/// Where Python would run the helper's signal handler: raise (once) after a SIGTERM/SIGINT.
+/// The helper's SIGTERM/SIGINT, checked between steps (a handler only sets a flag): the error once
+/// after the signal, nothing while the restore runs (it is checked after the restore).
 pub fn interrupted() -> Result<(), E> {
     if MASKED.load(Ordering::SeqCst) {
         return Ok(());
@@ -108,12 +112,14 @@ pub fn interrupted() -> Result<(), E> {
     Ok(())
 }
 
-/// A Python exception on the suspend path: what `except` clauses tell apart and `str(error)`.
+/// A failure on the suspend path: its kind decides who handles it (a refusal, a recorded failure, a
+/// dropped journal row), its text is the reason a receipt or a reply shows.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum E {
-    /// `product_sleep.Refused` (a `ValueError`).
+    /// A reason not to sleep now (exit 2, `refused` in the receipt).
     Refused(String),
-    /// A `ValueError` (or a subclass: `JSONDecodeError`, `UnicodeDecodeError`).
+    /// A value the code refuses (a JSON decode error from Reborn keeps its class: its text is the
+    /// receipt's reason).
     Value {
         class: &'static str,
         text: String,
@@ -258,8 +264,8 @@ pub fn exit(code: i32) -> ! {
     process::exit(code)
 }
 
-/// `exec /usr/sbin/y2-platform <args>` from a shell wrapper: the Rust command when one is ported,
-/// otherwise (a build with the Python platform only) main.py, as main.rs's fallback.
+/// `exec /usr/sbin/y2-platform <args>` from a shell wrapper: the command's reply, its error record or
+/// its refusal record, and its exit code.
 pub fn platform(root: &Root, args: &[&str]) -> ! {
     if let Some(command) = super::route(args) {
         match command(root) {
@@ -288,11 +294,11 @@ pub fn platform(root: &Root, args: &[&str]) -> ! {
             }
         }
     }
-    python(args)
+    unrouted(args)
 }
 
 /// A programme line no route takes (main.rs's route test rules this out).
-fn python(args: &[&str]) -> ! {
+fn unrouted(args: &[&str]) -> ! {
     let _ = writeln!(
         io::stderr(),
         "y2-platform: {}: no implementation",
@@ -301,7 +307,7 @@ fn python(args: &[&str]) -> ! {
     exit(127)
 }
 
-// ---- Python value rules on parsed records ----------------------------------------------------------
+// ---- comparisons and counters on parsed records (their JSON types may be anything) ----------------
 
 fn exact(value: &Value) -> Option<i128> {
     match value {
@@ -319,7 +325,7 @@ pub fn is_text(value: Option<&Value>, text: &str) -> bool {
     value.and_then(Value::as_str) == Some(text)
 }
 
-/// `a > b` for the numbers a record holds; any other pair is Python's `TypeError`.
+/// `a > b` for the numbers (or texts) a record holds; any other pair does not compare.
 pub fn py_gt(a: &Value, b: &Value) -> Result<bool, E> {
     match (exact(a), exact(b)) {
         (Some(x), Some(y)) => Ok(x > y),
@@ -359,6 +365,13 @@ pub fn as_map<K: Serialize, V: Serialize, S: Serializer>(
         map.serialize_entry(key, value)?;
     }
     map.end()
+}
+
+/// A constant pattern, compiled once. `None` only if the text were no pattern (the tests compile
+/// each one): every caller then takes its safe answer instead of a panic, which on the sleep path
+/// could leave Reborn quiesced.
+pub fn pattern(cell: &'static OnceLock<Option<Regex>>, text: &str) -> Option<&'static Regex> {
+    cell.get_or_init(|| Regex::new(text).ok()).as_ref()
 }
 
 /// `time.time()`.
