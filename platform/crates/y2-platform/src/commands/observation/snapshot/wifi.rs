@@ -135,34 +135,50 @@ fn addresses(output: Option<&str>) -> Result<Option<Vec<Value>>, Failure> {
     let Ok(parsed) = serde_json::from_str::<Value>(text) else {
         return Ok(None);
     };
-    let Some(links) = y2p_core::py::iterate(&parsed) else {
-        return Ok(None); // not iterable: TypeError
+    let Some(links) = entries(&parsed)? else {
+        return Ok(None);
     };
     let mut found = Vec::new();
     for link in links {
         let Value::Object(link) = link else {
-            return Err(Failure::value("invalid_ip_output"));
+            return Err(invalid_ip_output());
         };
         let infos = match link.get("addr_info") {
-            None => Vec::new(),
-            Some(value) => match y2p_core::py::iterate(value) {
+            None => &[][..],
+            Some(value) => match entries(value)? {
                 Some(items) => items,
                 None => return Ok(None),
             },
         };
         for info in infos {
             let Value::Object(info) = info else {
-                return Err(Failure::value("invalid_ip_output"));
+                return Err(invalid_ip_output());
             };
             if info.get("scope").and_then(Value::as_str) == Some("global") {
                 match info.get("local") {
                     Some(local) => found.push(local.clone()),
-                    None => return Ok(None), // KeyError
+                    None => return Ok(None),
                 }
             }
         }
     }
     Ok(Some(found))
+}
+
+fn invalid_ip_output() -> Failure {
+    Failure::value("invalid_ip_output")
+}
+
+/// The entries of a list in `ip -j`'s output. An empty object or text holds none; a non-empty one
+/// holds keys or characters, which are no entries (refused); any other value is no list (`None`).
+fn entries(value: &Value) -> Result<Option<&[Value]>, Failure> {
+    match value {
+        Value::Array(items) => Ok(Some(items)),
+        Value::Object(map) if map.is_empty() => Ok(Some(&[])),
+        Value::String(text) if text.is_empty() => Ok(Some(&[])),
+        Value::Object(_) | Value::String(_) => Err(invalid_ip_output()),
+        _ => Ok(None),
+    }
 }
 
 pub fn wifi(root: &Root) -> Result<Value, Failure> {

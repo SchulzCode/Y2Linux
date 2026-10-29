@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{
     process_identity, reborn_metrics,
-    snapshot::{snapshot, utilization},
+    snapshot::{section, snapshot, utilization},
     util,
 };
 use crate::reply::{Failure, Outcome, Reply};
@@ -107,10 +107,16 @@ pub fn run(root: &Root, options: &Options) -> Outcome {
                 parameters.insert("warmup_seconds".into(), json!(warmup));
             }
         }
+        // Utilisation since the previous sample of the same boot.
         if let Some(previous) = previous.as_ref().filter(|p| !p.is_empty()) {
-            if previous["record"]["boot_id"] == value["record"]["boot_id"] {
-                let busy = utilization(previous["cpu"].get("ticks"), value["cpu"].get("ticks"));
-                value["cpu"]["utilization_percent"] = busy;
+            if section(previous, "record")["boot_id"] == section(&value, "record")["boot_id"] {
+                let busy = utilization(
+                    section(previous, "cpu").get("ticks"),
+                    section(&value, "cpu").get("ticks"),
+                );
+                if let Some(Value::Object(cpu)) = value.get_mut("cpu") {
+                    cpu.insert("utilization_percent".into(), busy);
+                }
             }
         }
         if options.reborn {
@@ -118,11 +124,11 @@ pub fn run(root: &Root, options: &Options) -> Outcome {
         }
         let age = clock::monotonic() - start;
         if age >= warmup as f64 {
-            let boot = match &value["record"]["boot_id"] {
+            let boot = match &section(&value, "record")["boot_id"] {
                 Value::String(s) => s.clone(),
                 _ => "None".into(),
             };
-            for process in value["memory"]["processes"]
+            for process in section(&value, "memory")["processes"]
                 .as_array()
                 .into_iter()
                 .flatten()
@@ -146,7 +152,7 @@ pub fn run(root: &Root, options: &Options) -> Outcome {
         }
         samples += 1;
         failures += u64::from(
-            value["readiness"]
+            section(&value, "readiness")
                 .as_object()
                 .is_some_and(|r| r.values().any(|item| item["state"] == "Failed")),
         );

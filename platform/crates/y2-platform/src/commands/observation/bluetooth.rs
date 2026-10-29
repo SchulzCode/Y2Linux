@@ -483,7 +483,11 @@ fn normalize(root: &Root, raw: &Map<String, Value>) -> Result<Value, Stop> {
         _ => Value::Null,
     };
     result.insert("negotiated_codec".into(), codec.clone());
-    let encoder = quality(&codec, pcm, &result["codec_settings"]);
+    let encoder = quality(
+        &codec,
+        pcm,
+        result.get("codec_settings").unwrap_or(&Value::Null),
+    );
     result.insert("actual_bitrate_bps".into(), encoder["bitrate_bps"].clone());
     result.insert("encoder".into(), Value::Object(encoder));
     result.insert(

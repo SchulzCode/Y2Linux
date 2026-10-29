@@ -31,6 +31,11 @@ use y2p_core::Root;
 
 pub type Snapshot = Map<String, Value>;
 
+/// A section of a snapshot (null for one it does not have).
+pub fn section<'a>(status: &'a Snapshot, name: &str) -> &'a Value {
+    status.get(name).unwrap_or(&Value::Null)
+}
+
 /// One gendisk lifetime of a block device (`block:<dev_t>:diskseq:<n>`), or None: a card removed and
 /// inserted again (or another card) has another disk sequence number under the same dev_t.
 pub fn device_instance(root: &Root, device_id: &str) -> Option<String> {

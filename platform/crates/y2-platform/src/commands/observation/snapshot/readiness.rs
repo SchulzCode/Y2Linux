@@ -1,6 +1,6 @@
 //! The `readiness` section: what each subsystem's state means for the product.
 // SPDX-License-Identifier: GPL-2.0-only
-use super::Snapshot;
+use super::{section, Snapshot};
 use crate::commands::observation::util::{self, get_eq};
 use crate::{regex, reply::Failure};
 use serde_json::{json, Value};
@@ -8,7 +8,9 @@ use serde_json::{json, Value};
 pub(super) fn readiness(status: &Snapshot) -> Result<Value, Failure> {
     let item = |state: &str, reason: Value| json!({"state": state, "reason": reason});
     let empty = Vec::new();
-    let volumes = status["storage"]["volumes"].as_array().unwrap_or(&empty);
+    let volumes = section(status, "storage")["volumes"]
+        .as_array()
+        .unwrap_or(&empty);
     let first: Vec<&Value> = volumes.iter().take(2).collect();
     let all_ready = first.iter().all(|v| v["state"] == "Ready");
     let storage_state = if all_ready {
@@ -26,7 +28,7 @@ pub(super) fn readiness(status: &Snapshot) -> Result<Value, Failure> {
         .map_or(Value::Null, |v| {
             v.get("reason").cloned().unwrap_or(Value::Null)
         });
-    let wifi = &status["wifi"];
+    let wifi = section(status, "wifi");
     let wifi_state = match wifi["state"].as_str() {
         Some("Online") => "Ready",
         Some("Off") => "Unavailable",
@@ -34,7 +36,7 @@ pub(super) fn readiness(status: &Snapshot) -> Result<Value, Failure> {
         Some("Authenticated") => "Degraded",
         _ => "Starting",
     };
-    let profile = &status["audio"]["qualified_profile"];
+    let profile = &section(status, "audio")["qualified_profile"];
     let valid = profile.as_object().is_some_and(|p| {
         p.get("schema").and_then(Value::as_str) == Some("org.y2linux.audio-qualification/v1")
             && p.get("card").and_then(Value::as_str) == Some("Y2Audio")
@@ -49,9 +51,11 @@ pub(super) fn readiness(status: &Snapshot) -> Result<Value, Failure> {
                         .any(|v| y2p_core::py::exact_int(Some(v)) == Some(44100))
                 })
     });
-    let cards = status["audio"]["cards"].as_str().unwrap_or_default();
+    let cards = section(status, "audio")["cards"]
+        .as_str()
+        .unwrap_or_default();
     let audio = regex!(r"(?m)^\s*\d+\s+\[Y2Audio\s*\]").is_match(cards) && valid;
-    let update = &status["system"]["update"];
+    let update = &section(status, "system")["update"];
     let update_state = match update.get("state") {
         Some(Value::Array(_) | Value::Object(_)) => {
             return Err(Failure::value("invalid_update_journal"))
@@ -65,7 +69,7 @@ pub(super) fn readiness(status: &Snapshot) -> Result<Value, Failure> {
         },
         _ => "Unavailable",
     };
-    let bluetooth = &status["bluetooth"];
+    let bluetooth = section(status, "bluetooth");
     Ok(json!({
         "storage": item(storage_state, storage_reason),
         "wifi": item(wifi_state, wifi["reason"].clone()),
