@@ -5,7 +5,7 @@ tests.test_reborn_splash -v` on the packaging host with native libdrm developmen
 files and Pillow. The minimal locked kernel container does not include those
 dependencies. This separate pass is mandatory when packaging the splash helper;
 a container dependency error is not a passing protocol test. Product PM
-single-write error handling is covered by `tests.test_pm_control_write` in
+single-write error handling is covered by `the suspend helper's Rust tests (platform/crates/y2-platform/src/commands/suspend/helper_tests.rs)` in
 `tools/production/tests.sh`.
 
 <!-- knowledge-base-scope: maintained-test-guide; baseline02-sync 2026-10-03 -->
