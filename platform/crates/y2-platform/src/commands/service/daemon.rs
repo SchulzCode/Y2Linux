@@ -29,7 +29,6 @@ use std::{
     os::fd::{AsRawFd, FromRawFd, OwnedFd, RawFd},
     sync::atomic::{AtomicBool, AtomicI32, Ordering},
 };
-use y2p_core::py::PyValue;
 use y2p_core::sys::{set_signal, Disposition, Handler};
 use y2p_core::{
     command,
@@ -226,11 +225,10 @@ fn daily_update_check(root: &Root, network: &Object, child: Option<Child>) -> Op
 pub(crate) enum Due {
     None,
     At(f64),
-    /// Not a number (`min()` of strings, a list): comparing it with the clock is a TypeError.
-    Other,
 }
 
-/// `report.next_upload(ctx)`; Err for `min()` over values Python cannot order (a TypeError).
+/// `report.next_upload(ctx)`; Err when the retry times are not all numbers (strings, a list, values
+/// that cannot be ordered at all): the record is unreadable.
 pub(crate) fn next_upload(root: &Root) -> Result<Due, ()> {
     // A glob names each file once: the set Python builds.
     let queued: Vec<String> = reports::queued(root)
@@ -254,8 +252,6 @@ pub(crate) fn next_upload(root: &Root) -> Result<Due, ()> {
     }
     match values.as_slice() {
         [Py::None] => Ok(Due::None),
-        [_] => Ok(Due::Other),
-        many if many.iter().all(|v| matches!(v, Py::Str(_))) => Ok(Due::Other),
         _ => Err(()),
     }
 }
@@ -306,13 +302,6 @@ fn error_reports(
         Due::None => false,
         _ if !online || now < run.send_after.unwrap_or(0.0) => false,
         Due::At(at) => at <= time::wall(),
-        // `due <= time.time()` of a string: a TypeError, the daemon ends.
-        Due::Other => {
-            return Err(Failure::crash(
-                "TypeError",
-                "'<=' not supported between instances of 'str' and 'float'",
-            ))
-        }
     };
     if !(check || send) {
         return Ok(run);
@@ -382,34 +371,14 @@ impl Coexistence {
         wifi: &Object,
         now: f64,
     ) -> Result<Map<String, Value>, Failure> {
-        let stats = match wifi.get("traffic_counters") {
-            Some(Value::Object(stats)) => stats.clone(),
-            Some(value) if truthy(value) => {
-                return Err(Failure::attribute_error(format!(
-                    "'{}' object has no attribute 'get'",
-                    PyValue::type_name(value)
-                )))
-            }
-            _ => Map::new(),
+        // Counters that are not numbers (the Wi-Fi observation never gives any) count as none.
+        let total: f64 = match wifi.get("traffic_counters") {
+            Some(Value::Object(stats)) => ["rx_bytes", "tx_bytes"]
+                .iter()
+                .filter_map(|key| py::number(stats.get(*key)))
+                .sum(),
+            _ => 0.0,
         };
-        let mut total = 0.0;
-        for key in ["rx_bytes", "tx_bytes"] {
-            match stats.get(key) {
-                Some(value) if !truthy(value) => {}
-                None => {}
-                Some(value) => {
-                    total += py::number(Some(value)).ok_or_else(|| {
-                        Failure::crash(
-                            "TypeError",
-                            format!(
-                                "unsupported operand type(s) for +=: 'int' and '{}'",
-                                PyValue::type_name(value)
-                            ),
-                        )
-                    })?
-                }
-            }
-        }
         let mut rate = None;
         if let Some((previous_time, previous_bytes)) = self.previous {
             if now > previous_time && total >= previous_bytes {
@@ -754,12 +723,7 @@ pub fn serve(root: &Root) -> Outcome {
     match result {
         // A daemon prints nothing (main.rs would print a newline for a reply).
         Ok(()) => std::process::exit(0),
-        // What Python would not catch (TypeError, AttributeError, TimeoutExpired): a traceback on
-        // stderr, no stdout, exit 1.
-        Err(error @ Failure::Crash { .. }) => {
-            let _ = std::io::Write::write_all(&mut std::io::stderr(), error.traceback().as_bytes());
-            std::process::exit(1)
-        }
+        // main.rs prints the error's record (exit 1); the supervisor starts the service again.
         Err(error) => Err(error),
     }
 }

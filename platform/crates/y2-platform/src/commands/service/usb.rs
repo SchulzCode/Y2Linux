@@ -403,11 +403,9 @@ impl UsbService {
                 if !child.wait(2.0) {
                     child.kill();
                     if !child.wait(1.0) {
-                        // subprocess.TimeoutExpired: not an OSError, the daemon ends (a traceback).
-                        return Err(Failure::crash(
-                            "subprocess.TimeoutExpired",
-                            "Command '['/usr/sbin/umtprd']' timed out after 1.0 seconds",
-                        ));
+                        // Not even SIGKILL ended it within a second (a process stuck in the
+                        // kernel): the service gives up its USB part (tick) or ends (serve).
+                        return Err(Failure::os_message("responder_stop_timeout"));
                     }
                 }
             }
@@ -656,23 +654,22 @@ impl UsbService {
         Ok(value)
     }
 
-    fn sd_writable(&mut self, cable: &Option<String>) -> Result<(), Failure> {
+    /// A connected computer may write to the SD card: its window is renewed while the host has the
+    /// player enumerated and ended once the cable is gone. A window that cannot be had (no card, a
+    /// check running, an unreadable record) never stops the service.
+    fn sd_writable(&mut self, cable: &Option<String>) {
         let host = matches!(cable.as_deref(), Some("configured" | "suspended"));
         let now = self.root.clock().monotonic();
-        let result = if host && now - self.sd_window >= SD_WINDOW_RENEW {
-            media::write_window(&self.root, "usb", SD_WINDOW_SECONDS, false).map(|answer| {
-                if answer.get("holders").is_some_and(py::truthy) {
-                    self.sd_window = now;
-                }
-            })
-        } else if !host && self.sd_window != 0.0 {
-            media::write_window(&self.root, "usb", 60, true).map(|_| self.sd_window = 0.0)
-        } else {
-            Ok(())
-        };
-        match result {
-            Err(error @ Failure::Crash { .. }) => Err(error),
-            _ => Ok(()),
+        if host && now - self.sd_window >= SD_WINDOW_RENEW {
+            let answer = media::write_window(&self.root, "usb", SD_WINDOW_SECONDS, false);
+            if answer.is_ok_and(|answer| answer.get("holders").is_some_and(py::truthy)) {
+                self.sd_window = now;
+            }
+        } else if !host
+            && self.sd_window != 0.0
+            && media::write_window(&self.root, "usb", 60, true).is_ok()
+        {
+            self.sd_window = 0.0;
         }
     }
 
@@ -690,7 +687,7 @@ impl UsbService {
         }
         let udc = &udcs[0];
         let cable = read(&udc.join("state"));
-        self.sd_writable(&cable)?;
+        self.sd_writable(&cable);
         if self.terminal {
             return self.record(
                 "Failed",
@@ -699,31 +696,21 @@ impl UsbService {
                 &Activity::default(),
             );
         }
-        let requested = match self
+        // Anything but a mode's name is refused by `attempt` (unsupported_usb_mode).
+        let requested = self
             .root
             .json_object("/data/system/platform/usb-mode.json")
             .get("mode")
-        {
-            None => json!("mtp"),
-            // `mode not in FUNCTIONS` of a list or dict: TypeError, the daemon ends.
-            Some(Value::Array(_)) => {
-                return Err(Failure::crash("TypeError", "unhashable type: 'list'"))
-            }
-            Some(Value::Object(_)) => {
-                return Err(Failure::crash("TypeError", "unhashable type: 'dict'"))
-            }
-            Some(value) => value.clone(),
-        };
+            .cloned()
+            .unwrap_or_else(|| json!("mtp"));
         let name = udc
             .file_name()
             .map(|n| n.to_string_lossy().into_owned())
             .unwrap_or_default();
         match self.attempt(requested, &cable, &name) {
-            Err(error @ (Failure::Os { .. } | Failure::Value(_))) => {
-                match self.stop() {
-                    Err(error @ Failure::Crash { .. }) => return Err(error),
-                    Err(_) => self.terminal = true,
-                    Ok(()) => {}
+            Err(error) => {
+                if self.stop().is_err() {
+                    self.terminal = true;
                 }
                 if self.started != 0.0
                     && self.root.clock().monotonic() - self.started > STABLE_SECONDS

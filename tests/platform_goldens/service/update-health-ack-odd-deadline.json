@@ -1,0 +1,17 @@
+{
+ "argv": [
+  "update",
+  "health-ack"
+ ],
+ "calls": [],
+ "exit": 1,
+ "stdout": {
+  "failure": "update_health_record_unreadable",
+  "state": "Failed"
+ },
+ "tree": {
+  "added": {},
+  "changed": {},
+  "removed": []
+ }
+}

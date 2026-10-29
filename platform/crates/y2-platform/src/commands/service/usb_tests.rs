@@ -633,3 +633,20 @@ fn with_internal_storage_there_is_no_separate_firmware_drive() {
     assert!(found.contains(&INTERNAL.to_owned()));
     assert!(fixture.exists("/media/internal/music/Firmware/README.txt"));
 }
+
+#[test]
+fn a_mode_that_is_no_name_is_refused_as_unsupported() {
+    let mut usb = Usb::new();
+    for mode in [json!(["mtp"]), json!({"mode": "mtp"}), json!(5)] {
+        usb.fixture.put_json(
+            "/data/system/platform/usb-mode.json",
+            &json!({ "mode": mode }),
+        );
+        let value = usb.tick();
+        assert_eq!(
+            (&value["state"], &value["reason"]),
+            (&json!("Failed"), &json!("unsupported_usb_mode")),
+            "{mode}"
+        );
+    }
+}

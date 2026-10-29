@@ -916,3 +916,51 @@ fn a_check_waits_for_wifi_retries_and_keeps_the_offered_release() {
         json!("Failed")
     );
 }
+
+#[test]
+fn records_that_cannot_be_read_are_refused() {
+    let _serial = serial();
+    let mut io = Fake::default();
+    let fixture = policy();
+    fixture.put_json("/data/updates/channel.json", &json!({"manifest_url": 5}));
+    // `update check`: a refusal record before anything is written.
+    let reply = run(&fixture.root, "check", None, None).unwrap();
+    assert_eq!(
+        (reply.code, reply.stdout.as_str()),
+        (
+            1,
+            r#"{"state": "Failed", "failure": "update_channel_unreadable"}"#
+        )
+    );
+    assert!(!fixture.exists("/data/updates/download.json"));
+    // The daily check records it as a failed check.
+    fixture.put_json("/run/y2/network.json", &json!({"state": "Online"}));
+    io.clock(true, true);
+    let record = automatic_check(&fixture.root, &io).ok().unwrap();
+    assert_eq!(
+        (&record["result"], &record["failure"]),
+        (&json!("failed"), &json!("update_channel_unreadable"))
+    );
+    // A health record whose deadline is no number.
+    fixture.put_json(
+        "/data/updates/state.json",
+        &json!({"schema": 2, "state": "PendingHealth"}),
+    );
+    fixture.put_json(
+        "/run/y2/update-health.json",
+        &json!({"boot_id": "boot-a", "deadline_monotonic_s": "soon"}),
+    );
+    let reply = run(&fixture.root, "health-ack", None, None).unwrap();
+    assert_eq!(
+        (reply.code, reply.stdout.as_str()),
+        (
+            1,
+            r#"{"state": "Failed", "failure": "update_health_record_unreadable"}"#
+        )
+    );
+    // What another group's helper cannot read.
+    assert_eq!(
+        Raise::from(Failure::crash("KeyError", "'x'")).text(),
+        "record_unreadable: 'x'"
+    );
+}

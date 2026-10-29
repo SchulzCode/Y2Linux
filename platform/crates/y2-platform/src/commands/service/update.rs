@@ -84,17 +84,15 @@ fn payload_file(key: &str) -> Option<&'static str> {
     }
 }
 
-/// What the Python code raises, by the class its callers catch.
+/// Why an update action is refused: its text is the record's `failure` (Reborn's client.rs matches
+/// words of it).
 #[derive(Debug)]
 pub enum Raise {
     Value(String),
     Os(String),
-    /// `NoSpace(needed)`: a ValueError `update_data_space_reserve` with the bytes the update needs.
+    /// `update_data_space_reserve`, with the bytes the update needs.
     NoSpace(i128),
     Net(Net),
-    /// An exception Python does not catch here (a TypeError on a record of an unexpected type): a
-    /// traceback and exit 1.
-    Crash,
 }
 
 impl Raise {
@@ -103,7 +101,6 @@ impl Raise {
             Raise::Value(text) | Raise::Os(text) => text.clone(),
             Raise::NoSpace(_) => "update_data_space_reserve".into(),
             Raise::Net(error) => error.text(),
-            Raise::Crash => String::new(),
         }
     }
 
@@ -125,8 +122,9 @@ impl From<Failure> for Raise {
         match failure {
             Failure::Value(text) => Raise::Value(text),
             Failure::Os { text, .. } => Raise::Os(text),
-            // An uncaught exception in a helper of another group: Python crashes the same way.
-            Failure::Crash { .. } => Raise::Crash,
+            // A record another group's helper cannot read: refused like the others, naming what it
+            // found.
+            other => Raise::Value(format!("record_unreadable: {}", other.message())),
         }
     }
 }
@@ -1218,7 +1216,6 @@ fn stage(
             }
             Err(error)
         }
-        Err(Raise::Crash) => Err(Raise::Crash),
         Err(error) => {
             let text = error.text();
             let mut record = json!({"schema": 1, "state": "Failed", "failure": text});
@@ -1261,8 +1258,7 @@ fn battery_gate(root: &Root) -> Result<()> {
     let power = root.json_object("/run/y2/power.json");
     let mut battery = match power.get("battery") {
         Some(Value::Object(map)) => map.clone(),
-        // A battery record that is not an object is a traceback in Python (CONTRACT.md, accepted
-        // differences: the power daemon never writes one); read as no battery estimate.
+        // The power daemon never writes another; read as no battery estimate.
         _ => Map::new(),
     };
     let owner = power.get("boot_id").cloned().unwrap_or(Value::Null);
@@ -1416,12 +1412,12 @@ fn cancel_update(root: &Root) -> Result<Value> {
     Ok(Value::Object(result))
 }
 
-/// The manifest URL `stage` would get, or a fallback when the channel names something that is not a
-/// string (Python fails on it later, after its records changed).
+/// The manifest URL `stage` gets from the channel: none for a missing or empty one, refused for one
+/// that is not text (an owner's channel.json naming a number, say).
 fn channel_url(root: &Root) -> Result<Option<String>> {
     match channel(root).manifest_url {
         Some(Value::String(url)) => Ok(Some(url)),
-        Some(value) if truthy(&value) => Err(Raise::Crash),
+        Some(value) if truthy(&value) => Err(Raise::value("update_channel_unreadable")),
         _ => Ok(None),
     }
 }
@@ -1462,8 +1458,7 @@ fn automatic_check(root: &Root, io: &dyn Io) -> Result<Value> {
     }
     // Never an interrupted download's leftover: a failed check would write it back.
     let previous = download_record(root);
-    let url = channel_url(root)?;
-    match stage(root, io, None, url.as_deref(), true) {
+    match channel_url(root).and_then(|url| stage(root, io, None, url.as_deref(), true)) {
         Ok(manifest) => {
             record["time"] = json!(now);
             record["result"] = json!("checked");
@@ -1472,7 +1467,6 @@ fn automatic_check(root: &Root, io: &dyn Io) -> Result<Value> {
                 .cloned()
                 .unwrap_or(Value::Null);
         }
-        Err(Raise::Crash) => return Err(Raise::Crash),
         Err(error) => {
             record["result"] = json!("failed");
             record["failure"] = json!(shortened(&error.text(), 120));
@@ -1654,9 +1648,9 @@ fn health_ack(root: &Root) -> Result<Value> {
                                       "deadline_monotonic_s": root.clock().monotonic() + 180.0})));
         atomic_json(&runtime.join("update-health.json"), &progress, false)?;
     }
-    // A deadline that is not a number is a TypeError in Python; only possible for a record this call
-    // did not write, so nothing changed yet.
-    let deadline = py::number(progress.get("deadline_monotonic_s")).ok_or(Raise::Crash)?;
+    // Only a record this call did not write can lack a number: refused before anything changes.
+    let deadline = py::number(progress.get("deadline_monotonic_s"))
+        .ok_or_else(|| Raise::value("update_health_record_unreadable"))?;
     if root.clock().monotonic() >= deadline {
         // Ask LK for the recovery image now, so even a later hang before the rescue restores on the
         // next power-on. Never an automatic power-off.
@@ -1756,13 +1750,6 @@ pub fn run(root: &Root, action: &str, url: Option<&str>, package: Option<&str>) 
     })();
     match result {
         Ok(value) => Reply::sorted(&value, 0),
-        // Raise::Crash: an uncaught exception in Python (a TypeError on a record of the wrong type):
-        // a traceback and exit 1, nothing on stdout. Python may change a record before it fails; this
-        // stops before (CONTRACT.md: accepted differences).
-        Err(Raise::Crash) => Err(Failure::crash(
-            "TypeError",
-            "a record of an unexpected type",
-        )),
         Err(error) => Reply::unsorted(
             &Object::new()
                 .with("state", "Failed")
