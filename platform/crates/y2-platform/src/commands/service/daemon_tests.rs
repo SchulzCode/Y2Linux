@@ -330,3 +330,21 @@ fn source_no_longer_uses_inode_identity() {
         assert!(!media.contains(needle), "{needle}");
     }
 }
+
+#[test]
+fn ntp_start_is_skipped_only_while_its_pid_file_names_a_live_process() {
+    let fixture = fixture();
+    assert!(!ntp_running(&fixture.root));
+    fixture.put("/run/y2/ntp.pid", &format!("{}\n", std::process::id()));
+    assert!(ntp_running(&fixture.root));
+    let mut child = running();
+    let pid = child.pid();
+    child.kill();
+    assert!(child.wait(5.0));
+    fixture.put("/run/y2/ntp.pid", &format!("{pid}\n"));
+    assert!(!ntp_running(&fixture.root));
+    for text in ["", "1\n", "x\n"] {
+        fixture.put("/run/y2/ntp.pid", text);
+        assert!(!ntp_running(&fixture.root));
+    }
+}

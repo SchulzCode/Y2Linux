@@ -107,6 +107,16 @@ fn cadence(dark: bool, settled: bool) -> (f64, f64) {
 #[path = "daemon_connectivity_tests.rs"]
 mod connectivity_tests;
 
+/// What `S43y2-time start` checks before it starts ntpd: `/run/y2/ntp.pid` names a live process
+/// (`[ -s ntp.pid ] && kill -0 "$(cat ntp.pid)"`). Checked here, a running ntpd costs no shell.
+fn ntp_running(root: &Root) -> bool {
+    root.integer("/run/y2/ntp.pid")
+        .filter(|pid| *pid > 1)
+        .and_then(|pid| i32::try_from(pid).ok())
+        // SAFETY: signal 0 only checks that the process exists.
+        .is_some_and(|pid| unsafe { libc::kill(pid, 0) } == 0)
+}
+
 /// What the loop keeps between passes.
 struct Service {
     root: Root,
@@ -203,7 +213,9 @@ impl Service {
             verify = media_verify(root, verify, before);
             if value.get("state").and_then(Value::as_str) == Some("Online") && before >= next_ntp {
                 next_ntp = before + 60.0;
-                command::run(root, &["/etc/init.d/S43y2-time", "start"], 1.0);
+                if !ntp_running(root) {
+                    command::run(root, &["/etc/init.d/S43y2-time", "start"], 1.0);
+                }
             }
             let due = before >= next_maintenance;
             (firmware_scan, firmware_ready) =
