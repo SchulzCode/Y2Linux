@@ -15,8 +15,8 @@ pub(super) fn os(error: io::Error) -> Failure {
     Failure::Os { text, class }
 }
 
-/// Readable descriptors among `fds` within `timeout` seconds (`select.select(fds, [], [], timeout)`;
-/// a hang-up or error reads as readable, as select reports it; EINTR waits again for the rest).
+/// Readable descriptors among `fds` within `timeout` seconds (a hang-up or error reads as readable,
+/// so its owner looks and closes it; EINTR waits again for the rest).
 pub fn select(fds: &[RawFd], timeout: f64) -> io::Result<Vec<RawFd>> {
     let mut polled: Vec<libc::pollfd> = fds
         .iter()
@@ -196,11 +196,19 @@ impl Events {
         let Some(fd) = self.fd().filter(|fd| ready.contains(fd)) else {
             return Ok(false);
         };
-        // Drain a bounded burst. Remaining events stay readable next time.
-        let mut buffer = vec![0u8; 65536];
+        // Drain a bounded burst. Remaining events stay readable next time. Nothing reads the
+        // messages: each recv consumes one whole message, a longer one is cut (MSG_TRUNC).
+        let mut buffer = [0u8; 4096];
         for _ in 0..32 {
             // SAFETY: receiving into a local buffer from our own non-blocking socket.
-            let n = unsafe { libc::recv(fd, buffer.as_mut_ptr().cast(), buffer.len(), 0) };
+            let n = unsafe {
+                libc::recv(
+                    fd,
+                    buffer.as_mut_ptr().cast(),
+                    buffer.len(),
+                    libc::MSG_TRUNC,
+                )
+            };
             if n < 0 {
                 if io::Error::last_os_error().kind() != io::ErrorKind::WouldBlock {
                     *self = Events::Closed; // refresh on the bounded fallback cadence

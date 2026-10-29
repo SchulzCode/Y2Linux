@@ -69,7 +69,8 @@ fn getaddrinfo(host: &str) -> Option<usize> {
     }
 }
 
-/// `probe_dns(ctx, observed)`: the published `dns.json`, or None when the lease changed meanwhile.
+/// Resolve the probe host on the lease `observed` saw: the published `dns.json`, or None when the
+/// lease changed meanwhile (its answer would prove nothing about the new one).
 pub fn probe_dns(root: &Root, observed: &Object) -> Result<Option<Object>, Failure> {
     let empty = |key: &str| !observed.get(key).is_some_and(truthy);
     if empty("ip_addresses") || empty("default_route") {
@@ -134,9 +135,9 @@ struct Dns {
 
 /// Probe newly usable leases immediately; bound retries on the same lease.
 ///
-/// A confirmed lease is re-checked every five minutes, not every 30 s: each probe was a Python resolver
-/// (≈260 ms CPU on the Y2) and is still a radio exchange. observe.DNS_FRESH_S keeps Online across one
-/// late re-check.
+/// A confirmed lease is re-checked every five minutes, not every 30 s: each probe is a radio exchange
+/// (and cost ≈260 ms CPU while it was a Python resolver). observe_wifi::DNS_FRESH_S keeps Online
+/// across one late re-check.
 #[derive(Default)]
 pub struct DnsProbeSchedule {
     key: Option<(String, Value, Value)>,

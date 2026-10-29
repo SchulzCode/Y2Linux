@@ -1,4 +1,5 @@
-//! `timekeeping.py`: `time`, `time-remember`, `ntp-event` (reasonable-clock/TLS readiness; BusyBox NTP).
+//! `time`, `time-remember`, `ntp-event`: whether the wall clock is good enough for TLS, the anchor a
+//! BusyBox NTP sync leaves, and the durable floor a restart without Wi-Fi resumes from.
 // SPDX-License-Identifier: GPL-2.0-only
 use crate::reply::{atomic_json, lock, private_directory, Failure, Outcome, Reply};
 use serde::Serialize;
@@ -15,7 +16,7 @@ use y2p_core::{
 pub(crate) const RETAIN_S: f64 = 3600.0;
 pub(crate) const LAST: &str = "/data/system/platform/time-last.json";
 
-/// `time.time()`.
+/// The wall clock in seconds since the epoch (0 before it).
 pub fn wall() -> f64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -62,7 +63,7 @@ pub(crate) fn floor(root: &Root) -> Option<i64> {
     root.integer("/etc/y2linux/build-epoch")
 }
 
-/// `anchor.get('boot_id') == ctx.read(boot_id)`: two missing values are equal too.
+/// Whether the anchor was written this boot (an anchor without a boot id matches an unreadable one).
 pub(crate) fn same_boot(anchor: &Map<String, Value>, boot: &Option<String>) -> bool {
     anchor.get("boot_id").cloned().unwrap_or(Value::Null) == json!(boot)
 }
@@ -138,7 +139,7 @@ struct Sync<'a> {
     rtc_write: Option<bool>,
 }
 
-/// `y2-platform time-remember` (`remember(ctx, every=0)`): keep the durable floor at the running clock,
+/// `y2-platform time-remember` (a shutdown step): keep the durable floor at the running clock,
 /// only for a clock set from the network or by hand this boot that nobody stepped since, so a restart
 /// without Wi-Fi resumes about where it was. Its own errors print `{"state": "Failed", "failure": …}`.
 pub fn remember(root: &Root) -> Outcome {
@@ -234,8 +235,8 @@ pub fn ntp_event(root: &Root, event: &str) -> Outcome {
     private_directory(&runtime)?;
     // BusyBox explicitly permits overlapping step/stratum callbacks.
     let _lock = lock(&runtime.join("time.lock"))?;
-    // `int(env.get('stratum', '16'))`: Python's int() of the text (any size), or its ValueError.
-    // os.environ reads a value that is not UTF-8 with surrogate escapes (y2p_core::os_text).
+    // ntpd's `stratum` (16, unsynchronised, when absent) as an integer of any size, or the refusal
+    // naming the text; a value that is not UTF-8 reads with surrogate escapes (y2p_core::os_text).
     let stratum = match std::env::var_os("stratum") {
         None => 16,
         Some(raw) => python_int(&y2p_core::os_text::fsdecode_os(&raw))?,

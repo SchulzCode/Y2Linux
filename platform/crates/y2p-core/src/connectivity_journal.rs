@@ -13,8 +13,8 @@ use std::{
 
 /// `power_journal.append_bounded`: append one complete row to a private file on Y2DATA; rotate once
 /// to `<stem>.previous.jsonl` when the row would pass `limit`. The lock is `.<stem>.lock` next to it,
-/// taken without waiting (a busy lock is `EWOULDBLOCK`, as Python's BlockingIOError). A directory
-/// that is not one, or a journal that is not a regular file, is `InvalidData` (Python's ValueError).
+/// taken without waiting (a busy lock is `EWOULDBLOCK`: the row is dropped, never waited for). A
+/// directory that is not one, or a journal that is not a regular file, is `InvalidData`.
 pub fn append_bounded(
     root: &Root,
     name: &str,

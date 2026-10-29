@@ -7,6 +7,7 @@ use crate::reply::{unlink_missing_ok, Failure};
 use serde::Serialize;
 use serde_json::{json, Value};
 use std::{
+    cell::OnceCell,
     ffi::OsString,
     fs,
     path::{Component, Path, PathBuf},
@@ -36,8 +37,8 @@ const DISABLED_S: f64 = 30.0;
 const RENEW_MAX_S: f64 = 600.0;
 const GLOBAL: &str = "/run/wpa_supplicant/global";
 
-/// `os.path.realpath(path)` (not strict): symlinks resolved as far as the path exists, `..` after
-/// resolving, the rest appended as written.
+/// A path with its symlinks resolved as far as it exists, `..` after resolving, the rest appended as
+/// written (what `/proc/<pid>/exe` is compared with).
 fn realpath(path: &Path) -> PathBuf {
     let mut pending: Vec<OsString> = path
         .components()
@@ -74,15 +75,16 @@ fn realpath(path: &Path) -> PathBuf {
     resolved
 }
 
-/// `alive(ctx, name, binary)`: the helper's pid when its pid file names a live process running that
-/// binary. The liveness probe is a real `kill(pid, 0)`, also below a fixture root (as Python's).
-pub(crate) fn alive(root: &Root, name: &str, binary: &str) -> Option<i32> {
+/// The helper's pid when its pid file names a live process running that binary (a reused pid runs
+/// something else). The liveness probe is a real `kill(pid, 0)`, also below a fixture root.
+/// `resolved` is the binary's path below the root with its symlinks resolved (`realpath`).
+fn alive(root: &Root, name: &str, resolved: &Path) -> Option<i32> {
     let pid = root.integer(&format!("/run/y2/{name}.pid"))?;
     if pid <= 1 {
         return None;
     }
     let exe = fs::read_link(root.path(&format!("/proc/{pid}/exe"))).ok()?;
-    if exe != realpath(&root.path(binary)) {
+    if exe != resolved {
         return None;
     }
     let pid = i32::try_from(pid).ok()?;
@@ -105,6 +107,9 @@ pub struct Supervisor {
     disabled_since: Option<f64>,
     pub renewals: u32,
     pub next_renew: f64,
+    /// Read once: neither changes while the daemon runs (the helpers are on the read-only root).
+    boot_id: OnceCell<Option<String>>,
+    binaries: OnceCell<Vec<PathBuf>>,
 }
 
 impl Supervisor {
@@ -121,7 +126,24 @@ impl Supervisor {
             disabled_since: None,
             renewals: 0,
             next_renew: 0.0,
+            boot_id: OnceCell::new(),
+            binaries: OnceCell::new(),
         }
+    }
+
+    /// This boot's id.
+    fn boot_id(&self) -> Option<&str> {
+        self.boot_id.get_or_init(|| self.root.boot_id()).as_deref()
+    }
+
+    /// The helpers' binaries with their symlinks resolved, in `HELPERS` order.
+    fn binaries(&self) -> &[PathBuf] {
+        self.binaries.get_or_init(|| {
+            HELPERS
+                .iter()
+                .map(|(_, binary)| realpath(&self.root.path(binary)))
+                .collect()
+        })
     }
 
     fn run(&self, argv: &[&str], timeout: f64) -> command::Outcome {
@@ -181,11 +203,11 @@ impl Supervisor {
                 }
                 "/usr/bin/bluealsad"
             }
-            _ => HELPERS
-                .iter()
-                .find(|(n, _)| *n == name)
-                .map(|(_, b)| *b)
-                .expect("a helper"),
+            _ => match HELPERS.iter().find(|(n, _)| *n == name) {
+                Some((_, binary)) => binary,
+                // Not a helper of this daemon: nothing to start.
+                None => return Ok(()),
+            },
         };
         if name == "calibration" {
             unlink_missing_ok(&self.root.path("/run/y2/calibration-ready"))?;
@@ -213,8 +235,8 @@ impl Supervisor {
         }
         self.next_health = now + HEALTH_S;
         self.pids.clear();
-        for (name, binary) in HELPERS {
-            let mut pid = alive(&self.root, name, binary);
+        for (index, (name, _)) in HELPERS.into_iter().enumerate() {
+            let mut pid = alive(&self.root, name, &self.binaries()[index]);
             let due = self
                 .next_restart
                 .iter()
@@ -227,7 +249,7 @@ impl Supervisor {
                 }
                 unlink_missing_ok(&self.root.path(&format!("/run/y2/{name}.pid")))?;
                 self.restart(name)?;
-                pid = alive(&self.root, name, binary);
+                pid = alive(&self.root, name, &self.binaries()[index]);
             }
             if let Some(pid) = pid {
                 self.pids.push((name, pid));
@@ -251,8 +273,7 @@ impl Supervisor {
     pub fn verify(&mut self, now: f64) {
         let root = &self.root;
         let net = root.json_object("/run/y2/network.json");
-        let boot = root.boot_id();
-        let fresh = super::super::observe_wifi::eq_text(net.get("boot_id"), boot.as_deref())
+        let fresh = super::super::observe_wifi::eq_text(net.get("boot_id"), self.boot_id())
             && number(net.get("monotonic_s"))
                 .is_some_and(|at| (0.0..30.0).contains(&(root.clock().monotonic() - at)));
         let association = net.get("association").and_then(Value::as_str);

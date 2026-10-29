@@ -58,7 +58,7 @@ pub fn scan_evidence(root: &Root) -> Object {
         .collect();
     result.set("saved_seen", !hits.is_empty());
     if !hits.is_empty() {
-        // max() keeps the first of equal signals.
+        // The strongest; of equal signals the first listed.
         let mut best = hits[0];
         for row in &hits[1..] {
             if int(&row[2]) > int(&best[2]) {

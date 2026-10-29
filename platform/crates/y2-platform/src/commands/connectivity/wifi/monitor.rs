@@ -161,12 +161,10 @@ impl EventMonitor {
                 _ => {}
             }
             self.path = Some(path.clone());
-            let sock = UnixDatagram::bind(&path).map_err(drop)?;
+            let sock = &*self.sock.insert(UnixDatagram::bind(&path).map_err(drop)?);
             let timeout = Some(Duration::from_millis(200));
             sock.set_read_timeout(timeout).map_err(drop)?;
             sock.set_write_timeout(timeout).map_err(drop)?;
-            self.sock = Some(sock);
-            let sock = self.sock.as_ref().expect("set above");
             sock.connect(remote).map_err(drop)?;
             sock.send(b"ATTACH").map_err(drop)?;
             let mut answer = [0u8; 1024];
@@ -179,8 +177,10 @@ impl EventMonitor {
         }
         for _ in 0..16 {
             let mut buffer = [0u8; 4096];
-            let received = self.sock.as_ref().expect("attached").recv(&mut buffer);
-            match received {
+            let Some(sock) = &self.sock else {
+                return Err(());
+            };
+            match sock.recv(&mut buffer) {
                 Ok(n) => {
                     let text = String::from_utf8_lossy(&buffer[..n]).into_owned();
                     self.event(&text).map_err(drop)?;
@@ -219,10 +219,10 @@ impl EventMonitor {
 
     /// One supplicant event line (`<3>CTRL-EVENT-… …`).
     pub fn event(&mut self, text: &str) -> Result<(), Failure> {
-        let body = match text.strip_prefix('<') {
-            Some(rest) if rest.contains('>') => rest.split_once('>').expect("checked").1,
-            _ => text,
-        };
+        let body = text
+            .strip_prefix('<')
+            .and_then(|rest| rest.split_once('>'))
+            .map_or(text, |(_, body)| body);
         let body = y2p_core::root::python_strip(body);
         if body.starts_with("Trying to associate with ") {
             self.held = false;

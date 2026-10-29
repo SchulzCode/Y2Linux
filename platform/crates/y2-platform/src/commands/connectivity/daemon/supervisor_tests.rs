@@ -143,10 +143,11 @@ fn stale_reused_pid_is_not_a_healthy_helper() {
     fixture.mkdir(&format!("/proc/{pid}"));
     let exe = fixture.path(&format!("/proc/{pid}/exe"));
     std::os::unix::fs::symlink("/different-program", &exe).unwrap();
-    assert_eq!(alive(&fixture.root, name, path), None);
+    let resolved = realpath(&fixture.root.path(path));
+    assert_eq!(alive(&fixture.root, name, &resolved), None);
     fs::remove_file(&exe).unwrap();
     std::os::unix::fs::symlink(binary(&fixture, path), &exe).unwrap();
-    assert_eq!(alive(&fixture.root, name, path), Some(pid as i32));
+    assert_eq!(alive(&fixture.root, name, &resolved), Some(pid as i32));
 }
 
 #[test]

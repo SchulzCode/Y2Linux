@@ -1,4 +1,4 @@
-//! `y2-platform connectivity-daemon` (`connectivity.serve`): monitor the boot-started radio helpers
+//! `y2-platform connectivity-daemon`: monitor the boot-started radio helpers
 //! without shell polling or reconnect ownership. `usr/libexec/y2/connectivity` starts calibration,
 //! wpa_supplicant, BlueALSA and y2-bt-reconnect and then `exec`s this daemon (so
 //! `/run/y2/connectivity.pid` names it); it restarts a dead helper, attaches wpa_supplicant to wlan0
@@ -6,8 +6,7 @@
 //! While healthy it starts no process: helper death is a pidfd event, link changes a netlink event.
 //!
 //! Below a fixture root the loop does not wait, sees no netlink events (a socket that never becomes
-//! readable) and ends after `Y2_DAEMON_TICKS` iterations, as tests/platform_cases/connectivity.py stops
-//! the Python daemon.
+//! readable) and ends after `Y2_DAEMON_TICKS` iterations (tests/platform_cases/connectivity.py).
 // SPDX-License-Identifier: GPL-2.0-only
 mod supervisor;
 mod wait;

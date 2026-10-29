@@ -1,4 +1,4 @@
-//! `radio_policy.wifi_policy`: the runtime Wi-Fi power-save policy (no invented firmware features).
+//! The runtime Wi-Fi power-save policy (no invented firmware features).
 //! `y2-platform wifi-power-policy` runs it without activity; the service daemon runs it in process every
 //! 30 s while associated, with the coexistence record as activity.
 // SPDX-License-Identifier: GPL-2.0-only
@@ -34,15 +34,17 @@ fn run(root: &Root, argv: &[&str], timeout: f64) -> command::Outcome {
     command::run(root, argv, timeout)
 }
 
-/// `wifi_policy(ctx, activity)`: the record written to `/run/y2/wifi-power.json`, or the refusal of
+/// Apply the Wi-Fi power-save policy (`activity`: the service daemon's coexistence record): the record
+/// written to `/run/y2/wifi-power.json`, or the refusal of
 /// an invalid policy (nothing written).
 pub fn wifi_policy(root: &Root, activity: Option<&Map<String, Value>>) -> Result<Object, Failure> {
     let policy = match root.json("/data/network/power-save.json") {
         Some(Value::Object(map)) => map,
-        _ => json!({"schema": 1, "mode": "automatic", "automatic_standard": false})
-            .as_object()
-            .cloned()
-            .expect("object"),
+        // No saved policy: automatic, with standard power save off.
+        _ => Object::new()
+            .with("schema", 1)
+            .with("mode", "automatic")
+            .with("automatic_standard", false),
     };
     let mode = policy.get("mode").and_then(Value::as_str);
     let Some(mode) = mode.filter(|m| ["off", "standard", "automatic"].contains(m)) else {
@@ -120,7 +122,7 @@ pub fn wifi_policy(root: &Root, activity: Option<&Map<String, Value>>) -> Result
         .with("ifindex", json!(ifindex))
         .with("monotonic_s", root.clock().monotonic())
         .with("boot_id", json!(boot));
-    // No private_directory: a missing /run/y2 is an OSError (main.py's record).
+    // /run/y2 is not made here: without it the boot never started the radio (the error record).
     atomic_json(&root.path("/run/y2/wifi-power.json"), &value, false)?;
     Ok(value)
 }

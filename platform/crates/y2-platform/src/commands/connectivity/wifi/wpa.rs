@@ -7,7 +7,7 @@ pub(super) fn value_of(ordered: Object) -> Value {
     Value::Object(y2p_core::json::sorted_object(&ordered))
 }
 
-/// Python's `\w` (a Unicode letter, digit or `_`), for `\b`.
+/// A word character (a Unicode letter, digit or `_`): the searches below match whole words only.
 fn word(c: Option<char>) -> bool {
     c.is_some_and(|c| c.is_alphanumeric() || c == '_')
 }

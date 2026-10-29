@@ -1,4 +1,4 @@
-//! `codec_controls.requested`/`validate` and `radio_policy.codec_runtime` (BlueALSA's codec arguments).
+//! The owner's Bluetooth codec policy and the BlueALSA arguments made from it (`codec-runtime`).
 // SPDX-License-Identifier: GPL-2.0-only
 use crate::reply::{atomic_json, Failure, Outcome, Reply};
 use serde_json::{json, Map, Value};
@@ -23,7 +23,7 @@ fn defaults() -> [(&'static str, Value); 6] {
     ]
 }
 
-/// `requested(ctx)`: the owner's codec policy over the defaults.
+/// The owner's codec policy over the defaults (refused when its schema is not 1).
 pub fn requested(root: &Root) -> Result<Map<String, Value>, Failure> {
     let inventory = root.json_object("/etc/y2linux/bluetooth-codecs.json");
     let policy = root.json_object("/data/bluetooth/codec-policy.json");

@@ -121,7 +121,7 @@ impl WifiRecovery {
                 .find(|row| Some(int(&row[0])) == last)
                 .copied()
                 .unwrap_or_else(|| {
-                    // max() by (signal, -id): the first of equal keys.
+                    // The strongest; of equal signals the lowest id.
                     let key =
                         |row: &Vec<String>| (strength(&row[1]).unwrap_or(-999), -int(&row[0]));
                     let mut best = seen[0];

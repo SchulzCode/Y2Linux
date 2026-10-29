@@ -1,6 +1,6 @@
-//! This group's copy of `observe.wifi` and `observe.wifi_state` (the observation group ports
-//! `status`; the DNS probe needs the same look after its lookup, plan §5a). Truthful readiness above
-//! wpa_supplicant: null means unobserved, never zero or success.
+//! The Wi-Fi look the service daemon publishes as network.json and the DNS probe repeats after its
+//! lookup (`status wifi` is the observation group's). Truthful readiness above wpa_supplicant: null
+//! means unobserved, never zero or success.
 // SPDX-License-Identifier: GPL-2.0-only
 use serde_json::{json, Map, Value};
 use y2p_core::py;
@@ -16,7 +16,7 @@ use y2p_core::{
 /// slow or skipped re-check.
 pub const DNS_FRESH_S: f64 = 420.0;
 
-/// `common.key_values(text, separator)`: one `key<sep>value` per line, both stripped, a later key wins.
+/// wpa_cli's `key<sep>value` lines, both sides stripped; a later key wins.
 pub fn key_values(text: Option<&str>, separator: char) -> Map<String, Value> {
     let mut result = Map::new();
     for line in text.unwrap_or_default().lines() {
@@ -39,7 +39,7 @@ pub fn eq_text(value: Option<&Value>, text: Option<&str>) -> bool {
     }
 }
 
-/// `isinstance(v, (int, float))` (a bool too) as a number.
+/// A clock reading of a record: any number (a bool reads as 0 or 1).
 pub fn clock_value(value: Option<&Value>) -> Option<f64> {
     number(value)
 }
@@ -106,9 +106,7 @@ fn object(value: Option<Value>) -> Map<String, Value> {
 }
 
 /// The global IPv4 addresses in `ip -j -4 addr show` and the routes in `ip -j -4 route show`; both
-/// empty when either cannot be parsed. (Python raises an AttributeError for valid JSON of another
-/// shape, e.g. a link that is not an object; that crash is not reproduced: such output reads as
-/// unparsable here.)
+/// empty when either cannot be parsed or has another shape (a link that is no object).
 fn addresses(ip: Option<&str>, routes: Option<&str>) -> (Vec<Value>, Value) {
     let parse = || -> Option<(Vec<Value>, Value)> {
         let links: Value =
@@ -133,7 +131,8 @@ fn addresses(ip: Option<&str>, routes: Option<&str>) -> (Vec<Value>, Value) {
     parse().unwrap_or((Vec::new(), json!([])))
 }
 
-/// `observe.wifi(ctx, signal_cache)`.
+/// What Wi-Fi looks like now: readiness above wpa_supplicant, the lease, DNS and the signal
+/// (`signal_cache`, else network.json, holds the last RSSI poll, reused for 30 s on the same peer).
 pub fn wifi(root: &Root, signal_cache: Option<&Object>) -> Object {
     let radio = root.path("/sys/class/net/wlan0").exists();
     let status_started = root.clock().monotonic_ns();
@@ -158,7 +157,7 @@ pub fn wifi(root: &Root, signal_cache: Option<&Object>) -> Object {
         if credential.get("error").is_some_and(truthy)
             && eq_text(credential.get("boot_id"), boot.as_deref())
         {
-            // Until the next connect (network.py drops it there).
+            // Until the next connect (the event monitor drops it there).
             properties.insert("credential_failure".into(), credential["error"].clone());
             failed_network = credential.get("network_id").cloned().unwrap_or(Value::Null);
         }
@@ -196,10 +195,7 @@ pub fn wifi(root: &Root, signal_cache: Option<&Object>) -> Object {
         && fresh(clock_value(dns.get("monotonic_s")), DNS_FRESH_S);
     let dhcp = root.json_object("/run/y2/dhcp.json");
     let error = (eq_text(dhcp.get("boot_id"), boot.as_deref())
-        && eq_text(
-            dhcp.get("epoch"),
-            root.read("/run/y2/wifi-epoch").as_deref(),
-        ))
+        && eq_text(dhcp.get("epoch"), epoch.as_deref()))
     .then(|| dhcp.get("error").cloned())
     .flatten();
     let (state, reason) = wifi_state(

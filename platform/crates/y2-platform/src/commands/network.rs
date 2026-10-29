@@ -1,4 +1,4 @@
-//! `network.lease_event` and `network.dhcp_event`: one DHCP lease lifecycle above wpa_supplicant
+//! `wifi-event` and `dhcp-event`: one DHCP lease lifecycle above wpa_supplicant
 //! (`wifi-event` from wpa-event, `dhcp-event` from udhcpc's script with its environment).
 // SPDX-License-Identifier: GPL-2.0-only
 mod ipv4;
@@ -81,7 +81,8 @@ const FLUSH: [&[&str]; 2] = [
     &["ip", "-4", "route", "flush", "dev", "wlan0"],
 ];
 
-/// `isinstance(v, int) and v >= 0` (a bool too), else 0.
+/// A counter of the events record as it continues: a non-negative integer, a bool an old record
+/// holds kept as it is (it counts as 0 or 1), anything else 0.
 fn count(value: Option<&Value>) -> Value {
     match value {
         Some(v @ Value::Bool(_)) => v.clone(),
@@ -307,7 +308,8 @@ fn configuration(interface: &str, routes: &[(String, String)]) -> Vec<Vec<String
 
 /// `y2-platform dhcp-event deconfig|leasefail|nak|bound|renew` with udhcpc's environment.
 pub fn dhcp_event(root: &Root, event: &str) -> Outcome {
-    // os.environ: a value that is not UTF-8 holds surrogate escapes (y2p_core::os_text).
+    // udhcpc's environment; a value that is not UTF-8 reads with surrogate escapes (y2p_core::os_text),
+    // which the address errors then show.
     let var = |name: &str| env::var_os(name).map(|v| y2p_core::os_text::fsdecode_os(&v));
     if var("interface").as_deref() != Some("wlan0") {
         return Err(Failure::value("dhcp_interface_not_owned"));

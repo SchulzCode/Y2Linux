@@ -19,12 +19,13 @@ fn wall() -> f64 {
         .map_or(0.0, |d| d.as_secs_f64())
 }
 
-/// Python's `round(x, 1)`: the decimal rounding of the exact binary value, read back as a float.
+/// One decimal, rounded from the exact binary value (`round(x, 1)`), so the rows' ages and dwell times
+/// read as the report analyses have always parsed them.
 pub fn round1(x: f64) -> f64 {
     format!("{x:.1}").parse().unwrap_or(x)
 }
 
-/// `journal(ctx, event, **fields)`: append one durable row (bounded, rotated once); false when /data
+/// Append one durable row (bounded, rotated once); false when /data
 /// is not ours or the row could not be written.
 pub fn journal<T: Serialize>(root: &Root, event: &str, fields: &T) -> bool {
     if !data_ready(root) {
