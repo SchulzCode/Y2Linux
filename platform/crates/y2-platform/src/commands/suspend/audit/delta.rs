@@ -5,10 +5,7 @@ use super::super::{as_map, E};
 use super::sample::{file, get, int, Sample, Thread};
 use serde::Serialize;
 use std::collections::BTreeMap;
-use y2p_core::{
-    root::python_strip,
-    suspend_text::{split, splitlines},
-};
+use y2p_core::suspend_text::{split, splitlines};
 
 pub(super) type Irqs = Vec<(String, (Vec<(String, i64)>, String))>;
 
@@ -17,25 +14,23 @@ pub(super) fn interrupts(sample: &Sample) -> Result<Irqs, E> {
     let lines = splitlines(text);
     let cpus: Vec<&str> = lines.first().map(|l| split(l)).unwrap_or_default();
     let mut rows: Irqs = Vec::new();
-    for line in lines.iter().skip(1) {
-        let Some((key, tail)) = line.split_once(':') else {
-            continue;
-        };
-        let mut parts = split(tail);
-        let mut counts = Vec::new();
-        while parts
-            .first()
-            .is_some_and(|p| !p.is_empty() && p.chars().all(|c| c.is_ascii_digit()))
-        {
-            counts.push(int(parts.remove(0))?);
-        }
+    for row in lines
+        .iter()
+        .skip(1)
+        .filter_map(|line| y2p_core::text::interrupt_row(line))
+    {
+        let counts = row
+            .counts
+            .iter()
+            .map(|c| int(c))
+            .collect::<Result<Vec<_>, _>>()?;
         let columns = if counts.len() == cpus.len() {
             cpus.iter().map(|c| (*c).to_owned()).zip(counts).collect()
         } else {
             Vec::new()
         };
-        let key = python_strip(key).to_owned();
-        let value = (columns, parts.join(" "));
+        let key = row.key.to_owned();
+        let value = (columns, row.rest.join(" "));
         match rows.iter_mut().find(|(k, _)| *k == key) {
             Some(entry) => entry.1 = value,
             None => rows.push((key, value)),

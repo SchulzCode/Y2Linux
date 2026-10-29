@@ -24,7 +24,7 @@ use std::{
 use y2p_core::{
     py::{is_true, truthy},
     root::{python_int, read},
-    suspend_text::{split, splitlines, Regex},
+    suspend_text::Regex,
     Root,
 };
 
@@ -37,22 +37,16 @@ const PLATFORM: &str = "/data/system/platform";
 /// same-boot child-IRQ delta attributes their source.
 pub fn wake_irqs(text: Option<&str>) -> Map<String, Value> {
     let mut counts: Map<String, Value> = Map::new();
-    for line in splitlines(text.unwrap_or_default()) {
-        let fields = split(line);
-        if fields.first().is_none_or(|f| !f.ends_with(':')) {
-            continue;
-        }
+    for row in y2p_core::text::interrupt_rows(text.unwrap_or_default()) {
         for (label, name) in [("mt6397-rtc", "rtc"), ("mtk-pmic-keys", "power")] {
-            if !fields.contains(&label) {
+            if !row.rest.contains(&label) {
                 continue;
             }
-            let mut total: i64 = 0;
-            for field in &fields[1..] {
-                if !y2p_core::suspend_text::is_decimal(field) {
-                    break;
-                }
-                total += field.parse::<i64>().unwrap_or(0);
-            }
+            let total: i64 = row
+                .counts
+                .iter()
+                .map(|c| c.parse::<i64>().unwrap_or(0))
+                .sum();
             let before = counts.get(name).and_then(Value::as_i64).unwrap_or(0);
             counts.insert(name.into(), json!(before + total));
         }

@@ -4,7 +4,7 @@
 use super::{fd::borrowed, Error, Result};
 use crate::commands::observation::{
     snapshot::storage_mode,
-    util::{self, read, split_ws, splitlines},
+    util::{self, read, split_ws},
 };
 use crate::regex;
 use serde_json::{json, Map, Value};
@@ -132,22 +132,14 @@ pub(super) fn io_snapshot(root: &Root) -> Value {
             .collect::<Vec<_>>()
     });
     let mut irqs = Map::new();
-    for line in splitlines(&root.read("/proc/interrupts").unwrap_or_default()) {
-        let Some((key, fields)) = line.split_once(':') else {
-            continue;
-        };
-        let mut values = Vec::new();
-        for field in split_ws(fields) {
-            if field.is_empty() || !field.chars().all(|c| c.is_ascii_digit()) {
-                break;
-            }
-            values.push(field.parse::<i64>().unwrap_or(0));
-        }
-        if !values.is_empty() {
-            irqs.insert(
-                y2p_core::root::python_strip(key).to_owned(),
-                json!(values.iter().sum::<i64>()),
-            );
+    for row in y2p_core::text::interrupt_rows(&root.read("/proc/interrupts").unwrap_or_default()) {
+        if !row.counts.is_empty() {
+            let total: i64 = row
+                .counts
+                .iter()
+                .map(|c| c.parse::<i64>().unwrap_or(0))
+                .sum();
+            irqs.insert(row.key.to_owned(), json!(total));
         }
     }
     let mut controllers = Map::new();

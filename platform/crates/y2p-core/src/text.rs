@@ -56,6 +56,37 @@ pub fn splitlines(text: &str) -> Vec<&str> {
     lines
 }
 
+/// One /proc/interrupts row: its key (`12`, `IPI0`), the leading per-CPU counts and the words after
+/// them (chip, hardware IRQ, trigger, name).
+pub struct InterruptRow<'a> {
+    pub key: &'a str,
+    pub counts: Vec<&'a str>,
+    pub rest: Vec<&'a str>,
+}
+
+/// One /proc/interrupts line as a row (a line without `:`, such as the CPU header, is none).
+pub fn interrupt_row(line: &str) -> Option<InterruptRow<'_>> {
+    let (key, tail) = line.split_once(':')?;
+    let words = split(tail);
+    let digits = words
+        .iter()
+        .take_while(|w| !w.is_empty() && w.bytes().all(|b| b.is_ascii_digit()))
+        .count();
+    Some(InterruptRow {
+        key: strip(key),
+        counts: words[..digits].to_vec(),
+        rest: words[digits..].to_vec(),
+    })
+}
+
+/// The rows of a /proc/interrupts text.
+pub fn interrupt_rows(text: &str) -> Vec<InterruptRow<'_>> {
+    splitlines(text)
+        .into_iter()
+        .filter_map(interrupt_row)
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
