@@ -56,6 +56,21 @@ power journal and the suspend group (`power::journal::{usb, counters, state}`). 
 (tens of µs) — not worth the code. Known: `update_tests::space_cleanup_stale_package_and_cancel_free_the_data_volume`
 failed once under a full parallel run (passes alone and in 8 later full runs; not in the release gate).
 
+**Duplication pass and idle gains after 172 (2026-10-29, test build 173):** one `y2p_core::paths` (name,
+parent_name, realpath), `y2p_core::digest` (hex, sha256_hex), `clock::wall`, battery `interpolate_int`, update
+`journal_state`, `time::record`, `sys::openat`, `json::python_error`, suspend `E::private_directory`/`E::atomic_json`
+— every step byte-identical against 171. Left as they are, on purpose: `u16/u32_at` (different readers), reports'
+`update_state` (own error), suspend's `pyjson` vs `y2p_core::pyjson::Py` (parser vs value). Tests: the flaky update
+tests had two causes (a forked child holding `.stage.lock`: `lock::try_fd` got the test-build retry; the wake tests'
+process-wide SIGTERM during stage: `testing::process_signals`). Logic: the Wi-Fi look and ssh-daemon's usb0 address
+start no process on the player (`connectivity::direct`: wpa_supplicant control socket STATUS/SIGNAL_POLL, rtnetlink
+addresses and default route; below a fixture root the same fixture commands); power.json rewritten on change and at
+least every 2 s (Reborn refuses 5 s); the service daemon's minute `S43y2-time start` only when `ntp.pid` names no
+live process; `status --reborn` reads Reborn's metrics from its control socket (Reborn's control thread answers
+them); Reborn dark and quiet: a full main-loop pass on an event or a due timer, at most every 5 s, watchdog every 5
+s, observation 10 s, snapshot 30 s. **Left on purpose:** `space --cleanup` stays its own process (statvfs of the SD
+card can block in D state; that must not stop Wi-Fi), ssh.json keeps its 5-s renewal (`status` refuses one 10 s old).
+
 **Owner decisions (2026-10-29, §7):** replace the argparse emulation with a small declarative parser (exact option
 names and `--opt=value`, errors exit 2, help says y2-platform); every fake-traceback crash path becomes a refusal
 record (exit 1, JSON `{"state": "Failed", "failure": …}`); **keep the exact JSON output format** (json.dumps
