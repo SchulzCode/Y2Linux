@@ -109,6 +109,40 @@ struct Row<'a, B: BatteryRow> {
     kernel_pm: Option<String>,
 }
 
+/// What a journal row (this daemon's and the suspend stages') records of the devices: each USB
+/// controller's state, each backlight's `bl_power`, each radio's type and soft block.
+pub(crate) struct Devices {
+    pub usb: Object,
+    pub backlight: Object,
+    pub radios: Object,
+}
+
+pub(crate) fn devices(root: &Root) -> Devices {
+    let limit = y2p_core::root::READ_LIMIT;
+    let mut usb = Object::new();
+    for path in root.glob("/sys/class/udc/*") {
+        usb.set(&glob_name(&path), read(&path.join("state"), limit));
+    }
+    let mut backlight = Object::new();
+    for path in root.glob("/sys/class/backlight/*/bl_power") {
+        backlight.set(&parent_name(&path), read(&path, limit));
+    }
+    let mut radios = Object::new();
+    for path in root.glob("/sys/class/rfkill/*") {
+        radios.set(
+            &glob_name(&path),
+            Object::new()
+                .with("type", read(&path.join("type"), limit))
+                .with("blocked", read(&path.join("soft"), limit)),
+        );
+    }
+    Devices {
+        usb,
+        backlight,
+        radios,
+    }
+}
+
 #[derive(Debug, Default)]
 pub struct PowerJournal {
     next_snapshot: f64,
@@ -208,30 +242,12 @@ impl PowerJournal {
             Some(Value::Object(o)) => o,
             _ => Object::new(),
         };
-        let mut usb = Object::new();
-        for path in root.glob("/sys/class/udc/*") {
-            usb.set(
-                &glob_name(&path),
-                read(&path.join("state"), y2p_core::root::READ_LIMIT),
-            );
-        }
+        let Devices {
+            usb,
+            backlight,
+            radios,
+        } = devices(root);
         let usb_net = usb_net(root)?;
-        let mut backlight = Object::new();
-        for path in root.glob("/sys/class/backlight/*/bl_power") {
-            backlight.set(&parent_name(&path), read(&path, y2p_core::root::READ_LIMIT));
-        }
-        let mut radios = Object::new();
-        for path in root.glob("/sys/class/rfkill/*") {
-            radios.set(
-                &glob_name(&path),
-                Object::new()
-                    .with("type", read(&path.join("type"), y2p_core::root::READ_LIMIT))
-                    .with(
-                        "blocked",
-                        read(&path.join("soft"), y2p_core::root::READ_LIMIT),
-                    ),
-            );
-        }
         let boot_id = root.boot_id();
         let idle = idle_counters(root);
         let sleep = sleep_status(&receipt, boot_id.as_deref())?;

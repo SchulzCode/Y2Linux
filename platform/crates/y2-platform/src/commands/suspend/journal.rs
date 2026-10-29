@@ -6,14 +6,13 @@
 //! signature) and always writes, because an event is given. Every failure is counted and dropped:
 //! a journal failure must never delay or disable battery protection.
 // SPDX-License-Identifier: GPL-2.0-only
-use super::{as_map, diagnostics, name, text_value, E};
+use super::{diagnostics, E};
 use serde::Serialize;
 use serde_json::Value;
 use y2p_core::py::PyValue;
 use y2p_core::{
     json::{dumps, Object, Separators},
     power_journal::append_bounded,
-    root::read,
     Root,
 };
 
@@ -58,14 +57,6 @@ const SUMMARY: [&str; 8] = [
     "error",
 ];
 
-/// One rfkill switch.
-#[derive(Serialize)]
-struct Radio {
-    #[serde(rename = "type")]
-    kind: Option<String>,
-    blocked: Option<String>,
-}
-
 /// One `power-journal.jsonl` row of a suspend stage (compact JSON in this order; the power
 /// daemon's rows have the same fields).
 #[derive(Serialize)]
@@ -84,8 +75,7 @@ struct Row<'a> {
     usb_net: diagnostics::UsbNet,
     charger: Option<String>,
     backlight: Object,
-    #[serde(serialize_with = "as_map")]
-    radios: Vec<(String, Radio)>,
+    radios: Object,
     idle_policy: Value,
     idle_counters: Value,
     sleep: Value,
@@ -100,34 +90,12 @@ fn row(root: &Root, battery: &Value, event: &str, now: f64) -> Result<bool, E> {
     }
     let receipt = root.json_object(super::receipt::RECEIPT);
     let boot_id = root.boot_id();
-    let usb = root
-        .glob("/sys/class/udc/*")
-        .iter()
-        .map(|p| (name(p), text_value(read(&p.join("state"), 131_072))))
-        .collect();
+    let crate::commands::power::journal::Devices {
+        usb,
+        backlight,
+        radios,
+    } = crate::commands::power::journal::devices(root);
     let usb_net = diagnostics::usb_net(root)?;
-    let backlight = root
-        .glob("/sys/class/backlight/*/bl_power")
-        .iter()
-        .map(|p| {
-            (
-                p.parent().map(name).unwrap_or_default(),
-                text_value(read(p, 131_072)),
-            )
-        })
-        .collect();
-    let mut radios: Vec<(String, Radio)> = Vec::new();
-    for path in root.glob("/sys/class/rfkill/*") {
-        let radio = Radio {
-            kind: read(&path.join("type"), 131_072),
-            blocked: read(&path.join("soft"), 131_072),
-        };
-        let key = name(&path);
-        match radios.iter_mut().find(|(k, _)| *k == key) {
-            Some(entry) => entry.1 = radio,
-            None => radios.push((key, radio)),
-        }
-    }
     let idle_policy = root
         .json("/run/y2/cpu-idle-policy.json")
         .unwrap_or(Value::Null);
