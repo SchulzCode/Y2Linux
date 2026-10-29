@@ -55,10 +55,11 @@ pub fn atomic_json<T: Serialize + ?Sized>(
         }
         Ok(())
     })();
-    match fs::remove_file(&temporary) {
-        Err(error) if error.kind() != io::ErrorKind::NotFound && result.is_ok() => Err(error),
-        _ => result,
+    // After the rename the temporary name is gone; only a failed write leaves it behind.
+    if result.is_err() {
+        let _ = fs::remove_file(&temporary);
     }
+    result
 }
 
 /// `boot.private_directory`: create each missing component 0700 (never through a symlink or a
