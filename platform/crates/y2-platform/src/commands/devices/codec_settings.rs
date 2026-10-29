@@ -159,8 +159,7 @@ fn status(root: &Root) -> Result<Status, Failure> {
     let pending_restart = !effective.py_eq(&Value::Object(policy));
     // The build's codec inventory: `codecs` and each codec in it must be objects.
     let compiled = |name: &str| -> Result<Option<Value>, Failure> {
-        let codec = inventory_codec(&inventory, name)
-            .map_err(|_| Failure::value("invalid_codec_inventory"))?;
+        let codec = inventory_codec(&inventory, name)?;
         Ok(codec.and_then(|c| c.get("compiled_locally").cloned()))
     };
     let (aac, ldac) = (compiled("AAC")?, compiled("LDAC")?);

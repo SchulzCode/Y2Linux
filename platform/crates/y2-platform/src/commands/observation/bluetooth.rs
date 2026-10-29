@@ -36,8 +36,7 @@ fn inventory_entry<'a>(
     inventory: &'a Map<String, Value>,
     name: &str,
 ) -> Result<Option<&'a Map<String, Value>>, Settings> {
-    inventory_codec(inventory, name)
-        .map_err(|_| Settings::Stop(Stop::Refused(Failure::value("invalid_codec_inventory"))))
+    inventory_codec(inventory, name).map_err(|refusal| Settings::Stop(Stop::Refused(refusal)))
 }
 
 /// The installed codec inventory (what this build compiled and qualified).

@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use crate::reply::{atomic_json, Failure, Outcome, Reply};
 use serde_json::{json, Map, Value};
-use y2p_core::py::PyValue;
 use y2p_core::{
     py::{eq_int, is_true},
     Root,
@@ -74,8 +73,8 @@ pub fn validate(value: Map<String, Value>) -> Result<Map<String, Value>, Failure
     Ok(value)
 }
 
-/// `inventory.get('codecs', {}).get(name, {})` and the `.get` callers make on it: a non-dict there
-/// (a JSON null too) is Python's uncaught AttributeError.
+/// The inventory entry of codec `name`: an inventory whose `codecs`, or whose entry, is no object
+/// (a JSON null too) is refused as `invalid_codec_inventory`, so nothing is decided from it.
 pub fn inventory_codec<'a>(
     inventory: &'a Map<String, Value>,
     name: &str,
@@ -85,32 +84,18 @@ pub fn inventory_codec<'a>(
         Some(Value::Object(codecs)) => match codecs.get(name) {
             None => Ok(None),
             Some(Value::Object(codec)) => Ok(Some(codec)),
-            Some(other) => Err(no_get(other)),
+            Some(_) => Err(invalid_inventory()),
         },
-        Some(other) => Err(no_get(other)),
+        Some(_) => Err(invalid_inventory()),
     }
 }
 
-/// `value.get(...)` on a value that is not a dict: AttributeError.
-pub fn no_get(value: &Value) -> Failure {
-    Failure::attribute_error(format!(
-        "'{}' object has no attribute 'get'",
-        PyValue::type_name(value)
-    ))
+fn invalid_inventory() -> Failure {
+    Failure::value("invalid_codec_inventory")
 }
 
 fn flag(codec: Option<&Map<String, Value>>, key: &str) -> bool {
     is_true(codec.and_then(|c| c.get(key)))
-}
-
-/// The inventory entry of codec `name` for `codec-runtime`: an inventory whose `codecs`, or whose
-/// entry, is no object is refused (`invalid_codec_inventory`), so BlueALSA is never started with
-/// arguments made from it.
-fn runtime_codec<'a>(
-    inventory: &'a Map<String, Value>,
-    name: &str,
-) -> Result<Option<&'a Map<String, Value>>, Failure> {
-    inventory_codec(inventory, name).map_err(|_| Failure::value("invalid_codec_inventory"))
 }
 
 /// `y2-platform codec-runtime [--record]`: the BlueALSA arguments, space-separated, for
@@ -124,7 +109,7 @@ pub fn runtime(root: &Root, record: bool) -> Outcome {
     let experimental = is_true(policy.get("experimental"));
     let mut args: Vec<String> = Vec::new();
     for name in ["AAC", "aptX", "aptX-HD", "LDAC"] {
-        let cap = runtime_codec(&inventory, name)?;
+        let cap = inventory_codec(&inventory, name)?;
         let eligible = flag(cap, "compiled_locally")
             && ((flag(cap, "distribution_approved") && flag(cap, "platform_qualified"))
                 || (experimental && flag(cap, "owner_private_experiment")));
@@ -152,7 +137,7 @@ pub fn runtime(root: &Root, record: bool) -> Outcome {
             args.push("--aac-abr".into());
         }
     }
-    if flag(runtime_codec(&inventory, "LDAC")?, "compiled_locally") {
+    if flag(inventory_codec(&inventory, "LDAC")?, "compiled_locally") {
         args.push(format!("--ldac-quality={}", text("ldac_quality")));
         if is_true(policy.get("ldac_abr")) {
             args.push("--ldac-abr".into());

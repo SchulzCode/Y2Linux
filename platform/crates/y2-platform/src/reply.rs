@@ -107,11 +107,6 @@ impl Failure {
         Failure::crash("TypeError", message)
     }
 
-    /// `AttributeError(message)`, uncaught (`'list' object has no attribute 'get'`).
-    pub fn attribute_error(message: impl Into<String>) -> Failure {
-        Failure::crash("AttributeError", message)
-    }
-
     /// Whether this is an exception that `except (OSError, ValueError, RuntimeError)` (main.py's
     /// clause, and most commands' own) catches: not a crash, not a fallback.
     pub fn caught(&self) -> bool {

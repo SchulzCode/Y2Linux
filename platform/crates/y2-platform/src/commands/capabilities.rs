@@ -85,8 +85,7 @@ pub fn run(root: &Root) -> Outcome {
             {
                 continue;
             }
-            let actual = codec::inventory_codec(&inventory, name)
-                .map_err(|_| Failure::value("invalid_codec_inventory"))?;
+            let actual = codec::inventory_codec(&inventory, name)?;
             let Some(cap) = entry(caps, &format!("bluetooth_{key}"))? else {
                 continue;
             };
