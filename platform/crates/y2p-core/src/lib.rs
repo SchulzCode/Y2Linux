@@ -1,5 +1,5 @@
-//! Primitives every ported subcommand shares, each matching its Python counterpart in
-//! `tools/platform/y2_platform/common.py` byte for byte (platform/CONTRACT.md, "Rules every subcommand
+//! Primitives every subcommand shares, each matching the Python platform's `common.py` it was ported
+//! from byte for byte (platform/CONTRACT.md, "Rules every subcommand
 //! shares"): device paths below a root (`ctx.path`), bounded text reads (`ctx.read`), `json.dumps`
 //! output, `atomic_json` records, flock and the kernel clocks.
 // SPDX-License-Identifier: GPL-2.0-only

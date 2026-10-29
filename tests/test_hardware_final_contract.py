@@ -27,7 +27,7 @@ class HardwareFinalContract(unittest.TestCase):
         return path
 
     def test_capability_template_keeps_unqualified_usb_host_disabled(self):
-        caps = json.loads((ROOT/'tools/platform/capabilities.json').read_text())['capabilities']
+        caps = json.loads((ROOT/'platform/capabilities.json').read_text())['capabilities']
         self.assertFalse(caps['usb_host']['enabled'])
         self.assertFalse(caps['bluetooth_aac']['enabled'])
         self.assertFalse(caps['bluetooth_aac']['qualified'])
@@ -44,7 +44,7 @@ class HardwareFinalContract(unittest.TestCase):
     def test_package_configuration_hashes_and_independent_states(self):
         for name in CONFIGURATION_FILES:
             source = ROOT/'buildroot/board/y2/production-overlay/etc/y2linux'/name
-            value = (ROOT/'tools/platform/capabilities.json').read_text() if name == 'capabilities.json' else (
+            value = (ROOT/'platform/capabilities.json').read_text() if name == 'capabilities.json' else (
                 source.read_text() if source.exists() else '{"schema":1}')
             self.put('/etc/y2linux/'+name, value)
         before = configuration_inventory(self.root)

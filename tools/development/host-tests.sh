@@ -31,4 +31,4 @@ fi
 # Module names given (tests.test_…) run instead of the whole list; other arguments (-v, -k …) are unittest's.
 case " $* " in *' tests.test_'*) modules= ;; esac
 # shellcheck disable=SC2086 # one module name per word
-PYTHONPATH=.:tests:tools/platform exec python3 -m unittest "$@" $modules
+PYTHONPATH=.:tests exec python3 -m unittest "$@" $modules

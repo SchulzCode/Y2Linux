@@ -66,8 +66,8 @@ pub fn programme(args: &[&str]) -> Option<Command> {
 /// - `y2-status`, `y2-health`: `exec /usr/sbin/y2-platform status|health "$@"`.
 /// - `y2-suspend-record`: `exec python3 -I /usr/lib/y2-platform/suspend-record.py "$@"`.
 /// - `y2-power-audit`: the Python programme of the same name.
-/// - `poweroff`, `reboot` (`tools/platform/y2-power-command`, installed under both names) and
-///   `y2-power-command` (which that script refuses with exit 2).
+/// - `poweroff`, `reboot` (the Python platform's `y2-power-command`, installed under both names) and
+///   `y2-power-command` (which that script refused with exit 2).
 #[allow(dead_code)] // main.rs's argv[0] dispatch (phase 6 installs the names)
 pub fn program(name: &str, args: &[OsString]) -> Option<Vec<OsString>> {
     let with = |first: &[&str]| {

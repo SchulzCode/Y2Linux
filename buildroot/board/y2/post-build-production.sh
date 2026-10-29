@@ -48,7 +48,7 @@ rm -rf "$target/usr/lib/y2-platform"
 for command in y2-status y2-health y2-suspend-record y2-power-audit; do
     ln -sfn y2-platform "$target/usr/sbin/$command"
 done
-install -m 644 "$project/tools/platform/capabilities.json" "$target/etc/y2linux/capabilities.json"
+install -m 644 "$project/platform/capabilities.json" "$target/etc/y2linux/capabilities.json"
 codec_profile=sbc-only
 if grep -qx 'BR2_PACKAGE_Y2_CODEC_EXPERIMENTS=y' "$Y2_ARTIFACT_DIR/buildroot/.config"; then
     # RELEASE-49: without aptX this is the public codec set (SBC, AAC, LDAC).

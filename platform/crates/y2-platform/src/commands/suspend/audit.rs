@@ -1,4 +1,4 @@
-//! `y2-power-audit` (tools/platform/y2-power-audit): endpoint-only observation, no activity during
+//! `y2-power-audit`: endpoint-only observation, no activity during
 //! the measured sleep window. Counters are read at both ends of the window, heavy descriptions
 //! outside it; the result goes to `--output` (created exclusively, compact JSON in insertion order).
 //!

@@ -4,7 +4,7 @@ import csv
 import sys
 import tempfile
 import unittest
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'tools/platform'))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'tools/host'))
 from audio_precision import PATTERN, verify_capture
 
 

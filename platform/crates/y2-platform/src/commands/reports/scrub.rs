@@ -861,7 +861,7 @@ mod tests {
         Scrubber::new(&known, *b"0123456789abcdef")
     }
 
-    /// The same texts through host Python's Scrubber (tools/platform) with the same key.
+    /// The texts the Python platform's Scrubber gave with the same key (recorded).
     #[test]
     fn texts_scrub_as_python() {
         let samples = [

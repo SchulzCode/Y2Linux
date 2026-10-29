@@ -1691,7 +1691,7 @@
      "feature_contract_version"
     ],
     "important_fields": {
-     "base": "verbatim /etc/y2linux/capabilities.json (from tools/platform/capabilities.json, installed by post-build-production.sh:52, platform_version filled at build :88-92); missing/non-dict -> {schema:'org.y2linux.capabilities/v1', state:'Unavailable'}",
+     "base": "verbatim /etc/y2linux/capabilities.json (from platform/capabilities.json, installed by post-build-production.sh:52, platform_version filled at build :88-92); missing/non-dict -> {schema:'org.y2linux.capabilities/v1', state:'Unavailable'}",
      "platform_version": "always overwritten from /etc/y2linux/versions.json release_version (capabilities.py:5 and again cli.py:413)",
      "capabilities.wifi.enabled / bluetooth.enabled": "set by capabilities.py:7-9 as ctx.integer(path)==1, then OVERWRITTEN by cli.py:414-416 as ctx.read(path)=='1' (string compare wins; ' 01' -> false)",
      "capabilities.bluetooth_{sbc,aac,aptx,aptx_hd,ldac}": "implemented = inventory codecs[Name].compiled_locally is True; enabled = implemented and (SBC or (distribution_approved and platform_qualified) or (policy.experimental and owner_private_experiment)); qualified = platform_qualified; enablement_scope='daemon policy; active PCM reported separately'",

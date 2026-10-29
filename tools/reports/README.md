@@ -1,6 +1,6 @@
 # Error report receiver
 
-Players that opted in send scrubbed error reports (`tools/platform/y2_platform/report.py`) to a Cloudflare
+Players that opted in send scrubbed error reports (`platform/crates/y2-platform/src/commands/reports/`) to a Cloudflare
 Worker at `https://reports.schulzcode.dev/v1/report`, which keeps them in a private R2 bucket for 180 days. The
 maintainer downloads them with `fetch.py`, on the PC or on the home server. Design and privacy rules:
 [ERROR-REPORTS-PLAN](../../docs/planning/ERROR-REPORTS-PLAN.md); user guide: [ERROR-REPORTS](../../docs/ERROR-REPORTS.md).

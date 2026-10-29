@@ -1,9 +1,9 @@
 # y2-platform contract inventory (Phase 0 of the Rust port)
 
-What the Python platform (`tools/platform`, installed as `/usr/lib/y2-platform` + `/usr/sbin/y2-platform`)
-promises to its callers, written down before any of it is ported
-([plan](../docs/planning/PLATFORM-RUST-PORT-PLAN.md), §3 principle 2: the contract does not change).
-Inventoried from the source at Linux `4684423` (Beta 8.44, test build 165) on 2026-10-28.
+What `y2-platform` promises to its callers. Written down from the Python platform (Linux `4684423`, Beta 8.44,
+test build 165, 2026-10-28) before it was ported ([plan](../docs/planning/PLATFORM-RUST-PORT-PLAN.md), §3
+principle 2: the contract does not change); since 2026-10-29 the Rust crates in this directory are the only
+implementation and the Python platform is deleted (the goldens below were recorded from it).
 
 - **[contract.json](contract.json)** is the machine-readable inventory: `arguments` (39 subcommands, generated
   from the parser) and `entries` (106, one per subcommand/action, plus the helper scripts and boot scripts that

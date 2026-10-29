@@ -14,7 +14,7 @@ fn capabilities(fixture: &Fixture) -> Value {
 #[test]
 fn experimental_enablement_does_not_promote_qualification() {
     let fixture = Fixture::new();
-    // The template's entries as tools/platform/capabilities.json has them.
+    // The template's entries as platform/capabilities.json has them.
     fixture.put_json(
         "/etc/y2linux/capabilities.json",
         &json!({"schema": "org.y2linux.capabilities/v1", "capabilities": {

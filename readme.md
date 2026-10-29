@@ -207,7 +207,8 @@ verifies it. Please report your device's details in an issue.
 | `initramfs/` | Boot-time rescue and handover to the internal root filesystem |
 | `tools/build/` | Locked, network-isolated kernel build environment (bubblewrap) |
 | `tools/production/` | Production build, packaging and validation, plus on-device helper sources |
-| `tools/platform/` | `y2-platform`, the on-device platform service and CLI |
+| `platform/` | `y2-platform`, the on-device platform service and CLI (Rust; [CONTRACT.md](platform/CONTRACT.md)) |
+| `tools/host/` | Tools for the owner's or a tester's computer (transfer, diagnostics, qualification, audio fixtures) |
 | `tools/connectivity/` | Wi-Fi/Bluetooth services and stock firmware provisioning |
 | `tests/` | Host and container test suites (`tools/production/tests.sh`) |
 | `docs/` | Documentation; start at [docs/README.md](docs/README.md) |
