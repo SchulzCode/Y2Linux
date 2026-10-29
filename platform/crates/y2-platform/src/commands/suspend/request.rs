@@ -125,6 +125,10 @@ fn admit(root: &Root, lock: &File) -> Result<Map<String, Value>, E> {
 /// description retains the request's flock across this process's exit, so another request cannot
 /// pass between acknowledgement and entry.
 fn launch(root: &Root, lock: &File) -> Result<(), E> {
+    #[cfg(test)]
+    if let Some(result) = super::helper::seams::with(|s| &mut s.launch, |f| f(root, lock)) {
+        return result;
+    }
     if !root.is_real() {
         return Err(E::refused("fixture_launcher_unavailable"));
     }
