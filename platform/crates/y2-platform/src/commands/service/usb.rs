@@ -14,7 +14,7 @@ use crate::reply::{atomic_json, mkdir_parents, write_text, Failure};
 use serde_json::{json, Value};
 use std::{fs, path::Path, thread, time::Duration};
 use y2p_core::py::PyValue;
-use y2p_core::{clock, py, Root};
+use y2p_core::{py, Root};
 
 const GADGET: &str = "/sys/kernel/config/usb_gadget/y2";
 const SCHEMA: &str = "org.y2linux.usb-transfer/v1";
@@ -493,7 +493,7 @@ impl UsbService {
         };
         self.mode = Some(mode);
         self.views = Some(views);
-        self.started = clock::monotonic();
+        self.started = self.root.clock().monotonic();
         Ok(())
     }
 
@@ -515,8 +515,8 @@ impl UsbService {
     }
 
     fn await_root(&mut self, path: &str, present: bool) -> bool {
-        let deadline = clock::monotonic() + 3.0;
-        while clock::monotonic() < deadline {
+        let deadline = self.root.clock().monotonic() + 3.0;
+        while self.root.clock().monotonic() < deadline {
             if let Some(roots) = self.pinned() {
                 if roots.iter().any(|r| r.as_str() == Some(path)) == present {
                     return true;
@@ -570,7 +570,7 @@ impl UsbService {
             self.mounted.push((path.clone(), identity(view)));
         }
         self.views = Some(views);
-        self.refresh_generation = clock::monotonic_ns();
+        self.refresh_generation = self.root.clock().monotonic_ns();
         Ok(())
     }
 
@@ -607,7 +607,7 @@ impl UsbService {
 
     fn sd_writable(&mut self, cable: &Option<String>) -> Result<(), Failure> {
         let host = matches!(cable.as_deref(), Some("configured" | "suspended"));
-        let now = clock::monotonic();
+        let now = self.root.clock().monotonic();
         let result = if host && now - self.sd_window >= SD_WINDOW_RENEW {
             media::write_window(&self.root, "usb", SD_WINDOW_SECONDS, false).map(|answer| {
                 if answer.get("holders").is_some_and(py::truthy) {
@@ -664,7 +664,9 @@ impl UsbService {
                     Err(_) => self.terminal = true,
                     Ok(()) => {}
                 }
-                if self.started != 0.0 && clock::monotonic() - self.started > STABLE_SECONDS {
+                if self.started != 0.0
+                    && self.root.clock().monotonic() - self.started > STABLE_SECONDS
+                {
                     self.failures = 0;
                 }
                 self.failures += 1;
@@ -748,7 +750,7 @@ impl UsbService {
         }
         if self.mode != Some(requested) {
             if self.mode.is_some() {
-                self.refresh_generation = clock::monotonic_ns();
+                self.refresh_generation = self.root.clock().monotonic_ns();
             }
             self.setup(requested, views)?;
         } else if self.mode == Some("mtp")
@@ -761,7 +763,7 @@ impl UsbService {
             self.stop()?;
             // A responder that served for a minute before dying is a new incident, not another step
             // toward the permanent-failure budget.
-            if clock::monotonic() - self.started > STABLE_SECONDS {
+            if self.root.clock().monotonic() - self.started > STABLE_SECONDS {
                 self.failures = 0;
             }
             self.failures += 1;
@@ -781,7 +783,7 @@ impl UsbService {
                     == Some("1")
                     && (1..=3).all(|i| self.root.path(&format!("/dev/ffs-mtp/ep{i}")).exists()));
             if !ready {
-                if clock::monotonic() - self.started > 15.0 {
+                if self.root.clock().monotonic() - self.started > 15.0 {
                     return Err(Failure::os_message("responder_descriptor_timeout"));
                 }
                 return self.record("Starting", Some("waiting_for_descriptors"), cable, None);
@@ -807,11 +809,11 @@ impl UsbService {
         };
         if let Some(generation) = generation.filter(|g| *g > self.seen_generation) {
             self.seen_generation = generation;
-            self.refresh_generation = clock::monotonic_ns();
+            self.refresh_generation = self.root.clock().monotonic_ns();
         }
         let hosted = matches!(cable.as_deref(), Some("configured" | "suspended"));
         if self.previous_cable.as_deref() == Some("configured") && !hosted {
-            self.refresh_generation = clock::monotonic_ns();
+            self.refresh_generation = self.root.clock().monotonic_ns();
         }
         self.previous_cable = cable.clone();
         let mut state = match cable.as_deref() {

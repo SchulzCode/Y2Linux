@@ -32,7 +32,7 @@ use std::{
 use y2p_core::py::PyValue;
 use y2p_core::sys::{set_signal, Disposition, Handler};
 use y2p_core::{
-    clock, command,
+    command,
     json::{sorted_object, Object, ObjectExt},
     py::{self, is_true, truthy},
     root::read,
@@ -464,7 +464,11 @@ mod connectivity_tests;
 /// since: a restart without Wi-Fi then resumes about where it was rather than from the last sync or the
 /// build date.
 fn remember_time(root: &Root) -> Result<(), Failure> {
-    let (now, monotonic, elapsed) = (time::wall(), clock::monotonic(), time::boottime());
+    let (now, monotonic, elapsed) = (
+        time::wall(),
+        root.clock().monotonic(),
+        root.clock().boottime_ns() as f64 / 1e9,
+    );
     let runtime = root.path("/run/y2");
     private_directory(&runtime)?;
     // Never over a record that a sync or the owner wrote meanwhile.
@@ -613,7 +617,7 @@ impl Service {
         let mut done = 0u64;
         while RUNNING.load(Ordering::SeqCst) {
             wake.drain();
-            let before = clock::monotonic();
+            let before = root.clock().monotonic();
             let dark = display_dark(root);
             let (mut interval, maintenance) = cadence(dark, settled);
             self.monitor.poll();
@@ -649,7 +653,7 @@ impl Service {
                 .set("status_query_failures", query_failures.clone())
                 .set("schema", 1)
                 .set("boot_id", json!(root.boot_id()))
-                .set("monotonic_s", clock::monotonic())
+                .set("monotonic_s", root.clock().monotonic())
                 .set(
                     "supplicant_events",
                     self.monitor.summary(None).into_sorted(),
@@ -713,7 +717,7 @@ impl Service {
                 interval = interval.min(1.0);
             }
             if ticks.is_none() {
-                let left = interval - (clock::monotonic() - before);
+                let left = interval - (root.clock().monotonic() - before);
                 self.monitor.wait(left.max(0.05), Some(wake.fd()));
             }
             done += 1;

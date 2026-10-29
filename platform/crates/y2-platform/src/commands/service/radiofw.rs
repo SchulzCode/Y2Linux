@@ -26,7 +26,7 @@ use std::{
 use y2p_core::mounts::{mounts_at, Mount};
 use y2p_core::py::PyValue;
 use y2p_core::{
-    clock, command,
+    command,
     json::{Object, ObjectExt},
     py, record,
     service_digest::sha256_hex,
@@ -478,7 +478,7 @@ fn writers(root: &Root, mount: &Mount) -> Vec<(String, f64)> {
     {
         return Vec::new();
     }
-    let now = clock::monotonic();
+    let now = root.clock().monotonic();
     let Some(Value::Object(holders)) = value.get("holders") else {
         return Vec::new();
     };
@@ -522,13 +522,13 @@ fn write_window(root: &Root, seconds: i64, release: bool) -> Result<bool> {
     let runtime = root.path("/run/y2");
     crate::reply::mkdir_parents(&runtime, 0o700)?;
     let lock_path = runtime.join("media.lock");
-    let deadline = clock::monotonic() + 5.0;
+    let deadline = root.clock().monotonic() + 5.0;
     let _lock = loop {
         match y2p_core::lock::try_exclusive(&lock_path) {
             Ok(Some(lock)) => break lock,
             Ok(None) => {
                 // A check or a repair holds the card; a short admission passes.
-                if clock::monotonic() >= deadline {
+                if root.clock().monotonic() >= deadline {
                     return Ok(false);
                 }
                 std::thread::sleep(Duration::from_millis(200));
@@ -551,7 +551,7 @@ fn write_window(root: &Root, seconds: i64, release: bool) -> Result<bool> {
     if !release {
         holders.push((
             "radiofw".into(),
-            clock::monotonic() + seconds.clamp(1, 600) as f64,
+            root.clock().monotonic() + seconds.clamp(1, 600) as f64,
         ));
     }
     apply_window(root, &mount, &holders)?;

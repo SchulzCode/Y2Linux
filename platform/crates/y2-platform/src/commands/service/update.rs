@@ -549,6 +549,7 @@ fn remove_package(directory: &Path) -> Result<()> {
 /// left, at most four times a second. The durable journal on Y2DATA only records the start and the
 /// result.
 struct Progress {
+    root: Root,
     path: PathBuf,
     release: Value,
     total: i64,
@@ -562,6 +563,7 @@ impl Progress {
 
     fn new(root: &Root, release: Value, total: i64) -> Self {
         Self {
+            root: root.clone(),
             path: root.path(PROGRESS),
             release,
             total,
@@ -572,7 +574,7 @@ impl Progress {
     }
 
     fn publish(&mut self, phase: &str, force: bool) {
-        let now = clock::monotonic();
+        let now = self.root.clock().monotonic();
         if !force && now - self.written < 0.25 {
             return;
         }
@@ -723,9 +725,9 @@ fn copy_stream(
 
 /// `update.wait_online`: true once Wi-Fi is Online (DNS answered), waiting at most `seconds`.
 fn wait_online(root: &Root, seconds: f64) -> bool {
-    let deadline = clock::monotonic() + seconds;
+    let deadline = root.clock().monotonic() + seconds;
     while root.json_object("/run/y2/network.json").get("state") != Some(&json!("Online")) {
-        if clock::monotonic() >= deadline {
+        if root.clock().monotonic() >= deadline {
             return false;
         }
         std::thread::sleep(Duration::from_secs(1));
@@ -1489,13 +1491,13 @@ fn health_ack(root: &Root) -> Result<Value> {
     let boot = Value::from(root.boot_id());
     if progress.get("boot_id").cloned().unwrap_or(Value::Null) != boot {
         progress = object(Some(json!({"boot_id": boot,
-                                      "deadline_monotonic_s": clock::monotonic() + 180.0})));
+                                      "deadline_monotonic_s": root.clock().monotonic() + 180.0})));
         atomic_json(&runtime.join("update-health.json"), &progress, false)?;
     }
     // A deadline that is not a number is a TypeError in Python; only possible for a record this call
     // did not write, so nothing changed yet.
     let deadline = py::number(progress.get("deadline_monotonic_s")).ok_or(Raise::Crash)?;
-    if clock::monotonic() >= deadline {
+    if root.clock().monotonic() >= deadline {
         // Ask LK for the recovery image now, so even a later hang before the rescue restores on the
         // next power-on. Never an automatic power-off.
         core(root, "rollback", None, 15.0)?;
@@ -1705,6 +1707,48 @@ mod tests {
             Some("update_needs_charger_or_half_battery")
         );
         assert!(fixture.calls().is_empty(), "{:?}", fixture.calls());
+    }
+
+    #[test]
+    fn health_ack_asks_for_the_rollback_once_its_deadline_passed() {
+        let clock = std::sync::Arc::new(y2p_core::clock::Manual::at(50_000_000_000, 0));
+        let core = |action: &str| {
+            ok(
+                &["/usr/sbin/y2-update-core", action],
+                r#"{"state": "RollbackPending"}"#,
+            )
+        };
+        let fixture = Fixture::new()
+            .with_answers(vec![core("rollback"), core("prepare")])
+            .with_clock(clock.clone());
+        fixture
+            .put("/proc/sys/kernel/random/boot_id", "boot-a\n")
+            .put_json(
+                "/data/updates/state.json",
+                &json!({"schema": 2, "state": "PendingHealth"}),
+            );
+        // This boot's first pass sets the deadline 180 s on.
+        let waiting = health_ack(&fixture.root).ok().unwrap();
+        assert_eq!(waiting["reason"], json!("application_first_frame_missing"));
+        assert_eq!(
+            fixture.json("/run/y2/update-health.json")["deadline_monotonic_s"],
+            json!(230.0)
+        );
+        clock.advance(179_000_000_000);
+        assert_eq!(
+            health_ack(&fixture.root).ok().unwrap()["state"],
+            json!("PendingHealth")
+        );
+        assert!(fixture.calls().is_empty());
+        clock.advance(1_000_000_000);
+        let asked = health_ack(&fixture.root).ok().unwrap();
+        assert_eq!(asked["state"], json!("RollbackPending"));
+        let actions: Vec<String> = fixture
+            .calls()
+            .into_iter()
+            .map(|(argv, _)| argv[1].clone())
+            .collect();
+        assert_eq!(actions, ["rollback", "prepare"]);
     }
 
     #[test]

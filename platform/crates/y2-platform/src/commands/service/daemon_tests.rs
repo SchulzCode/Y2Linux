@@ -268,7 +268,7 @@ fn service_loop_uses_gated_reconcile_and_cadence() {
         ..source.find("fn media_verify_needed(").unwrap()];
     assert!(helper.contains("!media_reconcile_needed(root)"));
     assert!(loop_.contains("next_maintenance = before + maintenance;"));
-    assert!(loop_.contains("interval - (clock::monotonic() - before)"));
+    assert!(loop_.contains("interval - (root.clock().monotonic() - before)"));
 }
 
 /// tests/test_cpu_fix03.py SdInventoryIdentity.card: a card and its partition, links made anew.

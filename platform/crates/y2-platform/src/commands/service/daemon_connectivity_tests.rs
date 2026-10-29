@@ -6,6 +6,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use super::*;
 use crate::testing::Fixture;
+use y2p_core::clock;
 
 #[test]
 fn heavy_transfer_is_observed_without_a_codec_override() {
