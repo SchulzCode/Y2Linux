@@ -6,8 +6,30 @@
  "exit": 0,
  "stdout": {
   "captured_on_boot_id": "boot-a",
-  "kept": "as it was",
-  "logs": []
+  "kernel_panic_retention_guaranteed": false,
+  "loader": {
+   "boot_reason": null,
+   "reset": null
+  },
+  "logs": [],
+  "logs_are_private": false,
+  "pmic": {
+   "long_press_reset": null,
+   "long_press_reset_reason": "",
+   "state": ""
+  },
+  "previous_boot_id": null,
+  "previous_last_stage": null,
+  "previous_orderly_shutdown": null,
+  "record": {},
+  "reset_cause": null,
+  "reset_cause_reason": null,
+  "reset_status_raw": null,
+  "retained": {
+   "error": "not_captured",
+   "source_entries_deleted": false
+  },
+  "schema": 0
  },
  "tree": {
   "added": {},

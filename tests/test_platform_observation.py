@@ -33,6 +33,9 @@ class ObservationGoldens(unittest.TestCase):
         for name, reason in observation.REFUSALS.items():
             record = {'schema': 'org.y2linux.error/v1', 'state': 'Failed', 'reason': reason, 'type': 'ValueError'}
             self.assertEqual((results[name]['exit'], results[name]['stdout']), (1, record), name)
+        for name in observation.UNREADABLE_EVIDENCE:
+            self.assertEqual((results[name]['exit'], results[name]['stdout']['system']['previous_boot_evidence']),
+                             (0, {'state': 'Unavailable', 'reason': 'invalid_previous_boot_evidence'}), name)
         evidence = results['boot-evidence']['stdout']
         self.assertEqual([log['name'] for log in evidence['logs']], ['system.log.0', 'system.log'])
         self.assertEqual(evidence['pmic']['long_press_reset_reason'], 'first_record')

@@ -15,8 +15,8 @@ use crate::{
     reply::{atomic_json, private_directory, Failure, Outcome, Reply},
 };
 use archive::{code_points, Archive};
-use serde::Serialize;
-use serde_json::{json, Map, Value};
+use serde::{Deserialize, Serialize};
+use serde_json::{Map, Value};
 use std::{
     ffi::{CString, OsStr, OsString},
     fs::{self, File},
@@ -34,8 +34,7 @@ use y2p_core::digest::sha256_hex as hex;
 use y2p_core::mounts::mounts_at;
 use y2p_core::{
     json::{dumps, dumps_sorted},
-    py::{self, is_false, truthy},
-    Root,
+    py, Root,
 };
 
 const BOOT_METADATA: &str = "/sys/firmware/y2_boot/metadata";
@@ -60,7 +59,7 @@ const PM_FILES: [&str; 6] = [
 /// every report), but a SoC reset (the watchdog, a restart) keeps the PMIC on: boot_reason 3-6 is
 /// warm, anything else cold. After a previous boot without shutdown_complete, warm means the
 /// watchdog or a kernel restart ended it, cold that power was cut or Power was held.
-fn loader_boot(text: Option<&str>) -> Value {
+fn loader_boot(text: Option<&str>) -> Loader {
     let mut fields = std::collections::BTreeMap::new();
     for word in util::split_ws(text.unwrap_or_default()) {
         if let Some((k, v)) = word.split_once('=') {
@@ -68,16 +67,28 @@ fn loader_boot(text: Option<&str>) -> Value {
         }
     }
     let reason = fields.get("boot_reason").copied().unwrap_or("");
-    if fields.get("valid") != Some(&"1")
-        || reason.is_empty()
-        || !reason.chars().all(|c| c.is_ascii_digit())
-    {
-        return json!({"boot_reason": null, "reset": null});
+    if fields.get("valid") != Some(&"1") || !util::isdigit(reason) {
+        return Loader::default();
     }
-    let Some(reason) = util::int(reason) else {
-        return json!({"boot_reason": null, "reset": null});
-    };
-    json!({"boot_reason": reason, "reset": if WARM_BOOT_REASONS.contains(&reason) { "warm" } else { "cold" }})
+    let boot_reason = util::int(reason);
+    Loader {
+        boot_reason,
+        reset: boot_reason.map(|reason| {
+            if WARM_BOOT_REASONS.contains(&reason) {
+                "warm".into()
+            } else {
+                "cold".into()
+            }
+        }),
+    }
+}
+
+/// How LK says the boot started (`loader_boot`): its boot reason and warm or cold.
+#[derive(Serialize, Deserialize, Default, Clone, Debug, PartialEq)]
+#[serde(default)]
+pub struct Loader {
+    pub boot_reason: Option<i64>,
+    pub reset: Option<String>,
 }
 
 /// F56/F57: the MT6323's record of the last power-down (kernel pmic-lowpower-policy.h), as the
@@ -85,7 +96,7 @@ fn loader_boot(text: Option<&str>) -> Value {
 /// leaves it set, so a set bit may stay from an earlier boot: only a change from the previous
 /// boot's record (`earlier`) proves a long-press reset now. A clear bit rules one out; brownout and
 /// a dead battery stay unrecorded.
-fn pmic_power_status(text: Option<&str>, earlier: Option<&Value>) -> Value {
+fn pmic_power_status(text: Option<&str>, earlier: Option<bool>) -> Pmic {
     let fields = util::findall_map(regex!(r"(\w+)=(\S+)"), text.unwrap_or_default());
     let mut regs = std::collections::BTreeMap::new();
     for (name, value) in &fields {
@@ -100,40 +111,63 @@ fn pmic_power_status(text: Option<&str>, earlier: Option<&Value>) -> Value {
         .get("strup_con8")
         .filter(|_| fields.get("valid").map(String::as_str) == Some("1"))
     else {
-        return json!({"state": "Unavailable", "long_press_reset": null,
-                      "long_press_reset_reason": "not_observed"});
+        return Pmic {
+            state: "Unavailable".into(),
+            long_press_reset_reason: "not_observed".into(),
+            ..Pmic::default()
+        };
     };
     let flag = con8 & 0x0010 != 0;
-    let (verdict, reason) = if !flag {
-        (json!(false), "no_long_press_record")
-    } else if is_false(earlier) {
-        (json!(true), "lk_cleared_long_press_reset")
-    } else if earlier.is_some_and(truthy) {
-        (Value::Null, "record_set_before")
-    } else {
-        (Value::Null, "first_record")
+    let (verdict, reason) = match (flag, earlier) {
+        (false, _) => (Some(false), "no_long_press_record"),
+        (true, Some(false)) => (Some(true), "lk_cleared_long_press_reset"),
+        (true, Some(true)) => (None, "record_set_before"),
+        (true, None) => (None, "first_record"),
     };
-    let raw: Map<String, Value> = regs
-        .iter()
-        .map(|(n, v)| (n.clone(), json!(format!("0x{v:04x}"))))
-        .collect();
-    let mut result = json!({"state": "Ready", "raw": raw, "lk_long_press_record": flag,
-        "long_press_reset": verdict, "long_press_reset_reason": reason,
-        "just_pwrkey_rst": con8 & 0x4000 != 0});
-    if let Some(misc) = regs.get("top_rst_misc") {
-        result["long_press_reset_enabled"] = json!(misc & 0x0040 != 0);
-        result["long_press_reset_seconds"] = json!(LONG_PRESS_SECONDS[((misc >> 8) & 3) as usize]);
+    let misc = regs.get("top_rst_misc");
+    Pmic {
+        state: "Ready".into(),
+        raw: Some(
+            regs.iter()
+                .map(|(n, v)| (n.clone(), format!("0x{v:04x}")))
+                .collect(),
+        ),
+        lk_long_press_record: Some(flag),
+        long_press_reset: verdict,
+        long_press_reset_reason: reason.into(),
+        just_pwrkey_rst: Some(con8 & 0x4000 != 0),
+        long_press_reset_enabled: misc.map(|misc| misc & 0x0040 != 0),
+        long_press_reset_seconds: misc.map(|misc| LONG_PRESS_SECONDS[((misc >> 8) & 3) as usize]),
+        uvlo_selector: regs.get("chr_con16").map(|v| v & 3),
+        thermal_status: regs.get("strup_con5").map(|v| (v >> 8) & 7),
+        power_key_down: regs.get("chrstatus").map(|v| v & 0x0002 == 0),
     }
-    if let Some(v) = regs.get("chr_con16") {
-        result["uvlo_selector"] = json!(v & 3);
-    }
-    if let Some(v) = regs.get("strup_con5") {
-        result["thermal_status"] = json!((v >> 8) & 7);
-    }
-    if let Some(v) = regs.get("chrstatus") {
-        result["power_key_down"] = json!(v & 0x0002 == 0);
-    }
-    result
+}
+
+/// The MT6323's record of the last power-down (`pmic_power_status`); a register the loaders did not
+/// show leaves its field out.
+#[derive(Serialize, Deserialize, Default, Clone, Debug, PartialEq)]
+#[serde(default)]
+pub struct Pmic {
+    pub state: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub raw: Option<std::collections::BTreeMap<String, String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub lk_long_press_record: Option<bool>,
+    pub long_press_reset: Option<bool>,
+    pub long_press_reset_reason: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub just_pwrkey_rst: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub long_press_reset_enabled: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub long_press_reset_seconds: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub uvlo_selector: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub thermal_status: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub power_key_down: Option<bool>,
 }
 
 fn open_flags(path: &Path, flags: i32) -> io::Result<File> {
@@ -198,11 +232,7 @@ enum SourceError {
 
 /// Archive this boot's retained PM and pstore bytes (`boot-<id>.tar`, the newest 8 kept, the kernel's
 /// entries never removed), or the error text the evidence record carries instead.
-fn capture(
-    root: &Root,
-    boot_id: &str,
-    previous_boot_id: &Value,
-) -> Result<Map<String, Value>, String> {
+fn capture(root: &Root, boot_id: &str, previous_boot_id: Option<&str>) -> Result<Capture, String> {
     if !regex!(r"\A[A-Za-z0-9-]{1,64}\z").is_match(boot_id) {
         return Err("invalid_boot_archive_identity".into());
     }
@@ -218,14 +248,16 @@ fn capture(
     let pstore_mounted = mounts_at(root, "/sys/fs/pstore")
         .iter()
         .any(|m| m.filesystem == "pstore");
-    let mut result = Map::new();
-    result.insert("archive".into(), json!(relative));
-    result.insert("files".into(), json!([]));
-    result.insert("captured_on_boot_id".into(), json!(boot_id));
-    result.insert("previous_boot_id".into(), previous_boot_id.clone());
-    result.insert("pstore_mounted".into(), json!(pstore_mounted));
-    result.insert("errors".into(), json!([]));
-    result.insert("source_entries_deleted".into(), json!(false));
+    let mut result = Capture {
+        archive: relative,
+        files: Vec::new(),
+        captured_on_boot_id: boot_id.to_owned(),
+        previous_boot_id: previous_boot_id.map(str::to_owned),
+        pstore_mounted,
+        errors: Vec::new(),
+        source_entries_deleted: false,
+        captured_monotonic_s: None,
+    };
     let os = |e: io::Error, p: &Path| py::os_error(&e, Some(&p.to_string_lossy())).0;
     let file = fs::OpenOptions::new()
         .write(true)
@@ -262,7 +294,7 @@ fn capture(
                 .map_err(|e| py::os_error(&e, None).0)?;
             names.sort_by_key(|n| code_points(n.as_bytes()));
             if names.len() > 32 {
-                errors.push(json!({"source": "pstore", "error": "entry_count_exceeds_32"}));
+                errors.push(CaptureError::new("pstore", "entry_count_exceeds_32"));
             }
             for part in names.into_iter().take(32) {
                 let mut entry = b"pstore/".to_vec();
@@ -278,24 +310,23 @@ fn capture(
                         .add(&entry, &raw)
                         .map_err(|e| py::os_error(&e, None).0)?;
                     used += raw.len();
-                    files.push(json!({"name": label, "bytes": raw.len(), "sha256": hex(&raw)}));
+                    files.push(RetainedFile {
+                        name: label,
+                        bytes: raw.len() as u64,
+                        sha256: hex(&raw),
+                    });
                 }
                 Err(SourceError::Os(e)) if e.kind() == io::ErrorKind::NotFound => {
                     if entry.starts_with(b"pstore/") {
-                        errors
-                            .push(json!({"source": label, "error": "disappeared_during_capture"}));
+                        errors.push(CaptureError::new(&label, "disappeared_during_capture"));
                     }
                 }
-                Err(SourceError::Os(e)) => {
-                    errors.push(json!({"source": label, "error": os(e, &path)}))
-                }
-                Err(SourceError::Text(text)) => {
-                    errors.push(json!({"source": label, "error": text}))
-                }
+                Err(SourceError::Os(e)) => errors.push(CaptureError::new(&label, &os(e, &path))),
+                Err(SourceError::Text(text)) => errors.push(CaptureError::new(&label, &text)),
             }
         }
-        result.insert("files".into(), Value::Array(files));
-        result.insert("errors".into(), Value::Array(errors));
+        result.files = files;
+        result.errors = errors;
         let manifest = dumps_sorted(&result).map_err(|e| e.to_string())?;
         archive
             .add(b"manifest.json", manifest.as_bytes())
@@ -342,43 +373,120 @@ fn capture(
     })();
     let _ = fs::remove_file(&temporary);
     outcome?;
-    result.insert(
-        "captured_monotonic_s".into(),
-        json!(root.clock().monotonic()),
-    );
+    result.captured_monotonic_s = Some(root.clock().monotonic());
     Ok(result)
 }
 
+/// What `capture` archived (also the archive's manifest.json, written without the capture time).
+#[derive(Serialize, Deserialize, Default, Clone, Debug, PartialEq)]
+#[serde(default)]
+pub struct Capture {
+    pub archive: String,
+    pub files: Vec<RetainedFile>,
+    pub captured_on_boot_id: String,
+    pub previous_boot_id: Option<String>,
+    pub pstore_mounted: bool,
+    pub errors: Vec<CaptureError>,
+    pub source_entries_deleted: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub captured_monotonic_s: Option<f64>,
+}
+
+/// One archived file.
+#[derive(Serialize, Deserialize, Default, Clone, Debug, PartialEq)]
+#[serde(default)]
+pub struct RetainedFile {
+    pub name: String,
+    pub bytes: u64,
+    pub sha256: String,
+}
+
+/// A source that could not be archived, and why.
+#[derive(Serialize, Deserialize, Default, Clone, Debug, PartialEq)]
+#[serde(default)]
+pub struct CaptureError {
+    pub source: String,
+    pub error: String,
+}
+
+impl CaptureError {
+    fn new(source: &str, error: &str) -> CaptureError {
+        CaptureError {
+            source: source.into(),
+            error: error.into(),
+        }
+    }
+}
+
+/// The retained archive, or why there is none (nothing was deleted at the source either way).
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[serde(untagged)]
+pub enum Retained {
+    Captured(Capture),
+    Failed {
+        error: String,
+        source_entries_deleted: bool,
+    },
+}
+
+impl Default for Retained {
+    fn default() -> Retained {
+        Retained::Failed {
+            error: "not_captured".into(),
+            source_entries_deleted: false,
+        }
+    }
+}
+
 /// previous-boot-evidence.json: what the first capture of a boot found of the boot before (printed
-/// and written sorted, so the field order is free). Read by `status` (system) and the error reports.
-#[derive(Serialize)]
-struct Evidence {
-    schema: u8,
-    captured_on_boot_id: String,
-    /// The boot journal's fields as it has them (any JSON).
-    previous_boot_id: Value,
-    previous_last_stage: Value,
-    previous_orderly_shutdown: Value,
-    reset_cause: Value,
-    reset_cause_reason: Value,
-    kernel_panic_retention_guaranteed: bool,
-    logs_are_private: bool,
-    reset_status_raw: Value,
-    record: Map<String, Value>,
-    loader: Value,
-    pmic: Value,
-    retained: Value,
-    logs: Vec<LogTail>,
+/// and written sorted, so the field order is free). Read by `status` (system) and the error reports;
+/// a field of another type than written here makes the whole record unreadable.
+#[derive(Serialize, Deserialize, Default, Clone, Debug, PartialEq)]
+#[serde(default)]
+pub struct Evidence {
+    pub schema: u8,
+    pub captured_on_boot_id: String,
+    /// The boot journal's fields (boot.json), null where it had none of that type.
+    pub previous_boot_id: Option<String>,
+    pub previous_last_stage: Option<String>,
+    pub previous_orderly_shutdown: Option<bool>,
+    pub reset_cause: Option<String>,
+    pub reset_cause_reason: Option<String>,
+    pub kernel_panic_retention_guaranteed: bool,
+    pub logs_are_private: bool,
+    pub reset_status_raw: Option<String>,
+    pub record: Map<String, Value>,
+    pub loader: Loader,
+    pub pmic: Pmic,
+    pub retained: Retained,
+    pub logs: Vec<LogTail>,
 }
 
 /// The bounded tail of one system log (never the whole log).
-#[derive(Serialize)]
-struct LogTail {
-    name: &'static str,
-    tail_sha256: String,
-    source_bytes_at_capture: u64,
-    tail_lines: Vec<String>,
-    bounded_tail_not_complete_log: bool,
+#[derive(Serialize, Deserialize, Default, Clone, Debug, PartialEq)]
+#[serde(default)]
+pub struct LogTail {
+    pub name: String,
+    pub tail_sha256: String,
+    pub source_bytes_at_capture: u64,
+    pub tail_lines: Vec<String>,
+    pub bounded_tail_not_complete_log: bool,
+}
+
+/// The boot journal's fields the evidence names (boot.json, written by `boot-stage`).
+#[derive(Deserialize, Default)]
+#[serde(default)]
+struct Journal {
+    #[serde(deserialize_with = "y2p_core::lenient::text")]
+    boot_id: Option<String>,
+    #[serde(deserialize_with = "y2p_core::lenient::text")]
+    last_stage: Option<String>,
+    orderly_shutdown: Option<bool>,
+}
+
+/// The evidence record on /data, or none (absent or unreadable).
+pub fn read_record(root: &Root) -> Option<Evidence> {
+    serde_json::from_str(&root.read("/data/system/platform/previous-boot-evidence.json")?).ok()
 }
 
 /// `y2-platform boot-evidence`.
@@ -400,43 +508,42 @@ pub fn run(root: &Root) -> Outcome {
         .boot_id()
         .filter(|b| !b.is_empty())
         .ok_or_else(|| Failure::value("boot_id_unavailable"))?;
-    let previous = root.json_object("/data/system/platform/previous-boot-evidence.json");
-    if previous.get("captured_on_boot_id").and_then(Value::as_str) == Some(boot.as_str()) {
-        return Reply::sorted(&previous, 0);
+    let previous = read_record(root);
+    if let Some(previous) = previous.as_ref().filter(|p| p.captured_on_boot_id == boot) {
+        return Reply::sorted(previous, 0);
     }
-    let journal = root.json_object("/data/system/platform/boot.json");
-    if journal.get("boot_id").and_then(Value::as_str) == Some(boot.as_str()) {
+    let journal: Journal = util::record_fields(root, "/data/system/platform/boot.json");
+    if journal.boot_id.as_deref() == Some(boot.as_str()) {
         return Err(Failure::value(
             "previous_boot_capture_missed_early_boundary",
         ));
     }
-    let journal_get = |k: &str| journal.get(k).cloned().unwrap_or(Value::Null);
     let mut cause = reset_cause(None, "no_qualified_retained_register_or_pstore_backend");
     if let Some(text) = root.read(RESET_STATUS) {
         cause = reset_cause(Some(&text), "not_observed");
     }
-    let earlier = match previous.get("pmic") {
-        Some(Value::Object(pmic)) => pmic.get("lk_long_press_record").cloned(),
-        _ => None,
-    };
-    let retained = match capture(root, &boot, &journal_get("boot_id")) {
-        Ok(value) => Value::Object(value),
-        Err(error) => json!({"error": error, "source_entries_deleted": false}),
+    let earlier = previous.and_then(|p| p.pmic.lk_long_press_record);
+    let retained = match capture(root, &boot, journal.boot_id.as_deref()) {
+        Ok(capture) => Retained::Captured(capture),
+        Err(error) => Retained::Failed {
+            error,
+            source_entries_deleted: false,
+        },
     };
     let mut result = Evidence {
         schema: 1,
         captured_on_boot_id: boot.clone(),
-        previous_boot_id: journal_get("boot_id"),
-        previous_last_stage: journal_get("last_stage"),
-        previous_orderly_shutdown: journal_get("orderly_shutdown"),
-        reset_cause: json!(cause.reset_cause),
-        reset_cause_reason: json!(cause.reset_cause_reason),
+        previous_boot_id: journal.boot_id,
+        previous_last_stage: journal.last_stage,
+        previous_orderly_shutdown: journal.orderly_shutdown,
+        reset_cause: cause.reset_cause,
+        reset_cause_reason: Some(cause.reset_cause_reason),
         kernel_panic_retention_guaranteed: false,
         logs_are_private: true,
-        reset_status_raw: json!(cause.reset_status_raw),
+        reset_status_raw: cause.reset_status_raw,
         record: util::record(root, "previous-boot-evidence", Map::new()),
         loader: loader_boot(root.read(BOOT_METADATA).as_deref()),
-        pmic: pmic_power_status(root.read(PMIC_POWER_STATUS).as_deref(), earlier.as_ref()),
+        pmic: pmic_power_status(root.read(PMIC_POWER_STATUS).as_deref(), earlier),
         retained,
         logs: Vec::new(),
     };
@@ -488,7 +595,7 @@ pub fn run(root: &Root) -> Outcome {
                 .map(|line| line.chars().take(500).collect())
                 .collect();
             entries.push(LogTail {
-                name,
+                name: name.into(),
                 tail_sha256: hex(&raw),
                 source_bytes_at_capture: info.len(),
                 tail_lines: lines,
@@ -534,13 +641,14 @@ mod capture_tests;
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::json;
 
     #[test]
     fn pmic_records_decode_as_python() {
-        let value = pmic_power_status(
+        let value = json!(pmic_power_status(
             Some("valid=1 strup_con8=0x4010 top_rst_misc=0x0240 chr_con16=0x0003 chrstatus=0x0000 bad=0x12345"),
-            Some(&json!(false)),
-        );
+            Some(false),
+        ));
         assert_eq!(value["long_press_reset"], true);
         assert_eq!(value["long_press_reset_seconds"], 14);
         assert_eq!(value["just_pwrkey_rst"], true);
@@ -548,7 +656,7 @@ mod tests {
         assert_eq!(value["raw"]["strup_con8"], "0x4010");
         assert!(value["raw"].get("bad").is_none());
         assert_eq!(
-            loader_boot(Some("valid=1 boot_reason=4")),
+            json!(loader_boot(Some("valid=1 boot_reason=4"))),
             json!({"boot_reason": 4, "reset": "warm"})
         );
     }

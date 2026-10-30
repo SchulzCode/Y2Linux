@@ -614,10 +614,6 @@ REFUSALS = {
     'status-power-sleep-number': 'invalid_sleep_receipt',
     'status-power-sleep-number-pair': 'invalid_sleep_receipt',
     'status-power-sleep-list-key': 'invalid_sleep_receipt',
-    'status-system-evidence-bad-logs': 'invalid_previous_boot_evidence',
-    'status-system-evidence-text-logs': 'invalid_previous_boot_evidence',
-    'status-system-evidence-null-logs': 'invalid_previous_boot_evidence',
-    'status-system-evidence-list-log': 'invalid_previous_boot_evidence',
     'status-system-update-unhashable': 'invalid_update_journal',
     'status-system-update-dict-state': 'invalid_update_journal',
     'status-wifi-signal-list': 'invalid_network_record',
@@ -627,7 +623,10 @@ REFUSALS = {
     'status-wifi-ip-info-dict': 'invalid_ip_output',
     'status-wifi-ip-object': 'invalid_ip_output',
 }
-EXTRA_CASES = [case for case in CASES if case[0] in REFUSALS or (
+# A broken previous-boot evidence record leaves the snapshot readable: only its section says why.
+UNREADABLE_EVIDENCE = ['status-system-evidence-bad-logs', 'status-system-evidence-text-logs',
+                       'status-system-evidence-null-logs', 'status-system-evidence-list-log']
+EXTRA_CASES = [case for case in CASES if case[0] in REFUSALS or case[0] in UNREADABLE_EVIDENCE or (
     case[1] == ['boot-evidence'] and case[0] not in ('boot-evidence-again', 'boot-evidence-missed-boundary',
                                                      'boot-evidence-no-data', 'boot-evidence-wrong-mount',
                                                      'boot-evidence-no-boot-id'))]

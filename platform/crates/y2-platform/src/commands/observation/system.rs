@@ -23,51 +23,79 @@ pub(crate) use crate::commands::boot::{reset_cause_or as reset_cause, ResetCause
 
 /// The previous boot's evidence (boot-evidence's record) as the snapshot shows it: its findings
 /// and the log tails' digests, never the private lines.
-pub(crate) fn evidence_status(root: &Root) -> Result<Value, Failure> {
-    let value = root.json_object("/data/system/platform/previous-boot-evidence.json");
-    if value.is_empty() {
-        return Ok(json!({"state": "Unavailable", "reason": "no_previous_boot_record"}));
-    }
-    let get = |k: &str| value.get(k).cloned().unwrap_or(Value::Null);
-    let mut result = Map::new();
-    for key in [
-        "captured_on_boot_id",
-        "previous_boot_id",
-        "previous_last_stage",
-        "previous_orderly_shutdown",
-        "reset_cause",
-        "reset_cause_reason",
-        "reset_status_raw",
-        "kernel_panic_retention_guaranteed",
-    ] {
-        result.insert(key.into(), get(key));
-    }
-    result.insert(
-        "private_record".into(),
-        json!("/data/system/platform/previous-boot-evidence.json"),
-    );
-    result.insert("retained".into(), get("retained"));
-    result.insert("pmic".into(), get("pmic"));
-    result.insert("loader".into(), get("loader"));
-    // The logs are a list of objects (boot-evidence writes them); anything else is a broken record.
-    let invalid = || Failure::value("invalid_previous_boot_evidence");
-    let logs = match value.get("logs") {
-        None => Vec::new(),
-        Some(Value::Array(items)) => items.clone(),
-        Some(_) => return Err(invalid()),
-    };
-    let mut tails = Vec::new();
-    for log in logs {
-        let Value::Object(log) = log else {
-            return Err(invalid());
+pub(crate) fn evidence_status(root: &Root) -> EvidenceStatus {
+    let path = "/data/system/platform/previous-boot-evidence.json";
+    let Some(record) = super::evidence::read_record(root) else {
+        let reason = if root.path(path).exists() {
+            "invalid_previous_boot_evidence"
+        } else {
+            "no_previous_boot_record"
         };
-        tails.push(
-            json!({"name": log.get("name"), "tail_sha256": log.get("tail_sha256"),
-                          "source_bytes_at_capture": log.get("source_bytes_at_capture")}),
-        );
-    }
-    result.insert("log_tails".into(), Value::Array(tails));
-    Ok(Value::Object(result))
+        return EvidenceStatus::Unavailable {
+            state: "Unavailable",
+            reason,
+        };
+    };
+    EvidenceStatus::Observed(Box::new(EvidenceSummary {
+        log_tails: record
+            .logs
+            .iter()
+            .map(|log| LogDigest {
+                name: log.name.clone(),
+                tail_sha256: log.tail_sha256.clone(),
+                source_bytes_at_capture: log.source_bytes_at_capture,
+            })
+            .collect(),
+        private_record: path,
+        captured_on_boot_id: record.captured_on_boot_id,
+        previous_boot_id: record.previous_boot_id,
+        previous_last_stage: record.previous_last_stage,
+        previous_orderly_shutdown: record.previous_orderly_shutdown,
+        reset_cause: record.reset_cause,
+        reset_cause_reason: record.reset_cause_reason,
+        reset_status_raw: record.reset_status_raw,
+        kernel_panic_retention_guaranteed: record.kernel_panic_retention_guaranteed,
+        retained: record.retained,
+        pmic: record.pmic,
+        loader: record.loader,
+    }))
+}
+
+/// The previous boot's evidence as the snapshot shows it, or why there is none.
+#[derive(Serialize)]
+#[serde(untagged)]
+pub enum EvidenceStatus {
+    Observed(Box<EvidenceSummary>),
+    Unavailable {
+        state: &'static str,
+        reason: &'static str,
+    },
+}
+
+/// The evidence record without the private log lines.
+#[derive(Serialize)]
+pub struct EvidenceSummary {
+    captured_on_boot_id: String,
+    previous_boot_id: Option<String>,
+    previous_last_stage: Option<String>,
+    previous_orderly_shutdown: Option<bool>,
+    reset_cause: Option<String>,
+    reset_cause_reason: Option<String>,
+    reset_status_raw: Option<String>,
+    kernel_panic_retention_guaranteed: bool,
+    private_record: &'static str,
+    retained: super::evidence::Retained,
+    pmic: super::evidence::Pmic,
+    loader: super::evidence::Loader,
+    log_tails: Vec<LogDigest>,
+}
+
+/// A log tail's digest (never its lines).
+#[derive(Serialize)]
+struct LogDigest {
+    name: String,
+    tail_sha256: String,
+    source_bytes_at_capture: u64,
 }
 
 /// Whether Y2Media is mounted as recorded: the claim's mount is still the only, live mount at
@@ -367,7 +395,7 @@ pub fn system(root: &Root) -> Result<System, Failure> {
         uptime_seconds: uptime,
         versions: root.json("/etc/y2linux/versions.json"),
         boot_history: root.json("/data/system/platform/boot.json"),
-        previous_boot_evidence: evidence_status(root)?,
+        previous_boot_evidence: evidence_status(root),
         application_readiness: root.json("/run/y2/application-ready.json"),
         boot_stages: stages,
         reset: reset_cause(
@@ -398,7 +426,7 @@ pub struct System {
     uptime_seconds: Option<String>,
     versions: Option<Value>,
     boot_history: Option<Value>,
-    previous_boot_evidence: Value,
+    previous_boot_evidence: EvidenceStatus,
     application_readiness: Option<Value>,
     boot_stages: Vec<BootStageLine>,
     #[serde(flatten)]

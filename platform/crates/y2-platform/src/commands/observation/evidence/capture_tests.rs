@@ -5,6 +5,7 @@
 use super::*;
 use crate::commands::{boot::mark, observation::system::evidence_status};
 use crate::testing::Fixture;
+use serde_json::json;
 
 const EVIDENCE: &str = "/data/system/platform/previous-boot-evidence.json";
 
@@ -56,7 +57,7 @@ fn previous_boot_logs_are_private_bounded_once_only_and_not_reset_diagnosis() {
     assert!(result["logs"][0]["tail_lines"].as_array().unwrap().len() <= 32);
     assert_eq!(fixture.mode(EVIDENCE), 0o600);
     assert!(fs::metadata(fixture.path(EVIDENCE)).unwrap().len() <= 96_000);
-    let shown = evidence_status(root).unwrap().to_string();
+    let shown = json!(evidence_status(root)).to_string();
     assert!(!shown.contains("private previous message"));
     fixture.put("/data/logs/system.log", "new boot message");
     assert_eq!(capture_previous(root).unwrap(), result);
@@ -75,7 +76,7 @@ fn previous_boot_logs_are_private_bounded_once_only_and_not_reset_diagnosis() {
 fn pmic_long_press_record_is_decoded_only_when_it_changed() {
     // F56/F57: LK leaves STRUP_CON8 bit 4 set after clearing a long-press reset; a set bit proves a
     // new one only after a boot that had it clear.
-    let fresh = pmic_power_status(Some(&status(0x8010)), Some(&json!(false)));
+    let fresh = json!(pmic_power_status(Some(&status(0x8010)), Some(false)));
     assert_eq!(
         (
             &fresh["long_press_reset"],
@@ -100,18 +101,18 @@ fn pmic_long_press_record_is_decoded_only_when_it_changed() {
     );
     assert_eq!(fresh["raw"]["strup_con8"], "0x8010");
     assert_eq!(
-        pmic_power_status(Some(&status(0x8010)), Some(&json!(true)))["long_press_reset_reason"],
+        json!(pmic_power_status(Some(&status(0x8010)), Some(true)))["long_press_reset_reason"],
         "record_set_before"
     );
-    assert!(pmic_power_status(Some(&status(0x8010)), None)["long_press_reset"].is_null());
-    let clear = pmic_power_status(Some(&status(0x8000)), Some(&json!(true)));
+    assert!(json!(pmic_power_status(Some(&status(0x8010)), None))["long_press_reset"].is_null());
+    let clear = json!(pmic_power_status(Some(&status(0x8000)), Some(true)));
     assert_eq!(
         (&clear["long_press_reset"], &clear["lk_long_press_record"]),
         (&json!(false), &json!(false))
     );
     for text in [None, Some("valid=0\n"), Some("valid=1 strup_con8=error\n")] {
         assert_eq!(
-            pmic_power_status(text, Some(&json!(false)))["state"],
+            json!(pmic_power_status(text, Some(false)))["state"],
             "Unavailable"
         );
     }
@@ -125,7 +126,7 @@ fn pmic_long_press_record_is_decoded_only_when_it_changed() {
         .put_json(
             EVIDENCE,
             &json!({"captured_on_boot_id": "previous",
-                    "pmic": pmic_power_status(Some(&status(0x8000)), None)}),
+                    "pmic": json!(pmic_power_status(Some(&status(0x8000)), None))}),
         )
         .put(PMIC_POWER_STATUS, &status(0x8010))
         .put(
@@ -136,7 +137,7 @@ fn pmic_long_press_record_is_decoded_only_when_it_changed() {
         capture_previous(root).unwrap()["pmic"]["long_press_reset"],
         true
     );
-    let shown = evidence_status(root).unwrap();
+    let shown = json!(evidence_status(root));
     assert_eq!(shown["pmic"]["long_press_reset"], true);
     assert_eq!(shown["loader"], json!({"boot_reason": 0, "reset": "cold"}));
 }
@@ -151,15 +152,15 @@ fn loader_start_tells_a_watchdog_reset_from_a_cut() {
         )
     };
     assert_eq!(
-        loader_boot(Some(&meta("4"))),
+        json!(loader_boot(Some(&meta("4")))),
         json!({"boot_reason": 4, "reset": "warm"})
     );
     assert_eq!(
-        loader_boot(Some(&meta("3"))),
+        json!(loader_boot(Some(&meta("3")))),
         json!({"boot_reason": 3, "reset": "warm"})
     );
     assert_eq!(
-        loader_boot(Some(&meta("1"))),
+        json!(loader_boot(Some(&meta("1")))),
         json!({"boot_reason": 1, "reset": "cold"})
     );
     for text in [
@@ -168,7 +169,7 @@ fn loader_start_tells_a_watchdog_reset_from_a_cut() {
         Some(meta("x")),
     ] {
         assert_eq!(
-            loader_boot(text.as_deref()),
+            json!(loader_boot(text.as_deref())),
             json!({"boot_reason": null, "reset": null})
         );
     }
@@ -193,14 +194,14 @@ fn retained_fixture() -> Fixture {
     fixture
 }
 
-fn errors(result: &Map<String, Value>) -> &Vec<Value> {
+fn errors(result: &Value) -> &Vec<Value> {
     result["errors"].as_array().unwrap()
 }
 
 #[test]
 fn exact_bytes_private_archive_and_kernel_entries_preserved() {
     let fixture = retained_fixture();
-    let result = capture(&fixture.root, "one", &json!("previous")).unwrap();
+    let result = json!(capture(&fixture.root, "one", Some("previous")).unwrap());
     assert_eq!(result["pstore_mounted"], true);
     assert!(errors(&result).is_empty());
     let path = fixture.base().join(result["archive"].as_str().unwrap());
@@ -231,7 +232,7 @@ fn exact_bytes_private_archive_and_kernel_entries_preserved() {
 fn unmounted_is_distinct_and_symlink_is_never_archived() {
     let fixture = retained_fixture();
     fixture.put("/proc/self/mountinfo", "");
-    let result = capture(&fixture.root, "one", &Value::Null).unwrap();
+    let result = json!(capture(&fixture.root, "one", None).unwrap());
     assert_eq!(result["pstore_mounted"], false);
     assert!(!result["files"]
         .as_array()
@@ -242,7 +243,7 @@ fn unmounted_is_distinct_and_symlink_is_never_archived() {
     let panic = fixture.path("/sys/fs/pstore/dmesg-ramoops-0");
     fs::remove_file(&panic).unwrap();
     std::os::unix::fs::symlink(fixture.path("/proc/self/mountinfo"), &panic).unwrap();
-    let result = capture(&fixture.root, "two", &json!("one")).unwrap();
+    let result = json!(capture(&fixture.root, "two", Some("one")).unwrap());
     assert_eq!(errors(&result)[0]["source"], "pstore/dmesg-ramoops-0");
 }
 
@@ -254,7 +255,7 @@ fn bounds_are_explicit_and_only_old_private_archives_rotate() {
     let panic = fixture.path("/sys/fs/pstore/dmesg-ramoops-0");
     let large = vec![b'x'; MAX_BYTES + 1];
     fs::write(&panic, &large).unwrap();
-    let result = capture(&fixture.root, "zero", &Value::Null).unwrap();
+    let result = json!(capture(&fixture.root, "zero", None).unwrap());
     assert_eq!(
         errors(&result)[0]["error"],
         "retained_source_exceeds_archive_bound"
@@ -262,7 +263,7 @@ fn bounds_are_explicit_and_only_old_private_archives_rotate() {
     let directory = fixture.path("/data/system/platform/retained");
     fs::write(directory.join("owner-evidence.tar"), b"keep").unwrap();
     for index in 0..10 {
-        capture(&fixture.root, &format!("test-{index}"), &json!("previous")).unwrap();
+        json!(capture(&fixture.root, &format!("test-{index}"), Some("previous")).unwrap());
     }
     let archives = fs::read_dir(&directory)
         .unwrap()
@@ -279,7 +280,7 @@ fn bounds_are_explicit_and_only_old_private_archives_rotate() {
     );
     assert_eq!(fs::read(&panic).unwrap(), large);
     assert_eq!(
-        capture(&fixture.root, "../escape", &Value::Null).unwrap_err(),
+        capture(&fixture.root, "../escape", None).unwrap_err(),
         "invalid_boot_archive_identity"
     );
 }

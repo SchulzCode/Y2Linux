@@ -210,16 +210,21 @@
    "kernel_warning_reason": "no_dedicated_counter; retain_bounded_owner_dmesg_capture",
    "previous_boot_evidence": {
     "captured_on_boot_id": "boot-z",
-    "kernel_panic_retention_guaranteed": null,
-    "loader": null,
+    "kernel_panic_retention_guaranteed": false,
+    "loader": {
+     "boot_reason": null,
+     "reset": null
+    },
     "log_tails": [
      {
       "name": "system.log",
-      "source_bytes_at_capture": null,
+      "source_bytes_at_capture": 0,
       "tail_sha256": "ab"
      }
     ],
     "pmic": {
+     "long_press_reset": null,
+     "long_press_reset_reason": "",
      "state": "Ready"
     },
     "previous_boot_id": "boot-y",
@@ -230,7 +235,13 @@
     "reset_cause_reason": null,
     "reset_status_raw": null,
     "retained": {
-     "files": []
+     "archive": "",
+     "captured_on_boot_id": "",
+     "errors": [],
+     "files": [],
+     "previous_boot_id": null,
+     "pstore_mounted": false,
+     "source_entries_deleted": false
     }
    },
    "pstore_files": [
