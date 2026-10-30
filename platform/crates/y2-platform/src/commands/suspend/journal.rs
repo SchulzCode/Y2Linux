@@ -9,7 +9,6 @@
 use super::{diagnostics, E};
 use serde::Serialize;
 use serde_json::Value;
-use y2p_core::py::PyValue;
 use y2p_core::{
     json::{dumps, Object, Separators},
     power_journal::append_bounded,
@@ -32,10 +31,7 @@ pub fn suspend(root: &Root, battery: &Value, event: &str) -> Result<bool, E> {
     let now = super::monotonic();
     // signature = (state, battery.get('status'), battery.get('charging')): outside the try.
     if !battery.is_object() {
-        return Err(E::Invalid(format!(
-            "'{}' object has no attribute 'get'",
-            battery.type_name()
-        )));
+        return Err(E::Invalid("invalid_battery_record".to_owned()));
     }
     match row(root, battery, event, now) {
         Ok(written) => Ok(written),
@@ -117,13 +113,8 @@ fn row(root: &Root, battery: &Value, event: &str, now: f64) -> Result<bool, E> {
     // POWER-FINAL-18: 17 lost why two requests were refused.
     let reason = match receipt.get("product") {
         Some(Value::Object(product)) => product.get("reason").cloned().unwrap_or(Value::Null),
-        Some(other) if y2p_core::py::truthy(other) => {
-            return Err(E::Invalid(format!(
-                "'{}' object has no attribute 'get'",
-                other.type_name()
-            )))
-        }
-        _ => Value::Null,
+        Some(Value::Null) | None => Value::Null,
+        Some(_) => return Err(E::Invalid("invalid_sleep_product".to_owned())),
     };
     suspend.insert("reason".into(), plain(reason));
     let row = Row {

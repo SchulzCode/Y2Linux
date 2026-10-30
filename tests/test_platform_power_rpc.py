@@ -195,7 +195,7 @@ class PowerConversation(unittest.TestCase):
         self.assertEqual(same['stdout'], first['stdout'])
         answers = [r['answer'] for r in results if 'raw' in r]
         self.assertEqual([a.get('error') for a in answers],
-                         ['stale_shutdown_ack', 'invalid_ack_outcome', "'id'", "'list' object has no attribute 'get'",
+                         ['stale_shutdown_ack', 'invalid_ack_outcome', 'missing_id', 'invalid_request',
                           'invalid_shutdown_request', 'invalid_power_request', 'invalid_shutdown_request', None])
         self.assertEqual(answers[-1]['result']['acknowledgement']['outcome'], 'Ready')
         failed = results[-2]

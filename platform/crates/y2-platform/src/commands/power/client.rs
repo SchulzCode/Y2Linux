@@ -9,7 +9,6 @@ use std::time::Duration;
 use y2p_core::{
     json::{dumps, Separators},
     json::{Object, ObjectExt},
-    py::PyValue,
     Root,
 };
 
@@ -40,10 +39,12 @@ pub fn rpc(root: &Root, request: &Object) -> Result<Value, Failure> {
     let Value::Object(mut result) = result else {
         return Err(Failure::value("invalid_power_response"));
     };
-    if !result.value("ok").truthy() {
-        let error = result
-            .get("error")
-            .map_or_else(|| "power_request_failed".to_owned(), Value::py_str);
+    if result.get("ok") != Some(&Value::Bool(true)) {
+        let error = match result.get("error") {
+            Some(Value::String(error)) => error.clone(),
+            Some(other) => other.to_string(),
+            None => "power_request_failed".to_owned(),
+        };
         return Err(Failure::Value(error));
     }
     result

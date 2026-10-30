@@ -6,7 +6,7 @@
  "calls": [],
  "exit": 1,
  "stdout": {
-  "failure": "'list' object has no attribute 'get'",
+  "failure": "invalid_battery_record",
   "state": "Failed"
  },
  "tree": {

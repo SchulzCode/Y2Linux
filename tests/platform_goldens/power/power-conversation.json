@@ -173,14 +173,14 @@
   },
   {
    "answer": {
-    "error": "'id'",
+    "error": "missing_id",
     "ok": false
    },
    "raw": "{'operation': 'ack', 'outcome': 'Ready'}"
   },
   {
    "answer": {
-    "error": "'list' object has no attribute 'get'",
+    "error": "invalid_request",
     "ok": false
    },
    "raw": "[1]"

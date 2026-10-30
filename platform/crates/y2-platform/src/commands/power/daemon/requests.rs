@@ -20,18 +20,15 @@ enum Request {
 }
 
 impl Request {
-    /// The request's fields, or the error text of the field that is missing (`'id'`, as the socket
-    /// has always answered it).
+    /// The request's fields, or why it is none: `invalid_request` for no object,
+    /// `missing_<field>` for a field it lacks.
     fn of(request: Value) -> Result<Request, String> {
         let Value::Object(mut request) = request else {
-            return Err(format!(
-                "'{}' object has no attribute 'get'",
-                request.type_name()
-            ));
+            return Err("invalid_request".to_owned());
         };
         if request.value("operation").is_str("ack") {
-            let id = request.shift_remove("id").ok_or("'id'")?;
-            let outcome = request.shift_remove("outcome").ok_or("'outcome'")?;
+            let id = request.shift_remove("id").ok_or("missing_id")?;
+            let outcome = request.shift_remove("outcome").ok_or("missing_outcome")?;
             return Ok(Request::Ack { id, outcome });
         }
         Ok(Request::Transition {

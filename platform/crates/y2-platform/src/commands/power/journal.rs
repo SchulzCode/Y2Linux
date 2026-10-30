@@ -31,7 +31,6 @@ use y2p_core::{
     json::{dumps, Separators},
     json::{Object, ObjectExt},
     power_journal::append_bounded,
-    py::PyValue,
     root::read,
     Root,
 };
@@ -191,9 +190,10 @@ impl PowerJournal {
         // USB failure after a wake leaves evidence across a restart.
         self.diagnostics.observe_usb(root, now);
         let signature = (state.to_owned(), battery.status(), battery.charging());
-        let changed = self.signature.as_ref().is_none_or(|s| {
-            s.0 != signature.0 || !s.1.py_eq(&signature.1) || !s.2.py_eq(&signature.2)
-        });
+        let changed = self
+            .signature
+            .as_ref()
+            .is_none_or(|s| s.0 != signature.0 || s.1 != signature.1 || s.2 != signature.2);
         let safety = state == "ShutdownPending" && changed;
         if !(event.is_some_and(|e| !e.is_empty())
             || safety
