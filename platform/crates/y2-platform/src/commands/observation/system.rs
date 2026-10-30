@@ -8,7 +8,7 @@ use super::util::{
 };
 use crate::commands::devices::ssh;
 use crate::{regex, reply::Failure};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
 use y2p_core::{
     command,
@@ -402,15 +402,15 @@ pub fn system(root: &Root) -> Result<Value, Failure> {
         .iter()
         .map(|p| json!({"name": name(p), "state": read(&p.join("state")), "speed": read(&p.join("current_speed"))}))
         .collect();
-    let rtcs: Vec<Value> = root
+    let rtcs = root
         .glob("/sys/class/rtc/rtc*")
         .iter()
-        .map(|p| {
-            let fields: Map<String, Value> = ["name", "date", "time", "since_epoch", "wakealarm"]
-                .iter()
-                .map(|f| (f.to_string(), text(read(&p.join(f)))))
-                .collect();
-            Value::Object(fields)
+        .map(|p| Rtc {
+            name: read(&p.join("name")),
+            date: read(&p.join("date")),
+            time: read(&p.join("time")),
+            since_epoch: read(&p.join("since_epoch")),
+            wakealarm: read(&p.join("wakealarm")),
         })
         .collect();
     let sources = root.glob("/sys/bus/platform/drivers/y2-usb/*/status");
@@ -441,30 +441,27 @@ pub fn system(root: &Root) -> Result<Value, Failure> {
     } else {
         (Value::Null, json!({}))
     };
-    let usb_extra = usb_diagnostics(root, &udcs, link)?;
-    let mut usb = Map::new();
-    usb.insert("mode".into(), json!("peripheral"));
-    usb.insert("udcs".into(), Value::Array(udcs));
-    usb.insert("dma".into(), dma);
-    usb.insert(
-        "file_transfer".into(),
-        Value::Object(root.json_object("/run/y2/usb-transfer.json")),
-    );
-    usb.extend(usb_extra);
+    let diagnostics = usb_diagnostics(root, &udcs, link)?;
+    let usb = Usb {
+        mode: "peripheral",
+        udcs,
+        dma,
+        file_transfer: root.json_object("/run/y2/usb-transfer.json"),
+        diagnostics,
+    };
     let uptime = root
         .read("/proc/uptime")
         .and_then(|u| u.split(' ').next().map(str::to_owned))
         .filter(|u| !u.is_empty());
-    let watchdogs: Vec<Value> = root
+    let watchdogs = root
         .glob("/sys/class/watchdog/watchdog*")
         .iter()
-        .map(|p| {
-            let fields: Map<String, Value> =
-                ["identity", "state", "bootstatus", "status", "timeout"]
-                    .iter()
-                    .map(|f| (f.to_string(), text(read(&p.join(f)))))
-                    .collect();
-            Value::Object(fields)
+        .map(|p| Watchdog {
+            identity: read(&p.join("identity")),
+            state: read(&p.join("state")),
+            bootstatus: read(&p.join("bootstatus")),
+            status: read(&p.join("status")),
+            timeout: read(&p.join("timeout")),
         })
         .collect();
     let pstore: Vec<String> = root
@@ -472,60 +469,90 @@ pub fn system(root: &Root) -> Result<Value, Failure> {
         .iter()
         .map(|p| name(p))
         .collect();
-    let mut result = Map::new();
-    result.insert("uptime_seconds".into(), text(uptime));
-    result.insert(
-        "versions".into(),
-        root.json("/etc/y2linux/versions.json")
-            .unwrap_or(Value::Null),
-    );
-    result.insert(
-        "boot_history".into(),
-        root.json("/data/system/platform/boot.json")
-            .unwrap_or(Value::Null),
-    );
-    result.insert("previous_boot_evidence".into(), evidence_status(root)?);
-    result.insert(
-        "application_readiness".into(),
-        root.json("/run/y2/application-ready.json")
-            .unwrap_or(Value::Null),
-    );
-    result.insert("boot_stages".into(), Value::Array(stages));
-    result.extend(reset_cause(
-        root.read(RESET_STATUS).as_deref(),
-        "no_qualified_retained_register",
-    ));
-    result.insert(
-        "kernel_taint".into(),
-        json!(root.integer("/proc/sys/kernel/tainted")),
-    );
-    result.insert("kernel_warning_count".into(), Value::Null);
-    result.insert(
-        "kernel_warning_reason".into(),
-        json!("no_dedicated_counter; retain_bounded_owner_dmesg_capture"),
-    );
-    result.insert(
-        "radio_core".into(),
-        text(root.read("/sys/devices/platform/18070000.connectivity/status")),
-    );
-    result.insert("watchdogs".into(), Value::Array(watchdogs));
-    result.insert("pstore_files".into(), json!(pstore));
-    result.insert("rtc".into(), Value::Array(rtcs));
     let crng = clock.get("entropy_ready").cloned().unwrap_or(Value::Null);
-    result.insert("time".into(), clock);
-    result.insert("ssh".into(), Value::Object(ssh));
-    result.insert(
-        "entropy_available_bits".into(),
-        json!(root.integer("/proc/sys/kernel/random/entropy_avail")),
-    );
-    result.insert("crng_ready".into(), crng);
-    result.insert("usb".into(), Value::Object(usb));
-    result.insert("update".into(), update_status(root));
-    result.insert("radio_firmware".into(), radiofw_state(root));
-    result.insert(
-        "reborn_supervisor".into(),
-        root.json("/data/reborn/logs/supervisor-last.json")
-            .unwrap_or(Value::Null),
-    );
-    Ok(Value::Object(result))
+    let section = System {
+        uptime_seconds: uptime,
+        versions: root.json("/etc/y2linux/versions.json"),
+        boot_history: root.json("/data/system/platform/boot.json"),
+        previous_boot_evidence: evidence_status(root)?,
+        application_readiness: root.json("/run/y2/application-ready.json"),
+        boot_stages: stages,
+        reset: reset_cause(
+            root.read(RESET_STATUS).as_deref(),
+            "no_qualified_retained_register",
+        ),
+        kernel_taint: root.integer("/proc/sys/kernel/tainted"),
+        kernel_warning_count: None,
+        kernel_warning_reason: "no_dedicated_counter; retain_bounded_owner_dmesg_capture",
+        radio_core: root.read("/sys/devices/platform/18070000.connectivity/status"),
+        watchdogs,
+        pstore_files: pstore,
+        rtc: rtcs,
+        time: clock,
+        ssh,
+        entropy_available_bits: root.integer("/proc/sys/kernel/random/entropy_avail"),
+        crng_ready: crng,
+        usb,
+        update: update_status(root),
+        radio_firmware: radiofw_state(root),
+        reborn_supervisor: root.json("/data/reborn/logs/supervisor-last.json"),
+    };
+    serde_json::to_value(section).map_err(|_| Failure::value("system_section_unserializable"))
+}
+
+/// The `system` section, in this key order (the reset cause's fields where it is flattened).
+#[derive(Serialize)]
+struct System {
+    uptime_seconds: Option<String>,
+    versions: Option<Value>,
+    boot_history: Option<Value>,
+    previous_boot_evidence: Value,
+    application_readiness: Option<Value>,
+    boot_stages: Vec<Value>,
+    #[serde(flatten)]
+    reset: Map<String, Value>,
+    kernel_taint: Option<i64>,
+    kernel_warning_count: Option<i64>,
+    kernel_warning_reason: &'static str,
+    radio_core: Option<String>,
+    watchdogs: Vec<Watchdog>,
+    pstore_files: Vec<String>,
+    rtc: Vec<Rtc>,
+    time: Value,
+    ssh: Object,
+    entropy_available_bits: Option<i64>,
+    crng_ready: Value,
+    usb: Usb,
+    update: Value,
+    radio_firmware: Value,
+    reborn_supervisor: Option<Value>,
+}
+
+#[derive(Serialize)]
+struct Watchdog {
+    identity: Option<String>,
+    state: Option<String>,
+    bootstatus: Option<String>,
+    status: Option<String>,
+    timeout: Option<String>,
+}
+
+#[derive(Serialize)]
+struct Rtc {
+    name: Option<String>,
+    date: Option<String>,
+    time: Option<String>,
+    since_epoch: Option<String>,
+    wakealarm: Option<String>,
+}
+
+/// The USB controller: its UDCs, DMA counters and file-transfer record, then the diagnostics.
+#[derive(Serialize)]
+struct Usb {
+    mode: &'static str,
+    udcs: Vec<Value>,
+    dma: Value,
+    file_transfer: Map<String, Value>,
+    #[serde(flatten)]
+    diagnostics: Map<String, Value>,
 }
