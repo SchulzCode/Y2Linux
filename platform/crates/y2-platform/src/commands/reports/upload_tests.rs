@@ -177,7 +177,7 @@ fn last(root: &Root) -> Value {
 }
 
 fn retry(root: &Root, name: &str) -> Value {
-    state::state(root)
+    serde_json::json!(state::state(root))
         .get("uploads")
         .and_then(|u| u.get(name))
         .cloned()
@@ -379,7 +379,7 @@ fn server_errors_back_off_and_stop_the_run_then_succeed() {
     let (result, _) = send(root, vec![stored(root, &first)]);
     assert_eq!(outcomes(&result), ["sent"]);
     assert!(queue_names(root).is_empty());
-    assert_eq!(state::state(root).get("uploads"), Some(&object()));
+    assert!(state::state(root).uploads.is_empty());
 }
 
 #[test]

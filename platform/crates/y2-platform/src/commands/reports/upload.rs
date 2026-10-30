@@ -5,12 +5,12 @@
 use super::{
     build::{self, Bytes},
     clock, json_dict, or_dict,
-    pyops::{self, OrRefuse},
-    state::{self, Reports, QUEUE},
-    tarball, POWER_UNREADABLE, QUEUED_UNREADABLE, STATE_UNREADABLE,
+    state::{self, Reports, Retry, QUEUE},
+    tarball, POWER_UNREADABLE, QUEUED_UNREADABLE,
 };
 use crate::commands::reports::{filled, loads_bytes, object, text_of, Value, ValueExt};
 use crate::reply::{mkdir_parents, Failure};
+use serde_json::json;
 use std::{
     io::Write,
     os::unix::fs::OpenOptionsExt,
@@ -19,7 +19,7 @@ use std::{
 use y2p_core::{command, Root};
 
 const QUEUE_MAX: usize = 3;
-const DAILY_MAX: i64 = 5;
+const DAILY_MAX: u64 = 5;
 pub const ENDPOINT: &str = "https://reports.schulzcode.dev/v1/report";
 const RETRY_S: [f64; 5] = [300.0, 900.0, 3600.0, 3.0 * 3600.0, 6.0 * 3600.0];
 const GIVE_UP_S: f64 = 3.0 * 86400.0;
@@ -60,26 +60,17 @@ pub fn queue(
     let now = clock::Instant::now(root);
     let day = clock::date(now);
     let boot = root.boot_id().unwrap_or_default();
-    value.keep_day(&day)?;
+    value.keep_day(&day);
     if trigger != "manual" {
-        let (count, limit) = pyops::ordered(&value.count(&day), &Value::from(DAILY_MAX))
-            .or_refuse(STATE_UNREADABLE)?;
-        if count >= limit {
+        if value.count(&day) >= DAILY_MAX {
             return Ok(not_queued("daily_limit"));
         }
-        // `all(t in value['boot_triggers'].get(boot, []) for t in triggers)`.
-        let mut all = true;
-        for t in triggers {
-            if !pyops::contains(&value.reported(&boot)?, t).or_refuse(STATE_UNREADABLE)? {
-                all = false;
-                break;
-            }
-        }
-        if all {
+        let reported = value.reported(&boot);
+        if triggers.iter().all(|t| reported.contains(t)) {
             return Ok(not_queued("already_reported_this_boot"));
         }
     }
-    let install = value.field("install_id");
+    let install = json!(value.install_id);
     let (data, index) = build::build(root, triggers, detail, topic, install, now, progress)?;
     let directory = root.path(QUEUE);
     mkdir_parents(&directory, 0o700)?;
@@ -111,29 +102,23 @@ pub fn queue(
     for old in &all[..keep] {
         crate::reply::unlink_missing_ok(old)?;
     }
-    // `daily.get(day, 0) + 1`: an int stays an int, a float a float (a refusal here leaves the
-    // report queued and reports.json as it was).
-    let count = pyops::add_int(&value.count(&day), 1).or_refuse(STATE_UNREADABLE)?;
-    value.set_count(&day, count);
-    let reported = pyops::add_list(
-        &value.reported(&boot)?,
-        triggers.iter().cloned().map(Value::String).collect(),
-    )
-    .or_refuse(STATE_UNREADABLE)?;
+    let count = value.count(&day) + 1;
+    value.daily.insert(day.clone(), count);
+    let mut reported = value.reported(&boot).to_vec();
+    reported.extend(triggers.iter().cloned());
     // Only this boot's are kept.
-    value.set("boot_triggers", object().with(&boot, reported));
-    value.set(
-        "last",
-        state::Last {
-            report_id: Value::String(report_id.clone()),
-            trigger,
-            state: "queued",
-            saved: None,
-            created_utc: index.get("created_utc").cloned().unwrap_or(Value::Null),
-            bytes: data.len(),
-        }
-        .into(),
-    );
+    value.boot_triggers = [(boot.clone(), reported)].into();
+    value.last = Some(state::Last {
+        report_id: Some(report_id.clone()),
+        trigger: trigger.clone(),
+        state: "queued".into(),
+        created_utc: index
+            .get("created_utc")
+            .and_then(Value::as_str)
+            .map(str::to_owned),
+        bytes: data.len() as u64,
+        ..state::Last::default()
+    });
     value.save(root)?;
     Ok(object()
         .with("queued", Value::Bool(true))
@@ -288,57 +273,25 @@ impl Uploaded {
     }
 }
 
-/// A queued report's retry record (`uploads[name]`).
-struct Retry {
-    /// Tries so far: a count, of the type it was read as (an int stays an int).
-    attempts: Value,
-    /// When it may go again (wall clock).
-    next: f64,
-    /// Why the last try failed (`HTTP_503`, an exception class).
-    error: String,
-}
-
-impl From<Retry> for Value {
-    fn from(retry: Retry) -> Value {
-        object()
-            .with("attempts", retry.attempts)
-            .with("next", Value::from(retry.next))
-            .with("error", Value::String(retry.error))
-    }
-}
-
 /// The last report shown on the owner's screen, if it is this one: its new state and fields
-/// (`reason`, `next_attempt` of an earlier try dropped). `last = value.get('last') or {}`: a truthy
-/// one that is no object is refused.
+/// (`reason`, `next_attempt` of an earlier try dropped).
 fn settle(
     value: &mut Reports,
     index: &Value,
     outcome: &str,
-    fields: Vec<(&str, Value)>,
-) -> Result<(), Failure> {
-    let last = or_dict(value.field("last"));
-    let shown = pyops::get(&last, "report_id").or_refuse(STATE_UNREADABLE)?;
-    if !shown
-        .unwrap_or(&Value::Null)
-        .eq(index.get("report_id").unwrap_or(&Value::Null))
+    change: impl FnOnce(&mut state::Last),
+) {
+    let id = index.get("report_id").and_then(Value::as_str);
+    if let Some(last) = value
+        .last
+        .as_mut()
+        .filter(|last| last.report_id.as_deref() == id)
     {
-        return Ok(());
+        last.reason = None;
+        last.next_attempt = None;
+        last.state = outcome.into();
+        change(last);
     }
-    let Value::Object(items) = last else {
-        return Ok(()); // an object (pyops::get)
-    };
-    let mut kept = Value::Object(
-        items
-            .into_iter()
-            .filter(|(k, _)| k != "reason" && k != "next_attempt")
-            .collect(),
-    );
-    kept.set("state", Value::from(outcome));
-    for (k, v) in fields {
-        kept.set(k, v);
-    }
-    value.set("last", kept);
-    Ok(())
 }
 
 fn upload_queue(
@@ -356,32 +309,14 @@ fn upload_queue(
     });
     let names: Vec<String> = queued.iter().map(|p| state::name(p)).collect();
     let mut connected = false;
-    // The retries of reports still queued (an entry that is no object is forgotten).
-    let mut retries: Vec<(String, Value)> = match value.uploads() {
-        Value::Object(items) => items
-            .iter()
-            .filter(|(name, entry)| entry.is_object() && names.contains(name))
-            .map(|(name, entry)| (name.clone(), entry.clone()))
-            .collect(),
-        _ => Vec::new(),
-    };
+    // The retries of reports still queued.
+    let mut retries = std::mem::take(&mut value.uploads);
+    retries.retain(|name, _| names.contains(name));
     let mut results = Vec::new();
-    let entry_of = |retries: &[(String, Value)], name: &str| {
-        retries
-            .iter()
-            .find(|(n, _)| n == name)
-            .map(|(_, e)| e.clone())
-            .unwrap_or(object())
-    };
-    let drop_retry =
-        |retries: &mut Vec<(String, Value)>, name: &str| retries.retain(|(n, _)| n != name);
     for path in &queued {
         let name = state::name(path);
-        let entry = entry_of(&retries, &name);
-        // `entry.get('next', 0) > now`.
-        let next = entry.get("next").cloned().unwrap_or(Value::from(0));
-        let (next, now_) = pyops::ordered(&next, &Value::from(now)).or_refuse(STATE_UNREADABLE)?;
-        if next > now_ && !connected {
+        let entry = retries.get(&name).cloned().unwrap_or_default();
+        if entry.next > now && !connected {
             continue;
         }
         let shown = if first.is_none() || first == Some(name.as_str()) {
@@ -413,13 +348,10 @@ fn upload_queue(
             .unwrap_or(0.0);
         if now - made > GIVE_UP_S {
             crate::reply::unlink_missing_ok(path)?;
-            drop_retry(&mut retries, &name);
-            settle(
-                &mut value,
-                &index,
-                "dropped",
-                vec![("reason", Value::from("expired"))],
-            )?;
+            retries.remove(&name);
+            settle(&mut value, &index, "dropped", |last| {
+                last.reason = Some("expired".into())
+            });
             let reason = "expired".into();
             results.push(Uploaded::Dropped { reason }.item(name));
             continue;
@@ -432,14 +364,11 @@ fn upload_queue(
             (Some(200 | 201), answer) => {
                 connected = connected || Some(name.as_str()) == first;
                 crate::reply::unlink_missing_ok(path)?;
-                drop_retry(&mut retries, &name);
+                retries.remove(&name);
                 let sent = clock::isoformat(clock::Instant::from_float(now));
-                settle(
-                    &mut value,
-                    &index,
-                    "sent",
-                    vec![("sent_utc", Value::String(sent))],
-                )?;
+                settle(&mut value, &index, "sent", |last| {
+                    last.sent_utc = Some(sent)
+                });
                 let report_id = answer
                     .ok()
                     .and_then(|a| a.get("report_id").cloned())
@@ -448,30 +377,23 @@ fn upload_queue(
             }
             (Some(code), answer) if REFUSED.contains(&code) => {
                 crate::reply::unlink_missing_ok(path)?;
-                drop_retry(&mut retries, &name);
+                retries.remove(&name);
                 let error = answer
                     .ok()
                     .and_then(|a| a.get("error").cloned())
                     .map_or_else(String::new, |e| text_of(&e));
                 let reason = format!("refused_{code}_{error}");
-                settle(
-                    &mut value,
-                    &index,
-                    "dropped",
-                    vec![("reason", Value::String(reason.clone()))],
-                )?;
+                settle(&mut value, &index, "dropped", |last| {
+                    last.reason = Some(reason.clone())
+                });
                 results.push(Uploaded::Dropped { reason }.item(name));
             }
             (status, answer) => {
-                // `entry.get('attempts', 0) + 1` (after the request: a refusal leaves the
-                // report queued and reports.json as it was).
-                let attempts = pyops::add_int(entry.get("attempts").unwrap_or(&Value::from(0)), 1)
-                    .or_refuse(STATE_UNREADABLE)?;
-                let tries = attempts.as_f64().unwrap_or(0.0);
+                let attempts = entry.attempts + 1;
                 let next = if status == Some(429) {
                     clock::next_midnight(now)
                 } else {
-                    let i = (tries as usize).clamp(1, RETRY_S.len()) - 1;
+                    let i = (attempts as usize).clamp(1, RETRY_S.len()) - 1;
                     now + RETRY_S[i]
                 };
                 let reason = match (status, answer) {
@@ -479,22 +401,18 @@ fn upload_queue(
                     (None, Err(class)) => class,
                     (None, Ok(_)) => "OSError".into(),
                 };
-                drop_retry(&mut retries, &name);
-                let retry = Retry {
-                    attempts,
-                    next,
-                    error: reason.clone(),
-                };
-                retries.push((name.clone(), retry.into()));
-                settle(
-                    &mut value,
-                    &index,
-                    "failed",
-                    vec![
-                        ("reason", Value::String(reason.clone())),
-                        ("next_attempt", Value::from(next)),
-                    ],
-                )?;
+                retries.insert(
+                    name.clone(),
+                    Retry {
+                        attempts,
+                        next,
+                        error: reason.clone(),
+                    },
+                );
+                settle(&mut value, &index, "failed", |last| {
+                    last.reason = Some(reason.clone());
+                    last.next_attempt = Some(next);
+                });
                 results.push(Uploaded::Retry { reason, next }.item(name));
                 if status != Some(429) {
                     break; // no answer or a server error: the rest would fare no better
@@ -502,7 +420,7 @@ fn upload_queue(
             }
         }
     }
-    value.set("uploads", Value::Object(retries.into_iter().collect()));
+    value.uploads = retries;
     value.save(root)?;
     Ok(object().with("uploaded", Value::Array(results)))
 }

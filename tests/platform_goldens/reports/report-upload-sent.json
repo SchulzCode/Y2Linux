@@ -159,9 +159,12 @@
      "enabled": true,
      "install_id": "<uuid>",
      "last": {
+      "bytes": "<volatile>",
+      "created_utc": "<volatile>",
       "report_id": "<uuid>",
       "sent_utc": "<volatile>",
-      "state": "sent"
+      "state": "sent",
+      "trigger": ""
      },
      "schema": 1,
      "seen": {},

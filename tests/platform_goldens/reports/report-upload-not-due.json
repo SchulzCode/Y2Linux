@@ -39,6 +39,7 @@
      "uploads": {
       "<stamp>-<uuid>.tar.gz": {
        "attempts": 5,
+       "error": "",
        "next": "<volatile>"
       }
      }

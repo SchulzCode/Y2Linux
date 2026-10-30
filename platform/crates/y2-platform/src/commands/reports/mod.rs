@@ -97,16 +97,13 @@ fn lower_priority() {
     }
 }
 
-/// Refusals of a record of an unexpected shape (each was a traceback of the Python platform):
-/// reports.json, a queued report's report.json, Reborn's health answer, power.json's battery,
-/// Reborn's session.json.
-pub const STATE_UNREADABLE: &str = "report_state_unreadable";
+/// Refusals of a record of an unexpected shape: a queued report's report.json, Reborn's health
+/// answer, power.json's battery, Reborn's session.json (reports.json reads leniently).
 pub const QUEUED_UNREADABLE: &str = "queued_report_unreadable";
 pub const HEALTH_UNREADABLE: &str = "reborn_health_unreadable";
 pub const POWER_UNREADABLE: &str = "power_record_unreadable";
 pub const SESSION_UNREADABLE: &str = "session_unreadable";
-const UNREADABLE: [&str; 5] = [
-    STATE_UNREADABLE,
+const UNREADABLE: [&str; 4] = [
     QUEUED_UNREADABLE,
     HEALTH_UNREADABLE,
     POWER_UNREADABLE,

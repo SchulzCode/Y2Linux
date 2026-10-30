@@ -187,7 +187,7 @@ fn a_kept_panic_record_is_not_sent_again() {
     assert_eq!(triggers(root), ["kernel_crash"]);
     assert!(triggers(root).is_empty());
     // Updated from a release that keyed on the hash of all records: a crash it saw is not resent.
-    let mut value = state::state(root);
+    let mut value = serde_json::json!(state::state(root));
     let seen = value.get_mut("seen").unwrap();
     seen.take_field("pstore_crash");
     seen.set("pstore", Value::from("old-hash"));

@@ -28,17 +28,14 @@ fn the_command_saves_at_low_priority() {
 }
 
 #[test]
-fn an_unreadable_record_is_a_named_refusal_and_other_errors_keep_their_class() {
+fn an_odd_state_field_reads_as_its_default_and_other_errors_keep_their_class() {
     let fixture = Fixture::new();
     test_player::player(fixture.base());
-    // A retained crash is compared with `seen`, which is no object here.
+    // `seen` is no object here: it reads as empty, and the opt-in stays.
     fixture.put(state::STATE, r#"{"enabled": true, "seen": []}"#);
     let reply = report(&fixture.root, "check", None, None).unwrap();
-    assert_eq!(reply.code, 1);
-    assert_eq!(
-        reply.stdout,
-        r#"{"failure":"report_failed","reason":"report_state_unreadable"}"#
-    );
+    assert_eq!(reply.code, 0, "{}", reply.stdout);
+    assert!(state::state(&fixture.root).enabled());
     let reply = report(&fixture.root, "save", None, None).unwrap();
     assert_eq!(
         (reply.code, reply.stdout.as_str()),

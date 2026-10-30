@@ -107,10 +107,16 @@
    "timeout": 5.0
   }
  ],
- "exit": 1,
+ "exit": 0,
  "stdout": {
-  "failure": "report_failed",
-  "reason": "report_state_unreadable"
+  "bytes": "<volatile>",
+  "name": "<stamp>-<uuid>.tar.gz",
+  "queued": true,
+  "report_id": "<uuid>",
+  "upload": {
+   "reason": "offline",
+   "uploaded": []
+  }
  },
  "tree": {
   "added": {
@@ -640,9 +646,41 @@
     ],
     "mode": "0o644",
     "type": "file"
+   },
+   "/run/y2/activity.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
    }
   },
-  "changed": {},
+  "changed": {
+   "/data/system/platform/reports.json": {
+    "content": {
+     "boot_triggers": {
+      "boot-a": [
+       "manual"
+      ]
+     },
+     "daily": {
+      "<today>": 1
+     },
+     "enabled": true,
+     "install_id": "<uuid>",
+     "last": {
+      "bytes": "<volatile>",
+      "created_utc": "<volatile>",
+      "report_id": "<uuid>",
+      "state": "queued",
+      "trigger": "manual"
+     },
+     "schema": 1,
+     "seen": {},
+     "uploads": {}
+    },
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
   "removed": [
    "/data/system/platform/reports/20261019T100000Z-0c0c0c0c-0c0c-4c0c-8c0c-0c0c0c0c0c0c.tar.gz"
   ]

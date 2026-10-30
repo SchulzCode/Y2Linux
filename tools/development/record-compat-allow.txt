@@ -1,0 +1,11 @@
+# Reviewed exceptions for record-compat.py: the fixture wrote a field of another type than its writer writes;
+# the old build kept it as read, the new one writes the writer's type (an older build reads that as it always did).
+# reports.json read leniently (Q2, 2026-10-30): an odd field reads as its default.
+reports/report-check-bad-daily: /data/system/platform/reports.json: daily: list -> object
+reports/report-check-bad-seen-quiet: /data/system/platform/reports.json: seen: text -> object
+reports/report-check-fired-bad-daily: /data/system/platform/reports.json: daily: list -> object
+reports/report-check-fired-bad-triggers: /data/system/platform/reports.json: boot_triggers: list -> object
+reports/report-check-fired-odd-count: /data/system/platform/reports.json: daily.<today>: text -> number
+reports/report-check-fired-reported-number: /data/system/platform/reports.json: boot_triggers.boot-a: number -> list
+reports/report-check-fired-reported-text: /data/system/platform/reports.json: boot_triggers.boot-a: text -> list
+reports/report-enable-bad-seen: /data/system/platform/reports.json: seen: list -> object

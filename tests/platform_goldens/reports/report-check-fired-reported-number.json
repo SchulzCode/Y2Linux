@@ -17,24 +17,624 @@
     "dmesg"
    ],
    "timeout": 5.0
+  },
+  {
+   "argv": [
+    "dmesg"
+   ],
+   "timeout": 10.0
+  },
+  {
+   "argv": [
+    "y2-platform",
+    "health"
+   ],
+   "timeout": 10.0
+  },
+  {
+   "argv": [
+    "y2-platform",
+    "status"
+   ],
+   "timeout": 10.0
+  },
+  {
+   "argv": [
+    "y2-platform",
+    "update",
+    "status"
+   ],
+   "timeout": 10.0
+  },
+  {
+   "argv": [
+    "rebornctl",
+    "status",
+    "--json"
+   ],
+   "timeout": 5.0
+  },
+  {
+   "argv": [
+    "rebornctl",
+    "health",
+    "--json"
+   ],
+   "timeout": 5.0
+  },
+  {
+   "argv": [
+    "rebornctl",
+    "metrics",
+    "--json"
+   ],
+   "timeout": 5.0
+  },
+  {
+   "argv": [
+    "rebornctl",
+    "audio",
+    "--json"
+   ],
+   "timeout": 5.0
+  },
+  {
+   "argv": [
+    "rebornctl",
+    "snapshot",
+    "--json"
+   ],
+   "timeout": 5.0
+  },
+  {
+   "argv": [
+    "rebornctl",
+    "events",
+    "--last",
+    "500",
+    "--json"
+   ],
+   "timeout": 5.0
+  },
+  {
+   "argv": [
+    "ps",
+    "-o",
+    "pid,ppid,stat,rss,vsz,time,args"
+   ],
+   "timeout": 5.0
+  },
+  {
+   "argv": [
+    "df",
+    "-k"
+   ],
+   "timeout": 5.0
+  },
+  {
+   "argv": [
+    "amixer",
+    "-c",
+    "Y2Audio",
+    "contents"
+   ],
+   "timeout": 5.0
   }
  ],
- "exit": 1,
+ "exit": 0,
  "stdout": {
-  "failure": "report_failed",
-  "reason": "report_state_unreadable"
+  "reports": [
+   {
+    "bytes": "<volatile>",
+    "name": "<stamp>-<uuid>.tar.gz",
+    "queued": true,
+    "report_id": "<uuid>",
+    "trigger": "kernel_warning",
+    "triggers": [
+     "kernel_warning"
+    ]
+   }
+  ]
  },
  "tree": {
-  "added": {},
+  "added": {
+   "/data/system/platform/reports/<stamp>-<uuid>.tar.gz.members.json": {
+    "content": [
+     {
+      "data": {
+       "boot_id": "boot-a",
+       "build_id": "fixture-build",
+       "created_utc": "<volatile>",
+       "detail": "taint 1",
+       "install_id": "<uuid>",
+       "kernel": "6.18.0-fixture",
+       "release": {
+        "build_git_commit": "linux-commit",
+        "feature_contract_version": 2,
+        "kernel_version": "6.18.0-fixture",
+        "platform_api_version": 1,
+        "reborn_source_commit": "reborn",
+        "release_version": "1.0.0-fixture",
+        "rootfs_version": "v1.0"
+       },
+       "report_id": "<uuid>",
+       "schema": 1,
+       "scrubbed": {},
+       "sections": {
+        "commands/amixer.txt": {
+         "bytes": "<volatile>",
+         "cut": false,
+         "source": "command (fixture)"
+        },
+        "commands/dmesg.txt": {
+         "bytes": "<volatile>",
+         "cut": false,
+         "source": "command (fixture)"
+        },
+        "commands/mounts_space.txt": {
+         "bytes": "<volatile>",
+         "cut": false,
+         "source": "command (fixture)"
+        },
+        "commands/platform_health.txt": {
+         "bytes": "<volatile>",
+         "cut": false,
+         "source": "command (fixture)"
+        },
+        "commands/platform_status.txt": {
+         "bytes": "<volatile>",
+         "cut": false,
+         "source": "command (fixture)"
+        },
+        "commands/processes.txt": {
+         "bytes": "<volatile>",
+         "cut": false,
+         "source": "command (fixture)"
+        },
+        "commands/reborn_audio.txt": {
+         "bytes": "<volatile>",
+         "cut": false,
+         "source": "command (fixture)"
+        },
+        "commands/reborn_events.txt": {
+         "bytes": "<volatile>",
+         "cut": false,
+         "source": "command (fixture)"
+        },
+        "commands/reborn_health.txt": {
+         "bytes": "<volatile>",
+         "cut": false,
+         "source": "command (fixture)"
+        },
+        "commands/reborn_metrics.txt": {
+         "bytes": "<volatile>",
+         "cut": false,
+         "source": "command (fixture)"
+        },
+        "commands/reborn_snapshot.txt": {
+         "bytes": "<volatile>",
+         "cut": false,
+         "source": "command (fixture)"
+        },
+        "commands/reborn_status.txt": {
+         "bytes": "<volatile>",
+         "cut": false,
+         "source": "command (fixture)"
+        },
+        "commands/update_status.txt": {
+         "bytes": "<volatile>",
+         "cut": false,
+         "source": "command (fixture)"
+        },
+        "files/data/bluetooth/enabled": {
+         "bytes": "<volatile>",
+         "cut": false,
+         "source": "/data/bluetooth/enabled"
+        },
+        "files/data/network/enabled": {
+         "bytes": "<volatile>",
+         "cut": false,
+         "source": "/data/network/enabled"
+        },
+        "files/data/system/platform/boot.json": {
+         "bytes": "<volatile>",
+         "cut": false,
+         "source": "/data/system/platform/boot.json"
+        },
+        "files/data/system/platform/suspend-last.json": {
+         "bytes": "<volatile>",
+         "cut": false,
+         "source": "/data/system/platform/suspend-last.json"
+        },
+        "files/data/system/platform/time-last.json": {
+         "bytes": "<volatile>",
+         "cut": false,
+         "source": "/data/system/platform/time-last.json"
+        },
+        "files/proc/meminfo": {
+         "bytes": "<volatile>",
+         "cut": false,
+         "source": "/proc/meminfo"
+        },
+        "files/proc/stat": {
+         "bytes": "<volatile>",
+         "cut": false,
+         "source": "/proc/stat"
+        },
+        "files/proc/sys/kernel/tainted": {
+         "bytes": "<volatile>",
+         "cut": false,
+         "source": "/proc/sys/kernel/tainted"
+        },
+        "files/run/y2/wifi-events.json": {
+         "bytes": "<volatile>",
+         "cut": false,
+         "source": "/run/y2/wifi-events.json"
+        },
+        "files/sys/devices/system/cpu/cpu0/cpuidle/state2/name": {
+         "bytes": "<volatile>",
+         "cut": false,
+         "source": "/sys/devices/system/cpu/cpu0/cpuidle/state2/name"
+        },
+        "hardware.json": {
+         "bytes": "<volatile>",
+         "cut": false,
+         "source": "sysfs"
+        },
+        "reborn/library.json": {
+         "bytes": "<volatile>",
+         "cut": false,
+         "source": "library.db (counts)"
+        },
+        "reborn/session.json": {
+         "bytes": "<volatile>",
+         "cut": false,
+         "source": "session.json (projected)"
+        }
+       },
+       "topic": null,
+       "trigger": "kernel_warning",
+       "triggers": [
+        "kernel_warning"
+       ],
+       "uptime_seconds": "<volatile>",
+       "utc_offset_minutes": 60,
+       "versions": {
+        "build_git_commit": "linux-commit",
+        "feature_contract_version": 2,
+        "kernel_version": "6.18.0-fixture",
+        "platform_api_version": 1,
+        "reborn_source_commit": "reborn",
+        "release_version": "1.0.0-fixture",
+        "rootfs_version": "v1.0"
+       }
+      },
+      "gname": "",
+      "mode": "0o600",
+      "name": "report.json",
+      "type": "0",
+      "uname": ""
+     },
+     {
+      "data": {
+       "bootloaders": {
+        "lk": {
+         "error": "No such file or directory"
+        },
+        "preloader": {
+         "error": "No such file or directory"
+        }
+       },
+       "compatible": "",
+       "connectivity": null,
+       "cpuinfo": null,
+       "input_devices": null,
+       "meminfo_total": "245760 kB",
+       "panel": {
+        "panel_hint": "0",
+        "panel_kind": null,
+        "power_down": "N",
+        "stock_suspend": "N"
+       },
+       "partitions": null,
+       "storage": {},
+       "y2_boot": {
+        "lcm": "1-st7701",
+        "metadata": "panel=st7701s lcm=1-st7701",
+        "normal_boot": null
+       }
+      },
+      "gname": "",
+      "mode": "0o600",
+      "name": "hardware.json",
+      "type": "0",
+      "uname": ""
+     },
+     {
+      "data": null,
+      "gname": "",
+      "mode": "0o600",
+      "name": "reborn/session.json",
+      "type": "0",
+      "uname": ""
+     },
+     {
+      "data": null,
+      "gname": "",
+      "mode": "0o600",
+      "name": "reborn/library.json",
+      "type": "0",
+      "uname": ""
+     },
+     {
+      "data": "",
+      "gname": "",
+      "mode": "0o600",
+      "name": "commands/dmesg.txt",
+      "type": "0",
+      "uname": ""
+     },
+     {
+      "data": "",
+      "gname": "",
+      "mode": "0o600",
+      "name": "commands/platform_health.txt",
+      "type": "0",
+      "uname": ""
+     },
+     {
+      "data": "",
+      "gname": "",
+      "mode": "0o600",
+      "name": "commands/platform_status.txt",
+      "type": "0",
+      "uname": ""
+     },
+     {
+      "data": "",
+      "gname": "",
+      "mode": "0o600",
+      "name": "commands/update_status.txt",
+      "type": "0",
+      "uname": ""
+     },
+     {
+      "data": "",
+      "gname": "",
+      "mode": "0o600",
+      "name": "commands/reborn_status.txt",
+      "type": "0",
+      "uname": ""
+     },
+     {
+      "data": "",
+      "gname": "",
+      "mode": "0o600",
+      "name": "commands/reborn_health.txt",
+      "type": "0",
+      "uname": ""
+     },
+     {
+      "data": "",
+      "gname": "",
+      "mode": "0o600",
+      "name": "commands/reborn_metrics.txt",
+      "type": "0",
+      "uname": ""
+     },
+     {
+      "data": "",
+      "gname": "",
+      "mode": "0o600",
+      "name": "commands/reborn_audio.txt",
+      "type": "0",
+      "uname": ""
+     },
+     {
+      "data": "",
+      "gname": "",
+      "mode": "0o600",
+      "name": "commands/reborn_snapshot.txt",
+      "type": "0",
+      "uname": ""
+     },
+     {
+      "data": "",
+      "gname": "",
+      "mode": "0o600",
+      "name": "commands/reborn_events.txt",
+      "type": "0",
+      "uname": ""
+     },
+     {
+      "data": "",
+      "gname": "",
+      "mode": "0o600",
+      "name": "commands/processes.txt",
+      "type": "0",
+      "uname": ""
+     },
+     {
+      "data": "",
+      "gname": "",
+      "mode": "0o600",
+      "name": "commands/mounts_space.txt",
+      "type": "0",
+      "uname": ""
+     },
+     {
+      "data": "",
+      "gname": "",
+      "mode": "0o600",
+      "name": "commands/amixer.txt",
+      "type": "0",
+      "uname": ""
+     },
+     {
+      "data": "MemTotal: 245760 kB\nMemFree: 120000 kB\nMemAvailable: 160000 kB\n",
+      "gname": "",
+      "mode": "0o600",
+      "name": "files/proc/meminfo",
+      "type": "0",
+      "uname": ""
+     },
+     {
+      "data": "cpu  100 0 50 1000 5 0 1 0 0 0\ncpu0 100 0 50 1000 5 0 1 0 0 0\n",
+      "gname": "",
+      "mode": "0o600",
+      "name": "files/proc/stat",
+      "type": "0",
+      "uname": ""
+     },
+     {
+      "data": 1,
+      "gname": "",
+      "mode": "0o600",
+      "name": "files/proc/sys/kernel/tainted",
+      "type": "0",
+      "uname": ""
+     },
+     {
+      "data": "DORMANT\n",
+      "gname": "",
+      "mode": "0o600",
+      "name": "files/sys/devices/system/cpu/cpu0/cpuidle/state2/name",
+      "type": "0",
+      "uname": ""
+     },
+     {
+      "data": {
+       "boot_count": 41,
+       "boot_id": "boot-z",
+       "consecutive_unclean": 2,
+       "history": [
+        {
+         "boot_id": "boot-0",
+         "last_stage": "shutdown_complete"
+        },
+        {
+         "boot_id": "boot-1",
+         "last_stage": "shutdown_complete"
+        },
+        {
+         "boot_id": "boot-2",
+         "last_stage": "shutdown_complete"
+        },
+        {
+         "boot_id": "boot-3",
+         "last_stage": "shutdown_complete"
+        },
+        {
+         "boot_id": "boot-4",
+         "last_stage": "shutdown_complete"
+        },
+        {
+         "boot_id": "boot-5",
+         "last_stage": "shutdown_complete"
+        },
+        {
+         "boot_id": "boot-6",
+         "last_stage": "shutdown_complete"
+        },
+        {
+         "boot_id": "boot-7",
+         "last_stage": "shutdown_complete"
+        }
+       ],
+       "identity": {
+        "release_version": "1.0.0-old"
+       },
+       "last_stage": "application_ready",
+       "orderly_shutdown": false,
+       "schema": 1
+      },
+      "gname": "",
+      "mode": "0o600",
+      "name": "files/data/system/platform/boot.json",
+      "type": "0",
+      "uname": ""
+     },
+     {
+      "data": {
+       "product": {
+        "kernel_completed": true,
+        "reason": null,
+        "request_boot_id": "boot-a",
+        "state": "restored",
+        "wake_reason": "power"
+       }
+      },
+      "gname": "",
+      "mode": "0o600",
+      "name": "files/data/system/platform/suspend-last.json",
+      "type": "0",
+      "uname": ""
+     },
+     {
+      "data": {
+       "epoch": "<volatile>",
+       "source": "ntp"
+      },
+      "gname": "",
+      "mode": "0o600",
+      "name": "files/data/system/platform/time-last.json",
+      "type": "0",
+      "uname": ""
+     },
+     {
+      "data": {
+       "boot_id": "boot-a",
+       "connected": 1,
+       "last_event": "CONNECTED",
+       "real_disconnects": 0
+      },
+      "gname": "",
+      "mode": "0o600",
+      "name": "files/run/y2/wifi-events.json",
+      "type": "0",
+      "uname": ""
+     },
+     {
+      "data": 0,
+      "gname": "",
+      "mode": "0o600",
+      "name": "files/data/bluetooth/enabled",
+      "type": "0",
+      "uname": ""
+     },
+     {
+      "data": 0,
+      "gname": "",
+      "mode": "0o600",
+      "name": "files/data/network/enabled",
+      "type": "0",
+      "uname": ""
+     }
+    ],
+    "mode": "0o644",
+    "type": "file"
+   }
+  },
   "changed": {
    "/data/system/platform/reports.json": {
     "content": {
      "boot_triggers": {
-      "boot-a": 7
+      "boot-a": [
+       "kernel_warning"
+      ]
      },
-     "daily": {},
+     "daily": {
+      "<today>": 1
+     },
      "enabled": true,
-     "install_id": "6f1c3b2a-9d4e-4f5a-8b7c-0d1e2f3a4b5c",
+     "install_id": "<uuid>",
+     "last": {
+      "bytes": "<volatile>",
+      "created_utc": "<volatile>",
+      "report_id": "<uuid>",
+      "state": "queued",
+      "trigger": "kernel_warning"
+     },
      "schema": 1,
      "seen": {
       "tainted": "boot-a:1"
@@ -45,6 +645,8 @@
     "type": "file"
    }
   },
-  "removed": []
+  "removed": [
+   "/data/system/platform/reports/20261019T100000Z-0c0c0c0c-0c0c-4c0c-8c0c-0c0c0c0c0c0c.tar.gz"
+  ]
  }
 }

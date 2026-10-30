@@ -53,6 +53,26 @@ pub fn or_none<'de, D: Deserializer<'de>, T: DeserializeOwned>(
     Ok(T::deserialize(Value::deserialize(deserializer)?).ok())
 }
 
+/// A part of the record as `T`, its default where it has another shape.
+pub fn or_default<'de, D: Deserializer<'de>, T: DeserializeOwned + Default>(
+    deserializer: D,
+) -> Result<T, D::Error> {
+    Ok(T::deserialize(Value::deserialize(deserializer)?).unwrap_or_default())
+}
+
+/// An object's entries that read as `T` (the others left out; anything but an object: none).
+pub fn entries<'de, D: Deserializer<'de>, T: DeserializeOwned>(
+    deserializer: D,
+) -> Result<std::collections::BTreeMap<String, T>, D::Error> {
+    Ok(match Value::deserialize(deserializer)? {
+        Value::Object(map) => map
+            .into_iter()
+            .filter_map(|(key, value)| Some((key, T::deserialize(value).ok()?)))
+            .collect(),
+        _ => std::collections::BTreeMap::new(),
+    })
+}
+
 /// A count: a JSON integer from 0 up, anything else (a bool, a float) none.
 pub fn count<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Option<u64>, D::Error> {
     Ok(Value::deserialize(deserializer)?.as_u64())

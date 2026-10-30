@@ -3,11 +3,35 @@
   "report",
   "enable"
  ],
- "calls": [],
- "exit": 1,
+ "calls": [
+  {
+   "argv": [
+    "rebornctl",
+    "health",
+    "--json"
+   ],
+   "timeout": 5.0
+  },
+  {
+   "argv": [
+    "dmesg"
+   ],
+   "timeout": 5.0
+  }
+ ],
+ "exit": 0,
  "stdout": {
-  "failure": "report_failed",
-  "reason": "report_state_unreadable"
+  "destinations": [],
+  "enabled": true,
+  "install_id": "<uuid>",
+  "last": null,
+  "queued": [
+   "20261019T100000Z-<uuid>.tar.gz",
+   "20261020T100000Z-<uuid>.tar.gz",
+   "20261021T100000Z-<uuid>.tar.gz"
+  ],
+  "schema": 1,
+  "upload": false
  },
  "tree": {
   "added": {},
@@ -19,7 +43,18 @@
      "enabled": true,
      "install_id": "<uuid>",
      "schema": 1,
-     "seen": [],
+     "seen": {
+      "conn_error": "boot-a:-110",
+      "dark": "boot-a",
+      "pstore_crash": "|12.345678|",
+      "reborn_failed": "boot-a:audio",
+      "reborn_panic": "60d0e8df42d45a4d",
+      "storage": "boot-a:True:2",
+      "suspend_fail": "boot-a:3:1:0",
+      "tainted": "boot-a:512",
+      "unclean": "boot-z",
+      "update": "11000:RolledBack"
+     },
      "uploads": {}
     },
     "mode": "0o600",

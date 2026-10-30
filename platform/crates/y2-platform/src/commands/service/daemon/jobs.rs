@@ -194,25 +194,11 @@ pub(crate) fn next_upload(root: &Root) -> Result<Due, ()> {
         return Ok(Due::None);
     }
     let state = reports::state(root);
-    let retries = state.get("uploads");
-    let values: Vec<Value> = queued
+    let next = queued
         .iter()
-        .map(|name| match retries.and_then(|r| r.get(name)) {
-            Some(entry @ Value::Object(_)) => entry.get("next").cloned().unwrap_or(Value::from(0)),
-            _ => Value::from(0),
-        })
-        .collect();
-    if let Some(numbers) = values
-        .iter()
-        .map(Value::as_f64)
-        .collect::<Option<Vec<f64>>>()
-    {
-        return Ok(Due::At(numbers.into_iter().fold(f64::INFINITY, f64::min)));
-    }
-    match values.as_slice() {
-        [Value::Null] => Ok(Due::None),
-        _ => Err(()),
-    }
+        .map(|name| state.uploads.get(name).map_or(0.0, |retry| retry.next))
+        .fold(f64::INFINITY, f64::min);
+    Ok(Due::At(next))
 }
 
 /// `error_reports`'s state: `{'next_check', 'send_after', 'process', 'started'}`.
@@ -240,9 +226,7 @@ pub(super) fn error_reports(
     if poll(&mut run.process, now, Some(REPORT_LIMIT_S)) == Slot::Running {
         return Ok(run);
     }
-    if reports::upload_key(root).is_none()
-        || !matches!(reports::state(root).get("enabled"), Some(Value::Bool(true)))
-    {
+    if reports::upload_key(root).is_none() || !reports::state(root).enabled() {
         return Ok(run);
     }
     // An unreadable record never stops this loop.

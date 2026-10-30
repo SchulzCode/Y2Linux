@@ -7,6 +7,10 @@ old record had must still be there with the same JSON type (a number stays a num
 type, as the readers treat a missing value); new fields are fine. A difference is printed as
 `case: file: path: old-type -> new-type` and the exit status is 1.
 
+Reviewed exceptions are listed in record-compat-allow.txt next to this script (one printed line each, as
+`case: file: path: old-type -> new-type`, with a comment why): a fixture that wrote a field of another type
+than its writer writes, kept as read by the old build and repaired by the new one.
+
 usage: record-compat.py [--against REV]
 """
 import json
@@ -65,8 +69,16 @@ def lost(old, new, path=''):
         yield path or '.', kind(old), kind(new)
 
 
+def allowed():
+    path = Path(__file__).with_name('record-compat-allow.txt')
+    if not path.exists():
+        return set()
+    return {line.strip() for line in path.read_text().splitlines() if line.strip() and not line.startswith('#')}
+
+
 def main():
     failures = 0
+    allow = allowed()
     for file in sorted((REPO / GOLDENS).glob('*/*.json')):
         relative = file.relative_to(REPO).as_posix()
         shown = subprocess.run(['git', 'show', f'{against}:{relative}'], cwd=REPO, capture_output=True)
@@ -77,7 +89,10 @@ def main():
             if path not in new:
                 continue  # the case no longer writes it: its own golden review says why
             for where, a, b in lost(content, new[path]):
-                print(f'{file.parent.name}/{file.stem}: {path}: {where}: {a} -> {b}')
+                line = f'{file.parent.name}/{file.stem}: {path}: {where}: {a} -> {b}'
+                if line in allow:
+                    continue
+                print(line)
                 failures += 1
     print(f'{failures} /data record fields lost or retyped against {against[:12]}', file=sys.stderr)
     sys.exit(1 if failures else 0)

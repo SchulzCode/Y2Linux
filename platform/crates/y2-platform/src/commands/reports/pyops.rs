@@ -21,14 +21,6 @@ impl<T> OrRefuse<T> for Result<T, Shape> {
     }
 }
 
-/// An object's entry (none when it has no such key); anything but an object has no entries.
-pub fn get<'a>(value: &'a Value, key: &str) -> Result<Option<&'a Value>, Shape> {
-    match value {
-        Value::Object(map) => Ok(map.get(key)),
-        _ => Err(Shape),
-    }
-}
-
 /// An object's entry that must be there.
 pub fn index<'a>(value: &'a Value, key: &str) -> Result<&'a Value, Shape> {
     value.as_object().and_then(|map| map.get(key)).ok_or(Shape)
@@ -53,28 +45,6 @@ pub fn ordered(left: &Value, right: &Value) -> Result<(f64, f64), Shape> {
     left.as_f64().zip(right.as_f64()).ok_or(Shape)
 }
 
-/// `value + n`: an integer stays an integer, a float a float.
-pub fn add_int(value: &Value, n: i64) -> Result<Value, Shape> {
-    if let Some(v) = value.as_i64() {
-        return Ok(Value::from(v.saturating_add(n)));
-    }
-    if let Some(v) = value.as_u64() {
-        return Ok(Value::from(v.saturating_add_signed(n)));
-    }
-    match value.as_f64() {
-        Some(v) => Ok(Value::from(v + n as f64)),
-        None => Err(Shape),
-    }
-}
-
-/// `value + items` for a list.
-pub fn add_list(value: &Value, items: Vec<Value>) -> Result<Value, Shape> {
-    match value {
-        Value::Array(first) => Ok(Value::Array(first.iter().cloned().chain(items).collect())),
-        _ => Err(Shape),
-    }
-}
-
 /// The JSON document `raw`, or why it is none.
 pub fn loads(raw: &[u8]) -> Result<Value, Failure> {
     serde_json::from_slice(raw).map_err(|error| Failure::value(format!("invalid JSON: {error}")))
@@ -87,8 +57,6 @@ mod tests {
 
     #[test]
     fn operations_take_the_shapes_records_are_written_in() {
-        assert_eq!(get(&json!([]), "x"), Err(Shape));
-        assert_eq!(get(&json!({"x": 1}), "x"), Ok(Some(&json!(1))));
         assert_eq!(index(&json!({}), "path"), Err(Shape));
         assert_eq!(index(&json!("ab"), "path"), Err(Shape));
         assert_eq!(contains(&json!(["a", "b"]), "a"), Ok(true));
@@ -97,10 +65,6 @@ mod tests {
         assert_eq!(ordered(&json!("x"), &json!(5)), Err(Shape));
         assert_eq!(ordered(&json!(true), &json!(0.5)), Err(Shape));
         assert_eq!(ordered(&json!(2), &json!(0.5)), Ok((2.0, 0.5)));
-        assert_eq!(add_int(&json!(1), 1), Ok(json!(2)));
-        assert_eq!(add_int(&json!(1.5), 1), Ok(json!(2.5)));
-        assert_eq!(add_int(&json!(true), 1), Err(Shape));
-        assert_eq!(add_list(&json!("x"), vec![]), Err(Shape));
         assert!(loads(b"{").is_err());
     }
 }

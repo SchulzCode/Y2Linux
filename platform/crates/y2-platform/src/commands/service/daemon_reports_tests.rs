@@ -111,7 +111,7 @@ fn a_due_report_is_sent_before_the_next_check_but_not_every_pass() {
     let run = service.tick(Some(run), 1060.0 + REPORT_SEND_GAP_S, "Online");
     assert_eq!(service.started, 2);
     // A report waiting for its retry time does not start a run.
-    let mut state = reports::state(service.root());
+    let mut state = serde_json::json!(reports::state(service.root()));
     state.set(
         "uploads",
         object().with(
@@ -157,7 +157,7 @@ fn a_stuck_run_is_stopped() {
 }
 
 #[test]
-fn a_retry_time_that_is_no_number_never_stops_the_service_loop() {
+fn a_retry_time_that_is_no_number_reads_as_due() {
     let mut service = Service::new();
     service.key();
     service.fixture.put_json(
@@ -167,5 +167,5 @@ fn a_retry_time_that_is_no_number_never_stops_the_service_loop() {
     service.fixture.put(&format!("{QUEUE}/a.tar.gz"), "x");
     let run = service.tick(None, 0.0, "Online");
     service.tick(Some(run), REPORT_FIRST_S, "Online");
-    assert_eq!(service.started, 0);
+    assert!(service.started > 0);
 }

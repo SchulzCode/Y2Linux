@@ -176,7 +176,7 @@ pub fn save_to(
     let value = Reports::load(root);
     let now = clock::Instant::now(root);
     let install = if value.enabled() {
-        value.field("install_id")
+        serde_json::json!(value.install_id)
     } else {
         Value::Null
     };
@@ -224,18 +224,19 @@ pub fn save_to(
     let file = format!("{}/{name}", build::FOLDER);
     let report_id = index.get("report_id").cloned().unwrap_or(Value::Null);
     let mut value = Reports::load(root);
-    value.set(
-        "last",
-        state::Last {
-            report_id: report_id.clone(),
-            trigger: "manual",
-            state: "saved",
-            saved: Some((destination, &file)),
-            created_utc: index.get("created_utc").cloned().unwrap_or(Value::Null),
-            bytes: data.len(),
-        }
-        .into(),
-    );
+    value.last = Some(state::Last {
+        report_id: report_id.as_str().map(str::to_owned),
+        trigger: "manual".into(),
+        state: "saved".into(),
+        destination: Some(destination.into()),
+        file: Some(file.clone()),
+        created_utc: index
+            .get("created_utc")
+            .and_then(Value::as_str)
+            .map(str::to_owned),
+        bytes: data.len() as u64,
+        ..state::Last::default()
+    });
     value.save(root)?;
     Ok(object()
         .with("saved", Value::Bool(true))

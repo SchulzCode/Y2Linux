@@ -1,10 +1,14 @@
 //! The error-report state and queue: `reports.json` (opt-in, install ID, limits, seen markers,
 //! upload retries, the last report), `status`, `set_enabled`, `new_install_id`, `destinations`.
 // SPDX-License-Identifier: GPL-2.0-only
-use super::{json_at, media, pyops::OrRefuse, Value};
-use crate::commands::reports::{filled, object, ValueExt};
+use super::{media, Value};
+use crate::commands::reports::{object, ValueExt};
 use crate::reply::{mkdir_parents, Failure};
+use serde::{Deserialize, Serialize};
+use serde_json::{json, Map};
+use std::collections::BTreeMap;
 use std::path::PathBuf;
+use y2p_core::lenient;
 pub use y2p_core::paths::name;
 use y2p_core::Root;
 
@@ -19,35 +23,103 @@ pub const DESTINATIONS: [(&str, &str, &str); 2] = [
 ];
 
 /// reports.json: the opt-in, the install ID, the automatic reports per day and per boot, the seen
-/// markers, upload retries and the last report. It is rewritten whole, so every key and value is
-/// kept as read; the fields the code reads have accessors, and a field of another shape is refused
-/// where it is used (`report_state_unreadable`), not when the file is read.
-#[derive(Clone, Debug)]
-pub struct Reports(Value);
+/// markers, upload retries and the last report. Each field reads leniently (a value of another
+/// shape reads as its default, an entry of another shape is left out), so an odd field never loses
+/// the opt-in; keys this build does not know are kept as read and written back.
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct Reports {
+    #[serde(default = "schema")]
+    pub schema: i64,
+    /// None: the owner was not asked yet.
+    #[serde(default, deserialize_with = "lenient::or_none")]
+    pub enabled: Option<bool>,
+    #[serde(default, deserialize_with = "lenient::text")]
+    pub install_id: Option<String>,
+    /// UTC day → automatic reports made that day.
+    #[serde(default, deserialize_with = "lenient::entries")]
+    pub daily: BTreeMap<String, u64>,
+    /// Boot ID → the triggers reported this boot (only this boot's are kept).
+    #[serde(default, deserialize_with = "lenient::entries")]
+    pub boot_triggers: BTreeMap<String, Vec<String>>,
+    /// Trigger → the marker it was last reported with.
+    #[serde(default, deserialize_with = "lenient::entries")]
+    pub seen: BTreeMap<String, String>,
+    /// Queue file name → its retry record.
+    #[serde(default, deserialize_with = "lenient::entries")]
+    pub uploads: BTreeMap<String, Retry>,
+    /// The last report made (Reborn's report screen).
+    #[serde(
+        default,
+        deserialize_with = "lenient::or_none",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub last: Option<Last>,
+    #[serde(flatten)]
+    pub other: Map<String, Value>,
+}
+
+fn schema() -> i64 {
+    1
+}
+
+impl Default for Reports {
+    fn default() -> Reports {
+        Reports {
+            schema: 1,
+            enabled: None,
+            install_id: None,
+            daily: BTreeMap::new(),
+            boot_triggers: BTreeMap::new(),
+            seen: BTreeMap::new(),
+            uploads: BTreeMap::new(),
+            last: None,
+            other: Map::new(),
+        }
+    }
+}
+
+/// A queued report's retry record (`uploads[name]`).
+#[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
+#[serde(default)]
+pub struct Retry {
+    /// Tries so far.
+    pub attempts: u64,
+    /// When it may go again (wall clock).
+    pub next: f64,
+    /// Why the last try failed (`HTTP_503`, an exception class).
+    pub error: String,
+}
+
+/// The last report made (`last`, shown by Reborn's report screen): queued or saved here, then
+/// settled by its upload.
+#[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
+#[serde(default)]
+pub struct Last {
+    pub report_id: Option<String>,
+    pub trigger: String,
+    /// `queued`, `saved`, then `sent`, `failed` or `dropped`.
+    pub state: String,
+    /// Where a saved report went: the destination and the file below its top folder.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub destination: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub file: Option<String>,
+    pub created_utc: Option<String>,
+    pub bytes: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sent_utc: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reason: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub next_attempt: Option<f64>,
+}
 
 impl Reports {
-    /// The record with its defaults (anything but an object reads as `{}`).
+    /// The record (its defaults where it is missing or no object).
     pub fn load(root: &Root) -> Reports {
-        let mut value = match json_at(root, STATE) {
-            Some(v @ Value::Object(_)) => v,
-            _ => object(),
-        };
-        for (key, default) in [
-            ("schema", Value::from(1)),
-            ("enabled", Value::Null), // None: not asked yet
-            ("install_id", Value::Null),
-            ("daily", object()),
-            ("boot_triggers", object()),
-            ("seen", object()),
-        ] {
-            if value.get(key).is_none() {
-                value.set(key, default);
-            }
-        }
-        if !value.get("uploads").is_some_and(Value::is_object) {
-            value.set("uploads", object());
-        }
-        Reports(value)
+        root.read(STATE)
+            .and_then(|text| serde_json::from_str(&text).ok())
+            .unwrap_or_default()
     }
 
     /// Write the record (sorted keys, durably).
@@ -56,98 +128,43 @@ impl Reports {
         if let Some(parent) = path.parent() {
             mkdir_parents(parent, 0o700)?;
         }
-        crate::reply::atomic_json(&path, &self.0, true)
+        crate::reply::atomic_json(&path, self, true)
     }
 
-    /// Opted in: `enabled` is `true` (`null` until the owner was asked).
+    /// Opted in (`enabled` is `true`; `null` until the owner was asked).
     pub fn enabled(&self) -> bool {
-        matches!(self.0.get("enabled"), Some(Value::Bool(true)))
+        self.enabled == Some(true)
     }
 
-    /// A field as read (`null` when absent).
-    pub fn field(&self, key: &str) -> Value {
-        self.0.get(key).cloned().unwrap_or(Value::Null)
+    /// The triggers reported on `boot`.
+    pub fn reported(&self, boot: &str) -> &[String] {
+        self.boot_triggers.get(boot).map_or(&[], Vec::as_slice)
     }
 
-    pub fn set(&mut self, key: &str, value: Value) {
-        self.0.set(key, value);
+    /// Forget the automatic reports of other days.
+    pub fn keep_day(&mut self, day: &str) {
+        self.daily.retain(|d, _| d == day);
     }
 
-    /// `seen`: the marker of each automatic trigger last reported.
-    pub fn seen(&self) -> Result<&Value, Failure> {
-        let seen = self.0.get("seen").unwrap_or(&Value::Null);
-        if seen.is_object() {
-            Ok(seen)
-        } else {
-            Err(Failure::value(super::STATE_UNREADABLE))
-        }
-    }
-
-    /// Record `current` as the marker `name` was last reported with.
-    pub fn mark_seen(&mut self, name: &str, current: Value) {
-        if let Some(seen) = self.0.get_mut("seen") {
-            seen.set(name, current);
-        }
-    }
-
-    /// `boot_triggers.get(boot, [])`: the triggers reported this boot (a list, or what was read).
-    pub fn reported(&self, boot: &str) -> Result<Value, Failure> {
-        let triggers = self.0.get("boot_triggers").unwrap_or(&Value::Null);
-        Ok(super::pyops::get(triggers, boot)
-            .or_refuse(super::STATE_UNREADABLE)?
-            .cloned()
-            .unwrap_or(Value::Array(Vec::new())))
-    }
-
-    /// Forget the automatic reports of other days (`daily`: UTC day -> count).
-    pub fn keep_day(&mut self, day: &str) -> Result<(), Failure> {
-        let Some(Value::Object(items)) = self.0.get("daily") else {
-            return Err(Failure::value(super::STATE_UNREADABLE));
-        };
-        let today = items
-            .iter()
-            .filter(|(k, _)| k.as_str() == day)
-            .map(|(k, v)| (k.clone(), v.clone()))
-            .collect();
-        self.0.set("daily", Value::Object(today));
-        Ok(())
-    }
-
-    /// The automatic reports of `day` so far (`daily.get(day, 0)`: a number, or what was read).
-    pub fn count(&self, day: &str) -> Value {
-        self.0
-            .get("daily")
-            .and_then(|d| d.get(day))
-            .cloned()
-            .unwrap_or(Value::from(0))
-    }
-
-    pub fn set_count(&mut self, day: &str, count: Value) {
-        if let Some(daily) = self.0.get_mut("daily") {
-            daily.set(day, count);
-        }
-    }
-
-    /// The upload retries (`uploads`: queue file name -> attempts, next, error).
-    pub fn uploads(&self) -> &Value {
-        self.0.get("uploads").unwrap_or(&Value::Null)
-    }
-
-    /// The whole record (the service reads it too).
-    pub fn into_py(self) -> Value {
-        self.0
+    /// The automatic reports of `day` so far.
+    pub fn count(&self, day: &str) -> u64 {
+        self.daily.get(day).copied().unwrap_or(0)
     }
 }
 
-/// reports.json with its defaults, as read (the service reads it too).
-pub fn state(root: &Root) -> Value {
-    Reports::load(root).into_py()
+/// reports.json with its defaults (the service reads it too).
+pub fn state(root: &Root) -> Reports {
+    Reports::load(root)
 }
 
 /// Write a whole record (tests write odd ones).
 #[cfg(test)]
 pub fn save(root: &Root, value: &Value) -> Result<(), Failure> {
-    Reports(value.clone()).save(root)
+    let path = root.path(STATE);
+    if let Some(parent) = path.parent() {
+        mkdir_parents(parent, 0o700)?;
+    }
+    crate::reply::atomic_json(&path, value, true)
 }
 
 /// The queued reports (`QUEUE/*.tar.gz`).
@@ -168,43 +185,14 @@ pub fn upload_key(root: &Root) -> Option<String> {
     valid.then(|| key.to_owned())
 }
 
-/// The last report made (`last` in reports.json, shown by Reborn's report screen): queued or saved
-/// here, then settled by its upload.
-pub struct Last<'a> {
-    pub report_id: Value,
-    pub trigger: &'a str,
-    /// `queued` or `saved`.
-    pub state: &'static str,
-    /// Where a saved report went: the destination and the file below its top folder.
-    pub saved: Option<(&'a str, &'a str)>,
-    pub created_utc: Value,
-    pub bytes: usize,
-}
-
-impl From<Last<'_>> for Value {
-    fn from(last: Last) -> Value {
-        let mut value = object()
-            .with("report_id", last.report_id)
-            .with("trigger", Value::from(last.trigger))
-            .with("state", Value::from(last.state));
-        if let Some((destination, file)) = last.saved {
-            value.set("destination", Value::from(destination));
-            value.set("file", Value::from(file));
-        }
-        value
-            .with("created_utc", last.created_utc)
-            .with("bytes", Value::from(last.bytes))
-    }
-}
-
 /// `report enable|disable`: opting in marks what is already there as seen, opting out empties the
 /// queue.
 pub fn set_enabled(root: &Root, enabled: bool) -> Result<Value, Failure> {
     let mut value = Reports::load(root);
     let was = value.enabled();
-    value.set("enabled", Value::Bool(enabled));
-    if enabled && !filled(&value.field("install_id")) {
-        value.set("install_id", Value::from(uuid4()?));
+    value.enabled = Some(enabled);
+    if enabled && value.install_id.as_deref().is_none_or(str::is_empty) {
+        value.install_id = Some(uuid4()?);
     }
     if enabled && !was {
         // Only what happens after the user said yes is reported: record what is already there (an
@@ -225,7 +213,7 @@ pub fn set_enabled(root: &Root, enabled: bool) -> Result<Value, Failure> {
 /// `report new-id`: the receiver sees this player as a new one from now on.
 pub fn new_install_id(root: &Root) -> Result<Value, Failure> {
     let mut value = Reports::load(root);
-    value.set("install_id", Value::from(uuid4()?));
+    value.install_id = Some(uuid4()?);
     value.save(root)?;
     status(root)
 }
@@ -243,10 +231,10 @@ pub fn status(root: &Root) -> Result<Value, Failure> {
         .collect();
     Ok(object()
         .with("schema", Value::from(1))
-        .with("enabled", value.field("enabled"))
-        .with("install_id", value.field("install_id"))
+        .with("enabled", json!(value.enabled))
+        .with("install_id", json!(value.install_id))
         .with("queued", Value::Array(queued))
-        .with("last", value.field("last"))
+        .with("last", json!(value.last))
         .with("upload", Value::Bool(upload_key(root).is_some()))
         .with(
             "destinations",

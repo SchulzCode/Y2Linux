@@ -230,23 +230,11 @@ CASES = [
     ('report-check-bad-daily', ['report', 'check'], {'files': {STATE: state(daily=[])}}),
     ('report-check-bad-queue', ['report', 'check'], {'files': {
         **ENABLED, SESSION_PATH: '{"model": {"queue": 5}}'}}),
-    ('report-check-fired-bad-daily', ['report', 'check'], {'commands': FIRED_COMMANDS, 'files': {
-        **FIRED, STATE: state(daily=[])}}),
-    ('report-check-fired-reported-text', ['report', 'check'], {'files': {
-        **TAINTED, STATE: state(boot_triggers={'boot-a': 'kernel_warning,x'})}}),
-    ('report-check-fired-reported-number', ['report', 'check'], {'files': {
-        **TAINTED, STATE: state(boot_triggers={'boot-a': 7})}}),
-    ('report-check-fired-bad-triggers', ['report', 'check'], {'files': {
-        **TAINTED, STATE: state(boot_triggers=[])}}),
-    ('report-check-fired-bad-seen', ['report', 'check'], {'commands': FIRED_COMMANDS, 'files': {
-        **FIRED, STATE: state(seen=[])}}),
     ('report-check-bad-seen-quiet', ['report', 'check'], {'files': {**ENABLED, STATE: state(seen='x')}}),
     ('report-check-health-list', ['report', 'check'], {'files': ENABLED, 'commands': [
         answer(HEALTH, '[1]')]}),
     ('report-enable-bad-seen', ['report', 'enable'], {'patterns': [UUID], 'commands': FIRED_COMMANDS,
                                                     'files': {**FIRED, STATE: state(enabled=False, seen=[])}}),
-    ('report-send-bad-daily', ['report', 'send'], {'files': {
-        **READY, STATE: state(daily=5)}}),
     ('report-work', ['report', 'work'], {**UPLOAD, 'files': {**READY, '/run/y2/network.json': None}}),
     ('report-work-disabled', ['report', 'work'], {}),
     # report upload: why it waits
@@ -410,6 +398,19 @@ CASES = [
 # Cases tests/test_platform_reports.py runs with archive normalisation (`archives`) or a plan made first
 # (`plan_first`: the scope) or a library database (`library`) or retained archives and a large log (`retained`) made first.
 EXTRA_CASES = [
+    # reports.json fields of another shape read as their defaults: these make their report.
+    ('report-check-fired-bad-daily', ['report', 'check'], {**UPLOAD, 'archives': True, 'commands': FIRED_COMMANDS, 'files': {
+        **FIRED, STATE: state(daily=[])}}),
+    ('report-check-fired-reported-text', ['report', 'check'], {**UPLOAD, 'archives': True, 'files': {
+        **TAINTED, STATE: state(boot_triggers={'boot-a': 'kernel_warning,x'})}}),
+    ('report-check-fired-reported-number', ['report', 'check'], {**UPLOAD, 'archives': True, 'files': {
+        **TAINTED, STATE: state(boot_triggers={'boot-a': 7})}}),
+    ('report-check-fired-bad-triggers', ['report', 'check'], {**UPLOAD, 'archives': True, 'files': {
+        **TAINTED, STATE: state(boot_triggers=[])}}),
+    ('report-check-fired-bad-seen', ['report', 'check'], {**UPLOAD, 'archives': True, 'commands': FIRED_COMMANDS, 'files': {
+        **FIRED, STATE: state(seen=[])}}),
+    ('report-send-bad-daily', ['report', 'send'], {**UPLOAD, 'archives': True, 'files': {
+        **READY, STATE: state(daily=5)}}),
     # An expiry that is no number: refused as reset_plan_unreadable (exit 1).
     ('reset-execute-plan-no-expiry', ['reset', 'execute', '--confirm', plan(expires_monotonic_s='x')['confirmation']],
      {'files': plan_files(plan(expires_monotonic_s='x'))}),
@@ -417,9 +418,9 @@ EXTRA_CASES = [
         'confirmation']], {'files': plan_files(plan_without('expires_monotonic_s'))}),
     ('reset-execute-number-id', ['reset', 'execute', '--confirm', plan(id=5)['confirmation']],
      {'files': plan_files(plan(id=5))}),
-    ('report-check-fired-odd-count', ['report', 'check'], {'commands': FIRED_COMMANDS, 'files': {
+    ('report-check-fired-odd-count', ['report', 'check'], {**UPLOAD, 'archives': True, 'commands': FIRED_COMMANDS, 'files': {
         **FIRED, STATE: state(daily={DAY: 'x'})}}),
-    ('report-check-seen-late', ['report', 'check'], {'files': {
+    ('report-check-seen-late', ['report', 'check'], {**UPLOAD, 'archives': True, 'files': {
         **ENABLED, '/sys/fs/ext4/mmcblk0p9/errors_count': '2\n', STATE: state(seen=None)}}),
     ('report-check-fired-queue-dict', ['report', 'check'], {'files': {
         **TAINTED, SESSION_PATH: '{"model": {"queue": {"a": 1}}}'}}),

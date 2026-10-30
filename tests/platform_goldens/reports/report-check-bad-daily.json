@@ -29,7 +29,7 @@
    "/data/system/platform/reports.json": {
     "content": {
      "boot_triggers": {},
-     "daily": [],
+     "daily": {},
      "enabled": true,
      "install_id": "6f1c3b2a-9d4e-4f5a-8b7c-0d1e2f3a4b5c",
      "schema": 1,

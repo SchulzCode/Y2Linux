@@ -3,11 +3,10 @@
 use super::{
     build::{rel, Progress},
     json_dict, or_dict,
-    pyops::{self, OrRefuse},
     pyre::{self, lazy, S},
     sha256_hex,
     state::Reports,
-    HEALTH_UNREADABLE, STATE_UNREADABLE,
+    HEALTH_UNREADABLE,
 };
 use crate::commands::reports::{filled, loads_text, object, text_of, Value, ValueExt};
 use crate::reply::Failure;
@@ -101,17 +100,11 @@ fn crash_signature(root: &Root) -> Option<[String; 3]> {
 
 /// `_changed(value, name, current)`: True once per new value of a watched marker (a `seen` that is
 /// no object is refused).
-fn changed(value: &mut Reports, name: &str, current: Value) -> Result<bool, Failure> {
-    if matches!(&current, Value::Null)
-        || current.eq(&Value::from(""))
-        || current.eq(&Value::from(0))
-    {
+fn changed(value: &mut Reports, name: &str, current: String) -> Result<bool, Failure> {
+    if current.is_empty() || value.seen.get(name) == Some(&current) {
         return Ok(false);
     }
-    if value.seen()?.get(name).is_some_and(|v| v.eq(&current)) {
-        return Ok(false);
-    }
-    value.mark_seen(name, current);
+    value.seen.insert(name.into(), current);
     Ok(true)
 }
 
@@ -149,12 +142,8 @@ pub fn check(root: &Root) -> Result<Vec<(String, String)>, Failure> {
 /// A kernel crash recorded in pstore that was not reported yet (by its signature).
 fn kernel_crash(root: &Root, value: &mut Reports) -> Result<Fired, Failure> {
     if let Some(crash) = crash_signature(root) {
-        let seen_map = value.seen()?;
-        let previous = seen_map
-            .get("pstore_crash")
-            .filter(|v| filled(v))
-            .map(text_of)
-            .unwrap_or_default();
+        let seen_map = &value.seen;
+        let previous = seen_map.get("pstore_crash").cloned().unwrap_or_default();
         let seen: Vec<String> = (previous + "||")
             .split('|')
             .take(3)
@@ -163,7 +152,7 @@ fn kernel_crash(root: &Root, value: &mut Reports) -> Result<Fired, Failure> {
         // Before 8.42 the key was the all-records hash: a crash on record then was already reported
         // by that release (no resend after the update).
         let known = seen_map.get("pstore_crash").is_none() && seen_map.get("pstore").is_some();
-        value.mark_seen("pstore_crash", Value::String(crash.join("|")));
+        value.seen.insert("pstore_crash".into(), crash.join("|"));
         if !known
             && !crash
                 .iter()
@@ -180,7 +169,7 @@ fn kernel_crash(root: &Root, value: &mut Reports) -> Result<Fired, Failure> {
 fn kernel_warning(root: &Root, value: &mut Reports, boot: &str) -> Result<Fired, Failure> {
     let tainted = int(root, "/proc/sys/kernel/tainted");
     if let Some(tainted) = tainted.filter(|t| *t != 0) {
-        if changed(value, "tainted", Value::String(format!("{boot}:{tainted}")))? {
+        if changed(value, "tainted", format!("{boot}:{tainted}"))? {
             return Ok(Some(("kernel_warning".into(), format!("taint {tainted}"))));
         }
     }
@@ -199,7 +188,7 @@ fn unclean_restart(root: &Root, value: &mut Reports, boot: &str) -> Result<Fired
             .filter(|v| filled(v))
             .map(text_of)
             .unwrap_or_else(|| boot.to_owned());
-        if changed(value, "unclean", Value::String(previous))? {
+        if changed(value, "unclean", previous)? {
             // F56/F57: the PMIC's long-press record tells a held Power from a cut, the loader's warm
             // start a watchdog reset (or kernel restart) from both.
             let pmic = evidence
@@ -281,7 +270,7 @@ fn reborn_crash(root: &Root, value: &mut Reports) -> Result<Fired, Failure> {
             (Some(v), Some(r)) => !r.is_empty() && v != r && !v.starts_with(&format!("{r}-")),
             _ => false,
         };
-        if changed(value, "reborn_panic", Value::String(signature))? && !earlier {
+        if changed(value, "reborn_panic", signature)? && !earlier {
             // Reborn 8.12 catches a worker's panic, skips that one file and runs on.
             let isolated = matches!(record.get("isolated"), Some(Value::Bool(true)));
             return Ok(Some((
@@ -329,7 +318,7 @@ fn reborn_failure(root: &Root, value: &mut Reports, boot: &str) -> Result<Fired,
         && changed(
             value,
             "reborn_failed",
-            Value::String(format!("{boot}:{}", failed.join(","))),
+            format!("{boot}:{}", failed.join(",")),
         )?
     {
         return Ok(Some(("reborn_failure".into(), failed.join(","))));
@@ -350,7 +339,7 @@ fn update_failure(root: &Root, value: &mut Reports) -> Result<Fired, Failure> {
             text_of(update.get("sequence").unwrap_or(&Value::Null)),
             text_of(&update_state)
         );
-        if changed(value, "update", Value::String(marker))? {
+        if changed(value, "update", marker)? {
             return Ok(Some(("update_failure".into(), text_of(&update_state))));
         }
     }
@@ -384,7 +373,7 @@ fn sleep_failure(root: &Root, value: &mut Reports, boot: &str) -> Result<Fired, 
         && changed(
             value,
             "suspend_fail",
-            Value::String(format!("{boot}:{fails}:{resumes}:{frozen}")),
+            format!("{boot}:{fails}:{resumes}:{frozen}"),
         )?
     {
         let or_mark = |name: &str| {
@@ -423,11 +412,7 @@ fn radio_failure(root: &Root, value: &mut Reports, boot: &str) -> Result<Fired, 
         .next()
         .map(|c| c[1].to_owned());
     if let Some(error) = error.filter(|e| e != "0") {
-        if changed(
-            value,
-            "conn_error",
-            Value::String(format!("{boot}:{error}")),
-        )? {
+        if changed(value, "conn_error", format!("{boot}:{error}"))? {
             return Ok(Some((
                 "radio_failure".into(),
                 format!("connectivity error={error}"),
@@ -457,7 +442,7 @@ fn display_failure(
         .map(|m| m.as_str())
         .filter(|m| !(lit && m.starts_with("DSI register")))
         .collect();
-    if !darks.is_empty() && changed(value, "dark", Value::String(boot.to_owned()))? {
+    if !darks.is_empty() && changed(value, "dark", boot.to_owned())? {
         return Ok(Some(("display_failure".into(), darks[0].to_owned())));
     }
     Ok(None)
@@ -480,10 +465,10 @@ fn storage_error(
         && changed(
             value,
             "storage",
-            Value::String(format!(
+            format!(
                 "{boot}:{}:{ext4}",
                 if found.is_some() { "True" } else { "False" }
-            )),
+            ),
         )?
     {
         return Ok(Some((
@@ -508,13 +493,13 @@ pub fn run_checks(root: &Root) -> Result<Value, Failure> {
         return Ok(Value::Array(Vec::new()));
     }
     let boot = root.boot_id().unwrap_or_default();
-    let reported = Reports::load(root).reported(&boot)?;
-    let mut fresh: Vec<(String, String)> = Vec::new();
-    for (t, d) in &fired {
-        if !pyops::contains(&reported, t).or_refuse(STATE_UNREADABLE)? {
-            fresh.push((t.clone(), d.clone()));
-        }
-    }
+    let state = Reports::load(root);
+    let reported = state.reported(&boot);
+    let fresh: Vec<(String, String)> = fired
+        .iter()
+        .filter(|(t, _)| !reported.contains(t))
+        .cloned()
+        .collect();
     let fired = if fresh.is_empty() { fired } else { fresh };
     let trigger = fired[0].0.clone();
     let detail = if fired.len() == 1 {
