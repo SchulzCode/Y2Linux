@@ -16,7 +16,7 @@ use y2p_contract::BootStage;
 use y2p_core::mounts::mounts_at;
 use y2p_core::{
     json::{dumps, Object, ObjectExt, Separators},
-    py::{number, truthy},
+    py::{python_number, truthy},
     Root,
 };
 
@@ -156,7 +156,7 @@ fn transition(
     reset: ResetCause,
 ) -> BootRecord {
     let previous = match previous {
-        Some(Value::Object(map)) if number(map.get("schema")) == Some(1.0) => map,
+        Some(Value::Object(map)) if python_number(map.get("schema")) == Some(1.0) => map,
         _ => Object::new(),
     };
     let known = !previous.is_empty();

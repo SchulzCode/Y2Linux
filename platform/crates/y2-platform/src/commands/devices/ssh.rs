@@ -399,7 +399,8 @@ mod tests {
         assert_eq!(configured(&json!({})), Ok(false));
         assert_eq!(configured(&json!(null)), Err(()));
         // The first match ends the search before a later malformed entry.
-        let early = json!([{"ifname": "usb0", "addr_info": [{"local": "10.42.0.1", "prefixlen": 24.0}]}, 5]);
+        let early =
+            json!([{"ifname": "usb0", "addr_info": [{"local": "10.42.0.1", "prefixlen": 24}]}, 5]);
         assert_eq!(configured(&early), Ok(true));
     }
 }

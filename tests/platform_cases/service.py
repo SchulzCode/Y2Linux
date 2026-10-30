@@ -386,7 +386,7 @@ CASES += [
     ('firmware-status-installing', ['firmware', 'status'], {'files': {
         '/run/y2/radio-firmware.json': '{"schema": 1, "state": "Installing", "seen": [1, 2]}'}}),
     ('firmware-status-no-space', ['firmware', 'status'], {'files': {
-        '/run/y2/mtp-events.json': '{"error": 28.0}'}}),
+        '/run/y2/mtp-events.json': '{"error": 28}'}}),
     ('firmware-status-internal', ['firmware', 'status'], {'files': INTERNAL}),
     ('firmware-status-partly-there', ['firmware', 'status'], {'files': {
         '/data/firmware/mt6582/WMT_SOC.cfg': 'x' * 80}}),

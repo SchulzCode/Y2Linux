@@ -9,7 +9,7 @@ use serde_json::{json, Value};
 use y2p_core::{
     command,
     mounts::mounts_at,
-    py::{number, truthy},
+    py::{python_number, truthy},
     Root,
 };
 
@@ -62,7 +62,7 @@ fn writers(root: &Root, mount: &Mount) -> Result<Object, Failure> {
     Ok(holders
         .into_iter()
         .filter(|(k, v)| {
-            WRITE_HOLDERS.contains(&k.as_str()) && number(Some(v)).is_some_and(|v| v > now)
+            WRITE_HOLDERS.contains(&k.as_str()) && python_number(Some(v)).is_some_and(|v| v > now)
         })
         .collect())
 }

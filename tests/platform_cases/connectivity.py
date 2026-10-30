@@ -52,7 +52,7 @@ CASES = [
         readback('off'), answer(SET + ['on'])], 'files': {POWER_SAVE: '{"schema": 1, "mode": "standard"}'}}),
     ('wifi-power-policy-automatic-standard', ['wifi-power-policy'], {'commands': [
         readback('on'), answer(SET + ['on'])], 'files': {
-            POWER_SAVE: '{"schema": true, "mode": "automatic", "automatic_standard": true}'}}),
+            POWER_SAVE: '{"schema": 1, "mode": "automatic", "automatic_standard": true}'}}),
     ('wifi-power-policy-no-iw', ['wifi-power-policy'], {}),
     ('wifi-power-policy-set-fails', ['wifi-power-policy'], {'commands': [
         readback('on'), answer(SET + ['off'], ok=False)]}),

@@ -27,18 +27,30 @@ pub fn truthy(value: &Value) -> bool {
     }
 }
 
-/// `value == n` for an int: Python also finds `1.0 == 1` and `True == 1`.
+/// The value is the JSON integer `n` (not `n.0`, not a bool: every writer of the records read with this
+/// writes integers as integers).
 pub fn eq_int(value: Option<&Value>, n: i64) -> bool {
-    number(value) == Some(n as f64)
+    value.and_then(Value::as_i64) == Some(n)
 }
 
-/// `isinstance(value, (int, float))` as a number (True is 1).
+/// A JSON number as f64; anything else (a bool too) none.
 pub fn number(value: Option<&Value>) -> Option<f64> {
+    value.and_then(Value::as_f64)
+}
+
+/// **Critical code only** (PLATFORM-RUST-IDIOMATIC-PLAN.md §1: it keeps its logic): Python's
+/// `isinstance(value, (int, float))` as a number, True as 1.
+pub fn python_number(value: Option<&Value>) -> Option<f64> {
     match value? {
         Value::Number(n) => n.as_f64(),
         Value::Bool(b) => Some(f64::from(u8::from(*b))),
         _ => None,
     }
+}
+
+/// **Critical code only**: Python's `value == n` for an int (`1.0 == 1`, `True == 1`).
+pub fn python_eq_int(value: Option<&Value>, n: i64) -> bool {
+    python_number(value) == Some(n as f64)
 }
 
 /// What a `for` loop over a parsed JSON value yields: a list's items, a dict's keys (sorted, the order
@@ -346,8 +358,14 @@ mod tests {
     #[test]
     fn values_follow_python_rules() {
         assert!(is_true(Some(&json!(true))) && !is_true(Some(&json!(1))) && !is_true(None));
-        assert_eq!(number(Some(&json!(true))), Some(1.0));
+        assert_eq!(number(Some(&json!(true))), None);
+        assert_eq!(number(Some(&json!(2))), Some(2.0));
         assert_eq!(number(Some(&json!("1"))), None);
+        assert!(eq_int(Some(&json!(1)), 1) && !eq_int(Some(&json!(1.0)), 1));
+        assert!(!eq_int(Some(&json!(true)), 1));
+        // The critical code's Python rules.
+        assert_eq!(python_number(Some(&json!(true))), Some(1.0));
+        assert!(python_eq_int(Some(&json!(1.0)), 1) && python_eq_int(Some(&json!(true)), 1));
         assert_eq!(exact_int(Some(&json!(true))), None);
         assert_eq!(exact_int(Some(&json!(2.0))), None);
         assert_eq!(exact_int(Some(&json!(-3))), Some(-3));

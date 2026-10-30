@@ -135,7 +135,7 @@ CASES = [
         ('null', None), ('text', 'AAC'), ('aac-null', {'AAC': None}), ('ldac-list', {'AAC': {}, 'LDAC': [1]})]],
     ('wifi-event', ['wifi-event', 'CONNECTED'], {**WIFI, 'commands': answers(*FLUSH)}),
     ('wifi-event-reconnect', ['wifi-event', 'CONNECTED'], {**WIFI, 'files': {'/run/y2/wifi-events.json': json.dumps(
-        {'boot_id': 'boot-a', 'last_event': 'DISCONNECTED', 'connected': 2, 'reconnects': True, 'association_active': False})}}),
+        {'boot_id': 'boot-a', 'last_event': 'DISCONNECTED', 'connected': 2, 'reconnects': 1, 'association_active': False})}}),
     ('wifi-event-disconnected', ['wifi-event', 'DISCONNECTED'], WIFI),
     ('wifi-event-asleep', ['wifi-event', 'DISCONNECTED'], {**WIFI, 'files': {'/sys/class/rfkill/rfkill0/soft': '1\n'}}),
     ('wifi-event-restart', ['wifi-event', 'SERVICE_RESTART'], {**WIFI, 'files': {'/run/y2/wifi-events.json': '{"boot_id": "old"}'}}),

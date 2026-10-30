@@ -5,7 +5,7 @@ use super::battery::{BatteryStatus, Confidence};
 use serde::Serialize;
 use serde_json::{Map, Value};
 use y2p_core::{
-    py::{eq_int, exact_int, is_true},
+    py::{exact_int, is_true, python_eq_int},
     Root,
 };
 
@@ -44,7 +44,7 @@ pub fn load_policy(root: &Root) -> (Option<Policy>, Option<&'static str>) {
     // No derived or fallback voltage thresholds. A reference records who/what
     // qualified the policy; software cannot certify that physical evidence.
     let schema = value.get("schema");
-    if !(eq_int(schema, 1) || eq_int(schema, 2)) || !is_true(value.get("enabled")) {
+    if !(python_eq_int(schema, 1) || python_eq_int(schema, 2)) || !is_true(value.get("enabled")) {
         return (None, Some("thresholds_disabled_PHYSICAL_GATE"));
     }
     let int = |key: &str| exact_int(value.get(key));
@@ -81,7 +81,7 @@ pub fn load_policy(root: &Root) -> (Option<Policy>, Option<&'static str>) {
     {
         return (None, Some("invalid_policy"));
     }
-    let schema2 = eq_int(schema, 2);
+    let schema2 = python_eq_int(schema, 2);
     let (warning_soc, critical_soc, shutdown_soc) = if schema2 {
         match (int("warning_soc"), int("critical_soc"), int("shutdown_soc")) {
             (Some(w), Some(c), Some(s)) if 0 <= s && s < c && c < w && w <= 50 => (w, c, s),

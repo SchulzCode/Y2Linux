@@ -352,7 +352,7 @@ pub fn is_text(value: Option<&Value>, text: &str) -> bool {
 pub fn py_gt(a: &Value, b: &Value) -> Result<bool, E> {
     match (exact(a), exact(b)) {
         (Some(x), Some(y)) => Ok(x > y),
-        _ => match (py::number(Some(a)), py::number(Some(b))) {
+        _ => match (py::python_number(Some(a)), py::python_number(Some(b))) {
             (Some(x), Some(y)) => Ok(x > y),
             _ => match (a, b) {
                 (Value::String(x), Value::String(y)) => Ok(x > y),
@@ -368,7 +368,7 @@ pub fn py_add(current: Option<&Value>, n: f64, integer: bool) -> Result<Value, E
     let current = current.unwrap_or(&zero);
     match (exact(current), integer) {
         (Some(x), true) => Ok(Value::from((x + n as i128) as i64)),
-        _ => match py::number(Some(current)) {
+        _ => match py::python_number(Some(current)) {
             Some(x) => Ok(serde_json::Number::from_f64(x + n)
                 .map(Value::Number)
                 .unwrap_or(Value::Null)),

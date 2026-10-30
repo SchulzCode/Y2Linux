@@ -130,7 +130,7 @@ impl ApplicationReady {
 fn same_number(read: Option<i64>, recorded: Option<&Value>) -> bool {
     match (read, recorded) {
         (None, None | Some(Value::Null)) => true,
-        (Some(n), Some(_)) => py::eq_int(recorded, n),
+        (Some(n), Some(_)) => py::python_eq_int(recorded, n),
         _ => false,
     }
 }

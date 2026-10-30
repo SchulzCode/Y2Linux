@@ -47,7 +47,8 @@ pub fn status(root: &Root) -> Map<String, Value> {
     // The native core writes journal schema 2 since OTA-35 (BOOTIMG + root).
     let mut value = match value {
         Some(Value::Object(map))
-            if py::eq_int(map.get("schema"), 1) || py::eq_int(map.get("schema"), 2) =>
+            if py::python_eq_int(map.get("schema"), 1)
+                || py::python_eq_int(map.get("schema"), 2) =>
         {
             map
         }
