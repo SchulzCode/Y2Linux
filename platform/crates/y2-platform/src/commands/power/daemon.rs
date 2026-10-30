@@ -173,8 +173,10 @@ impl Daemon<'_> {
     }
 }
 
-/// What a power.json says apart from its time and the raw voltage (the ADC moves by a step or two
-/// every sample): a record that says nothing new waits for `RENEW_NS`. Readers take the voltage from
+/// What a power.json says apart from its time, the raw voltage (the ADC moves by a step or two every
+/// sample) and the voltage estimate's figures made from it: a record that says nothing new waits for
+/// `RENEW_NS` (measured on 174: estimate_percent 97/98 and remaining_uah_estimate alternated every
+/// second near a step, so the file was still written every second). Readers take the voltage from
 /// a record at most 2 s old (Reborn refuses one 5 s old, sleep admission one 10 s old).
 #[derive(PartialEq)]
 struct Published {
@@ -189,8 +191,12 @@ impl Published {
     fn of(daemon: &Daemon) -> Self {
         let mut battery = daemon.battery_status.clone();
         battery.voltage_uv = None;
+        // The voltage estimate's own figures follow the raw voltage (near a step they flicker
+        // between two values every sample); the shown percent and every state stay in the test.
         if let Some(estimate) = &mut battery.estimate {
             estimate.filtered_voltage_uv = 0;
+            estimate.estimate_percent = 0;
+            estimate.remaining_uah_estimate = None;
         }
         Published {
             state: daemon.state,
