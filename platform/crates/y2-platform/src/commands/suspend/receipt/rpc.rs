@@ -27,25 +27,17 @@ fn timed_out() -> E {
 fn wait(fd: i32, events: i16, deadline: std::time::Instant) -> Result<(), E> {
     loop {
         let left = deadline.saturating_duration_since(std::time::Instant::now());
-        let mut poll = libc::pollfd {
+        let mut poll = [libc::pollfd {
             fd,
             events,
             revents: 0,
-        };
-        // SAFETY: one valid pollfd.
-        let ready =
-            unsafe { libc::poll(&mut poll, 1, left.as_millis().min(i32::MAX as u128) as i32) };
-        if ready > 0 {
-            return Ok(());
+        }];
+        match y2p_core::sys::poll(&mut poll, left, y2p_core::sys::Rounding::Down) {
+            Ok(0) => return Err(timed_out()),
+            Ok(_) => return Ok(()),
+            Err(error) if error.raw_os_error() == Some(libc::EINTR) => interrupted()?,
+            Err(error) => return Err(E::from(error)),
         }
-        if ready == 0 {
-            return Err(timed_out());
-        }
-        let error = std::io::Error::last_os_error();
-        if error.raw_os_error() != Some(libc::EINTR) {
-            return Err(E::from(error));
-        }
-        interrupted()?;
     }
 }
 

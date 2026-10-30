@@ -62,26 +62,16 @@ fn poll(fd: libc::c_int, events: libc::c_short, deadline: Instant) -> io::Result
         if remaining.is_zero() {
             return Ok(false);
         }
-        // CPython rounds the timeout up to whole milliseconds.
-        let ms = remaining
-            .as_nanos()
-            .div_ceil(1_000_000)
-            .min(i32::MAX as u128) as libc::c_int;
-        let mut entry = libc::pollfd {
+        let mut entry = [libc::pollfd {
             fd,
             events,
             revents: 0,
-        };
-        // SAFETY: one valid pollfd.
-        match unsafe { libc::poll(&mut entry, 1, ms) } {
-            0 => return Ok(false),
-            n if n > 0 => return Ok(true),
-            _ => {
-                let error = io::Error::last_os_error();
-                if error.kind() != io::ErrorKind::Interrupted {
-                    return Err(error);
-                }
-            }
+        }];
+        // CPython rounds the timeout up to whole milliseconds.
+        match y2p_core::sys::poll(&mut entry, remaining, y2p_core::sys::Rounding::Up) {
+            Ok(ready) => return Ok(ready > 0),
+            Err(error) if error.kind() == io::ErrorKind::Interrupted => {}
+            Err(error) => return Err(error),
         }
     }
 }

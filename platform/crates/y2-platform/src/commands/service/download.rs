@@ -286,22 +286,20 @@ fn read_some(
         if cancellable && CANCELLED.load(Ordering::SeqCst) {
             return Err(Error::Cancelled);
         }
-        let mut poll = libc::pollfd {
+        let mut poll = [libc::pollfd {
             fd: stdout.as_raw_fd(),
             events: libc::POLLIN,
             revents: 0,
-        };
-        // SAFETY: one valid pollfd.
-        let ready = unsafe { libc::poll(&mut poll, 1, 250) };
-        if ready == 0 {
-            continue;
-        }
-        if ready < 0 {
-            let error = std::io::Error::last_os_error();
-            if error.kind() == std::io::ErrorKind::Interrupted {
-                continue;
-            }
-            return Err(Error::from(error));
+        }];
+        match y2p_core::sys::poll(
+            &mut poll,
+            std::time::Duration::from_millis(250),
+            y2p_core::sys::Rounding::Down,
+        ) {
+            Ok(0) => continue,
+            Ok(_) => {}
+            Err(error) if error.kind() == std::io::ErrorKind::Interrupted => continue,
+            Err(error) => return Err(Error::from(error)),
         }
         match stdout.read(buffer) {
             Ok(n) => return Ok(n),

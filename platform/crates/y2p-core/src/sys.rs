@@ -501,6 +501,57 @@ pub fn netlink(protocol: libc::c_int, groups: u32, nonblock: bool) -> io::Result
     Ok(sock)
 }
 
+/// How [`poll`] turns the time left into the kernel's timeout.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Rounding {
+    /// `ppoll` with the time left to the nanosecond.
+    Exact,
+    /// `poll` with whole milliseconds, rounded up (CPython's socket timeouts).
+    Up,
+    /// `poll` with whole milliseconds, rounded down.
+    Down,
+}
+
+/// One `poll` (or `ppoll`) over `fds` waiting at most `left`: how many are ready, 0 when the time
+/// passed. An interrupted wait is the EINTR error: each caller decides whether to wait again.
+pub fn poll(
+    fds: &mut [libc::pollfd],
+    left: std::time::Duration,
+    rounding: Rounding,
+) -> io::Result<usize> {
+    let count = fds.len() as libc::nfds_t;
+    let ready = match rounding {
+        Rounding::Exact => {
+            let spec = libc::timespec {
+                tv_sec: left.as_secs() as libc::time_t,
+                tv_nsec: left.subsec_nanos() as libc::c_long,
+            };
+            // SAFETY: `fds` is a valid array of `count` pollfd and `spec` a valid timespec.
+            unsafe { libc::ppoll(fds.as_mut_ptr(), count, &spec, std::ptr::null()) }
+        }
+        Rounding::Up | Rounding::Down => {
+            let nanos = left.as_nanos();
+            let ms = if rounding == Rounding::Up {
+                nanos.div_ceil(1_000_000)
+            } else {
+                nanos / 1_000_000
+            };
+            // SAFETY: `fds` is a valid array of `count` pollfd.
+            unsafe {
+                libc::poll(
+                    fds.as_mut_ptr(),
+                    count,
+                    ms.min(i32::MAX as u128) as libc::c_int,
+                )
+            }
+        }
+    };
+    if ready < 0 {
+        return Err(io::Error::last_os_error());
+    }
+    Ok(ready as usize)
+}
+
 /// `pidfd_open(pid, 0)`: a descriptor that stays this process even after its pid is reused.
 pub fn pidfd_open(pid: libc::pid_t) -> io::Result<OwnedFd> {
     // SAFETY: pidfd_open(2) takes a pid and flags and returns a new descriptor or -1.

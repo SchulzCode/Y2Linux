@@ -173,25 +173,12 @@ impl AddressEvents {
             let left = deadline.saturating_duration_since(Instant::now());
             // The full time left, never rounded down to whole milliseconds:
             // the next tick's `now >= refresh_at` relies on it.
-            let timeout = libc::timespec {
-                tv_sec: left.as_secs() as libc::time_t,
-                tv_nsec: left.subsec_nanos() as libc::c_long,
-            };
-            // SAFETY: a valid array of at least `count` pollfd and a valid timespec.
-            let ready = unsafe {
-                libc::ppoll(
-                    fds.as_mut_ptr(),
-                    count as libc::nfds_t,
-                    &timeout,
-                    std::ptr::null(),
-                )
-            };
-            // An interrupted wait is retried with the time left (the handler has written
-            // to the pipe, so it returns at once).
-            if ready < 0 && io::Error::last_os_error().raw_os_error() == Some(libc::EINTR) {
-                continue;
+            match y2p_core::sys::poll(&mut fds[..count], left, y2p_core::sys::Rounding::Exact) {
+                // An interrupted wait is retried with the time left (the handler has written
+                // to the pipe, so it returns at once).
+                Err(error) if error.raw_os_error() == Some(libc::EINTR) => continue,
+                _ => break,
             }
-            break;
         }
         if fds[0].revents != 0 {
             let mut buffer = [0u8; 4096];

@@ -2,11 +2,16 @@
 //! kernel's link and address events.
 // SPDX-License-Identifier: GPL-2.0-only
 use crate::reply::Failure;
+use std::time::Duration;
 use std::{
     io,
     os::fd::{AsRawFd, OwnedFd, RawFd},
 };
-use y2p_core::{clock, Root};
+use y2p_core::{
+    clock,
+    sys::{self, Rounding},
+    Root,
+};
 
 /// Readable descriptors among `fds` within `timeout` seconds (a hang-up or error reads as readable,
 /// so its owner looks and closes it; EINTR waits again for the rest).
@@ -22,25 +27,11 @@ pub fn select(fds: &[RawFd], timeout: f64) -> io::Result<Vec<RawFd>> {
     let deadline = clock::monotonic() + timeout.max(0.0);
     loop {
         let left = (deadline - clock::monotonic()).max(0.0);
-        let spec = libc::timespec {
-            tv_sec: left.trunc() as libc::time_t,
-            tv_nsec: (left.fract() * 1e9) as libc::c_long,
-        };
-        // SAFETY: `polled` is a valid array of `len` pollfd structures for the call.
-        let n = unsafe {
-            libc::ppoll(
-                polled.as_mut_ptr(),
-                polled.len() as libc::nfds_t,
-                &spec,
-                std::ptr::null(),
-            )
-        };
-        if n >= 0 {
-            break;
-        }
-        let error = io::Error::last_os_error();
-        if error.raw_os_error() != Some(libc::EINTR) {
-            return Err(error);
+        let left = Duration::new(left.trunc() as u64, (left.fract() * 1e9) as u32);
+        match sys::poll(&mut polled, left, Rounding::Exact) {
+            Ok(_) => break,
+            Err(error) if error.raw_os_error() == Some(libc::EINTR) => {}
+            Err(error) => return Err(error),
         }
     }
     Ok(polled
