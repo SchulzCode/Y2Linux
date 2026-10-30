@@ -569,6 +569,62 @@ impl<'a> Parse<'a> {
     }
 }
 
+/// A canonical command line's arguments (what `parse` gives after the subcommand: positionals, then each
+/// given option under its full name, a valued one as two tokens), read by the subcommand's own table: what
+/// a group's route reads instead of parsing the tokens again.
+#[derive(Debug, Default)]
+pub struct Given<'a> {
+    /// The first positional (the commands that route here take at most one).
+    pub positional: Option<String>,
+    flags: Vec<&'static str>,
+    values: Vec<(&'static str, &'a str)>,
+}
+
+impl<'a> Given<'a> {
+    pub fn flag(&self, name: &str) -> bool {
+        self.flags.contains(&name)
+    }
+
+    /// The option's value (the last one given; the canonical form keeps one).
+    pub fn value(&self, name: &str) -> Option<&'a str> {
+        self.values
+            .iter()
+            .rev()
+            .find(|(n, _)| *n == name)
+            .map(|(_, v)| *v)
+    }
+
+    /// An append option's values in the order given.
+    pub fn appended(&self, name: &str) -> Vec<String> {
+        self.values
+            .iter()
+            .filter(|(n, _)| *n == name)
+            .map(|(_, v)| v.to_string())
+            .collect()
+    }
+}
+
+/// `rest` (the canonical arguments after `command`) by `command`'s table; None for tokens the table
+/// does not have (a form `parse` never gives) or a second positional.
+pub fn given<'a>(command: &str, rest: &[&'a str]) -> Option<Given<'a>> {
+    let command = find(command)?;
+    let mut given = Given::default();
+    let mut tokens = rest.iter();
+    while let Some(&token) = tokens.next() {
+        match command
+            .args
+            .iter()
+            .find(|a| !a.positional() && a.name == token)
+        {
+            Some(arg) if arg.kind == Kind::Flag => given.flags.push(arg.name),
+            Some(arg) => given.values.push((arg.name, tokens.next()?)),
+            None if token.starts_with("--") || given.positional.is_some() => return None,
+            None => given.positional = Some(token.to_owned()),
+        }
+    }
+    Some(given)
+}
+
 /// Parse `y2-platform`'s arguments (argv without argv[0]).
 pub fn parse(args: &[&str]) -> Outcome {
     let mut unknown = Vec::new();

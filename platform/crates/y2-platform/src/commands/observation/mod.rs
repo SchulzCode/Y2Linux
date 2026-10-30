@@ -17,108 +17,7 @@ mod util;
 use super::Command;
 use crate::reply::{Outcome, Reply};
 use serde_json::Value;
-use std::collections::BTreeMap;
 use y2p_core::{command, Root};
-
-const SECTIONS: [&str; 11] = [
-    "cpu",
-    "memory",
-    "thermal",
-    "power",
-    "storage",
-    "wifi",
-    "bluetooth",
-    "system",
-    "audio",
-    "readiness",
-    "usb",
-];
-
-/// One subparser's options: flags (store_true), single values (last wins), appended values and an
-/// optional positional with its choices.
-#[derive(Default)]
-struct Spec<'a> {
-    flags: &'a [&'a str],
-    values: &'a [&'a str],
-    appends: &'a [&'a str],
-    positional: &'a [&'a str],
-}
-
-#[derive(Default, Debug)]
-struct Parsed {
-    flags: Vec<String>,
-    values: BTreeMap<String, String>,
-    appends: BTreeMap<String, Vec<String>>,
-    positional: Option<String>,
-}
-
-impl Parsed {
-    fn flag(&self, name: &str) -> bool {
-        self.flags.iter().any(|f| f == name)
-    }
-    fn value(&self, name: &str) -> Option<&str> {
-        self.values.get(name).map(String::as_str)
-    }
-    fn appended(&self, name: &str) -> &[String] {
-        self.appends.get(name).map_or(&[], Vec::as_slice)
-    }
-}
-
-/// The canonical arguments after the subcommand (argparse.rs: positionals, then options in definition
-/// order, `--option value` as two tokens), or None for a form this group does not run.
-fn parse(args: &[&str], spec: &Spec) -> Option<Parsed> {
-    let mut parsed = Parsed::default();
-    let mut index = 0;
-    while index < args.len() {
-        let token = args[index];
-        index += 1;
-        if let Some(option) = token.strip_prefix("--").filter(|_| token.len() > 2) {
-            let (name, inline) = match option.split_once('=') {
-                Some((name, value)) => (name, Some(value)),
-                None => (option, None),
-            };
-            let name = format!("--{name}");
-            if spec.flags.contains(&name.as_str()) {
-                if inline.is_some() {
-                    return None;
-                }
-                parsed.flags.push(name);
-                continue;
-            }
-            let takes = spec.values.contains(&name.as_str());
-            let appends = spec.appends.contains(&name.as_str());
-            if !takes && !appends {
-                return None;
-            }
-            let value = match inline {
-                Some(value) => value,
-                None => {
-                    let value = *args.get(index)?;
-                    index += 1;
-                    value
-                }
-            };
-            if takes {
-                parsed.values.insert(name, value.to_owned());
-            } else {
-                parsed
-                    .appends
-                    .entry(name)
-                    .or_default()
-                    .push(value.to_owned());
-            }
-            continue;
-        }
-        if token.starts_with('-')
-            || parsed.positional.is_some()
-            || !spec.positional.contains(&token)
-        {
-            return None;
-        }
-        parsed.positional = Some(token.to_owned());
-    }
-    Some(parsed)
-}
 
 /// An integer argument in its canonical form (`-?digits`). One beyond 64 bits is clamped, which every
 /// caller refuses as out of range like the real value (`collection_bounds_exceeded`, `invalid pid`,
@@ -157,20 +56,12 @@ pub fn route(args: &[&str]) -> Option<Command> {
     let (name, rest) = args.split_first()?;
     match *name {
         "status" => {
-            let parsed = parse(
-                rest,
-                &Spec {
-                    flags: &["--json", "--pss", "--reborn"],
-                    values: &["--interval"],
-                    appends: &["--pid"],
-                    positional: &SECTIONS,
-                },
-            )?;
+            let parsed = crate::cli::given(name, rest)?;
             let interval = match parsed.value("--interval") {
                 Some(v) => decimal(v)?,
                 None => 0.0,
             };
-            let pids = integers(parsed.appended("--pid"))?;
+            let pids = integers(&parsed.appended("--pid"))?;
             // `not 0 <= interval <= 10 or 0 < interval < 0.1` (NaN too) `or len(pid) > 32`.
             if !(0.0..=10.0).contains(&interval)
                 || (interval > 0.0 && interval < 0.1)
@@ -190,26 +81,13 @@ pub fn route(args: &[&str]) -> Option<Command> {
             Some(Box::new(move |root| status(root, &options)))
         }
         "health" => {
-            let parsed = parse(
-                rest,
-                &Spec {
-                    flags: &["--json", "--full"],
-                    ..Spec::default()
-                },
-            )?;
+            let parsed = crate::cli::given(name, rest)?;
             let full = parsed.flag("--full");
             Some(Box::new(move |root| health::run(root, full)))
         }
         "boot-evidence" if rest.is_empty() => Some(Box::new(evidence::run)),
         "network-check" => {
-            let parsed = parse(
-                rest,
-                &Spec {
-                    flags: &["--throughput"],
-                    values: &["--peer", "--seconds", "--interface"],
-                    ..Spec::default()
-                },
-            )?;
+            let parsed = crate::cli::given(name, rest)?;
             let peer = parsed.value("--peer")?.to_owned();
             let seconds = match parsed.value("--seconds") {
                 Some(v) => integer(v)?,
@@ -225,15 +103,7 @@ pub fn route(args: &[&str]) -> Option<Command> {
             }))
         }
         "collect" => {
-            let parsed = parse(
-                rest,
-                &Spec {
-                    flags: &["--pss", "--reborn"],
-                    values: &["--seconds", "--interval", "--warmup", "--workload"],
-                    appends: &["--pid"],
-                    ..Spec::default()
-                },
-            )?;
+            let parsed = crate::cli::given(name, rest)?;
             let number = |name: &str, default: i64| match parsed.value(name) {
                 Some(v) => integer(v),
                 None => Some(default),
@@ -243,20 +113,14 @@ pub fn route(args: &[&str]) -> Option<Command> {
                 interval: number("--interval", 5)?,
                 warmup: number("--warmup", 0)?,
                 workload: parsed.value("--workload").unwrap_or("idle").to_owned(),
-                pids: integers(parsed.appended("--pid"))?,
+                pids: integers(&parsed.appended("--pid"))?,
                 pss: parsed.flag("--pss"),
                 reborn: parsed.flag("--reborn"),
             };
             Some(Box::new(move |root| collect::run(root, &options)))
         }
         "bench-storage" => {
-            let parsed = parse(
-                rest,
-                &Spec {
-                    values: &["--volume", "--size-mib", "--operations", "--seconds"],
-                    ..Spec::default()
-                },
-            )?;
+            let parsed = crate::cli::given(name, rest)?;
             let volume = volume(parsed.value("--volume"))?;
             let number = |name: &str, default: i64| match parsed.value(name) {
                 Some(v) => integer(v),
@@ -272,14 +136,7 @@ pub fn route(args: &[&str]) -> Option<Command> {
             }))
         }
         "bench-library" => {
-            let parsed = parse(
-                rest,
-                &Spec {
-                    flags: &["--scan"],
-                    values: &["--volume", "--tracks"],
-                    ..Spec::default()
-                },
-            )?;
+            let parsed = crate::cli::given(name, rest)?;
             let volume = volume(parsed.value("--volume"))?;
             let tracks = match parsed.value("--tracks") {
                 Some(v) => integer(v).filter(|t| [1000, 10000, 20000].contains(t))?,
@@ -428,25 +285,15 @@ mod tests {
     use super::*;
 
     #[test]
-    fn argument_forms_follow_argparse() {
-        let spec = Spec {
-            flags: &["--pss"],
-            values: &["--interval"],
-            appends: &["--pid"],
-            positional: &SECTIONS,
-        };
-        let parsed = parse(&["wifi", "--pid", "5", "--pid=-3", "--pss"], &spec).unwrap();
+    fn canonical_arguments_are_read_by_the_commands_table() {
+        let parsed =
+            crate::cli::given("status", &["wifi", "--pss", "--pid", "5", "--pid", "-3"]).unwrap();
         assert_eq!(parsed.positional.as_deref(), Some("wifi"));
         assert_eq!(parsed.appended("--pid"), ["5", "-3"]);
-        assert!(parsed.flag("--pss"));
-        assert_eq!(
-            parse(&["--pid", "-x"], &spec).unwrap().appended("--pid"),
-            ["-x"]
-        );
-        assert!(parse(&["--pi", "5"], &spec).is_none());
-        assert!(parse(&["wifi", "cpu"], &spec).is_none());
-        assert!(parse(&["--pss=1"], &spec).is_none());
-        assert!(parse(&["--"], &spec).is_none());
+        assert!(parsed.flag("--pss") && !parsed.flag("--reborn"));
+        assert!(crate::cli::given("status", &["--pi", "5"]).is_none());
+        assert!(crate::cli::given("status", &["wifi", "cpu"]).is_none());
+        assert!(crate::cli::given("status", &["--pid"]).is_none());
         assert_eq!(decimal("0.5"), Some(0.5));
         assert_eq!(decimal("1e-05"), Some(1e-5));
         assert!(decimal("nan").is_some_and(f64::is_nan));

@@ -27,15 +27,6 @@ pub use y2p_core::digest::sha256_hex;
 use y2p_core::json::ObjectExt;
 use y2p_core::Root;
 
-const TOPICS: [&str; 7] = [
-    "sound",
-    "display",
-    "battery",
-    "bluetooth",
-    "wifi",
-    "crash",
-    "other",
-];
 const SCOPES: [&str; 6] = [
     "settings",
     "network",
@@ -44,44 +35,6 @@ const SCOPES: [&str; 6] = [
     "caches",
     "full-user",
 ];
-
-/// The canonical form's options after the positional (argparse.rs: given ones only, full names, each
-/// once): `--name value` pairs and bare `--flag`s; `None` for anything else.
-fn options<'a>(
-    rest: &[&'a str],
-    valued: &[(&str, Option<&[&str]>)],
-    flags: &[&str],
-) -> Option<Vec<(String, Option<&'a str>)>> {
-    let mut found: Vec<(String, Option<&'a str>)> = Vec::new();
-    let mut i = 0;
-    while i < rest.len() {
-        let name = rest[i];
-        if found.iter().any(|(n, _)| n == name) {
-            return None;
-        }
-        if flags.contains(&name) {
-            found.push((name.to_owned(), None));
-            i += 1;
-            continue;
-        }
-        let (_, choices) = valued.iter().find(|(n, _)| *n == name)?;
-        let value = *rest.get(i + 1)?;
-        if choices.is_some_and(|c| !c.contains(&value)) {
-            return None;
-        }
-        found.push((name.to_owned(), Some(value)));
-        i += 2;
-    }
-    Some(found)
-}
-
-fn get<'a>(found: &[(String, Option<&'a str>)], name: &str) -> Option<&'a str> {
-    found.iter().find(|(n, _)| n == name).and_then(|(_, v)| *v)
-}
-
-fn has(found: &[(String, Option<&str>)], name: &str) -> bool {
-    found.iter().any(|(n, _)| n == name)
-}
 
 /// The Rust implementation of these exact arguments, if this group has one.
 pub fn route(args: &[&str]) -> Option<Command> {
@@ -93,17 +46,10 @@ pub fn route(args: &[&str]) -> Option<Command> {
             if !ACTIONS.contains(action) {
                 return None;
             }
-            let found = options(
-                rest,
-                &[
-                    ("--to", Some(&["internal", "sd"][..])),
-                    ("--topic", Some(&TOPICS[..])),
-                ],
-                &[],
-            )?;
+            let found = crate::cli::given("report", rest)?;
             let action = action.to_string();
-            let to = get(&found, "--to").map(str::to_owned);
-            let topic = get(&found, "--topic").map(str::to_owned);
+            let to = found.value("--to").map(str::to_owned);
+            let topic = found.value("--topic").map(str::to_owned);
             Some(Box::new(move |root| {
                 report(root, &action, to.as_deref(), topic.as_deref())
             }))
@@ -112,20 +58,12 @@ pub fn route(args: &[&str]) -> Option<Command> {
             if !["plan", "execute", "resume", "purge"].contains(action) {
                 return None;
             }
-            let found = options(
-                rest,
-                &[
-                    ("--scope", Some(&SCOPES[..])),
-                    ("--confirm", None),
-                    ("--id", None),
-                ],
-                &["--erase-user-music"],
-            )?;
+            let found = crate::cli::given("reset", rest)?;
             let action = action.to_string();
-            let scope = get(&found, "--scope").map(str::to_owned);
-            let confirm = get(&found, "--confirm").map(str::to_owned);
-            let id = get(&found, "--id").map(str::to_owned);
-            let erase = has(&found, "--erase-user-music");
+            let scope = found.value("--scope").map(str::to_owned);
+            let confirm = found.value("--confirm").map(str::to_owned);
+            let id = found.value("--id").map(str::to_owned);
+            let erase = found.flag("--erase-user-music");
             Some(Box::new(move |root| {
                 maintenance::reset(
                     root,
@@ -138,9 +76,9 @@ pub fn route(args: &[&str]) -> Option<Command> {
             }))
         }
         ["export-state", rest @ ..] => {
-            let found = options(rest, &[], &["--include-database", "--include-network"])?;
-            let database = has(&found, "--include-database");
-            let network = has(&found, "--include-network");
+            let found = crate::cli::given("export-state", rest)?;
+            let database = found.flag("--include-database");
+            let network = found.flag("--include-network");
             Some(Box::new(move |root| {
                 maintenance::export_state(root, database, network)
             }))
@@ -279,18 +217,33 @@ mod tests {
         ] {
             assert!(route(args).is_some(), "{args:?}");
         }
+        // A repeated option counts once with its last value (cli.rs).
+        for args in [
+            &["report", "save", "--to", "sd", "--to", "sd"][..],
+            &["export-state", "--include-database", "--include-database"],
+        ] {
+            assert!(
+                matches!(crate::cli::parse(args), crate::cli::Outcome::Parsed(_)),
+                "{args:?}"
+            );
+        }
         for args in [
             &["report"][..],
             &["report", "nope"],
             &["report", "save", "--to", "usb"],
             &["report", "save", "--to"],
-            &["report", "save", "--to", "sd", "--to", "sd"],
             &["report", "status", "--help"],
             &["reset", "plan", "--scope", "everything"],
-            &["export-state", "--include-database", "--include-database"],
             &["export-diagnostics", "x"],
         ] {
-            assert!(route(args).is_none(), "{args:?}");
+            // Refused by cli::parse (exit 2) or by the route: never run.
+            let runs = match crate::cli::parse(args) {
+                crate::cli::Outcome::Parsed(canonical) => {
+                    route(&canonical.iter().map(String::as_str).collect::<Vec<_>>()).is_some()
+                }
+                _ => false,
+            };
+            assert!(!runs, "{args:?}");
         }
     }
 }
