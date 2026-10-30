@@ -1,7 +1,7 @@
 //! What a sample publishes and what survives a restart: the reading in power.json and the journal,
 //! and `battery-ui.json`.
 // SPDX-License-Identifier: GPL-2.0-only
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use serde_json::Value;
 use y2p_core::py::PyValue;
 
@@ -9,82 +9,7 @@ use y2p_core::py::PyValue;
 // UI_SOC in an MT6323 RTC spare register (set_rtc_spare_fg_value, ledger F29).
 pub const UI_STATE: &str = "/data/system/platform/battery-ui.json";
 
-/// Where a sample's percentage comes from (`battery.source`).
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum BatterySource {
-    Unavailable,
-    FuelGauge,
-    Hybrid,
-    StockOam,
-    VoltageEstimate,
-}
-
-/// How far a sample's percentage can be trusted (`battery.confidence`): the low-battery policy acts
-/// on a percentage only from `hardware` or `calibrated_estimate`.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum Confidence {
-    Unavailable,
-    Hardware,
-    CalibratedEstimate,
-    Provisional,
-}
-
-/// What one sample publishes (`battery` in power.json and in the journal rows), in this key order:
-/// the reading, then for a voltage estimate the estimate's own fields.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct BatteryStatus {
-    pub percent: Option<i64>,
-    pub source: BatterySource,
-    pub confidence: Confidence,
-    pub status: Option<String>,
-    pub charging: bool,
-    pub voltage_uv: Option<i64>,
-    pub current_ua: Option<i64>,
-    pub temperature_millicelsius: Option<i64>,
-    pub charge_counter_uah: Option<i64>,
-    pub provisional: bool,
-    pub resting: bool,
-    #[serde(flatten)]
-    pub estimate: Option<Estimate>,
-}
-
-impl Default for BatteryStatus {
-    /// No usable reading: no percentage, nothing measured.
-    fn default() -> Self {
-        Self {
-            percent: None,
-            source: BatterySource::Unavailable,
-            confidence: Confidence::Unavailable,
-            status: None,
-            charging: false,
-            voltage_uv: None,
-            current_ua: None,
-            temperature_millicelsius: None,
-            charge_counter_uah: None,
-            provisional: true,
-            resting: false,
-            estimate: None,
-        }
-    }
-}
-
-/// The voltage estimate's fields of a [`BatteryStatus`]; the capacity pair only with a design capacity.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct Estimate {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub design_capacity_uah: Option<i64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub remaining_uah_estimate: Option<i64>,
-    pub estimate_percent: i64,
-    pub anchor_percent: Option<f64>,
-    pub full_latched: bool,
-    pub filtered_voltage_uv: i64,
-    pub start: Option<String>,
-    pub calibration_source: String,
-}
+pub use y2p_contract::power::{BatterySource, BatteryStatus, Confidence, Estimate};
 
 /// `battery-ui.json`: the displayed percentage kept across a restart.
 #[derive(Clone, Copy, Debug, PartialEq, Serialize)]

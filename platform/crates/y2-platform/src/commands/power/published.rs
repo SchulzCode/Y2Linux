@@ -2,36 +2,17 @@
 //! least every 2 s): suspend admission, the SD card repair's battery check and the update's battery
 //! gate. Read leniently: an odd field reads as absent, and each reader keeps its own rule for that.
 // SPDX-License-Identifier: GPL-2.0-only
-use serde::{Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Deserializer};
 use serde_json::Value;
+pub use y2p_contract::power::PowerRecord;
 use y2p_core::{
     lenient::{self, BootId},
     py, Root,
 };
 
-/// `/run/y2/power.json` as the power daemon writes it (`daemon::PowerRecord`), for the status snapshot.
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Default)]
-#[serde(default)]
-pub struct PowerRecord {
-    pub schema: i64,
-    pub boot_id: Option<String>,
-    pub monotonic_ns: u64,
-    pub state: super::policy::BatteryState,
-    pub voltage_uv: Option<i64>,
-    pub reason: Option<String>,
-    pub thresholds_enabled: bool,
-    pub battery: super::battery::BatteryStatus,
-    /// The policy document's `qualification_reference` (a text).
-    pub qualification_reference: Option<String>,
-    /// The shutdown intent the daemon coordinates (its own record).
-    pub shutdown: Option<super::coordinator::Intent>,
-}
-
-impl PowerRecord {
-    /// The record at `/run/y2/power.json`; none when missing or not of this shape.
-    pub fn read(root: &Root) -> Option<PowerRecord> {
-        serde_json::from_str(&root.read("/run/y2/power.json")?).ok()
-    }
+/// The record at `/run/y2/power.json`; none when missing or not of this shape.
+pub fn record(root: &Root) -> Option<PowerRecord> {
+    serde_json::from_str(&root.read("/run/y2/power.json")?).ok()
 }
 
 /// The record's fields these readers use.

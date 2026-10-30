@@ -9,6 +9,7 @@
 //! cases' bounded runs (tests/platform_cases/power.py).
 // SPDX-License-Identifier: GPL-2.0-only
 use super::coordinator::Intent;
+use super::published::PowerRecord;
 use crate::reply::At;
 mod requests;
 
@@ -21,7 +22,6 @@ use super::{
 };
 use crate::reply::{atomic_json, private_directory, unlink_missing_ok, Failure, Outcome};
 use requests::serve_client;
-use serde::Serialize;
 use std::{
     io::Write,
     os::unix::fs::FileTypeExt,
@@ -37,21 +37,6 @@ static RUNNING: AtomicBool = AtomicBool::new(true);
 
 /// How old an unchanged power.json may get before it is rewritten (Reborn refuses one 5 s old).
 const RENEW_NS: u64 = 2_000_000_000;
-
-/// `/run/y2/power.json` (written sorted; Reborn's power.rs reads it).
-#[derive(Serialize)]
-struct PowerRecord<'a> {
-    schema: i64,
-    boot_id: Option<&'a str>,
-    monotonic_ns: u64,
-    state: BatteryState,
-    voltage_uv: Option<i64>,
-    reason: Option<&'a str>,
-    thresholds_enabled: bool,
-    battery: &'a BatteryStatus,
-    qualification_reference: Option<&'a str>,
-    shutdown: Option<&'a Intent>,
-}
 
 /// Failures the daemon outlives, on stderr (the supervisor's log) when one starts or its text
 /// changes: a write that fails every second leaves one line. The battery protection and the
@@ -136,25 +121,25 @@ impl Daemon<'_> {
             None,
         );
         let now = root.clock().monotonic_ns();
-        let record = PowerRecord {
-            schema: 1,
-            boot_id: self.coordinator.boot_id.as_deref(),
-            monotonic_ns: now,
-            state: self.state,
-            voltage_uv: voltage,
-            reason: self.reason,
-            thresholds_enabled: self.policy.is_some(),
-            battery: &self.battery_status,
-            qualification_reference: self
-                .policy
-                .as_ref()
-                .and_then(|p| p.qualification_reference.as_deref()),
-            shutdown: self.coordinator.intent.as_ref(),
-        };
         let content = Published::of(self);
         if !publish_due(self.published.as_ref(), &content, now) {
             return;
         }
+        let record = PowerRecord {
+            schema: 1,
+            boot_id: self.coordinator.boot_id.clone(),
+            monotonic_ns: now,
+            state: self.state,
+            voltage_uv: voltage,
+            reason: self.reason.map(str::to_owned),
+            thresholds_enabled: self.policy.is_some(),
+            battery: self.battery_status.clone(),
+            qualification_reference: self
+                .policy
+                .as_ref()
+                .and_then(|p| p.qualification_reference.clone()),
+            shutdown: self.coordinator.intent.clone(),
+        };
         let written = atomic_json(&root.path("/run/y2/power.json"), &record, false);
         self.published = written.is_ok().then_some((content, now));
         self.notes.check("/run/y2/power.json", written);

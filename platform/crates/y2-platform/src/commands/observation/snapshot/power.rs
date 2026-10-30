@@ -3,7 +3,7 @@
 use crate::commands::observation::util::{name, read};
 use crate::commands::power::{
     battery::{BatterySource, BatteryStatus, Confidence},
-    published::PowerRecord,
+    published::{self, PowerRecord},
 };
 use crate::reply::Failure;
 use serde::Serialize;
@@ -95,7 +95,7 @@ pub fn power(root: &Root) -> Result<Power, Failure> {
         .collect();
     // The policy record counts while the daemon renews it: this boot, within the last 5 s.
     let now = i128::from(root.clock().monotonic_ns());
-    let record = PowerRecord::read(root).filter(|record| {
+    let record = published::record(root).filter(|record| {
         record.boot_id.is_some()
             && record.boot_id == root.boot_id()
             && (0..5_000_000_000).contains(&(now - i128::from(record.monotonic_ns)))

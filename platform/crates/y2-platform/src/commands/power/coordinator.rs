@@ -6,38 +6,12 @@ mod steps;
 #[cfg(test)]
 use steps::{LONG_PRESS_RESET, WATCHDOG_POWERS_OFF};
 
-pub use steps::Step;
+pub use y2p_contract::power::{Acknowledgement, Intent, IntentState, ShutdownAction};
 
 use crate::reply::{atomic_json, private_directory, Failure};
-use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{fs::File, io::Write};
-use y2p_core::{
-    lenient::{self, BootId, Shaped},
-    power_identity::{process_identity, ProcessIdentity},
-    py,
-    py::PyValue,
-    Root,
-};
-
-/// A shutdown intent's state (`state` of shutdown.json and the socket's answers).
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub enum IntentState {
-    /// Requested; its grace or Reborn's acknowledgement ends the wait.
-    ShutdownPending,
-    /// Its steps run (a daemon restart resumes it as pending, with its deadline).
-    Executing,
-    /// Init refused the transition.
-    Failed,
-}
-
-/// What a shutdown does (`action`).
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum ShutdownAction {
-    Poweroff,
-    Reboot,
-}
+use y2p_core::{lenient::Shaped, power_identity::process_identity, py, Root};
 
 /// Who asked for a shutdown (`reason`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -46,24 +20,6 @@ pub enum ShutdownReason {
     LowBattery,
     Update,
     Service,
-}
-
-impl ShutdownAction {
-    pub fn as_str(self) -> &'static str {
-        match self {
-            ShutdownAction::Poweroff => "poweroff",
-            ShutdownAction::Reboot => "reboot",
-        }
-    }
-
-    /// The action a request names (only these exact texts).
-    pub fn named(text: &str) -> Option<ShutdownAction> {
-        Some(match text {
-            "poweroff" => ShutdownAction::Poweroff,
-            "reboot" => ShutdownAction::Reboot,
-            _ => return None,
-        })
-    }
 }
 
 impl ShutdownReason {
@@ -85,94 +41,6 @@ impl ShutdownReason {
             "service" => ShutdownReason::Service,
             _ => return None,
         })
-    }
-}
-
-/// A shutdown intent (`/run/y2/shutdown.json`, the socket's answers, power.json's `shutdown`): one the
-/// coordinator built, or one resumed from shutdown.json after a daemon restart. Resuming needs the
-/// fields the coordinator decides on in their types, `client` and `acknowledgement` present; the
-/// others read leniently.
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
-pub struct Intent {
-    #[serde(default, deserialize_with = "lenient::integer")]
-    pub schema: Option<i64>,
-    pub id: String,
-    #[serde(default)]
-    pub boot_id: BootId,
-    pub state: IntentState,
-    pub action: ShutdownAction,
-    #[serde(default, deserialize_with = "lenient::text")]
-    pub reason: Option<String>,
-    #[serde(default, deserialize_with = "lenient::integer")]
-    pub requested_monotonic_ns: Option<i64>,
-    pub deadline_monotonic_ns: i64,
-    /// Reborn's process when the intent was made (`null` without one).
-    #[serde(deserialize_with = "lenient::or_none")]
-    pub client: Option<ProcessIdentity>,
-    /// Reborn's answer (`null` until it answers; what a damaged file holds is kept as it is).
-    #[serde(deserialize_with = "acknowledgement")]
-    pub acknowledgement: Option<Shaped<Acknowledgement>>,
-    #[serde(default, deserialize_with = "lenient::text")]
-    pub failure: Option<String>,
-    /// What each shutdown step did, once they ran.
-    #[serde(
-        default,
-        skip_serializing_if = "Option::is_none",
-        deserialize_with = "lenient::or_none"
-    )]
-    pub stop_results: Option<std::collections::BTreeMap<String, Step>>,
-}
-
-/// Reborn's acknowledgement of an intent.
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
-pub struct Acknowledgement {
-    /// `Ready` or `Failed` (an acknowledgement without one is a damaged file's).
-    #[serde(
-        default,
-        skip_serializing_if = "Option::is_none",
-        deserialize_with = "lenient::there"
-    )]
-    pub outcome: Option<Value>,
-    #[serde(
-        default,
-        skip_serializing_if = "Option::is_none",
-        deserialize_with = "lenient::integer"
-    )]
-    pub monotonic_ns: Option<i64>,
-}
-
-fn acknowledgement<'de, D: serde::Deserializer<'de>>(
-    deserializer: D,
-) -> Result<Option<Shaped<Acknowledgement>>, D::Error> {
-    Option::deserialize(deserializer)
-}
-
-impl Intent {
-    pub fn pending(&self) -> bool {
-        self.state == IntentState::ShutdownPending
-    }
-
-    /// The deadline in CLOCK_MONOTONIC ns.
-    pub fn deadline_ns(&self) -> i128 {
-        i128::from(self.deadline_monotonic_ns)
-    }
-
-    /// Whether Reborn acknowledged with `Ready`. Anything but an acknowledgement with that outcome
-    /// (none, or what a damaged resumed intent holds) is no acknowledgement: the deadline still ends
-    /// the grace.
-    pub fn ready(&self) -> bool {
-        matches!(&self.acknowledgement, Some(Shaped::Is(ack))
-            if ack.outcome.as_ref().and_then(Value::as_str) == Some("Ready"))
-    }
-
-    /// An acknowledgement that is set but is no object with an outcome (only a damaged file has
-    /// one).
-    fn acknowledgement_odd(&self) -> bool {
-        match &self.acknowledgement {
-            Some(Shaped::Is(ack)) => ack.outcome.is_none(),
-            Some(Shaped::Odd(ack)) => ack.truthy(),
-            None => false,
-        }
     }
 }
 

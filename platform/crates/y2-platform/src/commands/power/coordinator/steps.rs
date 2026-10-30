@@ -5,10 +5,10 @@
 //! get the fixture answers (`y2p_core::command`) and the kill step runs only on the real root.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{Coordinator, Intent, IntentState, ShutdownAction};
-use serde::{Deserialize, Serialize};
 use std::{
     collections::BTreeMap, fs::OpenOptions, io::Write, os::unix::fs::OpenOptionsExt, time::Duration,
 };
+pub use y2p_contract::power::Step;
 use y2p_core::{
     command,
     power_identity::{process_identity, ProcessIdentity},
@@ -25,19 +25,11 @@ pub(super) const LONG_PRESS_RESET: &str = "/sys/firmware/y2_pmic/long_press_rese
 // cannot stall); the next boot's retained capture or the recovery keeps it.
 const STAGE_SECONDS: f64 = 3.0;
 
-/// A step's `{ok, reason}` (its output is never kept).
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct Step {
-    pub ok: bool,
-    pub reason: Option<String>,
-}
-
-impl Step {
-    fn of(ok: bool, reason: Option<&str>) -> Step {
-        Step {
-            ok,
-            reason: reason.map(str::to_owned),
-        }
+/// A step's result.
+fn step(ok: bool, reason: Option<&str>) -> Step {
+    Step {
+        ok,
+        reason: reason.map(str::to_owned),
     }
 }
 
@@ -81,13 +73,13 @@ pub fn backlight_off(root: &Root) -> Step {
         .filter(|n| n.exists())
         .collect();
     if nodes.is_empty() {
-        return Step::of(false, Some("no_backlight"));
+        return step(false, Some("no_backlight"));
     }
     let failed = nodes
         .iter()
         .filter(|node| write_text(node, "4\n").is_err())
         .count();
-    Step::of(failed == 0, (failed > 0).then_some("write_failed"))
+    step(failed == 0, (failed > 0).then_some("write_failed"))
 }
 
 /// `wait_gone(ctx, name, timeout)`: poll every 0.1 s until the path is gone.
@@ -96,11 +88,11 @@ fn wait_gone(root: &Root, name: &str, timeout: f64) -> Step {
     let deadline = clock.monotonic() + timeout;
     while root.path(name).exists() {
         if clock.monotonic() >= deadline {
-            return Step::of(false, Some("still_present"));
+            return step(false, Some("still_present"));
         }
         clock.sleep(Duration::from_millis(100));
     }
-    Step::of(true, None)
+    step(true, None)
 }
 
 impl Coordinator {
@@ -111,7 +103,7 @@ impl Coordinator {
         // Only the actual daemon entry point calls this; fixture contexts can
         // never signal a host process or execute host power commands.
         let Some(intent) = self.intent.as_mut() else {
-            return Step::of(false, Some("no_shutdown_intent"));
+            return step(false, Some("no_shutdown_intent"));
         };
         intent.state = IntentState::Executing;
         let action = intent.action;
@@ -277,7 +269,7 @@ impl Coordinator {
     /// watchdog), or for a power-off the loader's reason 3: charging mode on a charger, otherwise off.
     fn arm_watchdog(&mut self, poweroff: bool) -> Step {
         if self.watchdog.is_some() {
-            return Step::of(true, None);
+            return step(true, None);
         }
         let mut failure = None;
         if poweroff && write_text(&self.root.path(WATCHDOG_POWERS_OFF), "1\n").is_err() {
@@ -290,9 +282,9 @@ impl Coordinator {
             .open(self.root.path("/dev/watchdog"))
         {
             Ok(file) => self.watchdog = Some(file),
-            Err(_) => return Step::of(false, Some("watchdog_unavailable")),
+            Err(_) => return step(false, Some("watchdog_unavailable")),
         }
-        Step::of(failure.is_none(), failure)
+        step(failure.is_none(), failure)
     }
 
     /// F57 (496f54ad): Power still held through the 8-14 s power-off let the PMIC long-press reset
@@ -301,20 +293,20 @@ impl Coordinator {
     /// escape from a stalled shutdown. Never fails the shutdown.
     fn long_press_reset_off(&self) -> Step {
         if self.watchdog.is_none() {
-            return Step::of(false, Some("kept_without_watchdog"));
+            return step(false, Some("kept_without_watchdog"));
         }
         let Ok(mut file) = OpenOptions::new()
             .write(true)
             .custom_flags(libc::O_NOFOLLOW | libc::O_CLOEXEC)
             .open(self.root.path(LONG_PRESS_RESET))
         else {
-            return Step::of(false, Some("long_press_reset_unavailable")); // older kernel
+            return step(false, Some("long_press_reset_unavailable")); // older kernel
         };
         // `os.write(fd, b'0\n')`: one write, its count not checked.
         #[allow(clippy::unused_io_amount)]
         match file.write(b"0\n") {
-            Ok(_) => Step::of(true, None),
-            Err(_) => Step::of(false, Some("long_press_reset_failed")),
+            Ok(_) => step(true, None),
+            Err(_) => step(false, Some("long_press_reset_failed")),
         }
     }
 }

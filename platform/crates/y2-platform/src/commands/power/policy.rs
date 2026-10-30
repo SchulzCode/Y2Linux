@@ -2,7 +2,7 @@
 //! are owner-qualified data.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::battery::{BatteryStatus, Confidence};
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use serde_json::Value;
 use y2p_core::{lenient, py::python_number, Root};
 
@@ -155,37 +155,7 @@ pub fn load_policy(root: &Root) -> (Option<Policy>, Option<&'static str>) {
     )
 }
 
-/// The low-battery state (power.json `state`, the journal rows): ShutdownPending after
-/// `critical_samples` consecutive critical samples.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-pub enum BatteryState {
-    /// No policy, or no battery reading.
-    #[default]
-    Unavailable,
-    Normal,
-    Low,
-    Critical,
-    ShutdownPending,
-}
-
-impl BatteryState {
-    /// The text records carry.
-    pub fn as_str(self) -> &'static str {
-        match self {
-            BatteryState::Unavailable => "Unavailable",
-            BatteryState::Normal => "Normal",
-            BatteryState::Low => "Low",
-            BatteryState::Critical => "Critical",
-            BatteryState::ShutdownPending => "ShutdownPending",
-        }
-    }
-}
-
-impl PartialEq<&str> for BatteryState {
-    fn eq(&self, text: &&str) -> bool {
-        self.as_str() == *text
-    }
-}
+pub use y2p_contract::power::BatteryState;
 
 /// `LowBattery`: the state of the last sample and how many critical samples came in a row.
 #[derive(Debug, Default)]

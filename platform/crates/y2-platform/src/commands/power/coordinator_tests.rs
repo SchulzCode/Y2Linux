@@ -184,7 +184,7 @@ fn ignored_app_and_failed_sync_do_not_block_final_init_request() {
     let calls = execute(&mut c, &fixture);
     assert_eq!(last(&calls), ["/bin/busybox", "poweroff"]);
     assert!(calls.iter().all(|(_, timeout)| *timeout <= 5.0));
-    assert!(current(&c).value("state").is_str("Failed"));
+    assert_eq!(current(&c).value("state"), "Failed");
     assert!(!c.due());
 }
 

@@ -5,14 +5,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
 pub use crate::paths::realpath;
 use crate::{power_text::python_split, root::parse_int, Root};
-use serde::{Deserialize, Serialize};
 
-/// A live process told apart from a later one with its pid: its start time in clock ticks.
-#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
-pub struct ProcessIdentity {
-    pub pid: i64,
-    pub start_ticks: i64,
-}
+pub use y2p_contract::power::ProcessIdentity;
 
 /// The identity of the live process running `expected` whose pid `/run/reborn/<name>.pid` names, or
 /// `None`.
