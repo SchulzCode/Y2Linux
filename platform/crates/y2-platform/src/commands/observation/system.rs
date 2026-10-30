@@ -3,13 +3,12 @@
 //! radio firmware.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::util::{
-    self, findall2, findall_map, get_eq, int, name, read, read_limited, record_fields, splitlines,
-    Counted,
+    self, findall2, findall_map, int, name, read, read_limited, splitlines, Counted,
 };
 use crate::commands::devices::ssh;
 use crate::{regex, reply::Failure};
-use serde::{Deserialize, Serialize};
-use serde_json::{json, Map, Value};
+use serde::Serialize;
+use serde_json::{Map, Value};
 use y2p_contract::BootStageLine;
 use y2p_core::{
     command,
@@ -96,52 +95,6 @@ struct LogDigest {
     name: String,
     tail_sha256: String,
     source_bytes_at_capture: u64,
-}
-
-/// Whether Y2Media is mounted as recorded: the claim's mount is still the only, live mount at
-/// /media/internal.
-pub fn internal_ready(root: &Root) -> bool {
-    crate::commands::storage::internal::ready(root)
-}
-
-/// `/run/y2/radio-firmware.json`: the last firmware install's answer (service group).
-#[derive(Deserialize, Default)]
-#[serde(default)]
-struct FirmwareInstall {
-    state: Value,
-    reason: Value,
-}
-
-/// The radio firmware: Ready (every file there at its size), Installing or Failed (the install's
-/// answer), or Missing (and where system.img goes).
-fn radiofw_state(root: &Root) -> Value {
-    let install: FirmwareInstall = record_fields(root, "/run/y2/radio-firmware.json");
-    let target = root.path("/data/firmware/mt6582");
-    // Cheap check for status polling: every file there with its size (the service's own list).
-    use crate::commands::service::radiofw::{DEFAULTS, FILES};
-    let present = FILES.iter().chain(&DEFAULTS).all(|(n, size, _)| {
-        std::fs::symlink_metadata(target.join(n))
-            .is_ok_and(|m| m.len() == *size && m.file_type().is_file())
-    });
-    if present {
-        return json!({"state": "Ready"});
-    }
-    if matches!(install.state.as_str(), Some("Installing" | "Failed")) {
-        return json!({"state": install.state, "reason": install.reason});
-    }
-    let mut missing = json!({"state": "Missing", "folder": "Firmware", "file": "system.img",
-                             "location": if internal_ready(root) { "internal" } else { "drive" }});
-    // The responder refuses a copy that does not fit before writing anything (mtp-safe space()), so
-    // nothing is left behind; only say why (#39).
-    // ENOSPC
-    if get_eq(
-        &root.json_object("/run/y2/mtp-events.json"),
-        "error",
-        &json!(28),
-    ) {
-        missing["reason"] = json!("no_space");
-    }
-    missing
 }
 
 /// The kernel marks the detected BC1.1 class in brackets: 'Unknown [SDP] DCP CDP'.
@@ -413,7 +366,7 @@ pub fn system(root: &Root) -> Result<System, Failure> {
         crng_ready: crng,
         usb,
         update: Value::Object(crate::commands::service::update::journal_status(root)),
-        radio_firmware: radiofw_state(root),
+        radio_firmware: crate::commands::service::radiofw::status(root),
         reborn_supervisor: root.json("/data/reborn/logs/supervisor-last.json"),
     })
 }
@@ -442,7 +395,7 @@ pub struct System {
     crng_ready: Value,
     pub usb: Usb,
     pub update: Value,
-    radio_firmware: Value,
+    radio_firmware: crate::commands::service::radiofw::Status,
     reborn_supervisor: Option<Value>,
 }
 

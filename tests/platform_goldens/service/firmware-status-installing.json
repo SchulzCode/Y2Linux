@@ -6,7 +6,6 @@
  "calls": [],
  "exit": 0,
  "stdout": {
-  "reason": null,
   "state": "Installing"
  },
  "tree": {

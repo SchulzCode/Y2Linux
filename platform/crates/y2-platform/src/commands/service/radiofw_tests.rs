@@ -5,7 +5,18 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use super::*;
 use crate::testing::{ok, repository, Fixture};
+use serde_json::{json, Value};
 use std::{process::Command, time::Duration};
+
+/// `firmware status` as JSON.
+fn state(root: &Root) -> Value {
+    json!(super::copy::state(root))
+}
+
+/// One scan as JSON.
+fn scan(root: &Root, reviewed: &Reviewed) -> Result<Value> {
+    super::copy::scan(root, reviewed).map(|status| json!(status))
+}
 
 /// Bytes that differ per file and per run of a test (`os.urandom` in Python).
 fn noise(size: usize, seed: u64) -> Vec<u8> {

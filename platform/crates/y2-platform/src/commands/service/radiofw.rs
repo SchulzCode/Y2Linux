@@ -13,7 +13,7 @@
 use super::image::{self, Ext4, Image};
 use crate::commands::storage::media;
 use crate::reply::{Failure, Outcome, Reply};
-use serde_json::{json, Map, Value};
+use serde_json::Value;
 use std::{
     fs::{self, OpenOptions},
     path::{Path, PathBuf},
@@ -32,7 +32,7 @@ mod files;
 pub(crate) use self::copy::inbox;
 use self::{copy::*, files::*};
 pub use self::{
-    copy::{candidates, internal, leftover_waiting},
+    copy::{candidates, internal, leftover_waiting, state as status, Status},
     files::present,
 };
 
@@ -189,7 +189,7 @@ fn start(root: &Root) {
 /// `y2-platform firmware <action> [path]`.
 pub fn run(root: &Root, action: &str, path: Option<&str>) -> Outcome {
     let reviewed = Reviewed::stock();
-    let result = (|| -> Result<Value> {
+    let result = (|| -> Result<Status> {
         match action {
             "status" => Ok(state(root)),
             "scan" => scan(root, &reviewed),
@@ -205,17 +205,14 @@ pub fn run(root: &Root, action: &str, path: Option<&str>) -> Outcome {
                 };
                 install(root, &reviewed, files)?;
                 start(root);
-                Ok(json!({"state": "Ready"}))
+                Ok(Status::of("Ready", None))
             }
         }
     })();
     match result {
         // A scan whose copy could not be installed exits 1 as an install does (it exited 0 with
         // state Failed); the service ignores the code and reads the state record.
-        Ok(value) => Reply::sorted(
-            &value,
-            u8::from(value.get("state") == Some(&json!("Failed"))),
-        ),
+        Ok(value) => Reply::sorted(&value, u8::from(value.state == "Failed")),
         Err(error) => Reply::unsorted(
             &Object::new()
                 .with("state", "Failed")
@@ -233,7 +230,13 @@ mod radiofw_tests;
 mod tests {
     use super::*;
     use crate::testing::Fixture;
+    use serde_json::json;
     use std::time::Duration;
+
+    /// One scan as JSON.
+    fn scan(root: &Root, reviewed: &Reviewed) -> Result<serde_json::Value> {
+        super::copy::scan(root, reviewed).map(|status| json!(status))
+    }
 
     #[test]
     fn a_scan_whose_copy_cannot_be_installed_exits_1() {

@@ -120,11 +120,6 @@ pub fn record_fields<T: DeserializeOwned + Default>(root: &Root, name: &str) -> 
     fields(&root.json_object(name))
 }
 
-/// `d.get(key) == other` where a missing key is None.
-pub fn get_eq(map: &Map<String, Value>, key: &str, other: &Value) -> bool {
-    map.get(key).unwrap_or(&Value::Null) == other
-}
-
 /// `value in sequence` for a list.
 pub fn contains(list: &[Value], value: &Value) -> bool {
     list.contains(value)
