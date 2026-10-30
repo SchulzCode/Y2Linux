@@ -13,6 +13,9 @@ macro_rules! signal_wake {
 
         pub(super) extern "C" fn on_signal(signal: libc::c_int) {
             use std::sync::atomic::Ordering;
+            // SAFETY: errno is this thread's; restored below for the interrupted code, which may be
+            // between a failed call and its errno check (a full pipe fails the write with EAGAIN).
+            let errno = unsafe { *libc::__errno_location() };
             if signal != libc::SIGUSR1 {
                 RUNNING.store(false, Ordering::SeqCst);
             }
@@ -23,6 +26,8 @@ macro_rules! signal_wake {
                 // (warn_on_full_buffer=False).
                 unsafe { libc::write(fd, (&byte as *const u8).cast(), 1) };
             }
+            // SAFETY: as above.
+            unsafe { *libc::__errno_location() = errno };
         }
 
         /// The self-pipe and the handlers it replaced, which come back on drop.
