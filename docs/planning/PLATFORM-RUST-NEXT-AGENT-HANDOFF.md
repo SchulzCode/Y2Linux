@@ -1,0 +1,237 @@
+# Platform Rust: the remaining refactor, for one agent (written 2026-10-30, after test build 175)
+
+One agent works through this alone, in order, without spawning others. Everything needed is here or linked.
+Read this file, then §1 and §3 of [PLATFORM-RUST-REFACTOR-PLAN.md](PLATFORM-RUST-REFACTOR-PLAN.md) (the contract
+and what was already done), then start at §4 below.
+
+## 1. Where it stands
+
+- The platform is Rust only: `platform/` (crates `y2p-core`, `y2p-contract`, `y2-platform`), about 49,600
+  non-test lines, built into `/usr/sbin/y2-platform` (32-bit ARM, armv7). No Python runs on the player.
+- On the owner's player: **test build 175** (sequence 11200), installed by staged OTA and Acknowledged. All
+  work is on local `main`; nothing is pushed. Next free label **176**, sequence **above 11200**.
+- Done so far (details in the refactor plan and `roadmap-gap-audit.md`): the port (170), the refactor plan's
+  waves 1–2 (171), quick wins (172), the duplication pass and idle gains (173), the "next pass" P1–P9 (174/175):
+  shared helpers in `y2p_core` (paths, digest, text, clock, json, lock, sys, record, power_journal, regex!),
+  From<io::Error> errors (`Failure`, `Raise`, suspend `E`, service errors) and `io::Result::at(path)`,
+  safe syscall wrappers (`y2p_core::sys`: netlink, pidfd, kill/alive, `*at`, dir_names, unix sockets), one
+  signal self-pipe macro (`signal_wake!`), direct kernel/supplicant reads (`connectivity::direct`: wpa control
+  socket, rtnetlink addresses/routes, nl80211 power save), per-volume probes, the space policy inside the
+  service daemon, the USB tick never waiting for `media.lock`, power.json written every 2 s.
+- Measured on the player (screen off, charging): Reborn 45 → 14–19 s/h; daemons power 7.3, service 7.7, ssh
+  1.9, connectivity 0.1 s/h; ≈10 process starts/min after start-up (was ≈140).
+
+**What still follows Python** (2026-10-30 count, non-test code): ~1,650 `serde_json::Value` mentions, ~910
+`json!`, ~500 `.get("field")` lookups against ~70 typed `Serialize` records; ~170 `&'static str` states.
+
+| group | lines | `Value` | `json!` | Python emulation | typed records |
+|---|---|---|---|---|---|
+| reports | 7,700 | 22 | 23 | 544 (the `Py` value type) | 3 |
+| observation | 6,300 | 539 | 300 | 56 | 0 |
+| service | 6,000 | 215 | 117 | 65 | 1 |
+| suspend | 5,000 | 207 | 81 | 35 | 21 |
+| storage | 4,300 | 132 | 99 | 33 | 12 |
+| connectivity | 3,900 | 132 | 143 | 15 | 6 |
+| power | 3,600 | 115 | 2 | 26 | 9 |
+
+The owner's view (2026-10-30): the gain of more typing is correctness and maintainability, not speed. Do it
+**selectively**: first the records written by one component and read by another, then a group when it is
+changed anyway. Leave stable, rarely touched code (report building, bench) unless an item below names it.
+
+## 2. Rules (do not break)
+
+- **Output contract:** every command's stdout, exit code and written files stay byte-identical (json.dumps
+  spacing, key order, Python float repr, error texts) unless an item says "owner decision" and the owner said
+  yes. Internals may change freely.
+- One concern per commit; never behaviour and structure in one commit. Commit messages describe the change and
+  end with what was verified ("outputs byte-identical" or which goldens were re-recorded and why).
+- Git: the configured identity, no model attribution, no `git stash`, no push, tag, `release.py publish` or
+  GitHub post without the owner's word. (AGENTS.md; memory "Git identity for commits".)
+- The player: install test builds **only by staged OTA** (§6). Ask before anything that powers it off, needs a
+  button press, or writes registers. Never run the capture tool without a head.
+- Do not touch the tree while `release.py build` runs.
+
+## 3. Method (what made 173–175 safe)
+
+1. Record the byte baseline once from the commit you start at:
+   `tools/development/platform-gate.sh --baseline <dir outside the repo>` (e.g. the session scratchpad).
+2. After every change: `tools/development/platform-gate.sh <that dir>` must print `GATE OK` before the commit
+   (fmt, clippy with no warning, armv7 check, all cargo tests, byte comparison of every golden case).
+3. A change that deliberately alters recorded **calls** (a process no longer started) or written files:
+   - re-record: `Y2_PLATFORM_RUST=$PWD/platform/target/debug/y2-platform Y2_RECORD_GOLDENS=1 PYTHONPATH=.:tests
+     python3 -m unittest tests.test_platform_differential tests.test_platform_devices tests.test_platform_reports
+     tests.test_platform_observation tests.test_platform_suspend tests.test_platform_power_rpc`;
+   - review the git diff of `tests/platform_goldens/` (only `calls`/`tree` may change; compare old/new with a
+     small script, as in the 174 commits);
+   - check that the gate's differing cases are exactly those goldens, copy them from `<dir>.now/` into the
+     baseline and note why;
+   - say so in the commit message.
+4. Before a build: `tools/development/host-tests.sh` (576 tests) must pass.
+5. Traps seen: `cargo fix` removes imports only a `use super::*` test module needs (give the test module its own
+   `use`); a regex rewrite also catches the body of a new `impl From`/trait method (check for self-recursion);
+   lock helpers retry 0.2 s in test builds (`lock::settle`), so timing asserts need slack; take kernel ABI
+   numbers from a C compile, not from parsing headers.
+
+## 4. The work, in order
+
+Each item: where, what the Rust shape is, risk, how to verify. Sizes: S < 1 h, M ≈ half a day, L ≈ a day.
+
+### A. Typed records shared between components (do first; S–M each, byte-identical)
+
+Pattern: a `#[derive(Serialize, Deserialize)]` struct per record, defined once (writer's module or
+`y2p_contract`), field order = today's written order (records written by `atomic_json` are sorted anyway, so
+order is free there; printed unsorted records keep insertion order). Readers use a lenient load (missing or
+odd fields → the same fallback as today) — the pattern is `connectivity/record.rs`.
+
+1. **`/run/y2/ssh.json`**: writer `devices/ssh.rs` (`struct State`), reader `observation/system.rs` `fn system`
+   (`get_eq(&ssh, "boot_id", …)`, `fresh_seconds(… "monotonic_s" …)`). One `SshRecord` with
+   `is_this_boot()` / `fresh(seconds)`.
+2. **`/run/y2/network.json`**: written by `service/daemon.rs` (the Wi-Fi pass), read by
+   `connectivity/daemon/supervisor.rs` and `connectivity/wifi/recovery.rs` (untyped reads), observation, Reborn.
+   `query_failures` keeps a bool from old records (owner decision to drop that tolerance — ask, else keep).
+3. **`/run/y2/power.json` readers**: `suspend/admission.rs` `fn battery_and_cable` (reads state, battery,
+   filtered voltage, percent, confidence untyped), `storage/media/repair.rs` battery check, reports upload.
+   A lenient `PowerState` view next to `power/daemon.rs` `PowerRecord`.
+4. **`/run/y2/media-mount.json` (the SD claim) and the Y2Media claim**: the internal-media claim check exists 4
+   times with different equality rules — `observation/system.rs` (`internal_ready`), `devices/storage.rs`,
+   `storage/internal.rs`, `service/radiofw/copy.rs`. One typed claim + one `ready(root)`. Byte-check carefully:
+   the copies compare with `py_eq` vs `==` vs `eq_int` (differ only for odd values; pick the strictest that
+   keeps every golden, note it).
+5. **Update journal state**: `state_is(&status(root))` in `service/update/{apply,check,health,staging}.rs` builds
+   the whole status (download.json, /proc/locks, last-check.json, channel) just for `state`; use
+   `update::journal_state` and a `JournalState` enum. `download.json` has 7 `json!` shapes in `staging.rs` → one
+   struct.
+6. **USB views** (`service/usb/views.rs`, built as `Object` and read back with `py_text`/truthy): a `struct View`
+   in the same field order.
+7. **previous-boot-evidence.json**: written in `observation/evidence/mod.rs` (16 inserts), read in
+   `observation/system.rs`, `reports/checks.rs`, `reports/diagnostics.rs`.
+
+### B. State enums (S each, byte-identical: unit variants serialize as the same text)
+
+- `y2p_core::volume::Volume.state` / `space_state` (`&'static str`) → `VolumeState`, `SpaceState`; the same in
+  `storage/observe.rs` and `observation/snapshot/storage.rs`.
+- Low battery and the daemon state (`power/policy.rs` `LowBattery`, `power/daemon.rs`, `power/journal.rs`,
+  `suspend/admission.rs`); `BatteryStatus` `source`/`confidence` (`power/battery/status.rs`, `soc.rs`).
+- Shutdown intent state/action/reason (`power/coordinator.rs`, `coordinator/steps.rs`). A fully typed intent
+  record is an **owner decision**: the socket reply is unsorted and a resumed intent has the file's sorted order.
+- Internal Storage setup phases (`storage/internal/setup.rs`; persisted on /data, keep the texts).
+- The update journal states (with A5). `TERMINAL` is defined twice (`service/update.rs`, `reports/maintenance.rs`).
+
+### C. The `status` snapshot as types (L; byte check needed)
+
+`observation/snapshot/*.rs` and `observation/system.rs` build ~270 maps; `readiness.rs` and `health.rs` read them
+back by key (18 lookups each). Status and health print sorted, but **diagnostics export projects the snapshot in
+insertion order**, so struct field order must equal today's insertion order. Go section by section (power,
+thermal, memory, cpu, idle, wifi, storage, system, readiness), one commit each.
+
+### D. Control flow (M each, byte-identical)
+
+- **Service daemon loop** (`service/daemon.rs` `fn serve`, 142 lines, 12 mutable loop variables) and the five
+  hand-written child slots in `service/daemon/jobs.rs` (`media_reconcile`, `media_verify`, `daily_update_check`,
+  `error_reports`, `radio_firmware`): one `Job { child, started, retry_at, limit, backoff }` with `poll(now)`,
+  one deadline struct for the timers. The goldens' `calls` lists pin the order — no re-record should be needed.
+- **Long functions mixing I/O and decisions**: `reports/checks.rs` `fn check` (≈290 lines, 10 triggers → one
+  function each), `observation/snapshot/cpu.rs` (≈290; ~25 reads fit a table), `reports/maintenance/execute.rs`
+  `fn execute` (≈300), `observation/bluetooth.rs` `fn normalize` (≈220), `observation/snapshot/idle.rs`
+  `fn idle_completion` (≈220).
+- **Arguments parsed twice**: `cli.rs` hands a canonical `Vec<String>` that `observation/mod.rs`,
+  `reports/mod.rs` and `devices/mod.rs` parse again; let the parser return typed values.
+- Print-then-parse: `reports/upload.rs` formats the time status and parses it back for `tls_ready`; use
+  `time::status_at(..)` directly.
+
+### E. Remaining duplicates (S each unless noted)
+
+- **Three volume observers** (`y2p_core::volume`, `storage/observe.rs`, `observation/snapshot/storage.rs`), with
+  `space_state` ×3, `media_identity` ×2, `refused_card` ×2, and the UUID/geometry constants in 5 places
+  (`y2p_core/volume.rs`, `storage/observe.rs`, `snapshot/storage.rs`, `service/usb/views.rs`,
+  `storage/internal.rs`). One constant table first (S, byte-identical); merging the observers is L and changes
+  bytes where their records differ → owner decision.
+- **"This boot" checks**: 16 hand-written comparisons in 5 spellings (`get_eq(…"boot_id"…)`, `py_eq`,
+  `this_boot` in `service/daemon.rs`, …). A `Root::this_boot(value)` helper; note the null case (an unreadable
+  boot id equals a null record field in some spellings, not in others) — keep each site's behaviour.
+- **Sleep status twice**: `power/journal/sleep.rs` `sleep_status` and `commands/sleep.rs` `product` differ on odd
+  `product` values; merge only with a byte check.
+- **Power vs suspend journal rows**: device readings are shared now (`power::journal::devices`); the rest differs
+  in serialisation (suspend sorts nested values with `plain`) → leave unless the owner accepts a byte change.
+- The ssh daemon's own signal/netlink wake (`devices/ssh/wake.rs`, saves errno) vs `signal_wake!`: fold in if the
+  errno save can move into the macro.
+- Five poll-with-deadline loops (`connectivity/daemon/wait.rs`, `devices/ssh/wake.rs`, `power/unix.rs`,
+  `suspend/receipt/rpc.rs`, `service/download.rs`): they round the timeout differently (up vs down to ms) — one
+  `y2p_core::sys::poll(fds, deadline, Rounding)` keeps each one's rounding.
+- Two `repr` (`y2p_core/py.rs` vs `argparse/python.rs`; the core one does not escape non-printable non-ASCII)
+  and two JSON serialisers (`y2p_core::pyjson::dumps` vs `json::PythonFormatter`, different `\udcXX`
+  handling): byte decisions, merge only where the goldens prove them equal.
+- The bench `Error` type (`observation/bench/mod.rs`): `From<io::Error>` like the others.
+- UTC ISO formatting in `reports/clock.rs` (`isoformat`, libc gmtime) vs `y2p_core::devices_support::utc_isoformat`.
+
+### F. Remaining `unsafe` (173 blocks; M)
+
+`observation/bench/scratch.rs` (11, raw fds: give it `OwnedFd`/`BorrowedFd` like `devices/transfer/fd.rs`),
+`devices/transfer/fd.rs` read/write (a `ManuallyDrop<File>` over the borrowed fd removes two), `power/unix.rs`
+accept/peer credentials, `suspend/helper/kernel.rs`. Leave `y2p_core/reports_sqlite.rs` (behind a clean API).
+
+### G. Process starts that remain (M each; **device test required**)
+
+- `wpa_cli` in `connectivity/wifi/scan.rs`, `wifi/recovery.rs`, and the global-socket commands in
+  `connectivity/daemon/supervisor.rs` (`interface_add/list/remove`, `autoscan`). `direct::wpa_cli` upper-cases the
+  whole command — change it to upper-case only the verb and take the socket path (the global socket is
+  `/run/wpa_supplicant/global`). `interface_add`'s tab format depends on the wpa_cli version → byte check.
+  Must stay processes: `wpa_cli -a` (the action daemon), `wpa_supplicant -B`, `start-stop-daemon`, `wpa-event`.
+- `ip` flush/addr/route on DHCP and supplicant events (`commands/network.rs`) → rtnetlink writes. Device test:
+  connect, disconnect, sleep/wake, lease renew.
+- `busybox date -s` (`devices/timekeeping.rs`, `time.rs`) → `clock_settime` (safety: the clock floor; test NTP
+  and the manual time set).
+- `rebornctl status --json` in `service/update/health.rs` → Reborn's control socket (as
+  `observation::reborn_metrics` does).
+- The report build's children (`reports/build/sources.rs`: `y2-platform status`, `health`, `rebornctl
+  metrics`) → in process; byte check of the bundle members.
+- Leave: the two bounded `cat`s in `observation/snapshot/cpu.rs` (wakeup_count is a suspend handshake that can
+  block), curl, fsck/mkfs/resize2fs, y2-update-core, init scripts, dropbear, umtprd, every SD mount/remount.
+- Owner decision before doing: `blkid` in `status` storage → ext4 superblock read; `y2-bt-observe` gating
+  (measure its cost on the player first).
+
+### H. The Python-emulation layer (decide per use)
+
+Keep where it makes the output (`py::os_error` texts, Python float repr, `json.dumps` spacing, argparse error
+texts). Replace with plain Rust where it is not visible: `py::truthy`/`py_eq` on values the code itself wrote,
+`python_int` for sysfs/procfs numbers (`trim().parse()` gives the same; pid files need a check). The `reports`
+group's `Py` value type tolerates odd old records exactly as Python did; replacing it is an **owner decision**
+(refuse odd values instead of tolerating them).
+
+## 5. Owner decisions to ask for (only when the item comes)
+
+1. A4: which equality the Y2Media claim uses when the copies disagree on odd values.
+2. B: a fully typed shutdown intent (changes a resumed intent's reply order).
+3. E: merging the three volume observers (byte changes where their records differ).
+4. G: ext4 superblock instead of `blkid` in `status`; gating `y2-bt-observe`.
+5. H: replacing the reports `Py` type (refuse odd old values).
+6. A2: dropping the bool tolerance of `status_query_failures`.
+
+## 6. Build, install, verify
+
+    tools/development/host-tests.sh
+    # bump "update_sequence" in tools/production/release.json above the installed one, commit (tree clean!)
+    Y2_STOCK_PACKAGE=$PWD/donorSource/y2_v3.2.0_FM-20260813 python3 tools/production/release.py build --label 176
+    Y2="ssh -F /dev/null -o HostKeyAlias=y2linux-production-v1 -o BatchMode=yes -i ~/.ssh/y2linux_ed25519 root@10.42.0.1"
+    $Y2 'rm -rf /data/updates/owner-175; mkdir -p /data/updates/owner-176'
+    scp -F /dev/null -o HostKeyAlias=y2linux-production-v1 -i ~/.ssh/y2linux_ed25519 -q out/release-176/ota/* root@10.42.0.1:/data/updates/owner-176/
+    $Y2 'y2-platform update stage --package /data/updates/owner-176; y2-platform update apply'
+    # wait (one ssh after ~3 min, not a polling loop): update status must say Acknowledged
+    $Y2 'sh -s' < tools/development/platform-device-check.sh
+
+A packaging step refuses an uncommitted tree; a failed build resumes on the next run. Idle measurement: one
+script on the player (per-process utime+stime from `/proc/<pid>/stat` and Reborn's threads from
+`/proc/<pid>/task/*/stat`, `processes` from `/proc/stat`, before and after `sleep 300`), started with `nohup`,
+read back with a single `sleep 330; ssh …` — every ssh session itself starts processes. Measure after ≥ 30 min
+uptime (start-up work inflates the first minutes). Never `pkill -f` a pattern that occurs in your own ssh
+command line.
+
+Afterwards: an entry in `roadmap-gap-audit.md` (as for 173–175), the START HERE block in
+`NEXT-SESSION-HANDOFF.md`, the refactor plan's status, and the memory file `y2-platform-rust-port-phase0.md`.
+
+## 7. Still owed from 173–175 (not code)
+
+- A long-uptime idle measurement on 175 (power.json now every 2 s; compare the power daemon with 174's 7.3 s/h).
+- The owner's dark-wake checks: Power after > 1 min dark, a computer lighting the screen within ~1 s, Bluetooth
+  headphones connecting and their Play button, the automatic sleep ~60 s after dark on battery.
+- PLATFORM-RUST-PORT-HANDOFF.md §6 A hardware checks.
