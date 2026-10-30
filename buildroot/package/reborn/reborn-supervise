@@ -71,7 +71,7 @@ save_report() {
     : >/run/reborn/report-saved
     for to in internal sd; do
         /usr/sbin/y2-platform report save --to "$to" --topic crash 2>/dev/null |
-            grep -q '"saved": true' && return 0
+            grep -Eq '"saved": ?true' && return 0
     done
 }
 run 5 && exit 0
