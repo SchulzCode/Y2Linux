@@ -2,10 +2,11 @@
 //! responder's configuration and mount expectations for them.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{
-    internal, mounts, radiofw, read, setup_status, volume_at, Failure, Mount, Root, Value, NAMES,
-    OLD,
+    internal, mounts, radiofw, read, setup_status, Failure, Mount, Root, Value, NAMES, OLD,
 };
+use crate::commands::observation::snapshot::volume_at;
 use serde::Serialize;
+use y2p_core::volume::VolumeState;
 use y2p_core::volume::{Y2MEDIA_SIZE, Y2MEDIA_START, Y2MEDIA_UUID};
 
 pub(super) fn name_of(path: &str) -> Option<&'static str> {
@@ -51,9 +52,10 @@ pub(super) fn view(
 
 /// `media_views(ctx)`: the host receives user music, never Y2DATA/private/system contents or a LUN.
 pub(super) fn media_views(root: &Root) -> Vec<View> {
+    // A volume that does not read is no view.
     let (internal, sd) = (
-        volume_at(root, "/media/internal"),
-        volume_at(root, "/media/sd"),
+        volume_at(root, "/media/internal").ok(),
+        volume_at(root, "/media/sd").ok(),
     );
     let mounts = mounts(root);
     let mut result = Vec::new();
@@ -61,7 +63,8 @@ pub(super) fn media_views(root: &Root) -> Vec<View> {
     // Internal Storage is the Y2Media partition's music folder; the old /data/music folder
     // on Y2DATA is no longer exported.
     for (volume, path) in [(&internal, "/media/internal/music"), (&sd, "/media/sd")] {
-        let mount = volume.get("path").and_then(Value::as_str).and_then(at);
+        let Some(volume) = volume else { continue };
+        let mount = at(volume.path());
         let folder = root.path(path);
         if path == "/media/internal/music" {
             let device = mount.map(|m| root.path(&format!("/sys/dev/block/{}", m.device_id)));
@@ -70,7 +73,7 @@ pub(super) fn media_views(root: &Root) -> Vec<View> {
                     && read(&d.join("size")).as_deref() == Some(Y2MEDIA_SIZE)
             });
             if !fits
-                || volume.get("uuid").and_then(Value::as_str) != Some(Y2MEDIA_UUID)
+                || volume.uuid.as_str() != Some(Y2MEDIA_UUID)
                 || mount.is_none_or(|m| m.filesystem != "ext4")
             {
                 continue;
@@ -84,7 +87,7 @@ pub(super) fn media_views(root: &Root) -> Vec<View> {
                 continue;
             }
         }
-        let state = volume.get("state").and_then(Value::as_str);
+        let state = volume.state;
         let Some(mount) = mount else { continue };
         let nested = mounts.iter().any(|m| {
             m.path.starts_with(&format!("{path}/"))
@@ -93,12 +96,13 @@ pub(super) fn media_views(root: &Root) -> Vec<View> {
         let symlink = folder
             .symlink_metadata()
             .is_ok_and(|m| m.file_type().is_symlink());
-        if matches!(state, Some("Ready" | "Degraded")) && folder.is_dir() && !symlink && !nested {
+        if matches!(state, VolumeState::Ready | VolumeState::Degraded)
+            && folder.is_dir()
+            && !symlink
+            && !nested
+        {
             let access = if mount.read_only() { "ro" } else { "rw" };
-            let uuid = volume
-                .get("uuid")
-                .and_then(Value::as_str)
-                .map(str::to_owned);
+            let uuid = volume.uuid.as_str().map(str::to_owned);
             result.push(view(mount, path, uuid, &mount.filesystem, access));
         }
     }

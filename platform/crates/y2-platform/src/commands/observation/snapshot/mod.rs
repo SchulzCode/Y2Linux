@@ -17,7 +17,7 @@ pub use cpu::{cpu, utilization, Cpu};
 pub(crate) use cpu::timer_runtime;
 pub use memory::{memory, Memory};
 pub use power::{power, printable, Power};
-pub use storage::{storage, storage_mode, Storage};
+pub use storage::{storage, storage_mode, volume_at, Storage, Volume};
 pub use thermal::{thermal, Thermal};
 pub use wifi::{wifi, Wifi};
 

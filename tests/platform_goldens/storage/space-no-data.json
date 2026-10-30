@@ -51,11 +51,14 @@
   "schema": "org.y2linux.space/v1",
   "state": "Unavailable",
   "volume": {
+   "controller_valid": false,
    "generation": null,
    "path": "/data",
    "reason": "not_uniquely_mounted",
+   "source_instance": null,
    "space_state": "Unavailable",
-   "state": "Unavailable"
+   "state": "Unavailable",
+   "uuid": null
   }
  },
  "tree": {
@@ -108,11 +111,14 @@
      "schema": "org.y2linux.space/v1",
      "state": "Unavailable",
      "volume": {
+      "controller_valid": false,
       "generation": null,
       "path": "/data",
       "reason": "not_uniquely_mounted",
+      "source_instance": null,
       "space_state": "Unavailable",
-      "state": "Unavailable"
+      "state": "Unavailable",
+      "uuid": null
      }
     },
     "mode": "0o600",

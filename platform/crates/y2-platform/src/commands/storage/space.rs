@@ -1,13 +1,16 @@
 //! Y2DATA admission policy and bounded cleanup of explicitly disposable files
 //! (`y2-platform space [--cleanup]`).
 // SPDX-License-Identifier: GPL-2.0-only
-use super::observe::volume_at;
-use super::sys::{get, mkdir, observation_record, wall, Object};
+use super::sys::{mkdir, wall};
+use crate::commands::observation::snapshot::{volume_at, Volume};
 use crate::reply::At;
 use crate::reply::{atomic_json, Failure};
+use serde::Serialize;
 use serde_json::{json, Value};
 use std::os::fd::BorrowedFd;
 use std::{ffi::CString, io, os::unix::ffi::OsStrExt};
+use y2p_contract::ObservationRecord;
+use y2p_core::volume::{SpaceState, VolumeState};
 use y2p_core::{storage_media::disposable_name, Root};
 
 const PURPOSES: [&str; 6] = [
@@ -19,34 +22,60 @@ const PURPOSES: [&str; 6] = [
     "transfer",
 ];
 
-fn admission(volume: &Object, purpose: &str) -> Value {
-    let state = volume
-        .get("space_state")
-        .cloned()
-        .unwrap_or(json!("Unavailable"));
+/// Whether a purpose may write to Y2DATA now, and why.
+#[derive(Serialize)]
+struct Admission {
+    allowed: bool,
+    reason: Value,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    reserve_bytes: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    requested_bytes: Option<u64>,
+}
+
+fn admission(state: SpaceState, available: Option<u64>, purpose: &str) -> Admission {
     if matches!(
-        state.as_str(),
-        Some("ReadOnlyRisk" | "Failed" | "Unavailable")
+        state,
+        SpaceState::ReadOnlyRisk | SpaceState::Failed | SpaceState::Unavailable
     ) {
-        return json!({"allowed": false, "reason": state});
+        return Admission {
+            allowed: false,
+            reason: json!(state),
+            reserve_bytes: None,
+            requested_bytes: None,
+        };
     }
-    let reserve: i64 = if matches!(purpose, "user_state" | "database") {
+    let reserve: u64 = if matches!(purpose, "user_state" | "database") {
         32 << 20
     } else {
         96 << 20
     };
-    // A flag counts as 0 or 1 bytes, as older records had it.
-    let free = match get(volume, "available_bytes") {
-        Value::Bool(b) => Some(i64::from(*b)),
-        Value::Number(n) => n.as_i64(),
-        _ => None,
-    };
-    let mut allowed = free.is_some_and(|f| f >= reserve);
-    if matches!(purpose, "cache" | "diagnostic" | "update") && state.as_str() != Some("Normal") {
+    let mut allowed = available.is_some_and(|f| f >= reserve);
+    if matches!(purpose, "cache" | "diagnostic" | "update") && state != SpaceState::Normal {
         allowed = false;
     }
-    json!({"allowed": allowed, "reason": if allowed { "budget_available" } else { "space_reserved" },
-           "reserve_bytes": reserve, "requested_bytes": 0})
+    Admission {
+        allowed,
+        reason: json!(if allowed {
+            "budget_available"
+        } else {
+            "space_reserved"
+        }),
+        reserve_bytes: Some(reserve),
+        requested_bytes: Some(0),
+    }
+}
+
+/// `y2-platform space`'s answer and /run/y2/storage.json: Y2DATA, what each purpose may write and
+/// the cleanup that ran.
+#[derive(Serialize)]
+struct Policy {
+    schema: &'static str,
+    record: ObservationRecord,
+    state: SpaceState,
+    volume: Volume,
+    admission: std::collections::BTreeMap<&'static str, Admission>,
+    cleanup: Option<Value>,
 }
 
 /// An open directory descriptor, closed when dropped.
@@ -173,26 +202,35 @@ fn disposable_cleanup(root: &Root, max_files: u64, max_bytes: u64) -> Result<Val
 }
 
 pub fn policy(root: &Root, cleanup: bool) -> Result<Value, Failure> {
-    let data = volume_at(root, "/data");
-    let admission: Object = PURPOSES
-        .iter()
-        .map(|p| (p.to_string(), admission(&data, p)))
-        .collect();
-    let space_state = get(&data, "space_state").clone();
-    let mut result = json!({
-        "schema": "org.y2linux.space/v1", "record": observation_record(root, "space-policy"),
-        "state": space_state, "volume": data.clone(), "admission": admission, "cleanup": null,
-    });
+    let data = volume_at(root, "/data")?;
+    let mut result = Policy {
+        schema: "org.y2linux.space/v1",
+        record: crate::commands::observation::util::record(
+            root,
+            "space-policy",
+            Default::default(),
+        ),
+        state: data.space_state,
+        admission: PURPOSES
+            .iter()
+            .map(|p| (*p, admission(data.space_state, data.available_bytes, p)))
+            .collect(),
+        cleanup: None,
+        volume: data,
+    };
     if cleanup
-        && get(&data, "state").as_str() == Some("Ready")
-        && matches!(space_state.as_str(), Some("LowSpace" | "CriticalSpace"))
+        && result.volume.state == VolumeState::Ready
+        && matches!(
+            result.state,
+            SpaceState::LowSpace | SpaceState::CriticalSpace
+        )
     {
-        result["cleanup"] = disposable_cleanup(root, 64, 8 << 20)?;
+        result.cleanup = Some(disposable_cleanup(root, 64, 8 << 20)?);
     }
     let directory = root.path("/run/y2");
     mkdir(&directory, 0o700)?;
     atomic_json(&directory.join("storage.json"), &result, false)?;
-    Ok(result)
+    serde_json::to_value(result).map_err(Failure::value)
 }
 
 #[cfg(test)]

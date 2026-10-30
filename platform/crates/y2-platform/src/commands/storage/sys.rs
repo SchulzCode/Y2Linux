@@ -193,26 +193,6 @@ pub fn wall_seconds() -> i64 {
         .map_or(0, |d| d.as_secs() as i64)
 }
 
-/// Now in UTC as ISO 8601 with microseconds when there are any (`2026-10-29T12:00:00.5+00:00`).
-pub use y2p_core::devices_support::utc_isoformat_now as utc_isoformat;
-
-/// The observation record a workload's result carries (build, kernel, boot and clocks).
-pub fn observation_record(root: &Root, workload: &str) -> Value {
-    let versions = object(root, "/etc/y2linux/versions.json");
-    json!({
-        "wall_timestamp": utc_isoformat(),
-        "monotonic_ns": root.clock().monotonic_ns(),
-        "boot_id": Value::from(root.boot_id()),
-        "y2linux_commit": get(&versions, "build_git_commit"),
-        "reborn_commit": get(&versions, "reborn_source_commit"),
-        "kernel": text(&root.read("/proc/sys/kernel/osrelease")),
-        "rootfs_release": get(&versions, "rootfs_version"),
-        "build_id": text(&root.read("/etc/y2linux/build-id")),
-        "workload": workload, "parameters": {}, "units": {},
-        "result": null, "failure": null, "evidence_level": "IMPLEMENTED",
-    })
-}
-
 /// An exclusive lock on a platform lock file if it is free now (`None` when another holds it).
 pub fn try_lock(path: &Path) -> Result<Option<File>, Failure> {
     lock::try_exclusive(path).at(path)
@@ -358,11 +338,9 @@ pub fn maintenance(root: &Root) -> Result<crate::commands::workload::Lease, Fail
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     #[test]
     fn timestamps_are_iso() {
-        let stamp = utc_isoformat();
+        let stamp = y2p_core::devices_support::utc_isoformat_now();
         assert!(
             stamp.ends_with("+00:00") && stamp.as_bytes()[10] == b'T',
             "{stamp}"

@@ -8,28 +8,15 @@ use std::{
     time::{Duration, UNIX_EPOCH},
 };
 
-fn volume(state: &str, available: u64) -> Object {
-    json!({"space_state": state, "available_bytes": available})
-        .as_object()
-        .unwrap()
-        .clone()
-}
-
 #[test]
 fn low_space_denies_disposable_writes_but_reserves_checkpoint_budget() {
-    let low = volume("LowSpace", 80 << 20);
-    assert_eq!(admission(&low, "cache")["allowed"], false);
-    assert_eq!(admission(&low, "update")["allowed"], false);
-    assert_eq!(admission(&low, "user_state")["allowed"], true);
+    let low = |purpose| admission(SpaceState::LowSpace, Some(80 << 20), purpose).allowed;
+    assert!(!low("cache"));
+    assert!(!low("update"));
+    assert!(low("user_state"));
     // The command never asks for a size: 20 MiB left is below the 32 MiB reserve.
-    assert_eq!(
-        admission(&volume("LowSpace", 20 << 20), "database")["allowed"],
-        false
-    );
-    assert_eq!(
-        admission(&volume("ReadOnlyRisk", 80 << 20), "user_state")["allowed"],
-        false
-    );
+    assert!(!admission(SpaceState::LowSpace, Some(20 << 20), "database").allowed);
+    assert!(!admission(SpaceState::ReadOnlyRisk, Some(80 << 20), "user_state").allowed);
 }
 
 fn age(path: &std::path::Path) {

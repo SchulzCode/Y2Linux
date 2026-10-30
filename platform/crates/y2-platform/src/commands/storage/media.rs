@@ -247,7 +247,11 @@ pub fn reconcile(root: &Root) -> Result<Object, Failure> {
 
 pub fn operation(root: &Root, action: &str) -> Result<Object, Failure> {
     if action == "status" {
-        return Ok(super::observe::volume_at(root, "/media/sd"));
+        let volume = crate::commands::observation::snapshot::volume_at(root, "/media/sd")?;
+        return match serde_json::to_value(volume).map_err(Failure::value)? {
+            Value::Object(volume) => Ok(volume),
+            _ => Err(Failure::value("storage_section_unserializable")),
+        };
     }
     let runtime = runtime(root)?;
     let _lock = lock_now(&runtime.join("media.lock"))?;

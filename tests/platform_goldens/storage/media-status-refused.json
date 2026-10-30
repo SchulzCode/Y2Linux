@@ -6,6 +6,7 @@
  "calls": [],
  "exit": 0,
  "stdout": {
+  "controller_valid": false,
   "filesystem": "ext4",
   "findings": [
    "other"
@@ -13,8 +14,10 @@
   "generation": null,
   "path": "/media/sd",
   "reason": "filesystem_check_failed",
+  "source_instance": null,
   "space_state": "Unavailable",
-  "state": "Degraded"
+  "state": "Degraded",
+  "uuid": null
  },
  "tree": {
   "added": {},
