@@ -269,6 +269,40 @@ pub fn mkdirat(dir: BorrowedFd<'_>, name: &CStr, mode: libc::mode_t) -> io::Resu
     check(unsafe { libc::mkdirat(dir.as_raw_fd(), name.as_ptr(), mode) })
 }
 
+/// `linkat(from_dir, from, to_dir, to, 0)`: a hard link, never following a symlink; fails on an
+/// existing name.
+pub fn linkat(
+    from_dir: BorrowedFd<'_>,
+    from: &CStr,
+    to_dir: BorrowedFd<'_>,
+    to: &CStr,
+) -> io::Result<()> {
+    // SAFETY: NUL-terminated names relative to open directories.
+    check(unsafe {
+        libc::linkat(
+            from_dir.as_raw_fd(),
+            from.as_ptr(),
+            to_dir.as_raw_fd(),
+            to.as_ptr(),
+            0,
+        )
+    })
+}
+
+/// One `read(fd)` into `buffer`; how many bytes it took (0 at the end of a file).
+pub fn read(fd: BorrowedFd<'_>, buffer: &mut [u8]) -> io::Result<usize> {
+    // SAFETY: the buffer is writable for its length.
+    let count = unsafe { libc::read(fd.as_raw_fd(), buffer.as_mut_ptr().cast(), buffer.len()) };
+    usize::try_from(count).map_err(|_| io::Error::last_os_error())
+}
+
+/// One `write(fd)` of `data`; how many bytes it took.
+pub fn write(fd: BorrowedFd<'_>, data: &[u8]) -> io::Result<usize> {
+    // SAFETY: the slice is readable for its length.
+    let count = unsafe { libc::write(fd.as_raw_fd(), data.as_ptr().cast(), data.len()) };
+    usize::try_from(count).map_err(|_| io::Error::last_os_error())
+}
+
 /// `renameat(from_dir, from, to_dir, to)`.
 pub fn renameat(
     from_dir: BorrowedFd<'_>,

@@ -8,8 +8,8 @@ use std::{
     ffi::CString,
     io,
     os::{
-        fd::{AsFd, AsRawFd, BorrowedFd, FromRawFd, OwnedFd},
-        unix::ffi::OsStrExt,
+        fd::{AsFd, BorrowedFd, OwnedFd},
+        unix::{ffi::OsStrExt, fs::OpenOptionsExt},
     },
     path::Path,
 };
@@ -39,20 +39,16 @@ pub(super) fn openat(
 
 /// Open an absolute (root-prefixed) directory path, never through a final symlink.
 pub(super) fn open_absolute_directory(path: &Path) -> Result<OwnedFd, Failure> {
-    let name = CString::new(path.as_os_str().as_bytes())
-        .map_err(|_| Failure::os(io::ErrorKind::InvalidInput.into(), path))?;
-    // SAFETY: as openat.
-    let fd = unsafe {
-        libc::open64(
-            name.as_ptr(),
-            libc::O_RDONLY | libc::O_DIRECTORY | libc::O_NOFOLLOW | libc::O_CLOEXEC,
-        )
-    };
-    if fd < 0 {
-        return Err(Failure::os(io::Error::last_os_error(), path));
+    if path.as_os_str().as_bytes().contains(&0) {
+        return Err(Failure::os(io::ErrorKind::InvalidInput.into(), path));
     }
-    // SAFETY: as openat.
-    Ok(unsafe { OwnedFd::from_raw_fd(fd) })
+    // std opens with O_CLOEXEC (and the large-file open on 32-bit ARM).
+    std::fs::OpenOptions::new()
+        .read(true)
+        .custom_flags(libc::O_DIRECTORY | libc::O_NOFOLLOW)
+        .open(path)
+        .map(OwnedFd::from)
+        .at(path)
 }
 
 pub(super) fn fstat(fd: BorrowedFd<'_>) -> Result<y2p_core::sys::Stat, Failure> {
@@ -95,15 +91,10 @@ pub(super) fn unlinkat(
     missing_ok: bool,
 ) -> Result<(), Failure> {
     let c = c_name(name)?;
-    // SAFETY: a NUL-terminated name relative to an open directory.
-    if unsafe { libc::unlinkat(dir.as_raw_fd(), c.as_ptr(), flags) } != 0 {
-        let error = io::Error::last_os_error();
-        if missing_ok && error.raw_os_error() == Some(libc::ENOENT) {
-            return Ok(());
-        }
-        return Err(Failure::os(error, Path::new(name)));
+    match y2p_core::sys::unlinkat(dir, &c, flags) {
+        Err(error) if missing_ok && error.raw_os_error() == Some(libc::ENOENT) => Ok(()),
+        result => result.at(Path::new(name)),
     }
-    Ok(())
 }
 
 /// A hard link without following symlinks: atomic, and fails on an existing name (`[Errno 17] File
@@ -115,18 +106,7 @@ pub(super) fn linkat(
     to: &str,
 ) -> Result<(), Failure> {
     let (source, target) = (c_name(from)?, c_name(to)?);
-    // SAFETY: NUL-terminated names relative to open directories.
-    let result = unsafe {
-        libc::linkat(
-            from_dir.as_raw_fd(),
-            source.as_ptr(),
-            to_dir.as_raw_fd(),
-            target.as_ptr(),
-            0,
-        )
-    };
-    if result != 0 {
-        let error = io::Error::last_os_error();
+    if let Err(error) = y2p_core::sys::linkat(from_dir, &source, to_dir, &target) {
         let (text, class) = py::os_error(&error, None);
         return Err(Failure::Os {
             text: format!("{text}: {} -> {}", py::repr(from), py::repr(to)),
@@ -139,23 +119,14 @@ pub(super) fn linkat(
 /// One read of at most `limit` bytes (empty at the end of the file).
 pub(super) fn read_chunk(fd: BorrowedFd<'_>, limit: usize) -> Result<Vec<u8>, Failure> {
     let mut buffer = vec![0u8; limit];
-    // SAFETY: the buffer is writable for `limit` bytes.
-    let count = unsafe { libc::read(fd.as_raw_fd(), buffer.as_mut_ptr().cast(), limit) };
-    if count < 0 {
-        return Err(Failure::from(io::Error::last_os_error()));
-    }
-    buffer.truncate(count as usize);
+    let count = y2p_core::sys::read(fd, &mut buffer)?;
+    buffer.truncate(count);
     Ok(buffer)
 }
 
 /// One write; how many bytes it took.
 pub(super) fn write_some(fd: BorrowedFd<'_>, data: &[u8]) -> Result<usize, Failure> {
-    // SAFETY: the slice is readable for its length.
-    let count = unsafe { libc::write(fd.as_raw_fd(), data.as_ptr().cast(), data.len()) };
-    if count < 0 {
-        return Err(Failure::from(io::Error::last_os_error()));
-    }
-    Ok(count as usize)
+    Ok(y2p_core::sys::write(fd, data)?)
 }
 
 /// One directory component below `parent` (made 0755 first with `create`): never through a symlink,
@@ -167,14 +138,10 @@ pub(super) fn open_directory(
 ) -> Result<OwnedFd, Failure> {
     if create {
         let c = c_name(component)?;
-        // SAFETY: a NUL-terminated name relative to an open directory.
-        if unsafe { libc::mkdirat(parent.as_raw_fd(), c.as_ptr(), 0o755) } == 0 {
-            fsync(parent)?;
-        } else {
-            let error = io::Error::last_os_error();
-            if error.raw_os_error() != Some(libc::EEXIST) {
-                return Err(Failure::os(error, Path::new(component)));
-            }
+        match y2p_core::sys::mkdirat(parent, &c, 0o755) {
+            Ok(()) => fsync(parent)?,
+            Err(error) if error.raw_os_error() == Some(libc::EEXIST) => {}
+            Err(error) => return Err(Failure::os(error, Path::new(component))),
         }
     }
     let fd = openat(
