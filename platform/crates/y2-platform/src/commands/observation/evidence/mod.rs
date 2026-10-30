@@ -15,6 +15,7 @@ use crate::{
     reply::{atomic_json, private_directory, Failure, Outcome, Reply},
 };
 use archive::{code_points, Archive};
+use serde::Serialize;
 use serde_json::{json, Map, Value};
 use std::{
     ffi::{CString, OsStr, OsString},
@@ -348,6 +349,38 @@ fn capture(
     Ok(result)
 }
 
+/// previous-boot-evidence.json: what the first capture of a boot found of the boot before (printed
+/// and written sorted, so the field order is free). Read by `status` (system) and the error reports.
+#[derive(Serialize)]
+struct Evidence {
+    schema: u8,
+    captured_on_boot_id: String,
+    /// The boot journal's fields as it has them (any JSON).
+    previous_boot_id: Value,
+    previous_last_stage: Value,
+    previous_orderly_shutdown: Value,
+    reset_cause: Value,
+    reset_cause_reason: Value,
+    kernel_panic_retention_guaranteed: bool,
+    logs_are_private: bool,
+    reset_status_raw: Value,
+    record: Map<String, Value>,
+    loader: Value,
+    pmic: Value,
+    retained: Value,
+    logs: Vec<LogTail>,
+}
+
+/// The bounded tail of one system log (never the whole log).
+#[derive(Serialize)]
+struct LogTail {
+    name: &'static str,
+    tail_sha256: String,
+    source_bytes_at_capture: u64,
+    tail_lines: Vec<String>,
+    bounded_tail_not_complete_log: bool,
+}
+
 /// `y2-platform boot-evidence`.
 pub fn run(root: &Root) -> Outcome {
     if root.read("/data/.y2data-schema").as_deref() != Some("1") {
@@ -378,47 +411,36 @@ pub fn run(root: &Root) -> Outcome {
         ));
     }
     let journal_get = |k: &str| journal.get(k).cloned().unwrap_or(Value::Null);
-    let mut result = Map::new();
-    result.insert("schema".into(), json!(1));
-    result.insert("captured_on_boot_id".into(), json!(boot));
-    result.insert("previous_boot_id".into(), journal_get("boot_id"));
-    result.insert("previous_last_stage".into(), journal_get("last_stage"));
-    result.insert(
-        "previous_orderly_shutdown".into(),
-        journal_get("orderly_shutdown"),
-    );
-    result.insert("reset_cause".into(), Value::Null);
-    result.insert(
-        "reset_cause_reason".into(),
-        json!("no_qualified_retained_register_or_pstore_backend"),
-    );
-    result.insert("kernel_panic_retention_guaranteed".into(), json!(false));
-    result.insert("logs_are_private".into(), json!(true));
-    result.insert("reset_status_raw".into(), Value::Null);
-    result.insert(
-        "record".into(),
-        Value::Object(util::record(root, "previous-boot-evidence", Map::new())),
-    );
+    let mut cause = reset_cause(None, "no_qualified_retained_register_or_pstore_backend");
     if let Some(text) = root.read(RESET_STATUS) {
-        result.extend(reset_cause(Some(&text), "not_observed"));
+        cause = reset_cause(Some(&text), "not_observed");
     }
-    result.insert(
-        "loader".into(),
-        loader_boot(root.read(BOOT_METADATA).as_deref()),
-    );
+    let mut cause = |key: &str| cause.shift_remove(key).unwrap_or(Value::Null);
     let earlier = match previous.get("pmic") {
         Some(Value::Object(pmic)) => pmic.get("lk_long_press_record").cloned(),
         _ => None,
     };
-    result.insert(
-        "pmic".into(),
-        pmic_power_status(root.read(PMIC_POWER_STATUS).as_deref(), earlier.as_ref()),
-    );
     let retained = match capture(root, &boot, &journal_get("boot_id")) {
         Ok(value) => Value::Object(value),
         Err(error) => json!({"error": error, "source_entries_deleted": false}),
     };
-    result.insert("retained".into(), retained);
+    let mut result = Evidence {
+        schema: 1,
+        captured_on_boot_id: boot.clone(),
+        previous_boot_id: journal_get("boot_id"),
+        previous_last_stage: journal_get("last_stage"),
+        previous_orderly_shutdown: journal_get("orderly_shutdown"),
+        reset_cause: cause("reset_cause"),
+        reset_cause_reason: cause("reset_cause_reason"),
+        kernel_panic_retention_guaranteed: false,
+        logs_are_private: true,
+        reset_status_raw: cause("reset_status_raw"),
+        record: util::record(root, "previous-boot-evidence", Map::new()),
+        loader: loader_boot(root.read(BOOT_METADATA).as_deref()),
+        pmic: pmic_power_status(root.read(PMIC_POWER_STATUS).as_deref(), earlier.as_ref()),
+        retained,
+        logs: Vec::new(),
+    };
     let data_path = root.path("/data");
     let data = open_flags(&data_path, libc::O_DIRECTORY | libc::O_NOFOLLOW).at(&data_path)?;
     let logs = match openat(
@@ -462,16 +484,20 @@ pub fn run(root: &Root) -> Outcome {
                 .at(Path::new(name))?;
             let text = String::from_utf8_lossy(&raw);
             let lines = splitlines(&text);
-            let lines: Vec<Value> = lines[lines.len().saturating_sub(32)..]
+            let lines = lines[lines.len().saturating_sub(32)..]
                 .iter()
-                .map(|line| json!(line.chars().take(500).collect::<String>()))
+                .map(|line| line.chars().take(500).collect())
                 .collect();
-            entries.push(json!({"name": name, "tail_sha256": hex(&raw),
-                "source_bytes_at_capture": info.len(), "tail_lines": lines,
-                "bounded_tail_not_complete_log": true}));
+            entries.push(LogTail {
+                name,
+                tail_sha256: hex(&raw),
+                source_bytes_at_capture: info.len(),
+                tail_lines: lines,
+                bounded_tail_not_complete_log: true,
+            });
         }
     }
-    result.insert("logs".into(), Value::Array(entries));
+    result.logs = entries;
     loop {
         let size = dumps(&result, Separators::Spaced)
             .map_err(Failure::value)?
@@ -479,26 +505,23 @@ pub fn run(root: &Root) -> Outcome {
         if size <= 96_000 {
             break;
         }
-        let Some(Value::Array(logs)) = result.get_mut("logs") else {
-            break; // inserted above
-        };
-        let Some(largest) = logs.iter_mut().fold(None::<&mut Value>, |best, item| {
-            let length = item["tail_lines"].as_array().map_or(0, Vec::len);
-            match best {
-                Some(b) if b["tail_lines"].as_array().map_or(0, Vec::len) >= length => Some(b),
+        // The first of the longest tails loses its oldest line.
+        let Some(largest) = result
+            .logs
+            .iter_mut()
+            .fold(None::<&mut LogTail>, |best, item| match best {
+                Some(b) if b.tail_lines.len() >= item.tail_lines.len() => Some(b),
                 _ => Some(item),
-            }
-        }) else {
+            })
+        else {
             return Err(Failure::value("max() iterable argument is empty"));
         };
         // Every log line dropped and still too large (a huge retained listing): refused, nothing
         // written.
-        match largest.get_mut("tail_lines") {
-            Some(Value::Array(lines)) if !lines.is_empty() => {
-                lines.remove(0);
-            }
-            _ => return Err(Failure::value("evidence_record_too_large")),
+        if largest.tail_lines.is_empty() {
+            return Err(Failure::value("evidence_record_too_large"));
         }
+        largest.tail_lines.remove(0);
     }
     atomic_json(
         &directory.join("previous-boot-evidence.json"),
