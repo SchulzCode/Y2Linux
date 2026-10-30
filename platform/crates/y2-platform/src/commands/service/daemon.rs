@@ -107,10 +107,7 @@ mod connectivity_tests;
 /// (`[ -s ntp.pid ] && kill -0 "$(cat ntp.pid)"`). Checked here, a running ntpd costs no shell.
 fn ntp_running(root: &Root) -> bool {
     root.integer("/run/y2/ntp.pid")
-        .filter(|pid| *pid > 1)
-        .and_then(|pid| i32::try_from(pid).ok())
-        // SAFETY: signal 0 only checks that the process exists.
-        .is_some_and(|pid| unsafe { libc::kill(pid, 0) } == 0)
+        .is_some_and(|pid| pid > 1 && y2p_core::sys::alive(pid))
 }
 
 /// What the loop keeps between passes.

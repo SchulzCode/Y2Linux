@@ -186,7 +186,6 @@ pub(super) fn stream(
     data: &[u8],
     progress: Option<&build::Progress>,
 ) -> command::Outcome {
-    use std::os::unix::process::CommandExt;
     use std::process::{Command, Stdio};
     let failed = |reason: &str, output: Option<String>| command::Outcome {
         ok: false,
@@ -205,16 +204,7 @@ pub(super) fn stream(
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::null());
-    // SAFETY: setsid() is async-signal-safe; it runs in the forked child before exec.
-    unsafe {
-        process.pre_exec(|| {
-            if libc::setsid() < 0 {
-                Err(std::io::Error::last_os_error())
-            } else {
-                Ok(())
-            }
-        });
-    }
+    y2p_core::command::new_session(&mut process);
     let Ok(mut child) = process.spawn() else {
         return failed("command_unavailable", None);
     };

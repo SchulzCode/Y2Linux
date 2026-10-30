@@ -256,6 +256,20 @@ impl Disposition {
     }
 }
 
+/// `kill(pid, signal)`.
+pub fn kill(pid: libc::pid_t, signal: libc::c_int) -> io::Result<()> {
+    // SAFETY: a plain signal; a pid that is gone answers ESRCH.
+    if unsafe { libc::kill(pid, signal) } != 0 {
+        return Err(io::Error::last_os_error());
+    }
+    Ok(())
+}
+
+/// Whether `pid` names a live process (`kill(pid, 0)`); never a group or every process (pid ≤ 0).
+pub fn alive(pid: i64) -> bool {
+    libc::pid_t::try_from(pid).is_ok_and(|pid| pid > 0 && kill(pid, 0).is_ok())
+}
+
 /// An rtnetlink socket (close-on-exec, non-blocking when asked), bound to the multicast `groups`
 /// (`RTMGRP_*`) when there are any; without groups the kernel binds it on its first send.
 pub fn netlink_route(groups: u32, nonblock: bool) -> io::Result<OwnedFd> {

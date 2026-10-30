@@ -146,6 +146,21 @@ struct Answer {
     output: Option<String>,
 }
 
+/// The child starts a session of its own (Python's `start_new_session=True`): a timeout that kills
+/// its process group never reaches this process.
+pub fn new_session(command: &mut Command) {
+    // SAFETY: setsid() is async-signal-safe; it runs in the forked child before exec.
+    unsafe {
+        command.pre_exec(|| {
+            if libc::setsid() < 0 {
+                Err(std::io::Error::last_os_error())
+            } else {
+                Ok(())
+            }
+        });
+    }
+}
+
 fn fixture(argv: &[&str], timeout: f64) -> Outcome {
     if let Some(calls) = env::var_os("Y2_FIXTURE_CALLS") {
         let line = serde_json::json!({"argv": argv, "timeout": timeout}).to_string() + "\n";
@@ -211,17 +226,7 @@ fn real(argv: &[&str], timeout: f64, limit: usize, failure_output: bool) -> Outc
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::null());
-    // SAFETY: setsid() is async-signal-safe; it runs in the forked child before exec
-    // (Python's start_new_session=True).
-    unsafe {
-        command.pre_exec(|| {
-            if libc::setsid() < 0 {
-                Err(std::io::Error::last_os_error())
-            } else {
-                Ok(())
-            }
-        });
-    }
+    new_session(&mut command);
     let mut child = match command.spawn() {
         Ok(child) => child,
         Err(_) => return unavailable,

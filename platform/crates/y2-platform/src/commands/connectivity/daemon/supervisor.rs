@@ -49,9 +49,7 @@ fn alive(root: &Root, name: &str, resolved: &Path) -> Option<i32> {
     if exe != resolved {
         return None;
     }
-    let pid = i32::try_from(pid).ok()?;
-    // SAFETY: signal 0 only checks that the process exists.
-    (unsafe { libc::kill(pid, 0) } == 0).then_some(pid)
+    y2p_core::sys::alive(pid).then_some(pid as i32)
 }
 
 // ---- the supervisor -----------------------------------------------------------------------------

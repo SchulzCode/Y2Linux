@@ -137,8 +137,8 @@ impl Child {
 
     fn signal(&mut self, signal: libc::c_int) {
         if self.running() {
-            // SAFETY: a signal to our own unreaped child.
-            unsafe { libc::kill(self.pid(), signal) };
+            // Our own unreaped child: its pid cannot be another process's yet.
+            let _ = y2p_core::sys::kill(self.pid(), signal);
         }
     }
 

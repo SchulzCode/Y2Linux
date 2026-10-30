@@ -280,10 +280,10 @@ pub fn wake_service(root: &Root) -> bool {
                 .read(&format!("/proc/{pid}/cmdline"))
                 .unwrap_or_default();
             if cmdline.contains("service-daemon") && cmdline.contains("y2-platform") {
-                // SAFETY: a plain signal to the service daemon.
-                if unsafe { libc::kill(pid as libc::pid_t, libc::SIGUSR1) } != 0
-                    && io::Error::last_os_error().raw_os_error() == Some(libc::ESRCH)
-                {
+                let sent = libc::pid_t::try_from(pid)
+                    .map_err(|_| io::Error::from_raw_os_error(libc::ESRCH))
+                    .and_then(|pid| y2p_core::sys::kill(pid, libc::SIGUSR1));
+                if sent.is_err_and(|e| e.raw_os_error() == Some(libc::ESRCH)) {
                     return false;
                 }
             }
