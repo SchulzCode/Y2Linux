@@ -1,6 +1,13 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.4 candidate (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-30, afternoon): NEXT WORK IS [PLATFORM-RUST-IDIOMATIC-PLAN.md](PLATFORM-RUST-IDIOMATIC-PLAN.md).**
+> **START HERE (2026-10-30, late afternoon): TEST BUILD 180 ON THE OWNER'S PLAYER; IDIOMATIC PLAN P0–P4 DONE, P5/P6 NEXT.**
+> [PLATFORM-RUST-IDIOMATIC-PLAN.md](PLATFORM-RUST-IDIOMATIC-PLAN.md): P0 (tools: semantic gate, Reborn contract
+> test, record-compat, golden-diff), P1 (one serde writer), P2 (one argument reading), P3 (Rust types instead of
+> Python comparisons outside critical code), P4 partly (Bluetooth typed), P7 started. 180 (seq 11250) Acknowledged,
+> device check OK. **Next:** P5 (typed status snapshot), P6 (reports without Py, ≈420 uses), P7. Commit only on
+> `GATE OK` (`tools/development/platform-gate.sh`, no argument). Next free label 181, sequence above 11250.
+>
+> Previous entry: **START HERE (2026-10-30, afternoon): NEXT WORK IS [PLATFORM-RUST-IDIOMATIC-PLAN.md](PLATFORM-RUST-IDIOMATIC-PLAN.md).**
 > Owner: outputs no longer have to be byte-identical to the Python platform, they must still work; move all code
 > that is not extremely critical from Python behaviour to Rust behaviour; one agent, alone. The plan holds the
 > contract that stays (Reborn, shell consumers, /data records across rollback, the report bundle, hardware

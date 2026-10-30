@@ -228,14 +228,20 @@ Built with `json!`/`insert` and read back by key → structs, per the ranking in
 - connectivity/scenarios.rs moves under `#[cfg(test)]` / the test-support module (fixtures, not product code).
 Verify as P3.
 
-### P5. The status snapshot as one type (M)
+### P5. The status snapshot as one type (M) — not started (next)
 
 `observation/snapshot` assembles a `Map<String, Value>` of sections that are now structs; make it
 `struct Snapshot { power: Power, cpu: Cpu, … }` (each section `Option` where `status <section>` builds only one),
 `status <section>` prints that section, readiness and health read typed fields (today ~36 lookups by key),
 diagnostics export serialises the struct. `utilization_percent` becomes a field set by the caller.
 
-### P6. Reports without `Py` (L, after P0.4)
+### P6. Reports without `Py` (L, after P0.4) — not started
+
+Size (2026-10-30): ~520 `Py`/`pyops`/`pyjson` uses in 17 files; maintenance/* (reset) is critical and stays; the
+rest (upload 95, build/facts 66, diagnostics 56, state 55, checks 43, build 34, scrub 15, media 15, secrets 14, mod
+11, upload/curl 9, volume 4, scrub/files 4) ≈ 420. Start with state.rs (reports.json as a typed record, rollback
+readable: keep field names/types), then checks (seen markers), upload, build/facts, diagnostics. The crash-signature
+digest (checks.rs) must keep its encoding (stored in reports.json `seen`), as the SD media identity did in P1.
 
 `reports` (7,900 lines) runs on `y2p_core::pyjson::Py`, a Python value type, and `pyops` (Python operators):
 records become structs (reports.json, the queue entries, report-progress, the bundle manifest and facts), `Py`
@@ -243,7 +249,9 @@ and `pyops` go, the bundle is written with serde. The bundle's member names and 
 follows P0.4's answer. `reports/maintenance/execute.rs` is critical: its plan/state records get typed reads with
 identical decisions, nothing more.
 
-### P7. Clean-up (S–M)
+### P7. Clean-up (S–M) — started
+
+Done: `json::{dumps, dumps_sorted}` take only the value (3bcdd46c). The rest waits for P5/P6.
 
 Delete what no longer has users: `y2p_core::pyjson` (except what a pinned output needs), most of `y2p_core::py`,
 `os_text`'s surrogate escapes where no path text is printed, `json::PythonFormatter`, `argparse/`. Update

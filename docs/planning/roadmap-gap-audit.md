@@ -9780,3 +9780,14 @@ after the apply); device check OK (health: Bluetooth UNAVAILABLE, radio off); `s
 bluetooth` answer (Bluetooth: radio_off at the adapter step, as before). Update boot: first frame 20.5 s,
 application_ready 37.4 s (health-ack's, as designed for an update boot). Owed: idle on 179 after ≥ 30 min,
 Reborn's sleep requests on the cable over an hour (68af9ac), the owner's checks.
+
+**Test build 180 (2026-10-30 afternoon; PLATFORM-RUST-IDIOMATIC-PLAN.md P0–P4, owner: byte identity dropped):**
+semantic gate (goldens, record-compat against the last release, Reborn's contract test) OK at every commit, host suite
+576 OK. One serde JSON writer (compact records and answers; the SD media identity digest keeps Python's encoding),
+one argument reading (`cli::given`), records read with Rust types instead of Python comparisons outside the critical
+code (which keeps Python's number rules explicitly), Bluetooth section typed; Reborn e45604e (charger hold, contract
+test). On the player by staged OTA from 179: seq 11250, Acknowledged, USB clean; device check OK (compact JSON
+throughout; the check's greps accept both spellings); ntpd started by S43's new grep (time source ntp); Reborn logged
+no platform warning or error; `report status` still prints through reports' own Py writer (P6). 179's idle (battery
+Full, 30.8 min): power 4.2, service 4.6, ssh 1.9, Reborn 14.2 s/h; Reborn's sleep refusals on the cable: 1 in 37 min
+(68af9ac).
