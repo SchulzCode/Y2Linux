@@ -369,3 +369,42 @@ fn ntp_start_is_skipped_only_while_its_pid_file_names_a_live_process() {
         assert!(!ntp_running(&fixture.root));
     }
 }
+
+#[test]
+fn application_ready_is_recorded_once_reborn_drew_and_the_journal_waits() {
+    let fixture = fixture().with_answers(Vec::new());
+    let ready = |fixture: &Fixture, boot: &str| {
+        fixture.put_json(
+            "/run/y2/application-ready.json",
+            &json!({"schema": 1, "boot_id": boot, "pid": 812, "start_ticks": 2269,
+                    "first_frame": true, "monotonic_s": 23.4}),
+        );
+    };
+    let journal = |fixture: &Fixture, stage: &str| {
+        fixture.put_json(
+            "/data/system/platform/boot.json",
+            &json!({"boot_id": "boot-a", "last_stage": stage}),
+        );
+    };
+    let stage_calls = |fixture: &Fixture| {
+        fixture
+            .calls()
+            .iter()
+            .filter(|(argv, _)| argv.iter().any(|a| a == "boot-stage"))
+            .count()
+    };
+    journal(&fixture, "services_started");
+    // Not drawn yet (no record, another boot's record): nothing recorded, keep looking.
+    assert!(!application_drawn(&fixture.root));
+    ready(&fixture, "boot-b");
+    assert!(!application_drawn(&fixture.root));
+    assert_eq!(stage_calls(&fixture), 0);
+    // Drawn while the journal waits: the stage is recorded; look once more to see it done.
+    ready(&fixture, "boot-a");
+    assert!(!application_drawn(&fixture.root));
+    assert_eq!(stage_calls(&fixture), 1);
+    // The journal is past it: done, nothing more started.
+    journal(&fixture, "application_ready");
+    assert!(application_drawn(&fixture.root));
+    assert_eq!(stage_calls(&fixture), 1);
+}

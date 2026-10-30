@@ -106,6 +106,24 @@ fn ntp_running(root: &Root) -> bool {
         .is_some_and(|pid| pid > 1 && y2p_core::sys::alive(pid))
 }
 
+/// Reborn drew while the boot journal still waits for it: `boot-stage application_ready`. Whether the
+/// journal is past that wait (nothing more to record this boot).
+fn application_drawn(root: &Root) -> bool {
+    if !update::ApplicationReady::read(root).drawn(root) {
+        return false;
+    }
+    let waiting = matches!(
+        root.json_object("/data/system/platform/boot.json")
+            .get("last_stage")
+            .and_then(Value::as_str),
+        Some("platform_start" | "services_started")
+    );
+    if waiting {
+        command::run(root, &[PLATFORM, "boot-stage", "application_ready"], 2.0);
+    }
+    !waiting
+}
+
 /// What the loop keeps between passes.
 struct Service {
     root: Root,
@@ -126,6 +144,7 @@ impl Service {
         let mut coexistence = Coexistence::default();
         let mut radio_policy_timer = Timer::default();
         let mut settled = false;
+        let mut drawn_recorded = false;
         // It cannot change while the service runs.
         let boot_id = root.boot_id();
         let previous = Published::read(root);
@@ -221,17 +240,15 @@ impl Service {
                         &[PLATFORM, "update", "health-ack"],
                         8.0,
                     ));
-                // Reborn drew while the boot journal still waits for it.
-                if update::ApplicationReady::read(root).drawn(root)
-                    && matches!(
-                        root.json_object("/data/system/platform/boot.json")
-                            .get("last_stage")
-                            .and_then(Value::as_str),
-                        Some("platform_start" | "services_started")
-                    )
-                {
-                    command::run(root, &[PLATFORM, "boot-stage", "application_ready"], 2.0);
+                if !settled {
+                    application_drawn(root);
                 }
+            }
+            // Once no update waits for health (whose acknowledgement records the stage itself), the
+            // stage follows Reborn's first frame within a pass instead of on the next maintenance pass
+            // up to 30 s later: it arms the runtime power features and lets a sleep enter.
+            if settled && !drawn_recorded {
+                drawn_recorded = application_drawn(root);
             }
             if matches!(
                 value.get("state").and_then(Value::as_str),
