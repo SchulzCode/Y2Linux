@@ -5,7 +5,7 @@ use crate::commands::observation::util::{
     self, fields, fresh_seconds, key_values, name, number, read, record_fields, text,
 };
 use crate::reply::Failure;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
 use y2p_core::py::PyValue;
 use y2p_core::{
@@ -335,20 +335,67 @@ pub fn observe(
         .get("credential_failure")
         .cloned()
         .unwrap_or(Value::Null);
-    Ok(json!({
-        "state": state, "reason": reason, "radio_present": radio,
-        // The saved network whose password failed (wpa_supplicant's id).
-        "failed_network_id": if state == "Failed" && reason.py_eq(&credential) { failed_network } else { Value::Null },
-        // A missed control query does not prove a radio disconnect. Preserve the actual failure and
-        // latency separately from event counters.
-        "supplicant_observation": {"ok": wpa.as_ref().map(|w| w.ok),
-                                   "reason": match &wpa { Some(w) => json!(w.reason), None => json!("radio_off") },
-                                   "duration_ns": duration},
-        "association": association, "association_id": bssid,
-        "ip_addresses": addresses, "default_route": default_route, "dns_ready": dns_ready,
-        "rssi_dbm": rssi, "signal_observation": signal, "traffic_counters": stats,
-        "events": root.json("/run/y2/wifi-events.json"), "reconnect_owner": "wpa_supplicant",
-        "power_save": root.json("/run/y2/wifi-power.json"),
-        "coexistence": root.json("/run/y2/coexistence.json"),
-    }))
+    let section = Wifi {
+        failed_network_id: if state == "Failed" && reason.py_eq(&credential) {
+            failed_network
+        } else {
+            Value::Null
+        },
+        state,
+        reason,
+        radio_present: radio,
+        supplicant_observation: SupplicantObservation {
+            ok: wpa.as_ref().map(|w| w.ok),
+            reason: match &wpa {
+                Some(w) => w.reason.clone(),
+                None => Some("radio_off".into()),
+            },
+            duration_ns: duration,
+        },
+        association,
+        association_id: bssid,
+        ip_addresses: addresses,
+        default_route,
+        dns_ready,
+        rssi_dbm: rssi,
+        signal_observation: signal,
+        traffic_counters: stats,
+        events: root.json("/run/y2/wifi-events.json"),
+        reconnect_owner: "wpa_supplicant",
+        power_save: root.json("/run/y2/wifi-power.json"),
+        coexistence: root.json("/run/y2/coexistence.json"),
+    };
+    serde_json::to_value(section).map_err(|_| Failure::value("wifi_section_unserializable"))
+}
+
+/// The `wifi` section and the daemons' look (network.json `observation`), in this key order.
+#[derive(Serialize)]
+struct Wifi {
+    state: Value,
+    reason: Value,
+    radio_present: bool,
+    /// The saved network whose password failed (wpa_supplicant's id).
+    failed_network_id: Value,
+    /// A missed control query does not prove a radio disconnect: the query's own result and
+    /// latency, apart from the event counters.
+    supplicant_observation: SupplicantObservation,
+    association: Value,
+    association_id: Value,
+    ip_addresses: Vec<Value>,
+    default_route: Value,
+    dns_ready: bool,
+    rssi_dbm: Value,
+    signal_observation: Value,
+    traffic_counters: Map<String, Value>,
+    events: Option<Value>,
+    reconnect_owner: &'static str,
+    power_save: Option<Value>,
+    coexistence: Option<Value>,
+}
+
+#[derive(Serialize)]
+struct SupplicantObservation {
+    ok: Option<bool>,
+    reason: Option<String>,
+    duration_ns: Option<u64>,
 }
