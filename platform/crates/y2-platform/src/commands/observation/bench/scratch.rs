@@ -2,7 +2,7 @@
 //! verified volume's mount; every step first checks the mount is still the one measured.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{
-    fd::{check, cname, fstat, fstatvfs, openat},
+    fd::{cname, fstat, fstatvfs, openat},
     Error, Result,
 };
 use crate::commands::observation::snapshot::{device_instance, storage};
@@ -13,7 +13,7 @@ use std::{
     fs::File,
     io,
     os::{
-        fd::{AsFd, AsRawFd, FromRawFd, OwnedFd, RawFd},
+        fd::{AsFd, AsRawFd, BorrowedFd, RawFd},
         unix::fs::OpenOptionsExt,
     },
 };
@@ -98,8 +98,8 @@ impl<'a> Scratch<'a> {
         }
         self.ensure()?;
         let bench = cname(".y2-bench");
-        // SAFETY: a NUL-terminated name relative to the volume descriptor.
-        match check(unsafe { libc::mkdirat(volume_fd, bench.as_ptr(), 0o700) }) {
+        let volume = self.volume_fd.as_ref().expect("just opened").as_fd();
+        match y2p_core::sys::mkdirat(volume, &bench, 0o700) {
             Err(e) if e.kind() == io::ErrorKind::AlreadyExists => {}
             Err(e) => return Err(Error::os(e, Some(".y2-bench"))),
             Ok(_) => {}
@@ -118,9 +118,8 @@ impl<'a> Scratch<'a> {
             return Err(Error::value("unsafe_scratch_permissions"));
         }
         let run = cname(&self.name);
-        // SAFETY: a NUL-terminated name relative to the base descriptor.
-        check(unsafe { libc::mkdirat(base_fd, run.as_ptr(), 0o700) })
-            .map_err(|e| Error::os(e, Some(&self.name)))?;
+        let base = self.base_fd.as_ref().expect("just opened").as_fd();
+        y2p_core::sys::mkdirat(base, &run, 0o700).map_err(|e| Error::os(e, Some(&self.name)))?;
         self.fd = Some(openat(
             base_fd,
             &self.name,
@@ -166,7 +165,12 @@ impl<'a> Scratch<'a> {
 
     /// The run directory: open from `new` until `close`, the only times it is not.
     pub(super) fn fd(&self) -> RawFd {
-        self.fd.as_ref().expect("scratch").as_raw_fd()
+        self.dir().as_raw_fd()
+    }
+
+    /// The run directory, borrowed.
+    fn dir(&self) -> BorrowedFd<'_> {
+        self.fd.as_ref().expect("scratch").as_fd()
     }
 
     fn alnum(name: &str) -> bool {
@@ -194,16 +198,14 @@ impl<'a> Scratch<'a> {
         }
         self.ensure()?;
         let (from, to) = (cname(source), cname(target));
-        // SAFETY: NUL-terminated names relative to the run directory.
-        check(unsafe { libc::renameat(self.fd(), from.as_ptr(), self.fd(), to.as_ptr()) })
-            .map_err(|e| {
-                let (text, class) = py::os_error(&e, Some(source));
-                Error {
-                    class: class.into(),
-                    text: format!("{text} -> {}", py::repr(target)),
-                    errno: e.raw_os_error(),
-                }
-            })?;
+        y2p_core::sys::renameat(self.dir(), &from, self.dir(), &to).map_err(|e| {
+            let (text, class) = py::os_error(&e, Some(source));
+            Error {
+                class: class.into(),
+                text: format!("{text} -> {}", py::repr(target)),
+                errno: e.raw_os_error(),
+            }
+        })?;
         self.files.remove(source);
         self.files.insert(target.into());
         Ok(())
@@ -215,9 +217,7 @@ impl<'a> Scratch<'a> {
         }
         self.ensure()?;
         let path = cname(name);
-        // SAFETY: a NUL-terminated name relative to the run directory.
-        check(unsafe { libc::unlinkat(self.fd(), path.as_ptr(), 0) })
-            .map_err(|e| Error::os(e, Some(name)))?;
+        y2p_core::sys::unlinkat(self.dir(), &path, 0).map_err(|e| Error::os(e, Some(name)))?;
         self.files.remove(name);
         Ok(())
     }
@@ -229,7 +229,7 @@ impl<'a> Scratch<'a> {
                 // Only known outputs in our new private run, with fd-relative symlink-safe removal.
                 // Never recurse from /data or /media/sd.
                 for directory in ["scan-media", "logs"] {
-                    let _ = remove_tree(fd.as_raw_fd(), directory);
+                    let _ = remove_tree(fd.as_fd(), directory);
                 }
                 for name in [
                     "library.sqlite",
@@ -273,29 +273,24 @@ impl Drop for Scratch<'_> {
 }
 
 /// Remove the tree `name` relative to `directory`, never following a symlink.
-fn remove_tree(directory: RawFd, name: &str) -> io::Result<()> {
+fn remove_tree(directory: BorrowedFd<'_>, name: &str) -> io::Result<()> {
     let path = cname(name);
-    // SAFETY: a NUL-terminated name relative to a directory descriptor.
-    let fd = check(unsafe {
-        libc::openat(
-            directory,
-            path.as_ptr(),
-            libc::O_RDONLY | libc::O_DIRECTORY | libc::O_NOFOLLOW | libc::O_CLOEXEC,
-        )
-    })?;
-    // SAFETY: a new descriptor this process owns.
-    let handle = unsafe { OwnedFd::from_raw_fd(fd) };
+    let handle = y2p_core::sys::openat(
+        Some(directory),
+        &path,
+        libc::O_RDONLY | libc::O_DIRECTORY | libc::O_NOFOLLOW | libc::O_CLOEXEC,
+        0,
+    )?;
     let listing = format!("/proc/self/fd/{}", handle.as_raw_fd());
     for entry in std::fs::read_dir(listing)?.flatten() {
         let child = entry.file_name().to_string_lossy().into_owned();
         let is_dir = entry.file_type().is_ok_and(|t| t.is_dir());
         if is_dir {
-            remove_tree(handle.as_raw_fd(), &child)?;
+            remove_tree(handle.as_fd(), &child)?;
         } else {
             y2p_core::sys::unlinkat(handle.as_fd(), &cname(&child), 0)?;
         }
     }
     drop(handle);
-    // SAFETY: a NUL-terminated name relative to the parent directory.
-    check(unsafe { libc::unlinkat(directory, path.as_ptr(), libc::AT_REMOVEDIR) }).map(drop)
+    y2p_core::sys::unlinkat(directory, &path, libc::AT_REMOVEDIR)
 }
