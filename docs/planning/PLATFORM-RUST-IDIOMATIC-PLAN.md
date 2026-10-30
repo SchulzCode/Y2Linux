@@ -158,7 +158,11 @@ parsing its members: the bundle's JSON formatting is free; member names and fiel
 4. Check the report receiver: does it parse JSON members (then the bundle's formatting is free) or compare text?
    Record the answer here.
 
-### P1. One JSON writer (M)
+### P1. One JSON writer (M) — done 2026-10-30 (d82f1426)
+
+Compact serde_json everywhere; the SD media identity digest keeps Python's sorted spaced encoding
+(`json::python_dumps_sorted`: admitted cards keep their id); reset execute hashes `record::encode`'s bytes.
+Shell matches made spacing-tolerant (reborn-supervise, platform-device-check.sh, S43y2-time).
 
 `reply::atomic_json` / `atomic_json_mode`, `Reply::sorted` and every `pyjson::dumps(…, Style::…)` /
 `json::PythonFormatter` / `Separators::Spaced` outside the pinned outputs write with `serde_json` (compact for
@@ -168,7 +172,11 @@ outputs). Verify: semantic goldens unchanged (formatting only), Reborn contract 
 **Byte goldens move** for every converted command: re-recorded once, reviewed with `golden-diff.py` (expected: no
 semantic difference).
 
-### P2. The argument layer (L)
+### P2. The argument layer (L) — done 2026-10-30 (5bb70fe9)
+
+cli.rs already was a Rust parser (exact names, ASCII integers); what remained was three groups parsing its
+canonical output again: replaced by `cli::given` (the command's own table). Routing on the canonical argv stays
+(idiomatic pattern matching; the command lines Reborn and the scripts use are unchanged).
 
 `cli.rs` + `argparse/` emulate Python's argparse (abbreviations, `--opt=value`, its usage and error texts) and hand
 the groups a canonical `Vec<String>`, which observation, reports and devices parse a second time
@@ -181,7 +189,15 @@ abbreviates: grep the overlay, Reborn and tools), argparse's exact texts. No new
 vendored): the parser is ~300 lines. Verify: argument goldens re-recorded (texts change, exit codes do not),
 every Reborn and script invocation listed in §1 run against the new binary on the host.
 
-### P3. Python semantics out of the platform's own records (M per group)
+### P3. Python semantics out of the platform's own records (M per group) — done for non-critical code
+
+Commits 27c07cb6 … 551ca5c8: lenient helpers (number/integer/flag) Rust-typed; network.json's count a u64;
+Wi-Fi look, Bluetooth, storage read side, Y2Media claim, radio firmware, USB service, power/suspend journals,
+power socket refusals; `py::{eq_int, number}` strict, `root::parse_int` (i64::from_str) for kernel text.
+Critical code keeps Python's number rules explicitly (`py::{python_eq_int, python_number}`: power policy,
+update health/journal, sleep deadlines, SD write windows, boot journal) and its truth tests (sleep receipt
+product, power.json battery for admission). Fixtures that held Python-only values (1.0 for 1, true for 1) now
+hold what their writers write; the golden recorder became type-strict (ca1b84a6).
 
 Group by group, outside §1's critical list: each record read with `.get("x")` + `py_eq`/`truthy`/`is_true`/
 `python_int` becomes a `#[derive(Deserialize)]` struct with `#[serde(default)]` fields of the real types (a
@@ -194,7 +210,11 @@ storage read side (observe, records, inventory, sys), service (daemon loop, usb,
 observation (evidence, collect, health, readiness, bench). Verify per group: goldens re-recorded where an odd value
 is now refused or defaulted (listed in the commit), Reborn contract test, rollback-read, device check.
 
-### P4. The remaining untyped JSON (M per group)
+### P4. The remaining untyped JSON (M per group) — partly done
+
+Done: the Bluetooth section (Section/Adapter/Device/Pcm/Transport/Encoder). Left on purpose: storage/observe's
+volume map (read by key by the critical SD operations in storage/media.rs; its decisions are plain Rust now);
+connectivity/scenarios.rs was already test-only.
 
 Built with `json!`/`insert` and read back by key → structs, per the ranking in §0:
 - observation/bluetooth.rs: y2-bt-observe's answer parsed into structs (`Observed { bluez, bluealsa, manager, … }`)
