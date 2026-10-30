@@ -1,6 +1,16 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.4 candidate (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-30, later): TEST BUILD 185 ON THE OWNER'S PLAYER; Q4 DONE, OWNER'S HARDWARE ROUND OPEN.**
+> **START HERE (2026-10-30, evening): 185 ON THE PLAYER, Q5 CLEAN-UP COMMITTED (NOT YET IN A BUILD); HARDWARE ROUND OPEN.**
+> Q5 since 185: the update core's journal typed on the platform side and one `y2p_contract::Versions` (d7a909d2;
+> an update journal whose state is no text now leaves `status` readable, update Unavailable), CONTRACT.md "Typed
+> records", measurements in the idiomatic plan (185: daemons 17.3 MB RSS / 5.5 MB PSS, idle 12.0 s/h, Reborn 15.7
+> s/h, simple calls 6–8 ms, `status` 330 ms of which ≈170 ms is the bounded wakeup_count read on the charger,
+> application_ready 37.0 s). Tried and dropped: typing the receipt's battery copy (lossy). Contract synced to
+> Reborn (93a0586). **Open:** the owner's hardware round on 184/185 (list below); the Q5 commits go into the next
+> build (label 186, sequence above 11300); push only on the owner's word. A Rust rewrite of the C update core is a
+> separate later project.
+>
+> Previous entry: **START HERE (2026-10-30, later): TEST BUILD 185 ON THE OWNER'S PLAYER; Q4 DONE, OWNER'S HARDWARE ROUND OPEN.**
 > Q4 part 2 (83778bce … a683b584): Reborn's sleep answer typed (pyjson deleted), suspend Receipt/Product (an
 > unreadable receipt refuses as suspend_receipt_unreadable; the failure is still recorded in a new receipt), sleep
 > admission, reset Plan/ResetRecord (confirmation still a hash over the plan as read; pyops deleted), one power-journal
