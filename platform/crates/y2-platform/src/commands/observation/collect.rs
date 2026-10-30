@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{
     process_identity, reborn_metrics,
-    snapshot::{section, snapshot, utilization},
+    snapshot::{snapshot, utilization, Snapshot},
     util,
 };
 use crate::reply::{Failure, Outcome, Reply};
@@ -77,7 +77,7 @@ pub fn run(root: &Root, options: &Options) -> Outcome {
     // standing still would never let the loop end); the snapshots read the root's.
     let start = clock::monotonic();
     let deadline = start + seconds as f64;
-    let mut previous: Option<Map<String, Value>> = None;
+    let mut previous: Option<Snapshot> = None;
     let mut growth: Vec<(String, Growth)> = Vec::new();
     let (mut samples, mut failures, mut bytes) = (0u64, 0u64, 0usize);
     let mut out = std::io::stdout().lock();
@@ -94,37 +94,33 @@ pub fn run(root: &Root, options: &Options) -> Outcome {
         }
         // A refused snapshot ends the stream with its refusal record after the lines so far.
         let mut value = snapshot(root, &pids, options.pss, 0.0)?;
-        if let Some(Value::Object(record)) = value.get_mut("record") {
-            record.insert("workload".into(), json!(label));
-            if let Some(Value::Object(parameters)) = record.get_mut("parameters") {
-                parameters.insert("interval_seconds".into(), json!(interval));
-                parameters.insert("duration_seconds".into(), json!(seconds));
-                parameters.insert("pss".into(), json!(options.pss));
-                parameters.insert("warmup_seconds".into(), json!(warmup));
-            }
+        value.record.insert("workload".into(), json!(label));
+        if let Some(Value::Object(parameters)) = value.record.get_mut("parameters") {
+            parameters.insert("interval_seconds".into(), json!(interval));
+            parameters.insert("duration_seconds".into(), json!(seconds));
+            parameters.insert("pss".into(), json!(options.pss));
+            parameters.insert("warmup_seconds".into(), json!(warmup));
         }
         // Utilisation since the previous sample of the same boot.
-        if let Some(previous) = previous.as_ref().filter(|p| !p.is_empty()) {
-            if section(previous, "record")["boot_id"] == section(&value, "record")["boot_id"] {
-                let busy = utilization(
-                    section(previous, "cpu").get("ticks"),
-                    section(&value, "cpu").get("ticks"),
-                );
-                if let Some(Value::Object(cpu)) = value.get_mut("cpu") {
-                    cpu.insert("utilization_percent".into(), busy);
-                }
+        if let Some(previous) = &previous {
+            if previous.boot_id() == value.boot_id() {
+                let busy = utilization(previous.cpu.get("ticks"), value.cpu.get("ticks"));
+                value.cpu.insert("utilization_percent".into(), busy);
             }
         }
         if options.reborn {
-            value.insert("reborn_metrics".into(), reborn_metrics(root));
+            value.reborn_metrics = Some(reborn_metrics(root));
         }
         let age = clock::monotonic() - start;
         if age >= warmup as f64 {
-            let boot = match &section(&value, "record")["boot_id"] {
+            let boot = match value.boot_id() {
                 Value::String(s) => s.clone(),
                 _ => "None".into(),
             };
-            for process in section(&value, "memory")["processes"]
+            for process in value
+                .memory
+                .get("processes")
+                .unwrap_or(&Value::Null)
                 .as_array()
                 .into_iter()
                 .flatten()
@@ -148,11 +144,12 @@ pub fn run(root: &Root, options: &Options) -> Outcome {
         }
         samples += 1;
         failures += u64::from(
-            section(&value, "readiness")
+            value
+                .readiness
                 .as_object()
                 .is_some_and(|r| r.values().any(|item| item["state"] == "Failed")),
         );
-        super::snapshot::printable(&value)?;
+        value.printable()?;
         let line = dumps_sorted(&value).map_err(Failure::value)? + "\n";
         bytes += line.len();
         if bytes > 64 * 1024 * 1024 {

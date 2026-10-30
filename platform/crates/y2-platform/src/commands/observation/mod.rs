@@ -255,10 +255,11 @@ fn status(root: &Root, options: &StatusOptions) -> Outcome {
         pids = unique;
         pids.truncate(32);
     }
-    let mut result = snapshot::snapshot(root, &pids, options.pss, options.interval)?;
+    let mut snapshot = snapshot::snapshot(root, &pids, options.pss, options.interval)?;
     if options.reborn {
-        result.insert("reborn_metrics".into(), reborn_metrics(root));
+        snapshot.reborn_metrics = Some(reborn_metrics(root));
     }
+    let mut result = snapshot.into_map()?;
     if let Some(section) = &options.section {
         // One section (`usb` is the system section's), with the schema and the record.
         let part = if section == "usb" {

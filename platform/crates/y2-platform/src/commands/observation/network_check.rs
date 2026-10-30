@@ -1,10 +1,7 @@
 //! `y2-platform network-check` (`network_check.check` under `workload.workload("NetworkTransfer")`):
 //! explicit owner-run IP and throughput qualification, never run during boot.
 // SPDX-License-Identifier: GPL-2.0-only
-use super::{
-    snapshot::{section, snapshot},
-    util,
-};
+use super::{snapshot::snapshot, util};
 use crate::reply::{Failure, Outcome, Reply};
 use serde_json::{json, Map, Value};
 use y2p_core::{command, Root};
@@ -70,15 +67,16 @@ pub fn run(root: &Root, peer: &str, seconds: i64, throughput: bool, interface: &
     let before = snapshot(root, &[], false, 0.0)?;
     let mut result = Map::new();
     result.insert("schema".into(), json!("org.y2linux.benchmark/v1"));
-    if interface == "wlan0" && section(&before, "wifi")["state"] != "Online" {
+    if interface == "wlan0" && before.wifi["state"] != "Online" {
         record.insert("result".into(), json!("FAILED"));
         record.insert("failure".into(), json!("wifi_not_online"));
         result.insert("record".into(), Value::Object(record));
-        result.insert("before".into(), Value::Object(before));
-        super::snapshot::printable(&result)?;
+        before.printable()?;
+        result.insert("before".into(), Value::Object(before.into_map()?));
         return Reply::sorted(&result, 1);
     }
-    result.insert("before".into(), Value::Object(before));
+    before.printable()?;
+    result.insert("before".into(), Value::Object(before.into_map()?));
     let ping = command::run(
         root,
         &["ping", "-I", interface, "-c", "5", "-W", "2", &peer],
@@ -132,8 +130,8 @@ pub fn run(root: &Root, peer: &str, seconds: i64, throughput: bool, interface: &
     );
     result.insert("record".into(), Value::Object(record));
     let after = snapshot(root, &[], false, 0.0)?;
-    result.insert("after".into(), Value::Object(after));
-    super::snapshot::printable(&result)?;
+    after.printable()?;
+    result.insert("after".into(), Value::Object(after.into_map()?));
     Reply::sorted(&result, u8::from(!ok))
 }
 

@@ -26,14 +26,62 @@ use super::{
     util::{self, int, read, text},
 };
 use crate::{regex, reply::Failure};
+use serde::Serialize;
 use serde_json::{json, Map, Value};
 use y2p_core::Root;
 
-pub type Snapshot = Map<String, Value>;
+/// `y2-platform status`: every section of the platform (in this key order). Sections are the JSON
+/// their modules build; `audio` is assembled here.
+#[derive(Serialize)]
+pub struct Snapshot {
+    pub schema: &'static str,
+    pub record: Map<String, Value>,
+    pub cpu: Map<String, Value>,
+    pub memory: Map<String, Value>,
+    pub thermal: Value,
+    pub power: Value,
+    pub storage: Value,
+    pub wifi: Value,
+    pub bluetooth: Value,
+    pub system: Value,
+    pub audio: Audio,
+    pub readiness: Value,
+    /// `--reborn`: Reborn's own metrics record.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reborn_metrics: Option<Value>,
+}
 
-/// A section of a snapshot (null for one it does not have).
-pub fn section<'a>(status: &'a Snapshot, name: &str) -> &'a Value {
-    status.get(name).unwrap_or(&Value::Null)
+/// The `audio` section: what ALSA lists and the qualified profile; the headphone jack is not observed.
+#[derive(Serialize)]
+pub struct Audio {
+    pub cards: Option<String>,
+    pub pcm: Option<String>,
+    pub headphone_jack_present: Option<bool>,
+    pub headphone_jack_reason: &'static str,
+    pub qualified_profile: Option<Value>,
+    pub enabled_profile: Option<Value>,
+    pub pcm_contract: Option<Value>,
+    pub hw_params: Map<String, Value>,
+}
+
+impl Snapshot {
+    /// The snapshot as a JSON object.
+    pub fn into_map(self) -> Result<Map<String, Value>, Failure> {
+        match serde_json::to_value(self).map_err(Failure::value)? {
+            Value::Object(map) => Ok(map),
+            _ => Err(Failure::value("status_snapshot_unserializable")),
+        }
+    }
+
+    /// Whether the snapshot can be printed (`printable`): only the power section holds sleep products.
+    pub fn printable(&self) -> Result<(), Failure> {
+        power::printable_section(&self.power)
+    }
+
+    /// The boot this snapshot was taken in (null when unobserved).
+    pub fn boot_id(&self) -> &Value {
+        self.record.get("boot_id").unwrap_or(&Value::Null)
+    }
 }
 
 /// One gendisk lifetime of a block device (`block:<dev_t>:diskseq:<n>`), or None: a card removed and
@@ -64,47 +112,48 @@ pub fn snapshot(root: &Root, pids: &[i64], pss: bool, interval: f64) -> Result<S
         processor = later;
         processor.insert("utilization_percent".into(), busy);
     }
-    let mut result = Map::new();
-    result.insert("schema".into(), json!(y2p_contract::schema::STATUS));
-    result.insert(
-        "record".into(),
-        Value::Object(util::record(root, "observation", Map::new())),
-    );
-    result.insert("cpu".into(), Value::Object(processor));
-    result.insert("memory".into(), Value::Object(memory(root, pids, pss)?));
-    result.insert("thermal".into(), thermal(root));
-    result.insert("power".into(), power(root)?);
-    result.insert("storage".into(), storage(root)?);
-    result.insert("wifi".into(), wifi(root)?);
-    result.insert("bluetooth".into(), bluetooth::bluetooth(root)?);
-    result.insert("system".into(), system::system(root)?);
-    let mut hw = Map::new();
+    let mut hw_params = Map::new();
     let base = root.path("/");
     for path in root.glob("/proc/asound/card*/pcm*/sub*/hw_params") {
         let relative = path
             .strip_prefix(&base)
             .map(|p| p.to_string_lossy().into_owned())
             .unwrap_or_default();
-        hw.insert(relative, text(read(&path)));
+        hw_params.insert(relative, text(read(&path)));
     }
-    result.insert("audio".into(), json!({
-        "cards": root.read("/proc/asound/cards"), "pcm": root.read("/proc/asound/pcm"),
-        "headphone_jack_present": null, "headphone_jack_reason": "codec_irq_not_qualified",
-        "qualified_profile": root.json("/etc/y2linux/audio-qualified.json"),
-        "enabled_profile": root.json("/etc/y2linux/audio-enabled.json"),
-        "pcm_contract": root.json("/sys/devices/platform/11220000.audio-controller/pcm_contract"),
-        "hw_params": hw,
-    }));
-    let ready = readiness::readiness(&result)?;
-    result.insert("readiness".into(), ready);
-    if let Some(Value::Object(record)) = result.get_mut("record") {
-        record.insert("result".into(), json!("observed"));
-        record.insert("units".into(), json!({"collection_duration": "ns"}));
-        record.insert(
-            "collection_duration_ns".into(),
-            json!(root.clock().monotonic_ns() - start),
-        );
-    }
+    let mut result = Snapshot {
+        schema: y2p_contract::schema::STATUS,
+        record: util::record(root, "observation", Map::new()),
+        cpu: processor,
+        memory: memory(root, pids, pss)?,
+        thermal: thermal(root),
+        power: power(root)?,
+        storage: storage(root)?,
+        wifi: wifi(root)?,
+        bluetooth: bluetooth::bluetooth(root)?,
+        system: system::system(root)?,
+        audio: Audio {
+            cards: root.read("/proc/asound/cards"),
+            pcm: root.read("/proc/asound/pcm"),
+            headphone_jack_present: None,
+            headphone_jack_reason: "codec_irq_not_qualified",
+            qualified_profile: root.json("/etc/y2linux/audio-qualified.json"),
+            enabled_profile: root.json("/etc/y2linux/audio-enabled.json"),
+            pcm_contract: root.json("/sys/devices/platform/11220000.audio-controller/pcm_contract"),
+            hw_params,
+        },
+        readiness: Value::Null,
+        reborn_metrics: None,
+    };
+    result.readiness = readiness::readiness(&result)?;
+    result.record.insert("result".into(), json!("observed"));
+    result
+        .record
+        .insert("units".into(), json!({"collection_duration": "ns"}));
+    result.record.insert(
+        "collection_duration_ns".into(),
+        json!(root.clock().monotonic_ns() - start),
+    );
     Ok(result)
 }
 

@@ -229,3 +229,11 @@ pub fn printable(value: &Map<String, Value>) -> Result<(), Failure> {
     }
     Ok(())
 }
+
+/// `printable` for the power section alone.
+pub fn printable_section(power: &Value) -> Result<(), Failure> {
+    if holds_non_text_key(power) {
+        return Err(invalid_sleep_receipt());
+    }
+    Ok(())
+}

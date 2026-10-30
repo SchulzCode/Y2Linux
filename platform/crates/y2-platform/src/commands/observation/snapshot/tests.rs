@@ -115,17 +115,17 @@ fn unknown_sensors_are_null_not_zero_and_die_temperature_is_separate() {
         );
     let result = snapshot(&unanswered(&fixture), &[], false, 0.0).unwrap();
     assert_eq!(
-        result["thermal"]["zones"][0]["temperature_millicelsius"],
+        result.thermal["zones"][0]["temperature_millicelsius"],
         46800
     );
-    assert!(result["power"]["pack_temperature"].is_null());
-    assert!(result["power"]["measured_current_ua"].is_null());
-    assert!(result["power"]["soc_percent"].is_null());
+    assert!(result.power["pack_temperature"].is_null());
+    assert!(result.power["measured_current_ua"].is_null());
+    assert!(result.power["soc_percent"].is_null());
     assert_eq!(
-        result["power"]["supplies"][0]["constant_charge_current"],
+        result.power["supplies"][0]["constant_charge_current"],
         "450000"
     );
-    assert_eq!(result["record"]["evidence_level"], "IMPLEMENTED");
+    assert_eq!(result.record["evidence_level"], "IMPLEMENTED");
     // json.dumps(allow_nan=False): every number is finite.
     y2p_core::json::dumps_sorted(&result).unwrap();
 }

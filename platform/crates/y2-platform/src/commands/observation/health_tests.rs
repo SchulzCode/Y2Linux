@@ -23,7 +23,10 @@ fn contract() -> Fixture {
 }
 
 fn audio(fixture: &Fixture) -> Value {
-    snapshot(&unanswered(fixture), &[], false, 0.0).unwrap()["readiness"]["audio"]["state"].clone()
+    snapshot(&unanswered(fixture), &[], false, 0.0)
+        .unwrap()
+        .readiness["audio"]["state"]
+        .clone()
 }
 
 fn filesystem_errors(fixture: &Fixture) -> Value {
@@ -46,8 +49,8 @@ fn record_corruption_and_no_devices_are_not_green() {
         .put("/proc/asound/cards", "--- no soundcards ---")
         .put("/etc/y2linux/audio-qualified.json", "{}");
     let result = snapshot(&unanswered(&fixture), &[], false, 0.0).unwrap();
-    assert_eq!(result["readiness"]["audio"]["state"], "Unavailable");
-    assert!(result["record"]["y2linux_commit"].is_null());
+    assert_eq!(result.readiness["audio"]["state"], "Unavailable");
+    assert!(result.record["y2linux_commit"].is_null());
     let health = check(&unanswered(&fixture), false).unwrap();
     assert_ne!(health["state"], "OK");
     assert_eq!(filesystem_errors(&fixture), "UNAVAILABLE");
