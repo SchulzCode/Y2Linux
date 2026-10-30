@@ -28,7 +28,6 @@ use y2p_core::{
     command,
     lenient::{self, BootId},
     mounts::mounts_at,
-    py::PyValue,
     Root,
 };
 
@@ -209,19 +208,17 @@ fn lock_runtime(root: &Root) -> Result<File, Failure> {
     lock_now(&runtime.join("internal-media.lock"))
 }
 
-/// What a reader of internal-media.json checks: the claim's state and the mount it names. Read
-/// leniently and compared strictly (owner decision 2026-10-30: the strictest rule that keeps every
-/// golden): texts for state, device and boot id; a JSON number for the mount id, equal as Python
-/// compares numbers (`41.0` names mount 41, a golden case holds that), never a bool (the four copies
-/// of this check before also took `true` for mount 1). A field of another type matches nothing.
+/// What a reader of internal-media.json checks: the claim's state and the mount it names, with the
+/// types the claim is written in: texts for state, device and boot id, an integer for the mount id. A
+/// field of another type matches nothing.
 #[derive(Deserialize, Default)]
 #[serde(default)]
 pub struct Claim {
     #[serde(deserialize_with = "lenient::text")]
     state: Option<String>,
     boot_id: BootId,
-    #[serde(deserialize_with = "lenient::json_number")]
-    mount_id: Option<serde_json::Number>,
+    #[serde(deserialize_with = "lenient::integer")]
+    mount_id: Option<i64>,
     #[serde(deserialize_with = "lenient::text")]
     device_id: Option<String>,
 }
@@ -241,10 +238,7 @@ impl Claim {
         };
         self.state.as_deref() == Some("Ready")
             && self.boot_id.is(root.boot_id().as_deref())
-            && self
-                .mount_id
-                .clone()
-                .is_some_and(|id| Value::Number(id).py_eq(&Value::from(mount.mount_id)))
+            && self.mount_id == Some(mount.mount_id)
             && self.device_id.as_deref() == Some(mount.device_id.as_str())
     }
 }

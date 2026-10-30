@@ -175,7 +175,7 @@ SYSTEM = {
     '/etc/y2linux/update-channel.json': json.dumps({'name': 'stable', 'manifest_url': 'https://x'}),
     '/data/updates/channel.json': json.dumps({'name': 'beta', 'other': 1}),
     '/run/y2/mtp-events.json': json.dumps({'error': 28.0}),
-    '/run/y2/internal-media.json': json.dumps({'state': 'Ready', 'boot_id': BOOT, 'mount_id': 41.0,
+    '/run/y2/internal-media.json': json.dumps({'state': 'Ready', 'boot_id': BOOT, 'mount_id': 41,
                                                'device_id': '179:21'}),
 }
 AUDIO = {
