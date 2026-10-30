@@ -101,43 +101,10 @@ fn regular(meta: &y2p_core::sys::Stat) -> bool {
     meta.mode & libc::S_IFMT == libc::S_IFREG
 }
 
-/// The names of an open directory in its order (without `.` and `..`), at most
-/// `limit`.
+/// The names of an open directory in its order (without `.` and `..`), at most `limit`.
 fn names(fd: libc::c_int, limit: usize) -> io::Result<Vec<CString>> {
-    // SAFETY: fdopendir takes over a duplicate of the descriptor; closedir releases it.
-    unsafe {
-        let copy = libc::dup(fd);
-        if copy < 0 {
-            return Err(last_error());
-        }
-        let directory = libc::fdopendir(copy);
-        if directory.is_null() {
-            let error = last_error();
-            libc::close(copy);
-            return Err(error);
-        }
-        libc::rewinddir(directory);
-        let mut found = Vec::new();
-        while found.len() < limit {
-            *libc::__errno_location() = 0;
-            let entry = libc::readdir(directory);
-            if entry.is_null() {
-                let errno = *libc::__errno_location();
-                libc::closedir(directory);
-                return if errno == 0 {
-                    Ok(found)
-                } else {
-                    Err(io::Error::from_raw_os_error(errno))
-                };
-            }
-            let name = std::ffi::CStr::from_ptr((*entry).d_name.as_ptr()).to_owned();
-            if name.as_bytes() != b"." && name.as_bytes() != b".." {
-                found.push(name);
-            }
-        }
-        libc::closedir(directory);
-        Ok(found)
-    }
+    // SAFETY: the caller's descriptor (an Fd it owns) is open for this call.
+    y2p_core::sys::dir_names(unsafe { BorrowedFd::borrow_raw(fd) }, limit)
 }
 
 /// Never walk arbitrary trees or delete media, settings, databases or stages.

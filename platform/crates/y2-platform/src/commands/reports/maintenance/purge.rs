@@ -1,42 +1,19 @@
 //! `reset purge`: delete a completed reset's quarantine, bounded per call (the owner asks again).
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{
-    data_volume, dup, fstat, fsync, open_data, open_directory, os_name, pyops, regular_bytes,
-    stat_at, text, CString, Failure, Lease, OwnedFd, Py, Root,
+    data_volume, fstat, fsync, open_data, open_directory, os_name, pyops, regular_bytes, stat_at,
+    text, CString, Failure, Lease, OwnedFd, Py, Root,
 };
 use std::os::fd::AsFd;
 use std::os::fd::AsRawFd;
 
 /// The names in a directory, in readdir order (`os.scandir(fd)`).
 fn entries(fd: &OwnedFd) -> Result<Vec<String>, Failure> {
-    let copy = dup(fd)?;
-    let raw = copy.as_raw_fd();
-    std::mem::forget(copy);
-    // SAFETY: fdopendir takes ownership of the duplicated descriptor; closedir releases it.
-    let dir = unsafe { libc::fdopendir(raw) };
-    if dir.is_null() {
-        return Err(Failure::from(std::io::Error::last_os_error()));
-    }
-    // SAFETY: rewind to the start as scandir's fresh stream.
-    unsafe { libc::rewinddir(dir) };
-    let mut names = Vec::new();
-    loop {
-        // SAFETY: a valid DIR stream.
-        let entry = unsafe { libc::readdir(dir) };
-        if entry.is_null() {
-            break;
-        }
-        // SAFETY: d_name is NUL-terminated.
-        let name = unsafe { std::ffi::CStr::from_ptr((*entry).d_name.as_ptr()) }
-            .to_string_lossy()
-            .into_owned();
-        if name != "." && name != ".." {
-            names.push(name);
-        }
-    }
-    // SAFETY: the stream is closed once.
-    unsafe { libc::closedir(dir) };
-    Ok(names)
+    use std::os::fd::AsFd;
+    Ok(y2p_core::sys::dir_names(fd.as_fd(), usize::MAX)?
+        .into_iter()
+        .map(|name| name.to_string_lossy().into_owned())
+        .collect())
 }
 
 fn three_digits(name: &str) -> bool {

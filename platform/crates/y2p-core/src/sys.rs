@@ -256,6 +256,48 @@ impl Disposition {
     }
 }
 
+/// The names in an open directory in readdir order from its start (`os.scandir(fd)`), without `.`
+/// and `..`, at most `limit`. The directory's own descriptor stays open and unmoved: a duplicate is
+/// read. A failed read is an error, never a shorter list.
+pub fn dir_names(directory: BorrowedFd<'_>, limit: usize) -> io::Result<Vec<CString>> {
+    use std::os::fd::IntoRawFd;
+    let copy = directory.try_clone_to_owned()?.into_raw_fd();
+    // SAFETY: fdopendir takes over the duplicate on success; on failure it is closed here.
+    let stream = unsafe { libc::fdopendir(copy) };
+    if stream.is_null() {
+        let error = io::Error::last_os_error();
+        // SAFETY: the duplicate fdopendir did not take.
+        unsafe { libc::close(copy) };
+        return Err(error);
+    }
+    // SAFETY: `stream` is a valid DIR stream until the closedir below; d_name is NUL-terminated.
+    unsafe {
+        libc::rewinddir(stream);
+        let mut found = Vec::new();
+        let result = loop {
+            if found.len() >= limit {
+                break Ok(found);
+            }
+            *libc::__errno_location() = 0;
+            let entry = libc::readdir(stream);
+            if entry.is_null() {
+                let errno = *libc::__errno_location();
+                break if errno == 0 {
+                    Ok(found)
+                } else {
+                    Err(io::Error::from_raw_os_error(errno))
+                };
+            }
+            let name = CStr::from_ptr((*entry).d_name.as_ptr()).to_owned();
+            if name.as_bytes() != b"." && name.as_bytes() != b".." {
+                found.push(name);
+            }
+        };
+        libc::closedir(stream);
+        result
+    }
+}
+
 /// `kill(pid, signal)`.
 pub fn kill(pid: libc::pid_t, signal: libc::c_int) -> io::Result<()> {
     // SAFETY: a plain signal; a pid that is gone answers ESRCH.
@@ -378,5 +420,22 @@ mod tests {
             signal_disposition(libc::SIGUSR2).unwrap().0.sa_sigaction,
             before.0.sa_sigaction
         );
+    }
+
+    #[test]
+    fn directory_names_come_from_a_duplicate_and_honour_the_limit() {
+        let dir = Dir::new();
+        for name in ["a", "b", "c"] {
+            std::fs::write(dir.path().join(name), "").unwrap();
+        }
+        let directory = File::open(dir.path()).unwrap();
+        let mut names = dir_names(directory.as_fd(), usize::MAX).unwrap();
+        names.sort();
+        assert_eq!(names, [c"a".to_owned(), c"b".to_owned(), c"c".to_owned()]);
+        assert_eq!(dir_names(directory.as_fd(), 2).unwrap().len(), 2);
+        // The caller's descriptor is still open and readable from the start.
+        assert_eq!(dir_names(directory.as_fd(), usize::MAX).unwrap().len(), 3);
+        let file = File::open(dir.path().join("a")).unwrap();
+        assert!(dir_names(file.as_fd(), usize::MAX).is_err(), "no directory");
     }
 }
