@@ -8,7 +8,6 @@ mod diagnostics;
 mod fields;
 mod maintenance;
 pub(crate) mod media;
-pub(crate) use y2p_core::pyjson;
 mod pyops;
 mod pyre;
 mod scrub;
@@ -192,10 +191,17 @@ pub fn loads_bytes(raw: &[u8]) -> Option<Value> {
     serde_json::from_slice(raw).ok()
 }
 
-/// A value as text in markers and details kept on /data (reports.json `seen`): Python's `str()` of it,
-/// so markers recorded before compare equal (`None`, `True`, a text as it is).
+/// A value as text in markers and details kept on /data (reports.json `seen`): a text as it is, and the
+/// spellings markers recorded by earlier releases used for the others (`None`, `True`), so they still compare
+/// equal; numbers as written, lists and objects as compact JSON.
 pub fn text_of(value: &Value) -> String {
-    y2p_core::pyjson::py_str(&y2p_core::pyjson::Py::from_serde(value))
+    match value {
+        Value::String(text) => text.clone(),
+        Value::Null => "None".into(),
+        Value::Bool(true) => "True".into(),
+        Value::Bool(false) => "False".into(),
+        other => other.to_string(),
+    }
 }
 
 /// A JSON record that is an object, `{}` for anything else.

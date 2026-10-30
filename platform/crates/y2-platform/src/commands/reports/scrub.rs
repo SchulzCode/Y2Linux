@@ -7,7 +7,6 @@
 //! Every pattern is report.py's, with Python's semantics: lookbehinds are checked by hand (`pyre`),
 //! lookaheads are consumed context after the replaced group, `\s`/`\w`/`\b` are Python's.
 // SPDX-License-Identifier: GPL-2.0-only
-use super::pyjson;
 use super::pyre::{self, lazy, S};
 use super::tarball;
 use crate::commands::reports::Value;
@@ -137,6 +136,29 @@ pub fn trie_pattern(values: &[&str]) -> Option<String> {
     Some(pattern(&trie))
 }
 
+/// A text as it stands between the quotes of a JSON string: as serde writes it, and with every non-ASCII
+/// character as `\u` escapes (the records earlier releases wrote).
+fn json_spellings(value: &str) -> Vec<String> {
+    let quoted = serde_json::to_string(value).unwrap_or_default();
+    let plain = quoted[1..quoted.len() - 1].to_owned();
+    let mut ascii = String::with_capacity(plain.len());
+    for c in plain.chars() {
+        if c.is_ascii() {
+            ascii.push(c);
+        } else {
+            let mut units = [0u16; 2];
+            for unit in c.encode_utf16(&mut units) {
+                ascii.push_str(&format!("\\u{unit:04x}"));
+            }
+        }
+    }
+    if ascii == plain {
+        vec![plain]
+    } else {
+        vec![plain, ascii]
+    }
+}
+
 impl Scrubber {
     /// A scrubber for these known values with this report's key; refused when the values make a
     /// pattern beyond the regex size limit (a report without them would leak them).
@@ -146,14 +168,13 @@ impl Scrubber {
         for (name, values) in known {
             for value in values {
                 pairs.push((value.clone(), name));
-                // Also as written inside JSON by Python (\u escapes, \"): JSON lines are scrubbed as
-                // text (_scrub_blob).
-                let mut escaped = String::new();
-                pyjson::string(&mut escaped, value);
-                let escaped = escaped[1..escaped.len() - 1].to_owned();
-                if escaped != *value {
-                    pairs.push((escaped.clone(), name));
-                    original.insert(escaped, value.clone());
+                // Also as written inside JSON (\", and \u escapes as older records have them): JSON
+                // lines are scrubbed as text (_scrub_blob).
+                for escaped in json_spellings(value) {
+                    if escaped != *value && !original.contains_key(&escaped) {
+                        pairs.push((escaped.clone(), name));
+                        original.insert(escaped, value.clone());
+                    }
                 }
             }
         }
@@ -402,6 +423,16 @@ impl Scrubber {
 mod tests {
     use super::*;
     use crate::commands::reports::loads_text;
+
+    #[test]
+    fn known_values_are_found_as_json_writes_them() {
+        assert_eq!(json_spellings("plain"), vec!["plain"]);
+        assert_eq!(json_spellings("a\"b\\"), vec!["a\\\"b\\\\"]);
+        assert_eq!(
+            json_spellings("Café 😀"),
+            vec!["Café 😀", "Caf\\u00e9 \\ud83d\\ude00"]
+        );
+    }
 
     fn scrubber(known: &[(&'static str, &[&str])]) -> Scrubber {
         let known: Known = known

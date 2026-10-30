@@ -3,7 +3,7 @@
 //! Reset moves only reviewed user paths into a private recovery directory (`plan`, then `execute`).
 //! Purge is a separate confirmed, bounded operation (`purge`). SSH/entropy/update/factory state
 //! stays. The plan's `confirmation` and the settings result's sha256 are hashes over Python's exact
-//! `json.dumps` bytes (pyjson): a plan an earlier release made still confirms. This file holds what
+//! `json.dumps` bytes (`json::python_dumps_sorted`): a plan an earlier release made still confirms. This file holds what
 //! they share: the commands' answers and the descriptor-relative walk of /data that never follows a
 //! link or crosses a mount.
 // SPDX-License-Identifier: GPL-2.0-only
