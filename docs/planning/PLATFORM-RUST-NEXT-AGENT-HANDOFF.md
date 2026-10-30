@@ -28,6 +28,24 @@ cheap timer (no Reborn change).
   status snapshot); `power::policy::BatteryState`, `power::battery::{BatterySource, Confidence}`; shutdown
   `IntentState`/`ShutdownAction`/`ShutdownReason` (intent record stays a map, decision 2); Internal Storage
   `SetupState`/`SetupPhase`; update `JournalState` (with A5).
+- **C partly done**: thermal, memory and readiness sections built from typed records (key order kept).
+  **Left** (time, the night's budget went to D–J and two device installs): power, cpu, idle, wifi, storage,
+  system sections, and typed reads in readiness/health (they still read the snapshot map by key).
+- **D partly done**: one `jobs::poll` (Slot) for the job children + one `Timer` for the loop deadlines (the
+  base for I); reports `check` split into ten trigger functions; upload's print-then-parse →
+  `time::tls_ready`. **Left**: cpu.rs table, maintenance `execute`, bluetooth `normalize`,
+  `idle_completion`, arguments parsed twice (cli → typed values).
+- **E partly done**: one volume constant table (`y2p_core::volume`: controllers, UUIDs, Y2Media geometry,
+  `expected_uuid`, `controller`); one `space_state` budget (the observers stay separate, decision 3); bench
+  `Error: From<io::Error>`; reports `isoformat` = `utc_isoformat`; "this boot" checks of the typed records go
+  through `lenient::BootId` (A). **Left**: the remaining hand-written this-boot comparisons, sleep status
+  twice (byte check), power vs suspend journal rows (byte), ssh wake fold, the five poll loops (rounding),
+  the two repr/serialisers (byte decisions).
+- **F partly done**: transfer/fd.rs has no unsafe (new `sys::{linkat, read, write}`); bench scratch 9 → 2
+  (geteuid). **Left**: power/unix.rs (bind/listen with backlog 4 between them, SO_PEERCRED: std has no
+  stable peer_cred), suspend/helper/kernel.rs.
+- **H kept as is** (decision 5: reports `Py` stays; the A readers replaced the record-level py_eq/truthy;
+  `python_int` → `parse` would change odd sysfs input the goldens pin).
 
 ## 1. Where it stands
 
