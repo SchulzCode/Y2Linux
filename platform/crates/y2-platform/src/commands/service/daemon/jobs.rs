@@ -3,10 +3,9 @@
 //! how long it may run, when it is tried again; and the hourly time floor, done in process.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{
-    command, inventory, media, process, py, radiofw, reports, this_boot, time, truthy, update,
-    Child, Failure, Object, Py, Root, Start, Value, PLATFORM, RECONCILE_BACKOFF_S,
-    RECONCILE_LIMIT_S, REPORT_CHECK_S, REPORT_FIRST_S, REPORT_LIMIT_S, REPORT_SEND_GAP_S,
-    VERIFY_RETRY_S,
+    command, inventory, media, process, py, radiofw, reports, time, truthy, update, Child, Failure,
+    Object, Py, Root, Start, Value, PLATFORM, RECONCILE_BACKOFF_S, RECONCILE_LIMIT_S,
+    REPORT_CHECK_S, REPORT_FIRST_S, REPORT_LIMIT_S, REPORT_SEND_GAP_S, VERIFY_RETRY_S,
 };
 
 /// `y2-platform <args>` in its own session, its standard streams on /dev/null.
@@ -74,9 +73,7 @@ pub(super) fn media_reconcile(root: &Root, run: Run, now: f64) -> Run {
 }
 
 pub(super) fn media_verify_needed(root: &Root) -> bool {
-    let claim = root.json_object("/run/y2/media-mount.json");
-    claim.get("read_only").and_then(Value::as_str) == Some("checking")
-        && this_boot(root, claim.get("boot_id"))
+    crate::commands::storage::records::Claim::load(root).checking(root)
 }
 
 /// The check of a card mounted while its check ran (media.verify) in its own process; it bounds its

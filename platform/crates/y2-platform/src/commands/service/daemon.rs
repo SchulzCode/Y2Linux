@@ -71,11 +71,6 @@ const REPORT_LIMIT_S: f64 = 600.0;
 const REPORT_SEND_GAP_S: f64 = 300.0;
 const PLATFORM: &str = "/usr/sbin/y2-platform";
 
-/// `x == ctx.read(boot_id)` for a value from a record (None equals a missing boot id).
-fn this_boot(root: &Root, value: Option<&Value>) -> bool {
-    py::eq(value, Some(&json!(root.boot_id())))
-}
-
 /// Same meaning as the kernel's backlight_is_blank(): Reborn blanks with bl_power=4
 /// (FB_BLANK_POWERDOWN) and leaves brightness unchanged.
 fn display_dark(root: &Root) -> bool {

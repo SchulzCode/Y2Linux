@@ -9,7 +9,7 @@
 pub(crate) mod internal;
 pub(crate) mod media;
 pub(crate) mod observe;
-mod records;
+pub(crate) mod records;
 mod space;
 pub(crate) use space::policy as space_policy;
 pub(crate) mod sys;

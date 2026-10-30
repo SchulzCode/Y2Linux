@@ -80,8 +80,17 @@ impl Claim {
 
     /// Made by this boot for mount `mount_id` (the kernel recycles mount ids across boots).
     pub fn holds(&self, root: &Root, mount_id: i64) -> bool {
-        self.get("mount_id").py_eq(&json!(mount_id))
-            && self.get("boot_id").py_eq(&Value::from(root.boot_id()))
+        self.get("mount_id").py_eq(&json!(mount_id)) && self.is_this_boot(root)
+    }
+
+    /// Made by this boot (a missing boot id matches an unreadable one).
+    pub fn is_this_boot(&self, root: &Root) -> bool {
+        self.get("boot_id").py_eq(&Value::from(root.boot_id()))
+    }
+
+    /// A card of this boot whose admission check `media verify` still has to finish (F49).
+    pub fn checking(&self, root: &Root) -> bool {
+        self.read_only() == Some(ReadOnly::Checking) && self.is_this_boot(root)
     }
 
     pub fn into_object(self) -> Object {
