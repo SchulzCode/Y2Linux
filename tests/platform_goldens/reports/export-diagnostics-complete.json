@@ -54,43 +54,6 @@
   },
   {
    "argv": [
-    "/bin/cat",
-    "<root>/sys/power/wakeup_count"
-   ],
-   "timeout": 0.1
-  },
-  {
-   "argv": [
-    "blkid",
-    "-p",
-    "-s",
-    "UUID",
-    "-o",
-    "value",
-    "/dev/mmcblk0p9"
-   ],
-   "timeout": 1.0
-  },
-  {
-   "argv": [
-    "/usr/sbin/y2-bt-observe"
-   ],
-   "timeout": 3.0
-  },
-  {
-   "argv": [
-    "/sbin/ip",
-    "-4",
-    "-o",
-    "addr",
-    "show",
-    "dev",
-    "usb0"
-   ],
-   "timeout": 0.5
-  },
-  {
-   "argv": [
     "dmesg"
    ],
    "timeout": 2.0

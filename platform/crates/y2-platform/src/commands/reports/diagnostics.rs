@@ -240,13 +240,15 @@ pub fn events(raw: Option<&str>) -> Py {
     Py::List(result)
 }
 
-/// The platform snapshot and the health checks, in this order (each runs its own commands).
+/// The platform snapshot and the health checks made from it (one snapshot, its commands run once).
 fn platform_state(root: &Root) -> Result<(Py, Py), Failure> {
     use crate::commands::observation::{health, snapshot};
     let status = snapshot::snapshot(root, &[], false, 0.0)?;
-    let status = Py::from_serde(&serde_json::Value::Object(status));
-    let checks = health::check(root, false)?;
-    Ok((status, Py::from_serde(&serde_json::Value::Object(checks))))
+    let checks = health::check_from(root, &status, false)?;
+    Ok((
+        Py::from_serde(&serde_json::Value::Object(status)),
+        Py::from_serde(&serde_json::Value::Object(checks)),
+    ))
 }
 
 /// The events of a log's tail: walk reviewed data paths with no symlinks; never read arbitrary

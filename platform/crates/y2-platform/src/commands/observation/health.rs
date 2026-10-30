@@ -12,7 +12,15 @@ use y2p_core::{command, Root};
 
 /// The health record: every check and the worst state among them.
 pub fn check(root: &Root, full: bool) -> Result<Map<String, Value>, Failure> {
-    let status = snapshot(root, &[], false, 0.0)?;
+    check_from(root, &snapshot(root, &[], false, 0.0)?, full)
+}
+
+/// The health record of a snapshot the caller already took (diagnostics export takes one for both).
+pub fn check_from(
+    root: &Root,
+    status: &Map<String, Value>,
+    full: bool,
+) -> Result<Map<String, Value>, Failure> {
     let mut checks: Vec<Map<String, Value>> = Vec::new();
     let mut states: Vec<CheckState> = Vec::new();
     let mut add =
@@ -26,7 +34,7 @@ pub fn check(root: &Root, full: bool) -> Result<Map<String, Value>, Failure> {
             checks.push(check);
         };
     let empty = Vec::new();
-    for volume in section(&status, "storage")["volumes"]
+    for volume in section(status, "storage")["volumes"]
         .as_array()
         .unwrap_or(&empty)
     {
@@ -89,7 +97,7 @@ pub fn check(root: &Root, full: bool) -> Result<Map<String, Value>, Failure> {
         Some(details),
     );
     let non_empty = |v: &Value| v.as_array().is_some_and(|a| !a.is_empty());
-    let thermal = section(&status, "thermal")["zones"]
+    let thermal = section(status, "thermal")["zones"]
         .as_array()
         .is_some_and(|z| z.iter().any(|z| !z["temperature_millicelsius"].is_null()));
     for (name, present) in [
@@ -97,13 +105,13 @@ pub fn check(root: &Root, full: bool) -> Result<Map<String, Value>, Failure> {
         ("display", !root.glob("/dev/dri/card*").is_empty()),
         ("audio", !root.glob("/dev/snd/pcm*p").is_empty()),
         ("input", !root.glob("/dev/input/event*").is_empty()),
-        ("rtc", non_empty(&section(&status, "system")["rtc"])),
+        ("rtc", non_empty(&section(status, "system")["rtc"])),
         ("thermal", thermal),
         (
             "power_supply",
-            non_empty(&section(&status, "power")["supplies"]),
+            non_empty(&section(status, "power")["supplies"]),
         ),
-        ("usb", non_empty(&section(&status, "system")["usb"]["udcs"])),
+        ("usb", non_empty(&section(status, "system")["usb"]["udcs"])),
     ] {
         add(
             name,
@@ -121,7 +129,7 @@ pub fn check(root: &Root, full: bool) -> Result<Map<String, Value>, Failure> {
         );
     }
     for name in ["wifi", "bluetooth", "update"] {
-        let item = &section(&status, "readiness")[name];
+        let item = &section(status, "readiness")[name];
         let state = match item["state"].as_str() {
             Some("Ready") => CheckState::Ok,
             Some("Starting" | "Degraded") => CheckState::Degraded,
@@ -132,7 +140,7 @@ pub fn check(root: &Root, full: bool) -> Result<Map<String, Value>, Failure> {
         };
         add(name, state, item["reason"].clone(), None);
     }
-    let timers = &section(&status, "cpu")["timer"];
+    let timers = &section(status, "cpu")["timer"];
     for (name, key) in [
         ("highres_timer", "highres_active"),
         ("tickless_idle", "no_hz_active"),
