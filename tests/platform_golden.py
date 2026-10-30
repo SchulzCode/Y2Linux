@@ -242,7 +242,8 @@ def check(testcase, group, name, result):
     """Compare `result` with its golden, or (Y2_RECORD_GOLDENS=1) write the golden when it differs."""
     golden = read_golden(group, name)
     if recording():
-        if golden != json.loads(encode(result)):
+        # `differences`, not `!=`: Python finds 1 == 1.0 == True, the check does not.
+        if golden is None or differences(golden, json.loads(encode(result))):
             path = golden_path(group, name)
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(encode(result))
