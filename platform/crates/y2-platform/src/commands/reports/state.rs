@@ -1,7 +1,8 @@
 //! The error-report state and queue: `reports.json` (opt-in, install ID, limits, seen markers,
 //! upload retries, the last report), `status`, `set_enabled`, `new_install_id`, `destinations`.
 // SPDX-License-Identifier: GPL-2.0-only
-use super::{json_at, media, pyjson::Py, pyops::OrRefuse};
+use super::{json_at, media, pyops::OrRefuse, Value};
+use crate::commands::reports::{filled, object, ValueExt};
 use crate::reply::{mkdir_parents, Failure};
 use std::path::PathBuf;
 pub use y2p_core::paths::name;
@@ -22,29 +23,29 @@ pub const DESTINATIONS: [(&str, &str, &str); 2] = [
 /// kept as read; the fields the code reads have accessors, and a field of another shape is refused
 /// where it is used (`report_state_unreadable`), not when the file is read.
 #[derive(Clone, Debug)]
-pub struct Reports(Py);
+pub struct Reports(Value);
 
 impl Reports {
     /// The record with its defaults (anything but an object reads as `{}`).
     pub fn load(root: &Root) -> Reports {
         let mut value = match json_at(root, STATE) {
-            Some(v @ Py::Dict(_)) => v,
-            _ => Py::dict(),
+            Some(v @ Value::Object(_)) => v,
+            _ => object(),
         };
         for (key, default) in [
-            ("schema", Py::int(1)),
-            ("enabled", Py::None), // None: not asked yet
-            ("install_id", Py::None),
-            ("daily", Py::dict()),
-            ("boot_triggers", Py::dict()),
-            ("seen", Py::dict()),
+            ("schema", Value::from(1)),
+            ("enabled", Value::Null), // None: not asked yet
+            ("install_id", Value::Null),
+            ("daily", object()),
+            ("boot_triggers", object()),
+            ("seen", object()),
         ] {
             if value.get(key).is_none() {
                 value.set(key, default);
             }
         }
-        if !value.get("uploads").is_some_and(Py::is_dict) {
-            value.set("uploads", Py::dict());
+        if !value.get("uploads").is_some_and(Value::is_object) {
+            value.set("uploads", object());
         }
         Reports(value)
     }
@@ -60,22 +61,22 @@ impl Reports {
 
     /// Opted in: `enabled` is `true` (`null` until the owner was asked).
     pub fn enabled(&self) -> bool {
-        matches!(self.0.get("enabled"), Some(Py::Bool(true)))
+        matches!(self.0.get("enabled"), Some(Value::Bool(true)))
     }
 
     /// A field as read (`null` when absent).
-    pub fn field(&self, key: &str) -> Py {
-        self.0.get(key).cloned().unwrap_or(Py::None)
+    pub fn field(&self, key: &str) -> Value {
+        self.0.get(key).cloned().unwrap_or(Value::Null)
     }
 
-    pub fn set(&mut self, key: &str, value: Py) {
+    pub fn set(&mut self, key: &str, value: Value) {
         self.0.set(key, value);
     }
 
     /// `seen`: the marker of each automatic trigger last reported.
-    pub fn seen(&self) -> Result<&Py, Failure> {
-        let seen = self.0.get("seen").unwrap_or(&Py::None);
-        if seen.is_dict() {
+    pub fn seen(&self) -> Result<&Value, Failure> {
+        let seen = self.0.get("seen").unwrap_or(&Value::Null);
+        if seen.is_object() {
             Ok(seen)
         } else {
             Err(Failure::value(super::STATE_UNREADABLE))
@@ -83,65 +84,69 @@ impl Reports {
     }
 
     /// Record `current` as the marker `name` was last reported with.
-    pub fn mark_seen(&mut self, name: &str, current: Py) {
+    pub fn mark_seen(&mut self, name: &str, current: Value) {
         if let Some(seen) = self.0.get_mut("seen") {
             seen.set(name, current);
         }
     }
 
     /// `boot_triggers.get(boot, [])`: the triggers reported this boot (a list, or what was read).
-    pub fn reported(&self, boot: &str) -> Result<Py, Failure> {
-        let triggers = self.0.get("boot_triggers").unwrap_or(&Py::None);
+    pub fn reported(&self, boot: &str) -> Result<Value, Failure> {
+        let triggers = self.0.get("boot_triggers").unwrap_or(&Value::Null);
         Ok(super::pyops::get(triggers, boot)
             .or_refuse(super::STATE_UNREADABLE)?
             .cloned()
-            .unwrap_or(Py::List(Vec::new())))
+            .unwrap_or(Value::Array(Vec::new())))
     }
 
     /// Forget the automatic reports of other days (`daily`: UTC day -> count).
     pub fn keep_day(&mut self, day: &str) -> Result<(), Failure> {
-        let Some(Py::Dict(items)) = self.0.get("daily") else {
+        let Some(Value::Object(items)) = self.0.get("daily") else {
             return Err(Failure::value(super::STATE_UNREADABLE));
         };
-        let today = items.iter().filter(|(k, _)| k == day).cloned().collect();
-        self.0.set("daily", Py::Dict(today));
+        let today = items
+            .iter()
+            .filter(|(k, _)| k.as_str() == day)
+            .map(|(k, v)| (k.clone(), v.clone()))
+            .collect();
+        self.0.set("daily", Value::Object(today));
         Ok(())
     }
 
     /// The automatic reports of `day` so far (`daily.get(day, 0)`: a number, or what was read).
-    pub fn count(&self, day: &str) -> Py {
+    pub fn count(&self, day: &str) -> Value {
         self.0
             .get("daily")
             .and_then(|d| d.get(day))
             .cloned()
-            .unwrap_or(Py::int(0))
+            .unwrap_or(Value::from(0))
     }
 
-    pub fn set_count(&mut self, day: &str, count: Py) {
+    pub fn set_count(&mut self, day: &str, count: Value) {
         if let Some(daily) = self.0.get_mut("daily") {
             daily.set(day, count);
         }
     }
 
     /// The upload retries (`uploads`: queue file name -> attempts, next, error).
-    pub fn uploads(&self) -> &Py {
-        self.0.get("uploads").unwrap_or(&Py::None)
+    pub fn uploads(&self) -> &Value {
+        self.0.get("uploads").unwrap_or(&Value::Null)
     }
 
     /// The whole record (the service reads it too).
-    pub fn into_py(self) -> Py {
+    pub fn into_py(self) -> Value {
         self.0
     }
 }
 
 /// reports.json with its defaults, as read (the service reads it too).
-pub fn state(root: &Root) -> Py {
+pub fn state(root: &Root) -> Value {
     Reports::load(root).into_py()
 }
 
 /// Write a whole record (tests write odd ones).
 #[cfg(test)]
-pub fn save(root: &Root, value: &Py) -> Result<(), Failure> {
+pub fn save(root: &Root, value: &Value) -> Result<(), Failure> {
     Reports(value.clone()).save(root)
 }
 
@@ -166,40 +171,40 @@ pub fn upload_key(root: &Root) -> Option<String> {
 /// The last report made (`last` in reports.json, shown by Reborn's report screen): queued or saved
 /// here, then settled by its upload.
 pub struct Last<'a> {
-    pub report_id: Py,
+    pub report_id: Value,
     pub trigger: &'a str,
     /// `queued` or `saved`.
     pub state: &'static str,
     /// Where a saved report went: the destination and the file below its top folder.
     pub saved: Option<(&'a str, &'a str)>,
-    pub created_utc: Py,
+    pub created_utc: Value,
     pub bytes: usize,
 }
 
-impl From<Last<'_>> for Py {
-    fn from(last: Last) -> Py {
-        let mut value = Py::dict()
+impl From<Last<'_>> for Value {
+    fn from(last: Last) -> Value {
+        let mut value = object()
             .with("report_id", last.report_id)
-            .with("trigger", Py::str(last.trigger))
-            .with("state", Py::str(last.state));
+            .with("trigger", Value::from(last.trigger))
+            .with("state", Value::from(last.state));
         if let Some((destination, file)) = last.saved {
-            value.set("destination", Py::str(destination));
-            value.set("file", Py::str(file));
+            value.set("destination", Value::from(destination));
+            value.set("file", Value::from(file));
         }
         value
             .with("created_utc", last.created_utc)
-            .with("bytes", Py::from(last.bytes))
+            .with("bytes", Value::from(last.bytes))
     }
 }
 
 /// `report enable|disable`: opting in marks what is already there as seen, opting out empties the
 /// queue.
-pub fn set_enabled(root: &Root, enabled: bool) -> Result<Py, Failure> {
+pub fn set_enabled(root: &Root, enabled: bool) -> Result<Value, Failure> {
     let mut value = Reports::load(root);
     let was = value.enabled();
-    value.set("enabled", Py::Bool(enabled));
-    if enabled && !value.field("install_id").truthy() {
-        value.set("install_id", Py::str(uuid4()?));
+    value.set("enabled", Value::Bool(enabled));
+    if enabled && !filled(&value.field("install_id")) {
+        value.set("install_id", Value::from(uuid4()?));
     }
     if enabled && !was {
         // Only what happens after the user said yes is reported: record what is already there (an
@@ -218,9 +223,9 @@ pub fn set_enabled(root: &Root, enabled: bool) -> Result<Py, Failure> {
 }
 
 /// `report new-id`: the receiver sees this player as a new one from now on.
-pub fn new_install_id(root: &Root) -> Result<Py, Failure> {
+pub fn new_install_id(root: &Root) -> Result<Value, Failure> {
     let mut value = Reports::load(root);
-    value.set("install_id", Py::str(uuid4()?));
+    value.set("install_id", Value::from(uuid4()?));
     value.save(root)?;
     status(root)
 }
@@ -230,19 +235,22 @@ pub fn uuid4() -> Result<String, Failure> {
 }
 
 /// `report status`: what Reborn's report screen shows.
-pub fn status(root: &Root) -> Result<Py, Failure> {
+pub fn status(root: &Root) -> Result<Value, Failure> {
     let value = Reports::load(root);
-    let queued: Vec<Py> = queued(root).iter().map(|p| Py::Str(name(p))).collect();
-    Ok(Py::dict()
-        .with("schema", Py::int(1))
+    let queued: Vec<Value> = queued(root)
+        .iter()
+        .map(|p| Value::String(name(p)))
+        .collect();
+    Ok(object()
+        .with("schema", Value::from(1))
         .with("enabled", value.field("enabled"))
         .with("install_id", value.field("install_id"))
-        .with("queued", Py::List(queued))
+        .with("queued", Value::Array(queued))
         .with("last", value.field("last"))
-        .with("upload", Py::Bool(upload_key(root).is_some()))
+        .with("upload", Value::Bool(upload_key(root).is_some()))
         .with(
             "destinations",
-            Py::List(destinations(root).into_iter().map(Py::from).collect()),
+            Value::Array(destinations(root).into_iter().map(Value::from).collect()),
         ))
 }
 

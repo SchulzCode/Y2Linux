@@ -1,9 +1,8 @@
 //! One file's bytes, scrubbed by its kind: JSON documents value by value, JSON lines as text with
 //! their private keys' strings replaced, archives member by member, anything else as text.
 // SPDX-License-Identifier: GPL-2.0-only
-use super::{
-    pyjson, pyre, tarball, Captures, OnceLock, Regex, Scrubber, PRIVATE_KEYS, S, SECTION_MAX,
-};
+use super::{pyre, tarball, Captures, OnceLock, Regex, Scrubber, PRIVATE_KEYS, S, SECTION_MAX};
+use crate::commands::reports::loads_text;
 
 fn keys() -> String {
     let mut keys = PRIVATE_KEYS.to_vec();
@@ -67,10 +66,10 @@ pub fn blob(scrubber: &mut Scrubber, path: &str, data: &[u8]) -> Vec<u8> {
                 lines.push(scrubber.text(&plain));
                 continue;
             }
-            match pyjson::loads(line) {
+            match loads_text(line) {
                 Some(value) => {
                     let clean = scrubber.value(&value, None);
-                    lines.push(pyjson::dumps(&clean, pyjson::Style::Spaced));
+                    lines.push(serde_json::to_string(&clean).unwrap_or_default());
                 }
                 None => lines.push(scrubber.text(line)),
             }
@@ -78,9 +77,11 @@ pub fn blob(scrubber: &mut Scrubber, path: &str, data: &[u8]) -> Vec<u8> {
         return (lines.join("\n") + "\n").into_bytes();
     }
     if path.ends_with(".json") {
-        if let Some(value) = pyjson::loads(&text) {
+        if let Some(value) = loads_text(&text) {
             let clean = scrubber.value(&value, None);
-            return pyjson::dumps(&clean, pyjson::Style::Indent).into_bytes();
+            return serde_json::to_string_pretty(&clean)
+                .unwrap_or_default()
+                .into_bytes();
         }
     }
     scrubber.text(&text).into_bytes()

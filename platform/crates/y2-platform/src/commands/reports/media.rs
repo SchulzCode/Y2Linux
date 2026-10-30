@@ -4,9 +4,10 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{
     build, clock,
-    pyjson::Py,
     state::{self, Reports, DESTINATIONS},
+    Value,
 };
+use crate::commands::reports::{object, ValueExt};
 use crate::reply::Failure;
 use std::os::fd::AsFd;
 use std::{
@@ -163,21 +164,21 @@ pub fn save_to(
     destination: &str,
     topic: Option<&str>,
     progress: &build::Progress,
-) -> Result<Py, Failure> {
+) -> Result<Value, Failure> {
     let Some(&(_, mount, top)) = DESTINATIONS.iter().find(|(n, _, _)| *n == destination) else {
         return Err(Failure::value("unknown_destination"));
     };
     if !state::destinations(root).contains(&destination) {
-        return Ok(Py::dict()
-            .with("saved", Py::Bool(false))
-            .with("reason", Py::str("not_mounted")));
+        return Ok(object()
+            .with("saved", Value::Bool(false))
+            .with("reason", Value::from("not_mounted")));
     }
     let value = Reports::load(root);
     let now = clock::Instant::now(root);
     let install = if value.enabled() {
         value.field("install_id")
     } else {
-        Py::None
+        Value::Null
     };
     let (data, index) = build::build(
         root,
@@ -213,15 +214,15 @@ pub fn save_to(
         }
         Err(Failure::Os { text, .. }) => {
             let no_space = text.starts_with(&format!("[Errno {}]", libc::ENOSPC));
-            return Ok(Py::dict().with("saved", Py::Bool(false)).with(
+            return Ok(object().with("saved", Value::Bool(false)).with(
                 "reason",
-                Py::str(if no_space { "no_space" } else { "write_failed" }),
+                Value::from(if no_space { "no_space" } else { "write_failed" }),
             ));
         }
         Err(other) => return Err(other),
     };
     let file = format!("{}/{name}", build::FOLDER);
-    let report_id = index.get("report_id").cloned().unwrap_or(Py::None);
+    let report_id = index.get("report_id").cloned().unwrap_or(Value::Null);
     let mut value = Reports::load(root);
     value.set(
         "last",
@@ -230,18 +231,18 @@ pub fn save_to(
             trigger: "manual",
             state: "saved",
             saved: Some((destination, &file)),
-            created_utc: index.get("created_utc").cloned().unwrap_or(Py::None),
+            created_utc: index.get("created_utc").cloned().unwrap_or(Value::Null),
             bytes: data.len(),
         }
         .into(),
     );
     value.save(root)?;
-    Ok(Py::dict()
-        .with("saved", Py::Bool(true))
-        .with("destination", Py::str(destination))
-        .with("file", Py::str(file))
+    Ok(object()
+        .with("saved", Value::Bool(true))
+        .with("destination", Value::from(destination))
+        .with("file", Value::from(file))
         .with("report_id", report_id)
-        .with("bytes", Py::from(data.len())))
+        .with("bytes", Value::from(data.len())))
 }
 
 #[cfg(test)]

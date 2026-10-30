@@ -31,7 +31,7 @@
  ],
  "exit": 1,
  "stdout": {
-  "failure": "Expecting value: line 1 column 7 (char 6)",
+  "failure": "invalid JSON: EOF while parsing a value at line 1 column 6",
   "state": "Failed"
  },
  "tree": {

@@ -7,6 +7,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use super::*;
 use crate::commands::reports::test_player as player;
+use crate::commands::reports::{object, Value, ValueExt};
 use crate::commands::service::daemon::{next_upload, Due};
 use crate::testing::{ok, Fixture};
 use serde_json::json;
@@ -42,16 +43,16 @@ fn setup_with(clock: &Arc<Manual>) -> Fixture {
     fixture
 }
 
-fn text(value: &Py, key: &str) -> String {
+fn text(value: &Value, key: &str) -> String {
     value
         .get(key)
-        .and_then(Py::as_str)
+        .and_then(Value::as_str)
         .unwrap_or_else(|| panic!("{key} in {value:?}"))
         .to_owned()
 }
 
 /// `report.queue(ctx, 'manual')`, queued.
-fn queued(root: &Root) -> Py {
+fn queued(root: &Root) -> Value {
     let result = queue(
         root,
         &["manual".to_owned()],
@@ -60,16 +61,16 @@ fn queued(root: &Root) -> Py {
         &build::Progress::quiet(),
     )
     .unwrap();
-    assert_eq!(result.get("queued"), Some(&Py::Bool(true)), "{result:?}");
+    assert_eq!(result.get("queued"), Some(&Value::Bool(true)), "{result:?}");
     result
 }
 
 /// A report queued earlier (Python gave queue() an earlier `now`): its file gets an older stamp.
-fn earlier(root: &Root, item: &mut Py) {
+fn earlier(root: &Root, item: &mut Value) {
     let old = text(item, "name");
     let name = format!("20200101T000000Z{}", &old[16..]);
     std::fs::rename(root.path(QUEUE).join(&old), root.path(QUEUE).join(&name)).unwrap();
-    item.set("name", Py::Str(name));
+    item.set("name", Value::String(name));
 }
 
 /// The curl command line `post` makes for one queued report.
@@ -81,7 +82,7 @@ fn request(root: &Root, name: &str) -> Vec<String> {
 
 /// curl's answer to that request: the receiver's status and body (a stored report's answer names it,
 /// as the Worker's does).
-fn http(root: &Root, name: &str, code: i64, body: Py) -> (Vec<String>, command::Outcome) {
+fn http(root: &Root, name: &str, code: i64, body: Value) -> (Vec<String>, command::Outcome) {
     let argv = request(root, name);
     let body = if code == 200 || code == 201 {
         let data = std::fs::read(root.path(QUEUE).join(name)).unwrap();
@@ -97,7 +98,10 @@ fn http(root: &Root, name: &str, code: i64, body: Py) -> (Vec<String>, command::
     let refs: Vec<&str> = argv.iter().map(String::as_str).collect();
     ok(
         &refs,
-        &format!("{}\n{code} 0 ", pyjson::dumps(&body, pyjson::Style::Spaced)),
+        &format!(
+            "{}\n{code} 0 ",
+            serde_json::to_string(&body).unwrap_or_default()
+        ),
     )
 }
 
@@ -106,12 +110,12 @@ fn stored(root: &Root, name: &str) -> (Vec<String>, command::Outcome) {
         root,
         name,
         201,
-        Py::dict().with("status", Py::str("stored")),
+        object().with("status", Value::from("stored")),
     )
 }
 
 /// `report.upload(ctx)` with these curl answers; its result and the curl requests made.
-fn send(root: &Root, answers: Vec<(Vec<String>, command::Outcome)>) -> (Py, Vec<Vec<String>>) {
+fn send(root: &Root, answers: Vec<(Vec<String>, command::Outcome)>) -> (Value, Vec<Vec<String>>) {
     send_with(root, answers, None, None)
 }
 
@@ -120,7 +124,7 @@ fn send_with(
     answers: Vec<(Vec<String>, command::Outcome)>,
     progress: Option<&build::Progress>,
     first: Option<&str>,
-) -> (Py, Vec<Vec<String>>) {
+) -> (Value, Vec<Vec<String>>) {
     let answering = root.clone().with_answers(answers);
     let result = upload(&answering, progress, first).unwrap();
     let curls = answering
@@ -132,20 +136,20 @@ fn send_with(
     (result, curls)
 }
 
-fn reason(result: &Py) -> String {
+fn reason(result: &Value) -> String {
     text(result, "reason")
 }
 
-fn outcomes(result: &Py) -> Vec<String> {
+fn outcomes(result: &Value) -> Vec<String> {
     match result.get("uploaded") {
-        Some(Py::List(items)) => items.iter().map(|i| text(i, "outcome")).collect(),
+        Some(Value::Array(items)) => items.iter().map(|i| text(i, "outcome")).collect(),
         other => panic!("{other:?}"),
     }
 }
 
-fn uploaded(result: &Py, n: usize) -> Py {
+fn uploaded(result: &Value, n: usize) -> Value {
     match result.get("uploaded") {
-        Some(Py::List(items)) => items[n].clone(),
+        Some(Value::Array(items)) => items[n].clone(),
         other => panic!("{other:?}"),
     }
 }
@@ -160,7 +164,7 @@ fn header(argv: &[String], name: &str) -> String {
 
 fn queue_names(root: &Root) -> Vec<String> {
     match state::status(root).unwrap().get("queued") {
-        Some(Py::List(items)) => items
+        Some(Value::Array(items)) => items
             .iter()
             .map(|n| n.as_str().unwrap().to_owned())
             .collect(),
@@ -168,11 +172,11 @@ fn queue_names(root: &Root) -> Vec<String> {
     }
 }
 
-fn last(root: &Root) -> Py {
+fn last(root: &Root) -> Value {
     state::status(root).unwrap().get("last").cloned().unwrap()
 }
 
-fn retry(root: &Root, name: &str) -> Py {
+fn retry(root: &Root, name: &str) -> Value {
     state::state(root)
         .get("uploads")
         .and_then(|u| u.get(name))
@@ -183,7 +187,10 @@ fn retry(root: &Root, name: &str) -> Py {
 /// The clock moved on just past `name`'s retry time.
 fn due_now(fixture: &Fixture, clock: &Manual, name: &str) {
     let root = &fixture.root;
-    let at = retry(root, name).get("next").and_then(Py::number).unwrap();
+    let at = retry(root, name)
+        .get("next")
+        .and_then(Value::as_f64)
+        .unwrap();
     later(fixture, clock, at - wall(root) + 1.0);
 }
 
@@ -195,7 +202,7 @@ fn next(root: &Root) -> Option<f64> {
     }
 }
 
-fn install_id(status: &Py) -> String {
+fn install_id(status: &Value) -> String {
     text(status, "install_id")
 }
 
@@ -208,14 +215,11 @@ fn a_queued_report_is_sent_with_its_identity_and_leaves_the_queue() {
     let name = text(&item, "name");
     let body = std::fs::read(root.path(QUEUE).join(&name)).unwrap();
     let (result, curls) = send(root, vec![stored(root, &name)]);
-    let expected = Py::List(vec![Py::dict()
-        .with("name", Py::Str(name.clone()))
-        .with("outcome", Py::str("sent"))
+    let expected = Value::Array(vec![object()
+        .with("name", Value::String(name.clone()))
+        .with("outcome", Value::from("sent"))
         .with("report_id", item.get("report_id").cloned().unwrap())]);
-    assert!(
-        result.get("uploaded").unwrap().py_eq(&expected),
-        "{result:?}"
-    );
+    assert!(result.get("uploaded").unwrap().eq(&expected), "{result:?}");
     let [argv] = &curls[..] else {
         panic!("{curls:?}")
     };
@@ -235,9 +239,9 @@ fn a_queued_report_is_sent_with_its_identity_and_leaves_the_queue() {
     assert_eq!(header(argv, "Content-Type"), "application/gzip");
     assert_eq!(header(argv, "Content-Length"), body.len().to_string());
     let status = state::status(root).unwrap();
-    assert_eq!(status.get("queued"), Some(&Py::List(Vec::new())));
-    assert_eq!(last(root).get("state"), Some(&Py::str("sent")));
-    assert_eq!(status.get("upload"), Some(&Py::Bool(true)));
+    assert_eq!(status.get("queued"), Some(&Value::Array(Vec::new())));
+    assert_eq!(last(root).get("state"), Some(&Value::from("sent")));
+    assert_eq!(status.get("upload"), Some(&Value::Bool(true)));
     assert_eq!(next(root), None);
 }
 
@@ -250,14 +254,14 @@ fn without_an_upload_key_nothing_is_sent_and_reborn_offers_only_save() {
     fixture.put_json(state::UPLOAD_KEY, &json!({"upload_key": "short"}));
     assert_eq!(
         state::status(root).unwrap().get("upload"),
-        Some(&Py::Bool(false))
+        Some(&Value::Bool(false))
     );
     let (result, mut curls) = send(root, Vec::new());
     assert_eq!(reason(&result), "no_upload_key");
     fixture.remove(state::UPLOAD_KEY);
     assert_eq!(
         state::status(root).unwrap().get("upload"),
-        Some(&Py::Bool(false))
+        Some(&Value::Bool(false))
     );
     let (result, more) = send(root, Vec::new());
     assert_eq!(reason(&result), "no_upload_key");
@@ -350,16 +354,21 @@ fn server_errors_back_off_and_stop_the_run_then_succeed() {
     earlier(root, &mut first);
     let first = text(&first, "name");
     let second = text(&queued(root), "name");
-    let busy = http(root, &first, 503, Py::dict().with("error", Py::str("busy")));
+    let busy = http(
+        root,
+        &first,
+        503,
+        object().with("error", Value::from("busy")),
+    );
     let (result, curls) = send(root, vec![busy]);
     assert_eq!(outcomes(&result), ["retry"]); // the second was not tried
     assert_eq!(curls.len(), 1);
-    assert_eq!(last(root).get("state"), Some(&Py::str("queued"))); // the last report is the second
+    assert_eq!(last(root).get("state"), Some(&Value::from("queued"))); // the last report is the second
     assert_eq!(next(root), Some(0.0)); // the second never failed
     let entry = retry(root, &first);
-    assert_eq!(entry.get("attempts"), Some(&Py::int(1)));
-    assert_eq!(entry.get("error"), Some(&Py::str("HTTP_503")));
-    let at = entry.get("next").and_then(Py::number).unwrap();
+    assert_eq!(entry.get("attempts"), Some(&Value::from(1)));
+    assert_eq!(entry.get("error"), Some(&Value::from("HTTP_503")));
+    let at = entry.get("next").and_then(Value::as_f64).unwrap();
     assert_eq!(at, START + RETRY_S[0]);
     // A later run sends the untried one; the failed one waits for its time.
     later(&fixture, &clock, 60.0);
@@ -370,7 +379,7 @@ fn server_errors_back_off_and_stop_the_run_then_succeed() {
     let (result, _) = send(root, vec![stored(root, &first)]);
     assert_eq!(outcomes(&result), ["sent"]);
     assert!(queue_names(root).is_empty());
-    assert_eq!(state::state(root).get("uploads"), Some(&Py::dict()));
+    assert_eq!(state::state(root).get("uploads"), Some(&object()));
 }
 
 #[test]
@@ -381,14 +390,14 @@ fn send_report_now_goes_first_then_takes_the_waiting_ones_along() {
     let mut old = queued(root);
     earlier(root, &mut old);
     let old = text(&old, "name");
-    send(root, vec![http(root, &old, 503, Py::dict())]); // old now waits 5 min
+    send(root, vec![http(root, &old, 503, object())]); // old now waits 5 min
     let new = text(&queued(root), "name");
     let progress = build::Progress::new(root, None);
     let answers = vec![stored(root, &new), stored(root, &old)];
     let new_size = header(&request(root, &new), "Content-Length");
     let (result, _) = send_with(root, answers, Some(&progress), Some(&new));
     let names: Vec<(String, String)> = match result.get("uploaded") {
-        Some(Py::List(items)) => items
+        Some(Value::Array(items)) => items
             .iter()
             .map(|i| (text(i, "name"), text(i, "outcome")))
             .collect(),
@@ -403,12 +412,12 @@ fn send_report_now_goes_first_then_takes_the_waiting_ones_along() {
     progress.close();
     // Without a working connection for the new one, the old one keeps its time.
     let waiting = text(&queued(root), "name");
-    send(root, vec![http(root, &waiting, 503, Py::dict())]);
+    send(root, vec![http(root, &waiting, 503, object())]);
     let newest = text(&queued(root), "name");
-    let answers = vec![http(root, &newest, 503, Py::dict()), stored(root, &waiting)];
+    let answers = vec![http(root, &newest, 503, object()), stored(root, &waiting)];
     let (result, _) = send_with(root, answers, None, Some(&newest));
     assert_eq!(text(&uploaded(&result, 0), "name"), newest);
-    assert!(matches!(result.get("uploaded"), Some(Py::List(l)) if l.len() == 1));
+    assert!(matches!(result.get("uploaded"), Some(Value::Array(l)) if l.len() == 1));
     assert!(queue_names(root).contains(&waiting));
 }
 
@@ -420,7 +429,7 @@ fn the_last_reports_failure_shows_and_backoff_grows() {
     state::set_enabled(root, true).unwrap();
     let item = queued(root);
     let name = text(&item, "name");
-    send(root, vec![http(root, &name, 500, Py::dict())]);
+    send(root, vec![http(root, &name, 500, object())]);
     let shown = last(root);
     assert_eq!(
         (
@@ -436,10 +445,10 @@ fn the_last_reports_failure_shows_and_backoff_grows() {
     );
     due_now(&fixture, &clock, &name);
     let now = wall(root);
-    send(root, vec![http(root, &name, 502, Py::dict())]);
+    send(root, vec![http(root, &name, 502, object())]);
     let entry = retry(root, &name);
-    assert_eq!(entry.get("attempts"), Some(&Py::int(2)));
-    let at = entry.get("next").and_then(Py::number).unwrap();
+    assert_eq!(entry.get("attempts"), Some(&Value::from(2)));
+    let at = entry.get("next").and_then(Value::as_f64).unwrap();
     assert_eq!(at, now + RETRY_S[1]);
 }
 
@@ -449,9 +458,12 @@ fn a_full_day_waits_for_the_next_utc_day() {
     let root = &fixture.root;
     state::set_enabled(root, true).unwrap();
     let name = text(&queued(root), "name");
-    let full = Py::dict().with("error", Py::str("install_daily_limit"));
+    let full = object().with("error", Value::from("install_daily_limit"));
     send(root, vec![http(root, &name, 429, full)]);
-    let at = retry(root, &name).get("next").and_then(Py::number).unwrap();
+    let at = retry(root, &name)
+        .get("next")
+        .and_then(Value::as_f64)
+        .unwrap();
     // 00:05 UTC of the next day
     assert_eq!(at, clock::next_midnight(START));
     assert_eq!(at, START + 12.0 * 3600.0 + 300.0);
@@ -463,7 +475,7 @@ fn a_refused_report_is_dropped_and_says_why() {
     let root = &fixture.root;
     state::set_enabled(root, true).unwrap();
     let name = text(&queued(root), "name");
-    let refused = Py::dict().with("error", Py::str("sha256_mismatch"));
+    let refused = object().with("error", Value::from("sha256_mismatch"));
     let (result, _) = send(root, vec![http(root, &name, 400, refused)]);
     assert_eq!(
         text(&uploaded(&result, 0), "reason"),
@@ -491,7 +503,7 @@ fn a_report_unsent_for_three_days_is_dropped_without_sending() {
     let (result, curls) = send(root, Vec::new());
     assert_eq!(text(&uploaded(&result, 0), "reason"), "expired");
     assert!(curls.is_empty());
-    assert_eq!(last(root).get("state"), Some(&Py::str("dropped")));
+    assert_eq!(last(root).get("state"), Some(&Value::from("dropped")));
 }
 
 #[test]
@@ -501,7 +513,7 @@ fn a_redirect_is_never_followed() {
     state::set_enabled(root, true).unwrap();
     let name = text(&queued(root), "name");
     // curl follows nothing without --location: a 3xx is the answer.
-    let (result, curls) = send(root, vec![http(root, &name, 307, Py::dict())]);
+    let (result, curls) = send(root, vec![http(root, &name, 307, object())]);
     assert_eq!(text(&uploaded(&result, 0), "outcome"), "retry");
     let [argv] = &curls[..] else {
         panic!("{curls:?}")
@@ -511,7 +523,10 @@ fn a_redirect_is_never_followed() {
         .any(|a| a == "--location" || a == "-L" || a.starts_with("--max-redirs")));
     assert_eq!(argv.last().map(String::as_str), Some(ENDPOINT));
     assert_eq!(queue_names(root).len(), 1);
-    assert_eq!(retry(root, &name).get("error"), Some(&Py::str("HTTP_307")));
+    assert_eq!(
+        retry(root, &name).get("error"),
+        Some(&Value::from("HTTP_307"))
+    );
 }
 
 #[test]
@@ -550,14 +565,11 @@ fn a_damaged_queue_file_is_dropped() {
     )
     .unwrap();
     let (result, curls) = send(root, Vec::new());
-    let expected = Py::List(vec![Py::dict()
-        .with("name", Py::str(name))
-        .with("outcome", Py::str("dropped"))
-        .with("reason", Py::str("unreadable"))]);
-    assert!(
-        result.get("uploaded").unwrap().py_eq(&expected),
-        "{result:?}"
-    );
+    let expected = Value::Array(vec![object()
+        .with("name", Value::from(name))
+        .with("outcome", Value::from("dropped"))
+        .with("reason", Value::from("unreadable"))]);
+    assert!(result.get("uploaded").unwrap().eq(&expected), "{result:?}");
     assert!(curls.is_empty());
 }
 
@@ -594,7 +606,7 @@ fn the_owners_screen_follows_build_and_upload_and_the_record_goes_away() {
     assert!(shown["seconds_left"].is_null() || shown["seconds_left"].as_i64().unwrap() >= 0);
     assert_eq!(
         shown["bytes_total"],
-        json!(item.get("bytes").and_then(Py::as_int).unwrap())
+        json!(item.get("bytes").and_then(Value::as_i64).unwrap())
     );
     // The request carries the whole body (fixture curl: its length and identity).
     let [argv] = &curls[..] else {
@@ -644,21 +656,24 @@ fn queue_is_opt_in_and_bounded() {
     let quiet = build::Progress::quiet();
     let queue_one = |trigger: &str| queue(root, &[trigger.to_owned()], "", None, &quiet).unwrap();
     assert_eq!(reason(&queue_one("manual")), "not_enabled");
-    assert_eq!(state::status(root).unwrap().get("enabled"), Some(&Py::None));
+    assert_eq!(
+        state::status(root).unwrap().get("enabled"),
+        Some(&Value::Null)
+    );
     let status = state::set_enabled(root, true).unwrap();
     let uuid = regex::Regex::new(r"^[0-9a-f-]{36}$").unwrap();
     assert!(uuid.is_match(&install_id(&status)));
     let first = queue_one("reborn_crash");
-    assert_eq!(first.get("queued"), Some(&Py::Bool(true)));
+    assert_eq!(first.get("queued"), Some(&Value::Bool(true)));
     assert_eq!(
         reason(&queue_one("reborn_crash")),
         "already_reported_this_boot"
     );
     for _ in 0..4 {
-        assert_eq!(queue_one("manual").get("queued"), Some(&Py::Bool(true)));
+        assert_eq!(queue_one("manual").get("queued"), Some(&Value::Bool(true)));
     }
     assert_eq!(queue_names(root).len(), QUEUE_MAX);
-    let mut result = Py::None;
+    let mut result = Value::Null;
     for trigger in [
         "kernel_warning",
         "sleep_failure",
@@ -672,7 +687,7 @@ fn queue_is_opt_in_and_bounded() {
     assert_ne!(install_id(&state::new_install_id(root).unwrap()), old);
     assert_eq!(
         state::set_enabled(root, false).unwrap().get("queued"),
-        Some(&Py::List(Vec::new()))
+        Some(&Value::Array(Vec::new()))
     );
 }
 
@@ -707,7 +722,7 @@ fn the_receiver_accepts_exactly_the_players_triggers_and_schema() {
         &["manual".to_owned()],
         "",
         None,
-        Py::None,
+        Value::Null,
         clock::Instant::now(&fixture.root),
         &build::Progress::quiet(),
     )

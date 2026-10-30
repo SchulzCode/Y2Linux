@@ -18,7 +18,7 @@ use crate::commands::connectivity::{
     radio_policy::wifi_policy,
     wifi::{probe_dns, DnsProbeSchedule, EventMonitor, WifiRecovery},
 };
-use crate::commands::reports::{pyjson::Py, state as reports};
+use crate::commands::reports::state as reports;
 use crate::commands::{
     storage::media::{self, inventory},
     time,

@@ -11,7 +11,6 @@ use super::{
     json_dict,
     media::{fstat, open_at, rename_between, stat_at},
     os, os_name,
-    pyjson::{self, Py, Style},
     pyops::{self},
     sha256_hex,
     state::uuid4,
@@ -19,6 +18,7 @@ use super::{
     volume::{self, data_volume, free, open_directory},
     SCOPES,
 };
+use crate::commands::reports::{object, Value, ValueExt};
 use crate::commands::workload::Lease;
 use crate::reply::{atomic_json, private_directory, Failure, Outcome, Reply};
 use std::{ffi::CString, io::Read, os::fd::OwnedFd, path::Path};
@@ -41,9 +41,11 @@ use plan::{busy, confirmation, plan};
 use purge::purge;
 
 /// The answer: the result, or `{"state": "Failed", "failure": str(error)}` (exit 1).
-fn answer(result: Result<Py, Failure>) -> Outcome {
+fn answer(result: Result<Value, Failure>) -> Outcome {
     match result {
-        Ok(value) => Ok(Reply::text(pyjson::dumps(&value, Style::Spaced))),
+        Ok(value) => Ok(Reply::text(
+            serde_json::to_string(&value).unwrap_or_default(),
+        )),
         Err(error) => Reply::unsorted(
             &y2p_core::json::Object::new()
                 .with("state", "Failed")
@@ -84,15 +86,17 @@ fn dup(fd: &OwnedFd) -> Result<OwnedFd, Failure> {
 }
 
 /// `identity(meta)`.
-fn identity(meta: &y2p_core::sys::Stat) -> Py {
-    Py::dict()
-        .with("device", Py::from(meta.dev))
-        .with("inode", Py::from(meta.ino))
-        .with("mode", Py::int(i64::from(meta.mode & libc::S_IFMT)))
-        .with("size", Py::int(meta.size))
+fn identity(meta: &y2p_core::sys::Stat) -> Value {
+    object()
+        .with("device", Value::from(meta.dev))
+        .with("inode", Value::from(meta.ino))
+        .with("mode", Value::from(i64::from(meta.mode & libc::S_IFMT)))
+        .with("size", Value::from(meta.size))
         .with(
             "mtime_ns",
-            Py::int(y2p_core::wide(meta.mtime) * 1_000_000_000 + y2p_core::wide(meta.mtime_nsec)),
+            Value::from(
+                y2p_core::wide(meta.mtime) * 1_000_000_000 + y2p_core::wide(meta.mtime_nsec),
+            ),
         )
 }
 
@@ -123,7 +127,7 @@ fn parent_fd(data: &OwnedFd, relative: &str) -> Result<(OwnedFd, String), Failur
 }
 
 /// `inspect(data, relative)`.
-fn inspect(data: &OwnedFd, relative: &str) -> Result<Option<Py>, Failure> {
+fn inspect(data: &OwnedFd, relative: &str) -> Result<Option<Value>, Failure> {
     let (parent, name) = match parent_fd(data, relative) {
         Err(e) if not_found(&e) => return Ok(None),
         other => other?,
@@ -183,8 +187,8 @@ fn regular_bytes(data: &OwnedFd, relative: &str, maximum: u64) -> Result<Vec<u8>
     Ok(value)
 }
 
-fn text(value: Option<&Py>) -> Py {
-    value.cloned().unwrap_or(Py::None)
+fn text(value: Option<&Value>) -> Value {
+    value.cloned().unwrap_or(Value::Null)
 }
 
 #[cfg(test)]

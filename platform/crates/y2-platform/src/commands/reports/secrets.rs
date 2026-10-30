@@ -5,10 +5,11 @@
 use super::{
     build::{large_json, rel},
     json_at, json_dict,
-    pyjson::Py,
     pyre::{self, lazy, S},
     scrub::Known,
+    Value,
 };
+use crate::commands::reports::filled;
 use crate::reply::Failure;
 use regex::Regex;
 use std::{collections::BTreeSet, sync::OnceLock};
@@ -53,26 +54,26 @@ const MUSIC_KEPT: [&str; 21] = [
     "Wired",
 ];
 
-fn strings(value: &Py, out: &mut Vec<String>) {
+fn strings(value: &Value, out: &mut Vec<String>) {
     match value {
-        Py::Str(s) => out.push(s.clone()),
-        Py::Dict(items) => items.iter().for_each(|(_, v)| strings(v, out)),
-        Py::List(items) => items.iter().for_each(|v| strings(v, out)),
+        Value::String(s) => out.push(s.clone()),
+        Value::Object(items) => items.iter().for_each(|(_, v)| strings(v, out)),
+        Value::Array(items) => items.iter().for_each(|v| strings(v, out)),
         _ => {}
     }
 }
 
-fn key_values(value: &Py, key: &str, out: &mut Vec<String>) {
+fn key_values(value: &Value, key: &str, out: &mut Vec<String>) {
     match value {
-        Py::Dict(items) => {
+        Value::Object(items) => {
             for (k, v) in items {
                 match v {
-                    Py::Str(s) if k == key => out.push(s.clone()),
+                    Value::String(s) if k == key => out.push(s.clone()),
                     _ => key_values(v, key, out),
                 }
             }
         }
-        Py::List(items) => items.iter().for_each(|v| key_values(v, key, out)),
+        Value::Array(items) => items.iter().for_each(|v| key_values(v, key, out)),
         _ => {}
     }
 }
@@ -244,13 +245,13 @@ pub fn secrets(root: &Root) -> Result<Known, Failure> {
         found[serial].1.insert(caps[1].to_owned());
     }
     let session = large_json(root, "/data/reborn/state/session.json");
-    if let Some(model @ Py::Dict(_)) = session.as_ref().and_then(|s| s.get("model")) {
+    if let Some(model @ Value::Object(_)) = session.as_ref().and_then(|s| s.get("model")) {
         // `(model.get('queue') or [])[:5000]`: a string queue holds no dicts; a non-empty object or
         // a number cannot be sliced and is refused.
-        let tracks: Vec<Py> = match model.get("queue") {
-            Some(Py::List(items)) => items.iter().take(5000).cloned().collect(),
-            Some(queue @ (Py::Dict(_) | Py::Int(_) | Py::Float(_) | Py::Bool(_)))
-                if queue.truthy() =>
+        let tracks: Vec<Value> = match model.get("queue") {
+            Some(Value::Array(items)) => items.iter().take(5000).cloned().collect(),
+            Some(queue @ (Value::Object(_) | Value::Number(_) | Value::Bool(_)))
+                if filled(queue) =>
             {
                 return Err(Failure::value(super::SESSION_UNREADABLE))
             }
@@ -265,7 +266,7 @@ pub fn secrets(root: &Root) -> Result<Known, Failure> {
                 "filename",
                 "genre",
             ] {
-                if let Some(Py::Str(value)) = track.get(key) {
+                if let Some(Value::String(value)) = track.get(key) {
                     found[music].1.insert(value.clone());
                 }
             }

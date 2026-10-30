@@ -7,9 +7,10 @@
 //! Every pattern is report.py's, with Python's semantics: lookbehinds are checked by hand (`pyre`),
 //! lookaheads are consumed context after the replaced group, `\s`/`\w`/`\b` are Python's.
 // SPDX-License-Identifier: GPL-2.0-only
-use super::pyjson::{self, Py};
+use super::pyjson;
 use super::pyre::{self, lazy, S};
 use super::tarball;
+use crate::commands::reports::Value;
 use hmac::{Hmac, Mac};
 use regex::{Captures, Regex};
 use sha2::Sha256;
@@ -359,18 +360,18 @@ impl Scrubber {
     }
 
     /// `Scrubber.value`.
-    pub fn value(&mut self, value: &Py, key: Option<&str>) -> Py {
+    pub fn value(&mut self, value: &Value, key: Option<&str>) -> Value {
         match value {
-            Py::Dict(items) => {
-                let peer = matches!(value.get("address"), Some(Py::Str(a)) if mac_search(a));
-                let mut out: Vec<(String, Py)> = Vec::new();
+            Value::Object(items) => {
+                let peer = matches!(value.get("address"), Some(Value::String(a)) if mac_search(a));
+                let mut out: Vec<(String, Value)> = Vec::new();
                 for (k, v) in items {
                     let name = self.text(k);
                     let clean = if peer
                         && (k == "name" || k == "alias")
-                        && matches!(v, Py::Str(s) if !s.is_empty())
+                        && matches!(v, Value::String(s) if !s.is_empty())
                     {
-                        Py::str("<bt_name>")
+                        Value::from("<bt_name>")
                     } else {
                         self.value(v, Some(k))
                     };
@@ -379,18 +380,18 @@ impl Scrubber {
                         None => out.push((name, clean)),
                     }
                 }
-                Py::Dict(out)
+                Value::Object(out.into_iter().collect())
             }
-            Py::List(items) => Py::List(items.iter().map(|v| self.value(v, key)).collect()),
-            Py::Str(s) => {
+            Value::Array(items) => Value::Array(items.iter().map(|v| self.value(v, key)).collect()),
+            Value::String(s) => {
                 if let Some(key) = key {
                     let lower = key.to_lowercase();
                     if PRIVATE_KEYS.contains(&lower.as_str()) && !s.is_empty() {
                         self.count("private_key");
-                        return Py::Str(format!("<{lower}>"));
+                        return Value::String(format!("<{lower}>"));
                     }
                 }
-                Py::Str(self.text(s))
+                Value::String(self.text(s))
             }
             other => other.clone(),
         }
@@ -400,6 +401,7 @@ impl Scrubber {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::commands::reports::loads_text;
 
     fn scrubber(known: &[(&'static str, &[&str])]) -> Scrubber {
         let known: Known = known
@@ -475,16 +477,14 @@ mod tests {
     fn values_and_tries() {
         assert_eq!(trie_pattern(&["abc", "ab", "b"]).unwrap(), "(?:ab(?:c)?|b)");
         let mut s = scrubber(&[("bt_name", &["Speaker One"])]);
-        let value = pyjson::loads(
+        let value = loads_text(
             r#"{"address": "AA:BB:CC:DD:EE:FF", "name": "Speaker One", "alias": "", "Title": "x", "list": [{"Artist": "y"}]}"#,
         )
         .unwrap();
-        let clean = pyjson::dumps(&s.value(&value, None), pyjson::Style::Spaced);
+        let clean = s.value(&value, None);
         let token = s.token("mac", "AA:BB:CC:DD:EE:FF", "");
-        let expected = format!(
-            "{{\"Title\": \"<title>\", \"address\": \"AA:BB:CC:{token}\", \"alias\": \"\", \
-             \"list\": [{{\"Artist\": \"<artist>\"}}], \"name\": \"<bt_name>\"}}"
-        );
+        let expected = serde_json::json!({"Title": "<title>", "address": format!("AA:BB:CC:{token}"),
+            "alias": "", "list": [{"Artist": "<artist>"}], "name": "<bt_name>"});
         assert_eq!(clean, expected);
         assert_eq!(s.counts["private_key"], 2);
     }

@@ -7,6 +7,7 @@
 use super::*;
 use crate::commands::reports::state::{set_enabled, QUEUE, STATE, UPLOAD_KEY};
 use crate::testing::Fixture;
+use y2p_core::json::{object, ValueExt};
 
 const KEY: &str = "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk";
 
@@ -113,11 +114,11 @@ fn a_due_report_is_sent_before_the_next_check_but_not_every_pass() {
     let mut state = reports::state(service.root());
     state.set(
         "uploads",
-        Py::dict().with(
+        object().with(
             name,
-            Py::dict()
-                .with("attempts", Py::int(1))
-                .with("next", Py::Float(time::wall() + 3600.0)),
+            object()
+                .with("attempts", Value::from(1))
+                .with("next", Value::from(time::wall() + 3600.0)),
         ),
     );
     reports::save(service.root(), &state).unwrap();

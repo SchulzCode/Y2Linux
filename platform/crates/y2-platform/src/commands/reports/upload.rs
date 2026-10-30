@@ -5,11 +5,11 @@
 use super::{
     build::{self, Bytes},
     clock, json_dict, or_dict,
-    pyjson::{self, py_str, Py},
     pyops::{self, OrRefuse},
     state::{self, Reports, QUEUE},
     tarball, POWER_UNREADABLE, QUEUED_UNREADABLE, STATE_UNREADABLE,
 };
+use crate::commands::reports::{filled, loads_bytes, object, text_of, Value, ValueExt};
 use crate::reply::{mkdir_parents, Failure};
 use std::{
     io::Write,
@@ -44,11 +44,11 @@ pub fn queue(
     detail: &str,
     topic: Option<&str>,
     progress: &build::Progress,
-) -> Result<Py, Failure> {
+) -> Result<Value, Failure> {
     let not_queued = |reason: &str| {
-        Py::dict()
-            .with("queued", Py::Bool(false))
-            .with("reason", Py::str(reason))
+        object()
+            .with("queued", Value::Bool(false))
+            .with("reason", Value::from(reason))
     };
     let mut value = Reports::load(root);
     if !value.enabled() {
@@ -62,8 +62,8 @@ pub fn queue(
     let boot = root.boot_id().unwrap_or_default();
     value.keep_day(&day)?;
     if trigger != "manual" {
-        let (count, limit) =
-            pyops::ordered(&value.count(&day), &Py::int(DAILY_MAX)).or_refuse(STATE_UNREADABLE)?;
+        let (count, limit) = pyops::ordered(&value.count(&day), &Value::from(DAILY_MAX))
+            .or_refuse(STATE_UNREADABLE)?;
         if count >= limit {
             return Ok(not_queued("daily_limit"));
         }
@@ -85,7 +85,7 @@ pub fn queue(
     mkdir_parents(&directory, 0o700)?;
     let report_id = index
         .get("report_id")
-        .and_then(Py::as_str)
+        .and_then(Value::as_str)
         .unwrap_or("")
         .to_owned();
     let name = format!("{}-{report_id}.tar.gz", clock::queue_stamp(now));
@@ -117,29 +117,29 @@ pub fn queue(
     value.set_count(&day, count);
     let reported = pyops::add_list(
         &value.reported(&boot)?,
-        triggers.iter().cloned().map(Py::Str).collect(),
+        triggers.iter().cloned().map(Value::String).collect(),
     )
     .or_refuse(STATE_UNREADABLE)?;
     // Only this boot's are kept.
-    value.set("boot_triggers", Py::dict().with(&boot, reported));
+    value.set("boot_triggers", object().with(&boot, reported));
     value.set(
         "last",
         state::Last {
-            report_id: Py::Str(report_id.clone()),
+            report_id: Value::String(report_id.clone()),
             trigger,
             state: "queued",
             saved: None,
-            created_utc: index.get("created_utc").cloned().unwrap_or(Py::None),
+            created_utc: index.get("created_utc").cloned().unwrap_or(Value::Null),
             bytes: data.len(),
         }
         .into(),
     );
     value.save(root)?;
-    Ok(Py::dict()
-        .with("queued", Py::Bool(true))
-        .with("report_id", Py::Str(report_id))
-        .with("bytes", Py::from(data.len()))
-        .with("name", Py::Str(name)))
+    Ok(object()
+        .with("queued", Value::Bool(true))
+        .with("report_id", Value::String(report_id))
+        .with("bytes", Value::from(data.len()))
+        .with("name", Value::String(name)))
 }
 
 /// Why queued reports must wait now, or None. Uploads run in the
@@ -152,12 +152,12 @@ fn upload_blocked(root: &Root) -> Result<Option<&'static str>, Failure> {
     if !Reports::load(root).enabled() {
         return Ok(Some("not_enabled"));
     }
-    let boot: Py = root.boot_id().into();
+    let boot: Value = root.boot_id().into();
     let network = or_dict(json_dict(root, "/run/y2/network.json"));
     if !network
         .get("state")
-        .is_some_and(|s| s.py_eq(&Py::str("Online")))
-        || !network.get("boot_id").unwrap_or(&Py::None).py_eq(&boot)
+        .is_some_and(|s| s.eq(&Value::from("Online")))
+        || !network.get("boot_id").unwrap_or(&Value::Null).eq(&boot)
     {
         return Ok(Some("offline"));
     }
@@ -166,10 +166,10 @@ fn upload_blocked(root: &Root) -> Result<Option<&'static str>, Failure> {
     }
     let update = or_dict(json_dict(root, "/data/updates/state.json"));
     let quiet = match update.get("state") {
-        None | Some(Py::None) => true,
+        None | Some(Value::Null) => true,
         Some(s) => ["Idle", "Acknowledged", "RolledBack", "Failed"]
             .iter()
-            .any(|w| s.py_eq(&Py::str(*w))),
+            .any(|w| s.eq(&Value::from(*w))),
     };
     if !quiet
         || root
@@ -180,26 +180,26 @@ fn upload_blocked(root: &Root) -> Result<Option<&'static str>, Failure> {
     }
     let power = or_dict(json_dict(root, "/run/y2/power.json"));
     let same_boot = match power.get("boot_id") {
-        None | Some(Py::None) => true,
-        Some(b) => b.py_eq(&boot),
+        None | Some(Value::Null) => true,
+        Some(b) => b.eq(&boot),
     };
     let battery = if same_boot {
         power
             .get("battery")
-            .filter(|b| b.truthy())
+            .filter(|b| filled(b))
             .cloned()
-            .unwrap_or(Py::dict())
+            .unwrap_or(object())
     } else {
-        Py::dict()
+        object()
     };
-    if !battery.is_dict() {
+    if !battery.is_object() {
         return Err(Failure::value(POWER_UNREADABLE));
     }
-    let charging = matches!(battery.get("charging"), Some(Py::Bool(true)))
+    let charging = matches!(battery.get("charging"), Some(Value::Bool(true)))
         || battery
             .get("status")
-            .is_some_and(|s| s.py_eq(&Py::str("Charging")) || s.py_eq(&Py::str("Full")));
-    let percent = battery.get("percent").and_then(Py::as_int);
+            .is_some_and(|s| s.eq(&Value::from("Charging")) || s.eq(&Value::from("Full")));
+    let percent = battery.get("percent").and_then(Value::as_i64);
     if !charging && percent.is_none_or(|p| p < MINIMUM_PERCENT) {
         return Ok(Some("battery_low"));
     }
@@ -208,14 +208,14 @@ fn upload_blocked(root: &Root) -> Result<Option<&'static str>, Failure> {
 
 /// `_queued_index(path)`: report.json of a queued report (the first member: only it is
 /// decompressed).
-fn queued_index(data: &[u8]) -> Option<Py> {
+fn queued_index(data: &[u8]) -> Option<Value> {
     let members = tarball::members(data, true, 1, |m| m.name == "report.json").ok()?;
     let (member, body) = members.into_iter().next()?;
     if member.name != "report.json" {
         return None;
     }
     // Any JSON value: one that is no dict is an AttributeError at its first `.get`.
-    pyjson::loads_bytes(&body?)
+    loads_bytes(&body?)
 }
 
 /// `report upload`: send every queued report that is due, oldest first.
@@ -232,13 +232,13 @@ pub fn upload(
     root: &Root,
     progress: Option<&build::Progress>,
     first: Option<&str>,
-) -> Result<Py, Failure> {
+) -> Result<Value, Failure> {
     let _lease = crate::commands::workload::Lease::take(root, "NetworkTransfer")?;
     let now = wall(root);
     if let Some(blocked) = upload_blocked(root)? {
-        return Ok(Py::dict()
-            .with("uploaded", Py::List(Vec::new()))
-            .with("reason", Py::str(blocked)));
+        return Ok(object()
+            .with("uploaded", Value::Array(Vec::new()))
+            .with("reason", Value::from(blocked)));
     }
     let directory = root.path(QUEUE);
     mkdir_parents(&directory, 0o700)?;
@@ -246,16 +246,16 @@ pub fn upload(
     let Some(_lock) =
         y2p_core::lock::try_exclusive(&lock_path).map_err(|e| super::os(e, &lock_path))?
     else {
-        return Ok(Py::dict()
-            .with("uploaded", Py::List(Vec::new()))
-            .with("reason", Py::str("busy")));
+        return Ok(object()
+            .with("uploaded", Value::Array(Vec::new()))
+            .with("reason", Value::from("busy")));
     };
     // The key once more, under the lock (upload_blocked read it first): a key gone meanwhile is the
     // same answer as no key.
     let Some(key) = state::upload_key(root) else {
-        return Ok(Py::dict()
-            .with("uploaded", Py::List(Vec::new()))
-            .with("reason", Py::str("no_upload_key")));
+        return Ok(object()
+            .with("uploaded", Value::Array(Vec::new()))
+            .with("reason", Value::from("no_upload_key")));
     };
     upload_queue(root, now, &key, progress, first)
 }
@@ -263,7 +263,7 @@ pub fn upload(
 /// What one queued report's run came to: an item of the answer's `uploaded`.
 enum Uploaded {
     /// Stored: the receiver's own report ID (any JSON it answered, `null` without one).
-    Sent { report_id: Py },
+    Sent { report_id: Value },
     /// Gone from the queue without being stored.
     Dropped { reason: String },
     /// Still queued until `next`.
@@ -271,19 +271,19 @@ enum Uploaded {
 }
 
 impl Uploaded {
-    fn item(self, name: String) -> Py {
-        let item = Py::dict().with("name", Py::Str(name));
+    fn item(self, name: String) -> Value {
+        let item = object().with("name", Value::String(name));
         match self {
             Uploaded::Sent { report_id } => item
-                .with("outcome", Py::str("sent"))
+                .with("outcome", Value::from("sent"))
                 .with("report_id", report_id),
             Uploaded::Dropped { reason } => item
-                .with("outcome", Py::str("dropped"))
-                .with("reason", Py::Str(reason)),
+                .with("outcome", Value::from("dropped"))
+                .with("reason", Value::String(reason)),
             Uploaded::Retry { reason, next } => item
-                .with("outcome", Py::str("retry"))
-                .with("reason", Py::Str(reason))
-                .with("next", Py::Float(next)),
+                .with("outcome", Value::from("retry"))
+                .with("reason", Value::String(reason))
+                .with("next", Value::from(next)),
         }
     }
 }
@@ -291,19 +291,19 @@ impl Uploaded {
 /// A queued report's retry record (`uploads[name]`).
 struct Retry {
     /// Tries so far: a count, of the type it was read as (an int stays an int).
-    attempts: Py,
+    attempts: Value,
     /// When it may go again (wall clock).
     next: f64,
     /// Why the last try failed (`HTTP_503`, an exception class).
     error: String,
 }
 
-impl From<Retry> for Py {
-    fn from(retry: Retry) -> Py {
-        Py::dict()
+impl From<Retry> for Value {
+    fn from(retry: Retry) -> Value {
+        object()
             .with("attempts", retry.attempts)
-            .with("next", Py::Float(retry.next))
-            .with("error", Py::Str(retry.error))
+            .with("next", Value::from(retry.next))
+            .with("error", Value::String(retry.error))
     }
 }
 
@@ -312,28 +312,28 @@ impl From<Retry> for Py {
 /// one that is no object is refused.
 fn settle(
     value: &mut Reports,
-    index: &Py,
+    index: &Value,
     outcome: &str,
-    fields: Vec<(&str, Py)>,
+    fields: Vec<(&str, Value)>,
 ) -> Result<(), Failure> {
     let last = or_dict(value.field("last"));
     let shown = pyops::get(&last, "report_id").or_refuse(STATE_UNREADABLE)?;
     if !shown
-        .unwrap_or(&Py::None)
-        .py_eq(index.get("report_id").unwrap_or(&Py::None))
+        .unwrap_or(&Value::Null)
+        .eq(index.get("report_id").unwrap_or(&Value::Null))
     {
         return Ok(());
     }
-    let Py::Dict(items) = last else {
+    let Value::Object(items) = last else {
         return Ok(()); // an object (pyops::get)
     };
-    let mut kept = Py::Dict(
+    let mut kept = Value::Object(
         items
             .into_iter()
             .filter(|(k, _)| k != "reason" && k != "next_attempt")
             .collect(),
     );
-    kept.set("state", Py::str(outcome));
+    kept.set("state", Value::from(outcome));
     for (k, v) in fields {
         kept.set(k, v);
     }
@@ -347,7 +347,7 @@ fn upload_queue(
     key: &str,
     progress: Option<&build::Progress>,
     first: Option<&str>,
-) -> Result<Py, Failure> {
+) -> Result<Value, Failure> {
     let mut value = Reports::load(root);
     let mut queued = state::queued(root);
     queued.sort_by_key(|p| {
@@ -357,30 +357,30 @@ fn upload_queue(
     let names: Vec<String> = queued.iter().map(|p| state::name(p)).collect();
     let mut connected = false;
     // The retries of reports still queued (an entry that is no object is forgotten).
-    let mut retries: Vec<(String, Py)> = match value.uploads() {
-        Py::Dict(items) => items
+    let mut retries: Vec<(String, Value)> = match value.uploads() {
+        Value::Object(items) => items
             .iter()
-            .filter(|(name, entry)| entry.is_dict() && names.contains(name))
-            .cloned()
+            .filter(|(name, entry)| entry.is_object() && names.contains(name))
+            .map(|(name, entry)| (name.clone(), entry.clone()))
             .collect(),
         _ => Vec::new(),
     };
     let mut results = Vec::new();
-    let entry_of = |retries: &[(String, Py)], name: &str| {
+    let entry_of = |retries: &[(String, Value)], name: &str| {
         retries
             .iter()
             .find(|(n, _)| n == name)
             .map(|(_, e)| e.clone())
-            .unwrap_or(Py::dict())
+            .unwrap_or(object())
     };
     let drop_retry =
-        |retries: &mut Vec<(String, Py)>, name: &str| retries.retain(|(n, _)| n != name);
+        |retries: &mut Vec<(String, Value)>, name: &str| retries.retain(|(n, _)| n != name);
     for path in &queued {
         let name = state::name(path);
         let entry = entry_of(&retries, &name);
         // `entry.get('next', 0) > now`.
-        let next = entry.get("next").cloned().unwrap_or(Py::int(0));
-        let (next, now_) = pyops::ordered(&next, &Py::Float(now)).or_refuse(STATE_UNREADABLE)?;
+        let next = entry.get("next").cloned().unwrap_or(Value::from(0));
+        let (next, now_) = pyops::ordered(&next, &Value::from(now)).or_refuse(STATE_UNREADABLE)?;
         if next > now_ && !connected {
             continue;
         }
@@ -391,7 +391,7 @@ fn upload_queue(
         };
         let read = std::fs::read(path).ok();
         let index = read.as_deref().and_then(queued_index);
-        if index.as_ref().is_some_and(|i| !i.is_dict()) {
+        if index.as_ref().is_some_and(|i| !i.is_object()) {
             return Err(Failure::value(QUEUED_UNREADABLE));
         }
         let (Some(index), Some(data)) = (index, read) else {
@@ -402,7 +402,7 @@ fn upload_queue(
         };
         let made = index
             .get("created_utc")
-            .and_then(Py::as_str)
+            .and_then(Value::as_str)
             .and_then(clock::fromisoformat)
             .or_else(|| {
                 use std::os::unix::fs::MetadataExt;
@@ -418,7 +418,7 @@ fn upload_queue(
                 &mut value,
                 &index,
                 "dropped",
-                vec![("reason", Py::str("expired"))],
+                vec![("reason", Value::from("expired"))],
             )?;
             let reason = "expired".into();
             results.push(Uploaded::Dropped { reason }.item(name));
@@ -438,12 +438,12 @@ fn upload_queue(
                     &mut value,
                     &index,
                     "sent",
-                    vec![("sent_utc", Py::Str(sent))],
+                    vec![("sent_utc", Value::String(sent))],
                 )?;
                 let report_id = answer
                     .ok()
                     .and_then(|a| a.get("report_id").cloned())
-                    .unwrap_or(Py::None);
+                    .unwrap_or(Value::Null);
                 results.push(Uploaded::Sent { report_id }.item(name));
             }
             (Some(code), answer) if REFUSED.contains(&code) => {
@@ -452,22 +452,22 @@ fn upload_queue(
                 let error = answer
                     .ok()
                     .and_then(|a| a.get("error").cloned())
-                    .map_or_else(String::new, |e| py_str(&e));
+                    .map_or_else(String::new, |e| text_of(&e));
                 let reason = format!("refused_{code}_{error}");
                 settle(
                     &mut value,
                     &index,
                     "dropped",
-                    vec![("reason", Py::Str(reason.clone()))],
+                    vec![("reason", Value::String(reason.clone()))],
                 )?;
                 results.push(Uploaded::Dropped { reason }.item(name));
             }
             (status, answer) => {
                 // `entry.get('attempts', 0) + 1` (after the request: a refusal leaves the
                 // report queued and reports.json as it was).
-                let attempts = pyops::add_int(entry.get("attempts").unwrap_or(&Py::int(0)), 1)
+                let attempts = pyops::add_int(entry.get("attempts").unwrap_or(&Value::from(0)), 1)
                     .or_refuse(STATE_UNREADABLE)?;
-                let tries = attempts.number().unwrap_or(0.0);
+                let tries = attempts.as_f64().unwrap_or(0.0);
                 let next = if status == Some(429) {
                     clock::next_midnight(now)
                 } else {
@@ -491,8 +491,8 @@ fn upload_queue(
                     &index,
                     "failed",
                     vec![
-                        ("reason", Py::Str(reason.clone())),
-                        ("next_attempt", Py::Float(next)),
+                        ("reason", Value::String(reason.clone())),
+                        ("next_attempt", Value::from(next)),
                     ],
                 )?;
                 results.push(Uploaded::Retry { reason, next }.item(name));
@@ -502,34 +502,37 @@ fn upload_queue(
             }
         }
     }
-    value.set("uploads", Py::Dict(retries));
+    value.set("uploads", Value::Object(retries.into_iter().collect()));
     value.save(root)?;
-    Ok(Py::dict().with("uploaded", Py::List(results)))
+    Ok(object().with("uploaded", Value::Array(results)))
 }
 
 /// `upload` for callers whose own work must not fail with it (a
 /// queued report stays queued): a sleep in progress, a refusal or an I/O error becomes the reason
 /// (an OSError by its class).
-pub fn upload_now(root: &Root, progress: Option<&build::Progress>, first: Option<&str>) -> Py {
+pub fn upload_now(root: &Root, progress: Option<&build::Progress>, first: Option<&str>) -> Value {
     upload(root, progress, first).unwrap_or_else(|error| {
         let reason = match &error {
             Failure::Os { class, .. } | Failure::Crash { class, .. } => (*class).to_owned(),
             Failure::Value(text) => text.clone(),
         };
-        Py::dict()
-            .with("uploaded", Py::List(Vec::new()))
-            .with("reason", Py::Str(reason))
+        object()
+            .with("uploaded", Value::Array(Vec::new()))
+            .with("reason", Value::String(reason))
     })
 }
 
 /// `report send`: queue a manual report, then send it at once when it can be; otherwise it
 /// waits in the queue.
-pub fn send(root: &Root, topic: Option<&str>) -> Result<Py, Failure> {
+pub fn send(root: &Root, topic: Option<&str>) -> Result<Value, Failure> {
     let progress = build::Progress::new(root, None);
     let result = (|| {
         let mut result = queue(root, &["manual".to_owned()], "", topic, &progress)?;
-        if matches!(result.get("queued"), Some(Py::Bool(true))) {
-            let name = result.get("name").and_then(Py::as_str).map(str::to_owned);
+        if matches!(result.get("queued"), Some(Value::Bool(true))) {
+            let name = result
+                .get("name")
+                .and_then(Value::as_str)
+                .map(str::to_owned);
             let upload = upload_now(root, Some(&progress), name.as_deref());
             result.set("upload", upload);
         }
@@ -552,8 +555,8 @@ mod tests {
         let (status, value) = answer(&outcome);
         assert_eq!(status, Some(201));
         let value = value.unwrap();
-        assert_eq!(value.get("report_id"), Some(&Py::str("r")));
-        assert_eq!(value.get("bytes").and_then(Py::as_int), Some(100_000));
+        assert_eq!(value.get("report_id"), Some(&Value::from("r")));
+        assert_eq!(value.get("bytes").and_then(Value::as_i64), Some(100_000));
         let failed = stream(
             &[
                 "/bin/sh",
@@ -574,7 +577,7 @@ mod tests {
         let (status, value) = answer(&refused);
         assert_eq!(
             (status, value.unwrap().get("error").cloned()),
-            (Some(400), Some(Py::str("bad_trigger")))
+            (Some(400), Some(Value::from("bad_trigger")))
         );
     }
 }

@@ -722,7 +722,7 @@
       "uname": ""
      },
      {
-      "data": "{\"title\": \"<title>\", \"n\": 1}\n{\"ssid\": [\"<ssid>\"]}\nnot json <music#5>\n",
+      "data": "{\"title\": \"<title>\", \"n\": 1}\n{\"ssid\":[\"<ssid>\"]}\nnot json <music#5>\n",
       "gname": "",
       "mode": "0o600",
       "name": "files/data/reborn/logs/events.jsonl",

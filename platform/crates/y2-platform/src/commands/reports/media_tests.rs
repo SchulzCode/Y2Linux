@@ -2,7 +2,8 @@
 //! test_report_upload.py): no opt-in, mounted writable storage only, never through a link.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::*;
-use crate::commands::reports::{pyjson, test_player as player};
+use crate::commands::reports::test_player as player;
+use crate::commands::reports::{loads_bytes, Value};
 use crate::testing::Fixture;
 
 fn setup() -> Fixture {
@@ -11,7 +12,7 @@ fn setup() -> Fixture {
     fixture
 }
 
-fn destinations(root: &Root) -> Py {
+fn destinations(root: &Root) -> Value {
     state::status(root)
         .unwrap()
         .get("destinations")
@@ -19,16 +20,16 @@ fn destinations(root: &Root) -> Py {
         .unwrap()
 }
 
-fn names(list: &[&str]) -> Py {
-    Py::List(list.iter().map(|n| Py::str(*n)).collect())
+fn names(list: &[&str]) -> Value {
+    Value::Array(list.iter().map(|n| Value::from(*n)).collect())
 }
 
-fn save(root: &Root, destination: &str, topic: Option<&str>) -> Py {
+fn save(root: &Root, destination: &str, topic: Option<&str>) -> Value {
     save_to(root, destination, topic, &build::Progress::quiet()).unwrap()
 }
 
-fn text(value: &Py, key: &str) -> String {
-    value.get(key).and_then(Py::as_str).unwrap().to_owned()
+fn text(value: &Value, key: &str) -> String {
+    value.get(key).and_then(Value::as_str).unwrap().to_owned()
 }
 
 #[test]
@@ -38,7 +39,7 @@ fn a_report_is_saved_onto_mounted_storage_without_opting_in() {
     assert_eq!(destinations(root), names(&[]));
     assert_eq!(
         save(root, "sd", Some("battery")).get("reason"),
-        Some(&Py::str("not_mounted"))
+        Some(&Value::from("not_mounted"))
     );
     player::mount(
         fixture.base(),
@@ -53,10 +54,10 @@ fn a_report_is_saved_onto_mounted_storage_without_opting_in() {
         status.get("destinations"),
         Some(&names(&["internal", "sd"]))
     );
-    assert_eq!(status.get("upload"), Some(&Py::Bool(false))); // no upload key in this tree
+    assert_eq!(status.get("upload"), Some(&Value::Bool(false))); // no upload key in this tree
     let first = save(root, "sd", Some("battery"));
     let second = save(root, "sd", Some("battery"));
-    assert_eq!(first.get("saved"), Some(&Py::Bool(true)));
+    assert_eq!(first.get("saved"), Some(&Value::Bool(true)));
     let shape = regex::Regex::new(r"^Error Reports/y2linux-report-\d{8}-\d{6}\.tar\.gz$").unwrap();
     assert!(shape.is_match(&text(&first, "file")), "{first:?}");
     let folder = fixture.path("/media/sd/Error Reports");
@@ -76,7 +77,7 @@ fn a_report_is_saved_onto_mounted_storage_without_opting_in() {
     assert_eq!(two, format!("{}-2.tar.gz", &one[..one.len() - 7]));
     let data = std::fs::read(fixture.path("/media/sd").join(text(&first, "file"))).unwrap();
     let everything = player::members(&data);
-    let index = pyjson::loads_bytes(&everything["report.json"]).unwrap();
+    let index = loads_bytes(&everything["report.json"]).unwrap();
     assert_eq!(
         (
             index.get("trigger"),
@@ -84,9 +85,9 @@ fn a_report_is_saved_onto_mounted_storage_without_opting_in() {
             index.get("install_id")
         ),
         (
-            Some(&Py::str("manual")),
-            Some(&Py::str("battery")),
-            Some(&Py::None)
+            Some(&Value::from("manual")),
+            Some(&Value::from("battery")),
+            Some(&Value::Null)
         )
     );
     player::assert_no_canary(&everything);
@@ -100,8 +101,8 @@ fn a_report_is_saved_onto_mounted_storage_without_opting_in() {
         ("saved".to_owned(), "sd".to_owned(), text(&second, "file"))
     );
     let status = state::status(root).unwrap();
-    assert_eq!(status.get("enabled"), Some(&Py::None)); // saving is not an answer to the question
-    assert_eq!(status.get("queued"), Some(&Py::List(Vec::new()))); // and queues nothing
+    assert_eq!(status.get("enabled"), Some(&Value::Null)); // saving is not an answer to the question
+    assert_eq!(status.get("queued"), Some(&Value::Array(Vec::new()))); // and queues nothing
     state::set_enabled(root, true).unwrap();
     let saved = save(root, "internal", None);
     assert!(!fixture.exists("/media/internal/Error Reports"));
@@ -111,7 +112,7 @@ fn a_report_is_saved_onto_mounted_storage_without_opting_in() {
             .join(text(&saved, "file")),
     )
     .unwrap();
-    let index = pyjson::loads_bytes(&player::members(&data)["report.json"]).unwrap();
+    let index = loads_bytes(&player::members(&data)["report.json"]).unwrap();
     assert_eq!(
         index.get("install_id"),
         state::status(root).unwrap().get("install_id")
@@ -126,7 +127,7 @@ fn saving_refuses_read_only_storage_and_a_folder_link() {
     assert_eq!(destinations(root), names(&[]));
     assert_eq!(
         save(root, "sd", None).get("reason"),
-        Some(&Py::str("not_mounted"))
+        Some(&Value::from("not_mounted"))
     );
     player::mount(fixture.base(), &["/media/sd"], "rw,relatime");
     let elsewhere = fixture.path("/data/elsewhere");
@@ -134,7 +135,7 @@ fn saving_refuses_read_only_storage_and_a_folder_link() {
     std::os::unix::fs::symlink(&elsewhere, fixture.path("/media/sd/Error Reports")).unwrap();
     assert_eq!(
         save(root, "sd", None).get("reason"),
-        Some(&Py::str("write_failed"))
+        Some(&Value::from("write_failed"))
     );
     assert_eq!(std::fs::read_dir(&elsewhere).unwrap().count(), 0);
     let refused = save_to(root, "usb", None, &build::Progress::quiet());
@@ -148,14 +149,14 @@ fn saving_shows_the_save_step_last() {
     player::mount(fixture.base(), &["/media/sd"], "rw,relatime");
     let progress = build::Progress::new(root, Some("sd"));
     let result = save_to(root, "sd", None, &progress).unwrap();
-    assert_eq!(result.get("saved"), Some(&Py::Bool(true)));
+    assert_eq!(result.get("saved"), Some(&Value::Bool(true)));
     let shown = fixture.json(build::PROGRESS);
     assert_eq!(shown["phase"], "save");
     assert_eq!(shown["percent"], 100.0);
     assert_eq!(shown["destination"], "sd");
     assert_eq!(
         shown["bytes_total"],
-        result.get("bytes").and_then(Py::as_int).unwrap()
+        result.get("bytes").and_then(Value::as_i64).unwrap()
     );
     progress.close();
 }

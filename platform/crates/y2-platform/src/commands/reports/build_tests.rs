@@ -5,15 +5,16 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use super::*;
 use crate::commands::reports::test_player::{self as player, SSID};
+use crate::commands::reports::Value;
 use crate::testing::Fixture;
 
-fn built(root: &Root, trigger: &str, detail: &str, topic: Option<&str>) -> (Vec<u8>, Py) {
+fn built(root: &Root, trigger: &str, detail: &str, topic: Option<&str>) -> (Vec<u8>, Value) {
     build(
         root,
         &[trigger.to_owned()],
         detail,
         topic,
-        Py::str("install-1"),
+        Value::from("install-1"),
         clock::Instant::now(root),
         &Progress::quiet(),
     )
@@ -35,7 +36,7 @@ fn no_planted_secret_reaches_the_report() {
     let scrubbed = index.get("scrubbed").unwrap();
     // The detail, system.log and Reborn's log (dmesg, answered in tests/reports.rs, adds a fourth).
     assert!(
-        scrubbed.get("ssid").and_then(Py::as_int).unwrap_or(0) >= 3,
+        scrubbed.get("ssid").and_then(Value::as_i64).unwrap_or(0) >= 3,
         "{scrubbed:?}"
     );
     for name in [
@@ -123,7 +124,7 @@ fn a_huge_log_is_cut_to_the_budget() {
         &["manual".to_owned()],
         "",
         None,
-        Py::str("i"),
+        Value::from("i"),
         clock::Instant::now(&fixture.root),
         &Progress::quiet(),
     )
@@ -133,7 +134,7 @@ fn a_huge_log_is_cut_to_the_budget() {
         .get("sections")
         .and_then(|s| s.get("files/data/logs/system.log.0"))
         .unwrap();
-    assert_eq!(section.get("cut"), Some(&Py::Bool(true)));
+    assert_eq!(section.get("cut"), Some(&Value::Bool(true)));
 }
 
 #[test]

@@ -2,18 +2,19 @@
 //! signed by the hash of its exact bytes and expires after five minutes.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{
-    atomic_json, data_volume, inspect, open_data, os, private_directory, pyjson, sha256_hex, uuid4,
-    volume, Failure, Py, Root, Style, LASTFM, SCOPES, SETTINGS,
+    atomic_json, data_volume, inspect, open_data, os, private_directory, sha256_hex, uuid4, volume,
+    Failure, Root, Value, LASTFM, SCOPES, SETTINGS,
 };
+use crate::commands::reports::{object, ValueExt};
 use crate::commands::service::update::JournalState;
 use std::io::Read;
 
-fn services(scope: &str) -> Vec<Py> {
+fn services(scope: &str) -> Vec<Value> {
     let mut value = vec!["S90reborn", "S42y2-readiness"];
     if matches!(scope, "network" | "bluetooth-bonds" | "full-user") {
         value.extend(["S41y2-connectivity", "S40bluetoothd"]);
     }
-    value.into_iter().map(Py::from).collect()
+    value.into_iter().map(Value::from).collect()
 }
 
 /// `Path(token).name`.
@@ -26,7 +27,7 @@ fn base_name(token: &str) -> &str {
 
 /// The processes using the scope's data: their actual command lines (not stale PID files),
 /// supervision owners included.
-pub(super) fn busy(root: &Root, scope: &str) -> Result<Vec<Py>, Failure> {
+pub(super) fn busy(root: &Root, scope: &str) -> Result<Vec<Value>, Failure> {
     let mut needles = vec![
         "reborn",
         "reborn-supervise",
@@ -90,7 +91,7 @@ pub(super) fn busy(root: &Root, scope: &str) -> Result<Vec<Py>, Failure> {
 
 /// `int(name)` of a /proc entry name (whitespace around and single underscores between digits
 /// allowed, any size), or its ValueError.
-fn pid(name: &str) -> Result<Py, Failure> {
+fn pid(name: &str) -> Result<Value, Failure> {
     let text = y2p_core::root::python_strip(name);
     let digits = text.strip_prefix('+').unwrap_or(text);
     let valid = !digits.is_empty()
@@ -103,9 +104,13 @@ fn pid(name: &str) -> Result<Py, Failure> {
     }
     let digits = digits.replace('_', "");
     let trimmed = digits.trim_start_matches('0');
-    Ok(Py::Int(
-        if trimmed.is_empty() { "0" } else { trimmed }.to_owned(),
-    ))
+    if trimmed.is_empty() {
+        return Ok(Value::from(0));
+    }
+    trimmed
+        .parse::<u64>()
+        .map(Value::from)
+        .map_err(|_| Failure::int_literal(name))
 }
 
 fn child_paths(root: &Root, relative: &str) -> Result<Vec<String>, Failure> {
@@ -175,12 +180,16 @@ fn paths(root: &Root, scope: &str) -> Result<Vec<String>, Failure> {
     })
 }
 
-pub(super) fn confirmation(value: &Py) -> String {
-    sha256_hex(pyjson::dumps(value, Style::Compact).as_bytes())
+pub(super) fn confirmation(value: &Value) -> String {
+    sha256_hex(
+        y2p_core::json::python_dumps_sorted(value, y2p_core::json::Separators::Compact)
+            .unwrap_or_default()
+            .as_bytes(),
+    )
 }
 
 /// `reset plan`: the targets of a scope and their identities, once their consumers stopped.
-pub(super) fn plan(root: &Root, scope: Option<&str>) -> Result<Py, Failure> {
+pub(super) fn plan(root: &Root, scope: Option<&str>) -> Result<Value, Failure> {
     let scope = scope
         .filter(|s| SCOPES.contains(s))
         .ok_or_else(|| Failure::value("unknown_reset_scope"))?;
@@ -197,7 +206,7 @@ pub(super) fn plan(root: &Root, scope: Option<&str>) -> Result<Py, Failure> {
         ));
     }
     let live = busy(root, scope)?;
-    let preserved: Vec<Py> = [
+    let preserved: Vec<Value> = [
         "SSH identity",
         "entropy",
         "update/rollback",
@@ -206,20 +215,20 @@ pub(super) fn plan(root: &Root, scope: Option<&str>) -> Result<Py, Failure> {
         "Y2Media internal music (/media/internal; delete files over MTP)",
     ]
     .into_iter()
-    .map(Py::from)
+    .map(Value::from)
     .collect();
-    let requirements = |value: Py| {
+    let requirements = |value: Value| {
         value
-            .with("stop_services", Py::List(services(scope)))
-            .with("restart", Py::str("owner reboot after completion"))
-            .with("preserved", Py::List(preserved.clone()))
+            .with("stop_services", Value::Array(services(scope)))
+            .with("restart", Value::from("owner reboot after completion"))
+            .with("preserved", Value::Array(preserved.clone()))
     };
     if !live.is_empty() {
         return Ok(requirements(
-            Py::dict()
-                .with("state", Py::str("NeedsQuiescence"))
-                .with("scope", Py::str(scope))
-                .with("pids", Py::List(live)),
+            object()
+                .with("state", Value::from("NeedsQuiescence"))
+                .with("scope", Value::from(scope))
+                .with("pids", Value::Array(live)),
         ));
     }
     let data = open_data(root)?;
@@ -227,30 +236,30 @@ pub(super) fn plan(root: &Root, scope: Option<&str>) -> Result<Py, Failure> {
     for path in paths(root, scope)? {
         if let Some(meta) = inspect(&data, &path)? {
             targets.push(
-                Py::dict()
-                    .with("path", Py::Str(path))
+                object()
+                    .with("path", Value::String(path))
                     .with("identity", meta),
             );
         }
     }
     drop(data);
     let mut value = requirements(
-        Py::dict()
-            .with("schema", Py::int(1))
-            .with("id", Py::Str(uuid4()?.replace('-', "")))
-            .with("state", Py::str("Planned"))
-            .with("scope", Py::str(scope))
-            .with("boot_id", root.boot_id().into())
-            .with("data_generation", volume.generation.clone().into())
-            .with("data_uuid", volume.uuid.clone().into())
+        object()
+            .with("schema", Value::from(1))
+            .with("id", Value::String(uuid4()?.replace('-', "")))
+            .with("state", Value::from("Planned"))
+            .with("scope", Value::from(scope))
+            .with("boot_id", Value::from(root.boot_id()))
+            .with("data_generation", Value::from(volume.generation.clone()))
+            .with("data_uuid", Value::from(volume.uuid.clone()))
             .with(
                 "expires_monotonic_s",
-                Py::Float(root.clock().monotonic() + 300.0),
+                Value::from(root.clock().monotonic() + 300.0),
             )
-            .with("targets", Py::List(targets)),
+            .with("targets", Value::Array(targets)),
     );
     let signature = confirmation(&value);
-    value.set("confirmation", Py::Str(signature));
+    value.set("confirmation", Value::String(signature));
     let platform = root.path("/data/system/platform");
     private_directory(&platform)?;
     atomic_json(&platform.join("reset-plan.json"), &value, true)?;

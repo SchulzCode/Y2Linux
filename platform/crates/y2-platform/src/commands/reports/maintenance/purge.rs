@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{
     data_volume, fstat, fsync, open_data, open_directory, os_name, pyops, regular_bytes, stat_at,
-    text, CString, Failure, Lease, OwnedFd, Py, Root,
+    text, CString, Failure, Lease, OwnedFd, Root, Value,
 };
+use crate::commands::reports::{object, ValueExt};
 use std::os::fd::AsFd;
 
 /// The names in a directory, in readdir order (`os.scandir(fd)`).
@@ -21,7 +22,7 @@ fn three_digits(name: &str) -> bool {
 
 /// `reset purge`: delete a completed reset's quarantine (a Maintenance workload), at most 256
 /// entries or 8 s per call.
-pub(super) fn purge(root: &Root, token: &str, confirm: Option<&str>) -> Result<Py, Failure> {
+pub(super) fn purge(root: &Root, token: &str, confirm: Option<&str>) -> Result<Value, Failure> {
     let id_ok = token.len() == 32
         && token
             .bytes()
@@ -38,14 +39,15 @@ pub(super) fn purge(root: &Root, token: &str, confirm: Option<&str>) -> Result<P
     // `json.loads(...)` (its JSONDecodeError is a Failed answer); a record that is no object is
     // refused.
     let record = pyops::loads(&regular_bytes(&top, "record.json", 16384)?)?;
-    if !record.is_dict() {
+    if !record.is_object() {
         return Err(Failure::value("reset_record_unreadable"));
     }
-    if !record.get("id").is_some_and(|v| v.py_eq(&Py::str(token)))
+    if !record.get("id").is_some_and(|v| v.eq(&Value::from(token)))
         || !record
             .get("state")
-            .is_some_and(|v| v.py_eq(&Py::str("Complete")))
-        || !text(record.get("purge_confirmation")).py_eq(&confirm.map(Py::str).unwrap_or(Py::None))
+            .is_some_and(|v| v.eq(&Value::from("Complete")))
+        || !text(record.get("purge_confirmation"))
+            .eq(&confirm.map(Value::from).unwrap_or(Value::Null))
     {
         return Err(Failure::value("completed_reset_confirmation_required"));
     }
@@ -98,15 +100,15 @@ pub(super) fn purge(root: &Root, token: &str, confirm: Option<&str>) -> Result<P
         Ok(true)
     }
     let complete = walk(clock, &top, 0, device, deadline, &mut removed)?;
-    Ok(Py::dict()
+    Ok(object()
         .with(
             "state",
-            Py::str(if complete {
+            Value::from(if complete {
                 "Complete"
             } else {
                 "MoreRemaining"
             }),
         )
-        .with("removed", Py::from(removed))
-        .with("id", Py::str(token)))
+        .with("removed", Value::from(removed))
+        .with("id", Value::from(token)))
 }

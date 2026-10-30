@@ -241,10 +241,6 @@ CASES = [
     ('report-check-fired-bad-seen', ['report', 'check'], {'commands': FIRED_COMMANDS, 'files': {
         **FIRED, STATE: state(seen=[])}}),
     ('report-check-bad-seen-quiet', ['report', 'check'], {'files': {**ENABLED, STATE: state(seen='x')}}),
-    ('report-check-fired-settings-text', ['report', 'check'], {'files': {
-        **TAINTED, SESSION_PATH: '{"model": {"settings": "ab"}}'}}),
-    ('report-check-fired-settings-number', ['report', 'check'], {'files': {
-        **TAINTED, SESSION_PATH: '{"model": {"settings": 3}}'}}),
     ('report-check-health-list', ['report', 'check'], {'files': ENABLED, 'commands': [
         answer(HEALTH, '[1]')]}),
     ('report-enable-bad-seen', ['report', 'enable'], {'patterns': [UUID], 'commands': FIRED_COMMANDS,
@@ -435,6 +431,11 @@ EXTRA_CASES = [
     ('report-send-odd-count', ['report', 'send'], {**UPLOAD, 'archives': True, 'files': {
         **READY, '/run/y2/network.json': None, STATE: state(daily={DAY: 'x'})}}),
     # dict() of a list of pairs: the settings as Python reads them.
+    # Settings that are no object show as null; the report is still made.
+    ('report-check-fired-settings-text', ['report', 'check'], {**UPLOAD, 'archives': True, 'files': {
+        **TAINTED, SESSION_PATH: '{"model": {"settings": "ab"}}'}}),
+    ('report-check-fired-settings-number', ['report', 'check'], {**UPLOAD, 'archives': True, 'files': {
+        **TAINTED, SESSION_PATH: '{"model": {"settings": 3}}'}}),
     ('report-check-settings-pairs', ['report', 'check'], {**UPLOAD, 'archives': True, 'files': {
         **TAINTED, SESSION_PATH: '{"model": {"settings": [["volume", 3], "tz"], "queue": "ab"}}'}}),
     # The saved session as json.loads reads it: its JSONDecodeError, or invalid_saved_session for a list with

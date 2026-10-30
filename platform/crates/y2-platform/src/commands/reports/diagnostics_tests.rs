@@ -3,24 +3,25 @@
 //! tails as event classes, a private archive bound to the verified /data.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::*;
+use crate::commands::reports::{loads_bytes, loads_text, object, Value, ValueExt};
 use crate::testing::{ok, Fixture};
 
-fn projected(text: &str) -> Py {
-    project(&pyjson::loads(text).unwrap(), "", 0)
+fn projected(text: &str) -> Value {
+    project(&loads_text(text).unwrap(), "", 0)
 }
 
-fn dumped(value: &Py) -> String {
-    pyjson::dumps(value, Style::Spaced)
+fn dumped(value: &Value) -> String {
+    serde_json::to_string(value).unwrap_or_default()
 }
 
-fn at<'a>(value: &'a Py, path: &[&str]) -> &'a Py {
+fn at<'a>(value: &'a Value, path: &[&str]) -> &'a Value {
     path.iter().fold(value, |v, k| {
         v.get(k).unwrap_or_else(|| panic!("{k} in {v:?}"))
     })
 }
 
-fn string(value: &str) -> Py {
-    Py::str(value)
+fn string(value: &str) -> Value {
+    Value::from(value)
 }
 
 #[test]
@@ -35,7 +36,7 @@ fn projection_and_event_excerpts_never_include_private_free_text() {
     let output = projected(&raw);
     assert!(!dumped(&output).contains(secret));
     assert!(!dumped(&output).contains("PersonalNameThatMustNeverAppear"));
-    assert_eq!(at(&output, &["nested", "temperature_c"]), &Py::int(34));
+    assert_eq!(at(&output, &["nested", "temperature_c"]), &Value::from(34));
     assert_eq!(
         at(&output, &["boot_id"]),
         &string("159f7c81-ab89-4440-bc89-df827dd8bc34")
@@ -44,13 +45,16 @@ fn projection_and_event_excerpts_never_include_private_free_text() {
         "reborn failed to open /data/music/{secret} error=-5\nwifi error password={secret} ssid=personal\n"
     )));
     assert!(!dumped(&log).contains(secret));
-    let Py::List(rows) = &log else {
+    let Value::Array(rows) = &log else {
         panic!("{log:?}")
     };
-    assert_eq!(at(&rows[0], &["errno"]), &Py::List(vec![Py::int(-5)]));
+    assert_eq!(
+        at(&rows[0], &["errno"]),
+        &Value::Array(vec![Value::from(-5)])
+    );
     assert_eq!(
         at(&rows[0], &["events"]),
-        &Py::List(vec![string("failed"), string("error")])
+        &Value::Array(vec![string("failed"), string("error")])
     );
 }
 
@@ -79,7 +83,7 @@ fn fixed_kernel_fields_keep_useful_pm_storage_usb_evidence() {
         ),
         &string("inventra_dma")
     );
-    assert_eq!(at(&result, &["product", "same_boot"]), &Py::Bool(true));
+    assert_eq!(at(&result, &["product", "same_boot"]), &Value::Bool(true));
     assert_eq!(at(&result, &["product", "state"]), &string("restored"));
     assert!(!dumped(&result).contains("owner-token"));
 }
@@ -98,14 +102,14 @@ fn codec_observation_survives_without_peer_identifiers() {
     assert_eq!(at(result, &["preferred_codec"]), &string("Auto"));
     assert_eq!(
         at(result, &["encoder", "ldac_abr_adjustments"]),
-        &Py::int(7)
+        &Value::from(7)
     );
     assert_eq!(
         at(
             result,
             &["codec_inventory", "codecs", "LDAC", "compiled_locally"]
         ),
-        &Py::Bool(true)
+        &Value::Bool(true)
     );
     assert!(!dumped(result).contains("AA:BB:CC:DD:EE:FF"));
     assert!(!dumped(result).contains("Private peer"));
@@ -130,27 +134,30 @@ fn wifi_observations_survive_without_peer_or_lease_identifiers() {
     let result = at(&result, &["wifi"]);
     assert_eq!(at(result, &["state"]), &string("Online"));
     assert_eq!(at(result, &["association"]), &string("COMPLETED"));
-    assert_eq!(at(result, &["status_query_failures"]), &Py::int(3));
+    assert_eq!(at(result, &["status_query_failures"]), &Value::from(3));
     assert_eq!(
         at(result, &["signal_observation", "reason"]),
         &string("command_timeout")
     );
     assert_eq!(
         at(result, &["signal_observation", "monotonic_s"]),
-        &Py::Float(100.0)
+        &Value::from(100.0)
     );
-    assert_eq!(at(result, &["events", "real_disconnects"]), &Py::int(1));
-    assert_eq!(at(result, &["events", "reconnects"]), &Py::int(2));
+    assert_eq!(at(result, &["events", "real_disconnects"]), &Value::from(1));
+    assert_eq!(at(result, &["events", "reconnects"]), &Value::from(2));
     assert_eq!(
         at(result, &["events", "association_active"]),
-        &Py::Bool(true)
+        &Value::Bool(true)
     );
     assert_eq!(
         at(result, &["power_save", "requested_driver_profile"]),
         &string("CAM")
     );
-    assert_eq!(at(result, &["power_save", "applied"]), &Py::Bool(false));
-    assert_eq!(at(result, &["traffic_counters", "rx_errors"]), &Py::int(0));
+    assert_eq!(at(result, &["power_save", "applied"]), &Value::Bool(false));
+    assert_eq!(
+        at(result, &["traffic_counters", "rx_errors"]),
+        &Value::from(0)
+    );
     for private in [peer, "192.0.2.2", "private-lease"] {
         assert!(!dumped(result).contains(private), "{private}");
     }
@@ -160,7 +167,7 @@ fn wifi_observations_survive_without_peer_or_lease_identifiers() {
         "requested_driver_profile",
         "status_query_failures",
     ] {
-        let value = Py::dict().with(key, string("Private peer"));
+        let value = object().with(key, string("Private peer"));
         assert_eq!(at(&project(&value, "", 0), &[key]), &string("[redacted]"));
     }
     assert_eq!(
@@ -200,7 +207,7 @@ fn answering(root: &Root) -> Root {
     )])
 }
 
-fn exported(root: &Root) -> Result<Py, Failure> {
+fn exported(root: &Root) -> Result<Value, Failure> {
     export_inner(&answering(root))
 }
 
@@ -226,7 +233,7 @@ fn archive_is_private_projected_and_mount_bound() {
         return;
     }
     let result = exported(root).unwrap();
-    let path = root.path(result.get("path").and_then(Py::as_str).unwrap());
+    let path = root.path(result.get("path").and_then(Value::as_str).unwrap());
     assert_eq!(
         std::fs::metadata(&path).unwrap().permissions().mode() & 0o777,
         0o600
@@ -234,9 +241,9 @@ fn archive_is_private_projected_and_mount_bound() {
     let members = tarball::members(&std::fs::read(&path).unwrap(), true, 64, |_| true).unwrap();
     let member_names: Vec<&str> = members.iter().map(|(m, _)| m.name.as_str()).collect();
     assert_eq!(member_names, ["diagnostics.json"]);
-    let bundle = pyjson::loads_bytes(members[0].1.as_deref().unwrap()).unwrap();
-    assert_eq!(bundle.get("redacted"), Some(&Py::Bool(true)));
-    assert_eq!(result.get("redacted"), Some(&Py::Bool(true)));
+    let bundle = loads_bytes(members[0].1.as_deref().unwrap()).unwrap();
+    assert_eq!(bundle.get("redacted"), Some(&Value::Bool(true)));
+    assert_eq!(result.get("redacted"), Some(&Value::Bool(true)));
     // Bound to the verified /data: without it nothing is written.
     fixture.put(
         "/proc/self/mountinfo",
@@ -278,26 +285,26 @@ fn shared_public_observations_survive_without_private_values() {
                       "supported_modes": [{{"meaningful_bits": 16, "i2s_slot_bits": 32}}]}}}},
             "spm": "suspend_restore_failures=0 private=secret"}}"#
     ));
-    let Py::List(devices) = at(&result, &["bluetooth", "devices"]) else {
+    let Value::Array(devices) = at(&result, &["bluetooth", "devices"]) else {
         panic!("{result:?}")
     };
-    assert_eq!(at(&devices[0], &["bonded"]), &Py::Bool(true));
+    assert_eq!(at(&devices[0], &["bonded"]), &Value::Bool(true));
     assert_eq!(
         at(&result, &["wifi", "signal_observation", "reason"]),
         &string("command_timeout")
     );
     let usb = at(&result, &["system", "usb", "file_transfer"]);
     assert_eq!(at(usb, &["schema"]), &string("org.y2linux.usb-transfer/v1"));
-    assert_eq!(at(usb, &["refresh_generation"]), &Py::int(23));
-    assert_eq!(at(usb, &["active"]), &Py::Bool(true));
-    let Py::List(views) = at(usb, &["views"]) else {
+    assert_eq!(at(usb, &["refresh_generation"]), &Value::from(23));
+    assert_eq!(at(usb, &["active"]), &Value::Bool(true));
+    let Value::Array(views) = at(usb, &["views"]) else {
         panic!("{usb:?}")
     };
     assert_eq!(at(&views[0], &["name"]), &string("SD Card"));
     assert_eq!(at(&result, &["sleep", "state"]), &string("waking"));
     assert_eq!(
         at(&result, &["audio", "pcm_contract", "physical_bit_capture"]),
-        &Py::Bool(false)
+        &Value::Bool(false)
     );
     assert_eq!(
         at(&result, &["spm", "suspend_restore_failures"]),
@@ -314,15 +321,15 @@ fn bond_records_and_unknown_strings_remain_private() {
         "[true]",
         "1",
     ] {
-        let raw = Py::dict().with("bonded", pyjson::loads(value).unwrap());
+        let raw = object().with("bonded", loads_text(value).unwrap());
         assert_eq!(
             at(&project(&raw, "", 0), &["bonded"]),
             &string("[redacted]")
         );
     }
     for value in [false, true] {
-        let raw = Py::dict().with("bonded", Py::Bool(value));
-        assert_eq!(at(&project(&raw, "", 0), &["bonded"]), &Py::Bool(value));
+        let raw = object().with("bonded", Value::Bool(value));
+        assert_eq!(at(&project(&raw, "", 0), &["bonded"]), &Value::Bool(value));
     }
     assert_eq!(
         at(
@@ -344,15 +351,15 @@ const PCM_CONTRACT: [&str; 3] = [
 #[test]
 fn idle_configured_and_running_driver_contract() {
     for line in PCM_CONTRACT {
-        let row = pyjson::loads(line).unwrap();
-        let raw = Py::dict().with("audio", Py::dict().with("pcm_contract", row.clone()));
+        let row = loads_text(line).unwrap();
+        let raw = object().with("audio", object().with("pcm_contract", row.clone()));
         let exported = project(&raw, "", 0);
         let exported = at(&exported, &["audio", "pcm_contract"]);
         assert!(
-            at(exported, &["current"]).py_eq(at(&row, &["current"])),
+            at(exported, &["current"]).eq(at(&row, &["current"])),
             "{exported:?}"
         );
-        assert!(at(exported, &["supported_modes"]).py_eq(at(&row, &["supported_modes"])));
+        assert!(at(exported, &["supported_modes"]).eq(at(&row, &["supported_modes"])));
         assert_eq!(at(exported, &["evidence"]), &string("driver_contract"));
     }
 }

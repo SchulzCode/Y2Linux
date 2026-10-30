@@ -68,12 +68,12 @@ fn answers(schema: i64) -> Vec<(Vec<String>, y2p_core::command::Outcome)> {
     ]
 }
 
-fn text<'a>(value: &'a Py, key: &str) -> &'a str {
-    value.get(key).and_then(Py::as_str).unwrap()
+fn text<'a>(value: &'a Value, key: &str) -> &'a str {
+    value.get(key).and_then(Value::as_str).unwrap()
 }
 
-fn targets(plan: &Py) -> Vec<String> {
-    let Some(Py::List(items)) = plan.get("targets") else {
+fn targets(plan: &Value) -> Vec<String> {
+    let Some(Value::Array(items)) = plan.get("targets") else {
         panic!("no targets");
     };
     items.iter().map(|t| text(t, "path").to_owned()).collect()
@@ -153,7 +153,7 @@ fn settings_reset_forgets_the_lastfm_sign_in_and_its_waiting_plays() {
     assert_eq!(targets(&plan_settings(root)), vec![SETTINGS.to_owned()]);
 }
 
-fn plan_settings(root: &Root) -> Py {
+fn plan_settings(root: &Root) -> Value {
     plan(root, Some("settings")).unwrap()
 }
 
@@ -219,7 +219,7 @@ fn interrupted_reset_resumes_after_new_boot_without_overwriting_new_files() {
     let result = execute(root, Some(confirmation), false, true).unwrap();
     assert_eq!(text(&result, "state"), "Complete");
     assert!(!fixture.exists("/data/system/platform/maintenance-pending"));
-    let Some(Py::List(completed)) = result.get("completed") else {
+    let Some(Value::Array(completed)) = result.get("completed") else {
         panic!("no completed list");
     };
     assert_eq!(completed.len(), 3);
@@ -241,7 +241,7 @@ fn private_export_uses_online_sqlite_backup_and_excludes_bonds_keys() {
         db.query(sql).unwrap();
     }
     fixture.put("/data/network/wpa_supplicant.conf", "secret test fixture");
-    let names = |result: &Py| -> (Vec<String>, tar::Archive<flate2::read::GzDecoder<fs::File>>) {
+    let names = |result: &Value| -> (Vec<String>, tar::Archive<flate2::read::GzDecoder<fs::File>>) {
         let path = fixture.path(text(result, "path"));
         let open =
             || tar::Archive::new(flate2::read::GzDecoder::new(fs::File::open(&path).unwrap()));
@@ -256,7 +256,7 @@ fn private_export_uses_online_sqlite_backup_and_excludes_bonds_keys() {
     let result = export(root, true, false).unwrap();
     assert_eq!(
         result.get("contains_network_credentials"),
-        Some(&Py::Bool(false))
+        Some(&Value::Bool(false))
     );
     assert_eq!(fixture.mode(text(&result, "path")), 0o600);
     let (listed, mut archive) = names(&result);
@@ -279,7 +279,7 @@ fn private_export_uses_online_sqlite_backup_and_excludes_bonds_keys() {
     let result = export(root, false, true).unwrap();
     assert_eq!(
         result.get("contains_network_credentials"),
-        Some(&Py::Bool(true))
+        Some(&Value::Bool(true))
     );
     assert!(names(&result)
         .0
@@ -308,6 +308,6 @@ fn symlink_never_escapes_purge_and_source_reset_refuses_symlink() {
     assert!(matches!(plan_full(root), Err(Failure::Value(_))));
 }
 
-fn plan_full(root: &Root) -> Result<Py, Failure> {
+fn plan_full(root: &Root) -> Result<Value, Failure> {
     plan(root, Some("full-user"))
 }

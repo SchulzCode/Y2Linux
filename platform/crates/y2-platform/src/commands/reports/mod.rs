@@ -22,9 +22,10 @@ mod volume;
 
 use super::Command;
 use crate::reply::{Failure, Outcome, Reply};
-use pyjson::Py;
+pub use serde_json::Value;
 pub use y2p_core::digest::sha256_hex;
 use y2p_core::json::ObjectExt;
+pub use y2p_core::json::{object, ValueExt};
 use y2p_core::Root;
 
 const SCOPES: [&str; 6] = [
@@ -134,14 +135,16 @@ fn report(root: &Root, action: &str, to: Option<&str>, topic: Option<&str>) -> O
         },
         "upload" => upload::upload(root, None, None),
         "work" => checks::run_checks(root).map(|reports| {
-            Py::dict()
+            object()
                 .with("reports", reports)
                 .with("upload", upload::upload_now(root, None, None))
         }),
-        _ => checks::run_checks(root).map(|reports| Py::dict().with("reports", reports)),
+        _ => checks::run_checks(root).map(|reports| object().with("reports", reports)),
     };
     match result {
-        Ok(value) => Ok(Reply::text(pyjson::dumps(&value, pyjson::Style::Spaced))),
+        Ok(value) => Ok(Reply::text(
+            serde_json::to_string(&value).unwrap_or_default(),
+        )),
         Err(error) => Reply::unsorted(
             &y2p_core::json::Object::new()
                 .with("failure", "report_failed")
@@ -163,24 +166,52 @@ fn reason(error: &Failure) -> &str {
 
 /// A JSON record of at most 128 KiB, read with Python's json rules (integers of any size, NaN,
 /// duplicate keys): the records were written by Python and are compared with what was read before.
-pub fn json_at(root: &Root, name: &str) -> Option<Py> {
-    pyjson::loads(&root.read(name)?)
+pub fn json_at(root: &Root, name: &str) -> Option<Value> {
+    loads_text(&root.read(name)?)
+}
+
+/// A field that holds something: not null, not false, not an empty text, list or object (a number
+/// always does).
+pub fn filled(value: &Value) -> bool {
+    match value {
+        Value::Null | Value::Bool(false) => false,
+        Value::String(text) => !text.is_empty(),
+        Value::Array(items) => !items.is_empty(),
+        Value::Object(map) => !map.is_empty(),
+        _ => true,
+    }
+}
+
+/// A JSON document, or none.
+pub fn loads_text(text: &str) -> Option<Value> {
+    serde_json::from_str(text).ok()
+}
+
+/// A JSON document of bytes, or none.
+pub fn loads_bytes(raw: &[u8]) -> Option<Value> {
+    serde_json::from_slice(raw).ok()
+}
+
+/// A value as text in markers and details kept on /data (reports.json `seen`): Python's `str()` of it,
+/// so markers recorded before compare equal (`None`, `True`, a text as it is).
+pub fn text_of(value: &Value) -> String {
+    y2p_core::pyjson::py_str(&y2p_core::pyjson::Py::from_serde(value))
 }
 
 /// A JSON record that is an object, `{}` for anything else.
-pub fn json_dict(root: &Root, name: &str) -> Py {
+pub fn json_dict(root: &Root, name: &str) -> Value {
     match json_at(root, name) {
-        Some(value @ Py::Dict(_)) => value,
-        _ => Py::dict(),
+        Some(value @ Value::Object(_)) => value,
+        _ => object(),
     }
 }
 
 /// `value or {}` of a dict default.
-pub fn or_dict(value: Py) -> Py {
-    if value.truthy() {
+pub fn or_dict(value: Value) -> Value {
+    if filled(&value) {
         value
     } else {
-        Py::dict()
+        object()
     }
 }
 

@@ -227,6 +227,40 @@ impl ObjectExt for Object {
     }
 }
 
+/// An object `Value` used as a record: set, add and take fields (on anything but an object these do
+/// nothing / give none).
+pub trait ValueExt {
+    fn set(&mut self, key: &str, value: impl Into<serde_json::Value>) -> &mut Self;
+    fn with(self, key: &str, value: impl Into<serde_json::Value>) -> Self;
+    fn take_field(&mut self, key: &str) -> Option<serde_json::Value>;
+}
+
+impl ValueExt for serde_json::Value {
+    fn set(&mut self, key: &str, value: impl Into<serde_json::Value>) -> &mut Self {
+        if let serde_json::Value::Object(map) = self {
+            map.insert(key.to_owned(), value.into());
+        }
+        self
+    }
+
+    fn with(mut self, key: &str, value: impl Into<serde_json::Value>) -> Self {
+        self.set(key, value);
+        self
+    }
+
+    fn take_field(&mut self, key: &str) -> Option<serde_json::Value> {
+        match self {
+            serde_json::Value::Object(map) => map.shift_remove(key),
+            _ => None,
+        }
+    }
+}
+
+/// An empty JSON object.
+pub fn object() -> serde_json::Value {
+    serde_json::Value::Object(Object::new())
+}
+
 /// A parsed record's object with its keys sorted, nested objects too (records are written sorted).
 pub fn sorted_object(map: &Object) -> Object {
     match sorted(serde_json::Value::Object(map.clone())) {
@@ -241,8 +275,9 @@ pub fn dumps<T: Serialize + ?Sized>(value: &T) -> serde_json::Result<String> {
 }
 
 /// Python's `json.dumps(value, sort_keys=True)` byte for byte (its separators, `ensure_ascii`, float
-/// `repr`): **only for text that is hashed into an identity kept across builds** (the SD card's media
-/// identity in sd-admissions.json and the mount claims), where a different spelling would be a different card.
+/// `repr`): **only for text that is hashed into a marker kept across builds** (the SD card's media
+/// identity in sd-admissions.json and the mount claims, the error reports' crash signatures in
+/// reports.json, the reset plan's confirmation), where a different spelling would be a different one.
 pub fn python_dumps_sorted<T: Serialize + ?Sized>(
     value: &T,
     separators: Separators,
@@ -403,5 +438,34 @@ mod tests {
             dumps_sorted(&value).unwrap(),
             "{\"boot_id\":\"b\",\"state\":\"Ready\"}"
         );
+    }
+}
+
+#[cfg(test)]
+mod python_digest_tests {
+    use super::*;
+
+    /// The digests stored on /data were made from `pyjson::dumps` of a parsed `Py` (keys sorted);
+    /// `python_dumps_sorted` of the parsed `Value` must give the same bytes.
+    #[test]
+    fn python_dumps_matches_the_py_writer() {
+        for text in [
+            r#"["boot-a", 3, null, "Crash é 😀 \"x\"\n", true, 1.5, 1e-05, 12345678901234]"#,
+            r#"{"z": 1, "a": [2.0, {"k": "v"}], "id": "0123456789abcdef", "n": -7, "f": 0.1}"#,
+            r#"[{"b": false, "a": null}, [], {}, "", 100000000000000000000.0]"#,
+        ] {
+            let py = crate::pyjson::loads(text).unwrap();
+            let value: serde_json::Value = serde_json::from_str(text).unwrap();
+            for (style, separators) in [
+                (crate::pyjson::Style::Spaced, Separators::Spaced),
+                (crate::pyjson::Style::Compact, Separators::Compact),
+            ] {
+                assert_eq!(
+                    python_dumps_sorted(&value, separators).unwrap(),
+                    crate::pyjson::dumps(&py, style),
+                    "{text}"
+                );
+            }
+        }
     }
 }

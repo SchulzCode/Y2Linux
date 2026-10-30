@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use super::*;
 use crate::commands::reports::test_player::plain;
+use crate::commands::reports::{loads_text, Value};
 use serde_json::json;
 
 fn scrubber(known: &[(&'static str, &[&str])]) -> Scrubber {
@@ -14,18 +15,15 @@ fn scrubber(known: &[(&'static str, &[&str])]) -> Scrubber {
 }
 
 /// `plain(json.dumps(value))` of a scrubbed value and of the expected one.
-fn same(scrubbed: &Py, expected: &str) {
+fn same(scrubbed: &Value, expected: &str) {
     assert_eq!(
-        plain(&pyjson::dumps(scrubbed, pyjson::Style::Spaced)),
-        plain(&pyjson::dumps(
-            &pyjson::loads(expected).unwrap(),
-            pyjson::Style::Spaced
-        ))
+        plain(&serde_json::to_string(scrubbed).unwrap_or_default()),
+        plain(&serde_json::to_string(&loads_text(expected).unwrap()).unwrap_or_default())
     );
 }
 
-fn value(text: &str) -> Py {
-    pyjson::loads(text).unwrap()
+fn value(text: &str) -> Value {
+    loads_text(text).unwrap()
 }
 
 #[test]

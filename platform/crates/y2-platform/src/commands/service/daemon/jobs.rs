@@ -4,8 +4,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{
     command, inventory, media, process, py, radiofw, reports, time, truthy, update, Child, Failure,
-    Object, Py, Root, Start, Value, PLATFORM, RECONCILE_BACKOFF_S, RECONCILE_LIMIT_S,
-    REPORT_CHECK_S, REPORT_FIRST_S, REPORT_LIMIT_S, REPORT_SEND_GAP_S, VERIFY_RETRY_S,
+    Object, Root, Start, Value, PLATFORM, RECONCILE_BACKOFF_S, RECONCILE_LIMIT_S, REPORT_CHECK_S,
+    REPORT_FIRST_S, REPORT_LIMIT_S, REPORT_SEND_GAP_S, VERIFY_RETRY_S,
 };
 
 /// `y2-platform <args>` in its own session, its standard streams on /dev/null.
@@ -195,18 +195,22 @@ pub(crate) fn next_upload(root: &Root) -> Result<Due, ()> {
     }
     let state = reports::state(root);
     let retries = state.get("uploads");
-    let values: Vec<Py> = queued
+    let values: Vec<Value> = queued
         .iter()
         .map(|name| match retries.and_then(|r| r.get(name)) {
-            Some(entry @ Py::Dict(_)) => entry.get("next").cloned().unwrap_or(Py::int(0)),
-            _ => Py::int(0),
+            Some(entry @ Value::Object(_)) => entry.get("next").cloned().unwrap_or(Value::from(0)),
+            _ => Value::from(0),
         })
         .collect();
-    if let Some(numbers) = values.iter().map(Py::number).collect::<Option<Vec<f64>>>() {
+    if let Some(numbers) = values
+        .iter()
+        .map(Value::as_f64)
+        .collect::<Option<Vec<f64>>>()
+    {
         return Ok(Due::At(numbers.into_iter().fold(f64::INFINITY, f64::min)));
     }
     match values.as_slice() {
-        [Py::None] => Ok(Due::None),
+        [Value::Null] => Ok(Due::None),
         _ => Err(()),
     }
 }
@@ -237,7 +241,7 @@ pub(super) fn error_reports(
         return Ok(run);
     }
     if reports::upload_key(root).is_none()
-        || !matches!(reports::state(root).get("enabled"), Some(Py::Bool(true)))
+        || !matches!(reports::state(root).get("enabled"), Some(Value::Bool(true)))
     {
         return Ok(run);
     }

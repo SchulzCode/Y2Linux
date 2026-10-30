@@ -1,44 +1,41 @@
 //! The report's own projections: the hardware's identity (sysfs, the bootloaders' hashes), Reborn's
 //! session without its queue, the library's counts. Never a name, title or path.
 // SPDX-License-Identifier: GPL-2.0-only
-use super::{pyjson, pyre, python_strip, rel, sha256_hex, Failure, File, Py, Root, SeekFrom};
+use super::{pyre, python_strip, rel, sha256_hex, Failure, File, Root, SeekFrom, Value};
+use crate::commands::reports::{loads_text, object, ValueExt};
 use std::io::Read;
 use std::io::Seek;
 pub use y2p_core::py::strerror;
 
 /// A JSON record of up to 16 MiB (`json_at` reads 128 KiB; Reborn's session with its whole queue is
 /// larger); `None` for `null` or no JSON.
-pub fn large_json(root: &Root, name: &str) -> Option<Py> {
+pub fn large_json(root: &Root, name: &str) -> Option<Value> {
     let text = root.read_limited(name, 16 * 1024 * 1024);
-    match pyjson::loads(text.as_deref().filter(|t| !t.is_empty()).unwrap_or("null")) {
-        Some(Py::None) | None => None,
+    match loads_text(text.as_deref().filter(|t| !t.is_empty()).unwrap_or("null")) {
+        Some(Value::Null) | None => None,
         other => other,
     }
 }
 
-fn read(root: &Root, name: &str) -> Py {
+fn read(root: &Root, name: &str) -> Value {
     root.read(name).into()
 }
 
 /// Every setting and technical playback fact of session.json; no queue entries.
-pub(super) fn session_projection(session: Option<Py>) -> Result<Py, Failure> {
-    let Some(session @ Py::Dict(_)) = session else {
-        return Ok(Py::None);
+pub(super) fn session_projection(session: Option<Value>) -> Result<Value, Failure> {
+    let Some(session @ Value::Object(_)) = session else {
+        return Ok(Value::Null);
     };
     let model = match session.get("model") {
-        Some(m @ Py::Dict(_)) => m.clone(),
-        _ => Py::dict(),
+        Some(m @ Value::Object(_)) => m.clone(),
+        _ => object(),
     };
     let queue = match model.get("queue") {
-        Some(Py::List(q)) => q.clone(),
+        Some(Value::Array(q)) => q.clone(),
         _ => Vec::new(),
     };
-    let position = model.get("queue_position").cloned().unwrap_or(Py::None);
-    let index = match &position {
-        Py::Int(_) => position.as_int(),
-        Py::Bool(b) => Some(i64::from(*b)),
-        _ => None,
-    };
+    let position = model.get("queue_position").cloned().unwrap_or(Value::Null);
+    let index = position.as_i64();
     let current = index
         .filter(|&i| 0 <= i && (i as usize) < queue.len())
         .map(|i| queue[i as usize].clone());
@@ -53,19 +50,19 @@ pub(super) fn session_projection(session: Option<Py>) -> Result<Py, Failure> {
         "online",
         "artwork",
     ];
-    // `dict(model.get('settings') or {})`: a list of pairs is a dict too; a string is Python's
-    // ValueError, anything else (a number) is refused.
-    let mut settings = super::super::pyops::to_dict(
-        model.get("settings").unwrap_or(&Py::None),
-        super::super::SESSION_UNREADABLE,
-    )?;
-    if let Some(Py::Str(zone)) = settings.get("time_zone") {
+    // Reborn writes its settings as an object; anything else shows as null (the report is still
+    // made: a broken session must not keep a crash from being reported).
+    let mut settings = match model.get("settings") {
+        Some(settings @ Value::Object(_)) => settings.clone(),
+        _ => Value::Null,
+    };
+    if let Some(Value::String(zone)) = settings.get("time_zone") {
         let set = if zone.is_empty() { "" } else { "set" };
-        settings.set("time_zone", Py::str(set));
+        settings.set("time_zone", Value::from(set));
     }
     let current_track = match current {
-        Some(track @ Py::Dict(_)) => {
-            let mut out = Py::dict();
+        Some(track @ Value::Object(_)) => {
+            let mut out = object();
             for key in TECHNICAL {
                 if let Some(value) = track.get(key) {
                     out.set(key, value.clone());
@@ -73,10 +70,10 @@ pub(super) fn session_projection(session: Option<Py>) -> Result<Py, Failure> {
             }
             out
         }
-        _ => Py::None,
+        _ => Value::Null,
     };
     let mut other: Vec<String> = match &model {
-        Py::Dict(items) => items
+        Value::Object(items) => items
             .iter()
             .map(|(k, _)| k.clone())
             .filter(|k| !matches!(k.as_str(), "queue" | "queue_entry_ids" | "settings"))
@@ -84,55 +81,57 @@ pub(super) fn session_projection(session: Option<Py>) -> Result<Py, Failure> {
         _ => Vec::new(),
     };
     other.sort();
-    let get = |key: &str| model.get(key).cloned().unwrap_or(Py::None);
-    Ok(Py::dict()
-        .with("schema", session.get("schema").cloned().unwrap_or(Py::None))
+    let get = |key: &str| model.get(key).cloned().unwrap_or(Value::Null);
+    Ok(object()
+        .with(
+            "schema",
+            session.get("schema").cloned().unwrap_or(Value::Null),
+        )
         .with("settings", settings)
         .with("playback", get("playback"))
         .with("position_ms", get("position_ms"))
         .with("output", get("output"))
-        .with("queue_length", Py::from(queue.len()))
+        .with("queue_length", Value::from(queue.len()))
         .with("queue_position", position)
         .with("current_track", current_track)
         .with(
             "other_keys",
-            Py::List(other.into_iter().map(Py::Str).collect()),
+            Value::Array(other.into_iter().map(Value::String).collect()),
         ))
 }
 
 /// The library's counts only (sqlite, read-only); never a name, title or path.
-pub(super) fn library_statistics(root: &Root) -> Py {
-    use y2p_core::reports_sqlite::{Database, Error, Value};
+pub(super) fn library_statistics(root: &Root) -> Value {
+    use y2p_core::reports_sqlite::{Database, Error, Value as Sql};
     let path = root.path("/data/reborn/library.db");
     if !path.exists() {
-        return Py::None;
+        return Value::Null;
     }
     let database = match Database::open(
         &format!("file:{}?mode=ro&immutable=1", path.to_string_lossy()),
         1000,
     ) {
         Ok(database) => database,
-        Err(error) => return Py::dict().with("error", Py::str(error.class())),
+        Err(error) => return object().with("error", Value::from(error.class())),
     };
     let size = std::fs::metadata(&path).map_or(0, |m| m.len());
-    let mut result = Py::dict().with("bytes", Py::from(size));
-    let value = |v: &Value| match v {
-        Value::Null => Py::None,
-        Value::Integer(i) => Py::int(*i),
-        Value::Real(f) => Py::Float(*f),
-        Value::Text(t) => Py::str(t.clone()),
-        Value::Blob(_) => Py::None,
+    let mut result = object().with("bytes", Value::from(size));
+    let value = |v: &Sql| match v {
+        Sql::Null | Sql::Blob(_) => Value::Null,
+        Sql::Integer(i) => Value::from(*i),
+        Sql::Real(f) => Value::from(*f),
+        Sql::Text(t) => Value::from(t.clone()),
     };
     let outcome = (|| -> Result<(), Error> {
         let tables: Vec<String> = database
             .query("select name from sqlite_master where type='table'")?
             .into_iter()
             .map(|row| match row.into_iter().next() {
-                Some(Value::Text(t)) => t,
+                Some(Sql::Text(t)) => t,
                 _ => String::new(),
             })
             .collect();
-        result.set("tables", Py::dict());
+        result.set("tables", object());
         for table in &tables {
             if !table.is_empty()
                 && table
@@ -140,7 +139,10 @@ pub(super) fn library_statistics(root: &Root) -> Py {
                     .all(|b| b.is_ascii_alphanumeric() || b == b'_')
             {
                 let rows = database.query(&format!("select count(*) from \"{table}\""))?;
-                let count = rows.first().and_then(|r| r.first()).map_or(Py::None, value);
+                let count = rows
+                    .first()
+                    .and_then(|r| r.first())
+                    .map_or(Value::Null, value);
                 if let Some(tables) = result.get_mut("tables") {
                     tables.set(table, count);
                 }
@@ -151,7 +153,7 @@ pub(super) fn library_statistics(root: &Root) -> Py {
                 .query("pragma table_info(tracks)")?
                 .into_iter()
                 .filter_map(|row| match row.into_iter().nth(1) {
-                    Some(Value::Text(t)) => Some(t),
+                    Some(Sql::Text(t)) => Some(t),
                     _ => None,
                 })
                 .collect()
@@ -173,12 +175,12 @@ pub(super) fn library_statistics(root: &Root) -> Py {
                 let list = rows
                     .iter()
                     .map(|row| {
-                        let first = row.first().map_or(Py::None, value);
-                        let count = row.get(1).map_or(Py::None, value);
-                        Py::List(vec![first, count])
+                        let first = row.first().map_or(Value::Null, value);
+                        let count = row.get(1).map_or(Value::Null, value);
+                        Value::Array(vec![first, count])
                     })
                     .collect();
-                result.set(&format!("by_{column}"), Py::List(list));
+                result.set(&format!("by_{column}"), Value::Array(list));
             }
         }
         let version = database.query("pragma user_version")?;
@@ -187,27 +189,27 @@ pub(super) fn library_statistics(root: &Root) -> Py {
             version
                 .first()
                 .and_then(|r| r.first())
-                .map_or(Py::None, value),
+                .map_or(Value::Null, value),
         );
         Ok(())
     })();
     if let Err(error) = outcome {
-        result.set("error", Py::str(error.class()));
+        result.set("error", Value::from(error.class()));
     }
     // Source IDs are SD card filesystem IDs: keep their number, not the value.
-    if let Some(Py::List(rows)) = result.get("by_source_id").cloned() {
+    if let Some(Value::Array(rows)) = result.get("by_source_id").cloned() {
         let renamed = rows
             .into_iter()
             .enumerate()
             .map(|(i, row)| {
                 let count = match row {
-                    Py::List(pair) => pair.get(1).cloned().unwrap_or(Py::None),
-                    _ => Py::None,
+                    Value::Array(pair) => pair.get(1).cloned().unwrap_or(Value::Null),
+                    _ => Value::Null,
                 };
-                Py::List(vec![Py::Str(format!("source#{}", i + 1)), count])
+                Value::Array(vec![Value::String(format!("source#{}", i + 1)), count])
             })
             .collect();
-        result.set("by_source_id", Py::List(renamed));
+        result.set("by_source_id", Value::Array(renamed));
     }
     result
 }
@@ -224,20 +226,20 @@ const BOOTLOADERS: [(&str, &str, u64, usize); 2] = [
 ];
 
 /// The hardware's identity: board, panel, storage chips, input devices, bootloader hashes.
-pub(super) fn hardware(root: &Root) -> Py {
+pub(super) fn hardware(root: &Root) -> Value {
     let compatible = root
         .read("/proc/device-tree/compatible")
         .unwrap_or_default()
         .replace('\0', " ");
-    let mut data = Py::dict()
-        .with("compatible", Py::str(python_strip(&compatible)))
+    let mut data = object()
+        .with("compatible", Value::from(python_strip(&compatible)))
         .with("cpuinfo", read(root, "/proc/cpuinfo"))
-        .with("meminfo_total", Py::None);
-    let mut boot = Py::dict();
+        .with("meminfo_total", Value::Null);
+    let mut boot = object();
     for name in ["metadata", "lcm", "normal_boot"] {
         boot.set(name, read(root, &format!("/sys/firmware/y2_boot/{name}")));
     }
-    let mut panel = Py::dict();
+    let mut panel = object();
     for name in ["panel_kind", "panel_hint", "power_down", "stock_suspend"] {
         panel.set(
             name,
@@ -246,24 +248,24 @@ pub(super) fn hardware(root: &Root) -> Py {
     }
     data.set("y2_boot", boot);
     data.set("panel", panel);
-    data.set("storage", Py::dict());
+    data.set("storage", object());
     data.set(
         "connectivity",
         read(root, "/sys/devices/platform/18070000.connectivity/status"),
     );
     data.set("input_devices", read(root, "/proc/bus/input/devices"));
     data.set("partitions", read(root, "/proc/partitions"));
-    data.set("bootloaders", Py::dict());
+    data.set("bootloaders", object());
     for line in pyre::splitlines(&root.read("/proc/meminfo").unwrap_or_default()) {
         if let Some(rest) = line.strip_prefix("MemTotal:") {
-            data.set("meminfo_total", Py::str(python_strip(rest)));
+            data.set("meminfo_total", Value::from(python_strip(rest)));
         }
     }
     for host in ["mmc0", "mmc1"] {
         let Some(card) = first(root, &format!("/sys/class/mmc_host/{host}/{host}:*")) else {
             continue;
         };
-        let mut fields = Py::dict();
+        let mut fields = object();
         for name in [
             "type",
             "name",
@@ -285,7 +287,7 @@ pub(super) fn hardware(root: &Root) -> Py {
             fields.set(name, read(root, &format!("{card}/{name}")));
         }
         let ext_csd = first(root, &format!("/sys/kernel/debug/{host}/{host}:*/ext_csd"));
-        fields.set("ext_csd", ext_csd.map_or(Py::None, |p| read(root, &p)));
+        fields.set("ext_csd", ext_csd.map_or(Value::Null, |p| read(root, &p)));
         fields.set("ios", read(root, &format!("/sys/kernel/debug/{host}/ios")));
         if let Some(storage) = data.get_mut("storage") {
             storage.set(host, fields);
@@ -300,18 +302,18 @@ pub(super) fn hardware(root: &Root) -> Py {
             Ok(blob)
         })();
         let entry = match result {
-            Ok(blob) => Py::dict()
-                .with("sha256", Py::Str(sha256_hex(&blob)))
-                .with("bytes", Py::from(blob.len()))
+            Ok(blob) => object()
+                .with("sha256", Value::String(sha256_hex(&blob)))
+                .with("bytes", Value::from(blob.len()))
                 .with(
                     "lk_v320_prefix_sha256",
                     if name == "lk" {
-                        Py::Str(sha256_hex(&blob[..blob.len().min(242_440)]))
+                        Value::String(sha256_hex(&blob[..blob.len().min(242_440)]))
                     } else {
-                        Py::None
+                        Value::Null
                     },
                 ),
-            Err(error) => Py::dict().with("error", Py::Str(strerror(&error))),
+            Err(error) => object().with("error", Value::String(strerror(&error))),
         };
         if let Some(loaders) = data.get_mut("bootloaders") {
             loaders.set(name, entry);

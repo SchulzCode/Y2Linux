@@ -6,14 +6,13 @@
 //! screen follows the upload. Below a fixture root the call is a fixture command like any other (its
 //! argv carries the headers, so the golden cases compare them).
 // SPDX-License-Identifier: GPL-2.0-only
-use super::{
-    build, command, or_dict, py_str, pyjson, Bytes, Duration, Monotonic, Py, Root, ENDPOINT,
-};
+use super::{build, command, or_dict, Bytes, Duration, Monotonic, Root, Value, ENDPOINT};
+use crate::commands::reports::{filled, loads_text, object, text_of};
 use std::io::Read;
 use std::io::Write;
 
 /// curl's answer as urllib's: (HTTP status, answer) or (None, the exception class Python names).
-pub(super) fn answer(outcome: &command::Outcome) -> (Option<i64>, Result<Py, String>) {
+pub(super) fn answer(outcome: &command::Outcome) -> (Option<i64>, Result<Value, String>) {
     let output = outcome.output.clone().unwrap_or_default();
     let (body, last) = match output.rsplit_once('\n') {
         Some((body, last)) => (body, last),
@@ -46,9 +45,9 @@ pub(super) fn answer(outcome: &command::Outcome) -> (Option<i64>, Result<Py, Str
             cut -= 1;
         }
         let text = &body[..cut];
-        let value = match pyjson::loads(if text.is_empty() { "{}" } else { text }) {
-            Some(v @ Py::Dict(_)) => v,
-            _ => Py::dict(),
+        let value = match loads_text(if text.is_empty() { "{}" } else { text }) {
+            Some(v @ Value::Object(_)) => v,
+            _ => object(),
         };
         return (Some(status), Ok(value));
     }
@@ -126,20 +125,20 @@ pub(super) fn argv(headers: &[(&str, String)]) -> Vec<String> {
 }
 
 /// The request's headers, in urllib's order (the receiver reads them by name).
-pub fn headers(data: &[u8], index: &Py, key: &str) -> Vec<(&'static str, String)> {
-    let release = or_dict(index.get("release").cloned().unwrap_or(Py::None));
+pub fn headers(data: &[u8], index: &Value, key: &str) -> Vec<(&'static str, String)> {
+    let release = or_dict(index.get("release").cloned().unwrap_or(Value::Null));
     let version = release
         .get("release_version")
-        .filter(|v| v.truthy())
-        .map(py_str);
+        .filter(|v| filled(v))
+        .map(text_of);
     let text = |name: &str| {
         index
             .get(name)
-            .filter(|v| v.truthy())
-            .map(py_str)
+            .filter(|v| filled(v))
+            .map(text_of)
             .unwrap_or_default()
     };
-    let schema = index.get("schema").map_or_else(|| "1".into(), py_str);
+    let schema = index.get("schema").map_or_else(|| "1".into(), text_of);
     let digest = super::super::sha256_hex(data);
     vec![
         ("Content-Type", "application/gzip".to_owned()),
@@ -165,10 +164,10 @@ pub fn headers(data: &[u8], index: &Py, key: &str) -> Vec<(&'static str, String)
 pub(super) fn post(
     root: &Root,
     data: &[u8],
-    index: &Py,
+    index: &Value,
     key: &str,
     progress: Option<&build::Progress>,
-) -> (Option<i64>, Result<Py, String>) {
+) -> (Option<i64>, Result<Value, String>) {
     let argv = argv(&headers(data, index, key));
     let refs: Vec<&str> = argv.iter().map(String::as_str).collect();
     let outcome = if root.is_real() {

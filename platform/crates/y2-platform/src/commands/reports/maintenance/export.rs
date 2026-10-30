@@ -4,8 +4,9 @@
 use super::{
     atomic_json, data_volume, free, fsync_path, inspect, not_found, open_data, os,
     private_directory, regular_bytes, sha256_hex, tarball, uuid4, volume, Failure, Lease, OwnedFd,
-    Path, Py, Root, SETTINGS,
+    Path, Root, Value, SETTINGS,
 };
+use crate::commands::reports::{object, ValueExt};
 use std::io::Write;
 use std::os::unix::fs::DirBuilderExt;
 use std::os::unix::fs::MetadataExt;
@@ -103,7 +104,7 @@ pub(super) fn export(
     root: &Root,
     include_database: bool,
     include_network: bool,
-) -> Result<Py, Failure> {
+) -> Result<Value, Failure> {
     let _lease = Lease::take(root, "Maintenance")?;
     let volume = data_volume(root)?;
     let directory = root.path("/data/exports");
@@ -153,7 +154,7 @@ fn export_into(
     volume: &volume::Volume,
     include_database: bool,
     include_network: bool,
-) -> Result<Py, Failure> {
+) -> Result<Value, Failure> {
     let mut files: Vec<(String, String)> = Vec::new();
     let mut absent: Vec<&str> = Vec::new();
     let mut sources = vec![SETTINGS, "bluetooth/preferred-audio"];
@@ -181,7 +182,7 @@ fn export_into(
         match inspect(data, relative)? {
             None => absent.push(relative),
             Some(before) => {
-                use y2p_core::reports_sqlite::{Database, Error, Value};
+                use y2p_core::reports_sqlite::{Database, Error, Value as Sql};
                 let database = root.path(&format!("/data/{relative}"));
                 let target = scratch.join("library.db");
                 let deadline = root.clock().monotonic() + 30.0;
@@ -207,12 +208,12 @@ fn export_into(
                         })
                         .map_err(sqlite)?;
                     let check = dest.query("PRAGMA quick_check").map_err(sqlite)?;
-                    if check.first().map(Vec::as_slice) != Some(&[Value::Text("ok".into())][..]) {
+                    if check.first().map(Vec::as_slice) != Some(&[Sql::Text("ok".into())][..]) {
                         return Err(Failure::value("database_backup_integrity"));
                     }
                 }
                 let after = inspect(data, relative)?;
-                let key = |v: &Py| (v.get("device").cloned(), v.get("inode").cloned());
+                let key = |v: &Value| (v.get("device").cloned(), v.get("inode").cloned());
                 if after.as_ref().is_none_or(|a| key(a) != key(&before)) {
                     return Err(Failure::value("database_source_replaced"));
                 }
@@ -283,13 +284,13 @@ fn export_into(
     let bytes = std::fs::metadata(&complete)
         .map_err(|e| os(e, &complete))?
         .len();
-    Ok(Py::dict()
-        .with("state", Py::str("Complete"))
+    Ok(object()
+        .with("state", Value::from("Complete"))
         .with(
             "path",
-            Py::Str(format!("/data/exports/state-{token}.tar.gz")),
+            Value::String(format!("/data/exports/state-{token}.tar.gz")),
         )
-        .with("sha256", Py::Str(digest))
-        .with("bytes", Py::from(bytes))
-        .with("contains_network_credentials", Py::Bool(include_network)))
+        .with("sha256", Value::String(digest))
+        .with("bytes", Value::from(bytes))
+        .with("contains_network_credentials", Value::Bool(include_network)))
 }

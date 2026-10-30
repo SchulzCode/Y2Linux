@@ -360,10 +360,7 @@
        "queue_length": 0,
        "queue_position": null,
        "schema": null,
-       "settings": {
-        "t": "z",
-        "volume": 3
-       }
+       "settings": null
       },
       "gname": "",
       "mode": "0o600",

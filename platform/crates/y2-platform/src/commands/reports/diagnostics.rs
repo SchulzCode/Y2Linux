@@ -12,13 +12,13 @@
 use super::{
     fields::{fields, kernel_fields, kernel_status_keys, public_words},
     json_dict, os,
-    pyjson::{self, Py, Style},
     pyre::{self, lazy, S},
     sha256_hex,
     state::uuid4,
     tarball,
     volume::{admitted, data_volume},
 };
+use crate::commands::reports::{object, Value, ValueExt};
 use crate::reply::{private_directory, Failure, Outcome, Reply};
 use regex::Regex;
 use std::{io::Write, os::unix::fs::OpenOptionsExt, sync::OnceLock};
@@ -101,60 +101,53 @@ fn full(pattern: &'static OnceLock<Regex>, re: &str, value: &str) -> bool {
 
 /// `project(value, key, depth)`: keep counters and known public enums; discard unknown strings and
 /// keys.
-pub fn project(value: &Py, key: &str, depth: usize) -> Py {
+pub fn project(value: &Value, key: &str, depth: usize) -> Value {
     if depth > 16 {
-        return Py::str("[depth-limit]");
+        return Value::from("[depth-limit]");
     }
     // A public bonding fact is a boolean, never a bond record/key/string.
-    if key == "bonded" && matches!(value, Py::Bool(_)) {
+    if key == "bonded" && matches!(value, Value::Bool(_)) {
         return value.clone();
     }
     if private_key(key) {
-        return Py::str("[redacted]");
+        return Value::from("[redacted]");
     }
     match value {
-        Py::None | Py::Bool(_) | Py::Int(_) => value.clone(),
-        Py::Float(f) => {
-            if f.is_finite() {
-                value.clone()
-            } else {
-                Py::None
-            }
-        }
-        Py::Dict(items) => {
-            let mut out: Vec<(String, Py)> = Vec::new();
+        Value::Null | Value::Bool(_) | Value::Number(_) => value.clone(),
+        Value::Object(items) => {
+            let mut out: Vec<(String, Value)> = Vec::new();
             for (k, v) in items.iter().take(512) {
                 if sorted_contains(fields(), k) {
                     out.push((k.clone(), project(v, k, depth + 1)));
                 }
             }
-            Py::Dict(out)
+            Value::Object(out.into_iter().collect())
         }
-        Py::List(items) => Py::List(
+        Value::Array(items) => Value::Array(
             items
                 .iter()
                 .take(256)
                 .map(|v| project(v, key, depth + 1))
                 .collect(),
         ),
-        Py::Str(text) => {
+        Value::String(text) => {
             if sorted_contains(kernel_status_keys(), key)
                 || matches!(key, "11200000.usb" | "11230000.mmc" | "11240000.mmc")
             {
                 static PAIRS: OnceLock<Regex> = OnceLock::new();
                 let pairs = lazy(&PAIRS, &format!(r"([\p{{L}}\p{{N}}_]+)=([^{S}]+)"));
-                let mut out: Vec<(String, Py)> = Vec::new();
+                let mut out: Vec<(String, Value)> = Vec::new();
                 for caps in pairs.captures_iter(text) {
                     let field = &caps[1];
                     if sorted_contains(kernel_fields(), field) {
-                        let projected = project(&Py::str(&caps[2]), field, depth + 1);
+                        let projected = project(&Value::from(&caps[2]), field, depth + 1);
                         match out.iter_mut().find(|(k, _)| k == field) {
                             Some(entry) => entry.1 = projected,
                             None => out.push((field.to_owned(), projected)),
                         }
                     }
                 }
-                return Py::Dict(out);
+                return Value::Object(out.into_iter().collect());
             }
             static HASH: OnceLock<Regex> = OnceLock::new();
             static BOOT: OnceLock<Regex> = OnceLock::new();
@@ -191,13 +184,13 @@ pub fn project(value: &Py, key: &str, depth: usize) -> Py {
             if sorted_contains(public_words(), text) {
                 return value.clone();
             }
-            Py::str("[redacted]")
+            Value::from("[redacted]")
         }
     }
 }
 
 /// `events(raw)`: fixed-vocabulary excerpts; no source text is ever copied into the bundle.
-pub fn events(raw: Option<&str>) -> Py {
+pub fn events(raw: Option<&str>) -> Value {
     static ERRNO: OnceLock<Regex> = OnceLock::new();
     let errno = lazy(
         &ERRNO,
@@ -208,52 +201,49 @@ pub fn events(raw: Option<&str>) -> Py {
     let mut result = Vec::new();
     for (number, line) in lines[start..].iter().enumerate() {
         let lower = line.to_lowercase();
-        let tags: Vec<Py> = EVENTS
+        let tags: Vec<Value> = EVENTS
             .iter()
             .filter(|tag| {
                 lower
                     .match_indices(*tag)
                     .any(|(at, _)| pyre::word_start(&lower, at))
             })
-            .map(|t| Py::str(*t))
+            .map(|t| Value::from(*t))
             .collect();
-        let components: Vec<Py> = COMPONENTS
+        let components: Vec<Value> = COMPONENTS
             .iter()
             .filter(|c| lower.contains(*c))
-            .map(|c| Py::str(*c))
+            .map(|c| Value::from(*c))
             .collect();
         if !tags.is_empty() && !components.is_empty() {
-            let numbers: Vec<Py> = pyre::finditer(errno, &lower, 1, pyre::word_start)
+            let numbers: Vec<Value> = pyre::finditer(errno, &lower, 1, pyre::word_start)
                 .iter()
                 .take(4)
-                .filter_map(|c| c[1].parse::<i64>().ok().map(Py::int))
+                .filter_map(|c| c[1].parse::<i64>().ok().map(Value::from))
                 .collect();
             result.push(
-                Py::dict()
-                    .with("tail_line", Py::from(number))
-                    .with("components", Py::List(components))
-                    .with("events", Py::List(tags))
-                    .with("errno", Py::List(numbers)),
+                object()
+                    .with("tail_line", Value::from(number))
+                    .with("components", Value::Array(components))
+                    .with("events", Value::Array(tags))
+                    .with("errno", Value::Array(numbers)),
             );
         }
     }
-    Py::List(result)
+    Value::Array(result)
 }
 
 /// The platform snapshot and the health checks made from it (one snapshot, its commands run once).
-fn platform_state(root: &Root) -> Result<(Py, Py), Failure> {
+fn platform_state(root: &Root) -> Result<(Value, Value), Failure> {
     use crate::commands::observation::{health, snapshot};
     let status = snapshot::snapshot(root, &[], false, 0.0)?;
     let checks = health::check_from(root, &status, false)?;
-    Ok((
-        Py::from_serde(&serde_json::Value::Object(status)),
-        Py::from_serde(&serde_json::Value::Object(checks)),
-    ))
+    Ok((Value::Object(status), Value::Object(checks)))
 }
 
 /// The events of a log's tail: walk reviewed data paths with no symlinks; never read arbitrary
 /// files.
-fn log_tail(root: &Root, relative: &str) -> Result<Py, Failure> {
+fn log_tail(root: &Root, relative: &str) -> Result<Value, Failure> {
     use super::media::{fstat, open_at};
     use std::io::{Read, Seek, SeekFrom};
     let directory = libc::O_RDONLY | libc::O_DIRECTORY | libc::O_NOFOLLOW | libc::O_CLOEXEC;
@@ -270,7 +260,7 @@ fn log_tail(root: &Root, relative: &str) -> Result<Py, Failure> {
     for part in &parts[..parts.len() - 1] {
         fd = match open_at(Some(&fd), part, directory, 0) {
             Ok(child) => child,
-            Err(e) => return missing(e, part).map(|_| Py::List(Vec::new())),
+            Err(e) => return missing(e, part).map(|_| Value::Array(Vec::new())),
         };
     }
     let name = parts[parts.len() - 1];
@@ -281,7 +271,7 @@ fn log_tail(root: &Root, relative: &str) -> Result<Py, Failure> {
         0,
     ) {
         Ok(file) => file,
-        Err(e) => return missing(e, name).map(|_| Py::List(Vec::new())),
+        Err(e) => return missing(e, name).map(|_| Value::Array(Vec::new())),
     };
     let meta = fstat(&file)?;
     if meta.mode & libc::S_IFMT != libc::S_IFREG || meta.nlink != 1 {
@@ -294,15 +284,15 @@ fn log_tail(root: &Root, relative: &str) -> Result<Py, Failure> {
     Ok(events(Some(&String::from_utf8_lossy(&tail))))
 }
 
-fn collect(root: &Root) -> Result<Py, Failure> {
+fn collect(root: &Root) -> Result<Value, Failure> {
     let (snapshot, health) = platform_state(root)?;
-    let mut logs = Py::dict();
+    let mut logs = object();
     for (name, path) in [
         ("system", "logs/system.log"),
         ("reborn", "reborn/logs/reborn.log"),
     ] {
         let value =
-            log_tail(root, path).unwrap_or_else(|_| Py::dict().with("state", Py::str("Failed")));
+            log_tail(root, path).unwrap_or_else(|_| object().with("state", Value::from("Failed")));
         logs.set(name, value);
     }
     let kernel = command::run_with(root, &["dmesg"], 2.0, 1 << 20, false);
@@ -311,15 +301,15 @@ fn collect(root: &Root) -> Result<Py, Failure> {
         if kernel.ok {
             events(kernel.output.as_deref())
         } else {
-            Py::dict().with("state", Py::str("Unavailable"))
+            object().with("state", Value::from("Unavailable"))
         },
     );
-    Ok(Py::dict()
-        .with("schema", Py::str("org.y2linux.tester-diagnostics/v1"))
-        .with("redacted", Py::Bool(true))
+    Ok(object()
+        .with("schema", Value::from("org.y2linux.tester-diagnostics/v1"))
+        .with("redacted", Value::Bool(true))
         .with(
             "privacy",
-            Py::str("Counters and known enums only; logs are event classes, never raw text."),
+            Value::from("Counters and known enums only; logs are event classes, never raw text."),
         )
         .with(
             "versions",
@@ -347,7 +337,7 @@ fn collect(root: &Root) -> Result<Py, Failure> {
         .with("logs", logs))
 }
 
-fn export_inner(root: &Root) -> Result<Py, Failure> {
+fn export_inner(root: &Root) -> Result<Value, Failure> {
     let volume = data_volume(root)?;
     if !admitted(&volume, MAX_BYTES as u64) {
         return Err(Failure::value("diagnostic_space_reserved"));
@@ -370,7 +360,7 @@ fn export_inner(root: &Root) -> Result<Py, Failure> {
     if existing >= 8 {
         return Err(Failure::value("diagnostic_export_limit_retrieve_existing"));
     }
-    let raw = pyjson::dumps_strict(&collect(root)?, Style::Spaced).map_err(Failure::Value)? + "\n";
+    let raw = serde_json::to_string(&collect(root)?).map_err(Failure::value)? + "\n";
     if raw.len() > MAX_BYTES {
         return Err(Failure::value("diagnostic_size_limit"));
     }
@@ -401,12 +391,12 @@ fn export_inner(root: &Root) -> Result<Py, Failure> {
         std::fs::File::open(&directory).and_then(|d| d.sync_all())?;
         let bytes = std::fs::read(&complete).map_err(|e| os(e, &complete))?;
         let digest = sha256_hex(&bytes);
-        Ok(Py::dict()
-            .with("state", Py::str("Complete"))
-            .with("path", Py::Str(format!("/data/exports/{name}")))
-            .with("sha256", Py::Str(digest))
-            .with("bytes", Py::from(bytes.len()))
-            .with("redacted", Py::Bool(true)))
+        Ok(object()
+            .with("state", Value::from("Complete"))
+            .with("path", Value::String(format!("/data/exports/{name}")))
+            .with("sha256", Value::String(digest))
+            .with("bytes", Value::from(bytes.len()))
+            .with("redacted", Value::Bool(true)))
     })();
     let _ = std::fs::remove_file(&partial);
     result
@@ -415,7 +405,9 @@ fn export_inner(root: &Root) -> Result<Py, Failure> {
 /// `export-diagnostics`: any failure is `diagnostic_export_failed` (exit 1).
 pub fn export(root: &Root) -> Outcome {
     match export_inner(root) {
-        Ok(value) => Ok(Reply::text(pyjson::dumps(&value, Style::Spaced))),
+        Ok(value) => Ok(Reply::text(
+            serde_json::to_string(&value).unwrap_or_default(),
+        )),
         Err(_) => Reply::unsorted(
             &y2p_core::json::Object::new()
                 .with("state", "Failed")
@@ -428,20 +420,21 @@ pub fn export(root: &Root) -> Outcome {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::commands::reports::loads_text;
 
     /// The same values through host Python's diagnostics.project and events.
     #[test]
     fn projection_and_events_match_python() {
-        let value = pyjson::loads(
+        let value = loads_text(
             r#"{"state": "Ready", "ssid": "Home", "boot_id": "0123abcd-0123-4567-89ab-0123456789ab",
                 "release_version": "1.0.0-beta.8.44", "battery": {"percent": 80, "temperature_c": 31.5,
                 "status": "Charging", "mac": "aa", "other": "x"}, "spm": "valid=1 sequence=7 bogus=3 power=on",
                 "counters": [1, "2", "0x1f", "free text", null], "unknown_key": 1, "cpu": {"nested": 1}}"#,
         )
         .unwrap();
-        let ours = pyjson::dumps(&project(&value, "", 0), Style::Spaced);
+        let ours = serde_json::to_string(&project(&value, "", 0)).unwrap_or_default();
         let log = "msdc0: cmd timeout error=-110\nwifi: reconnect failed ret: 5\nnothing here\nBattery charger warning\n";
-        let ours_events = pyjson::dumps(&events(Some(log)), Style::Spaced);
+        let ours_events = serde_json::to_string(&events(Some(log))).unwrap_or_default();
         // What the Python platform's diagnostics.project and events gave (recorded).
         y2p_core::recorded::check(
             env!("CARGO_MANIFEST_DIR"),

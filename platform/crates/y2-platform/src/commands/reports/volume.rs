@@ -58,7 +58,7 @@ pub fn open_directory(parent: &OwnedFd, component: &str) -> Result<OwnedFd, Fail
 
 /// The update journal's state as `update status` reads it; a journal without a state is refused.
 pub fn update_state(root: &Root) -> Result<String, Failure> {
-    use super::pyjson::Py;
+    use super::Value;
     let path = root.path("/data/updates/state.json");
     let value = json_at(root, "/data/updates/state.json");
     let value = match value {
@@ -72,12 +72,12 @@ pub fn update_state(root: &Root) -> Result<String, Failure> {
     let schema_ok = value
         .as_ref()
         .and_then(|v| v.get("schema"))
-        .is_some_and(|s| s.py_eq(&Py::int(1)) || s.py_eq(&Py::int(2)));
-    let Some(value @ Py::Dict(_)) = value.filter(|_| schema_ok) else {
+        .is_some_and(|s| s.eq(&Value::from(1)) || s.eq(&Value::from(2)));
+    let Some(value @ Value::Object(_)) = value.filter(|_| schema_ok) else {
         return Ok("Failed".into());
     };
     match value.get("state") {
-        Some(Py::Str(state)) => Ok(state.clone()),
+        Some(Value::String(state)) => Ok(state.clone()),
         Some(_) => Ok(String::new()), // a non-string state equals none of the names compared
         None => Err(Failure::value("update_state_unreadable")),
     }

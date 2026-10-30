@@ -2,6 +2,7 @@
 //! event, an earlier release's or an already reported crash stays quiet, and one check makes one report.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::*;
+use crate::commands::reports::{loads_bytes, Value, ValueExt};
 use crate::commands::reports::{state, test_player as player};
 use crate::testing::{ok, Fixture};
 use serde_json::json;
@@ -41,7 +42,7 @@ fn pairs(list: &[(&str, &str)]) -> Vec<(String, String)> {
         .collect()
 }
 
-fn run(root: &Root) -> Py {
+fn run(root: &Root) -> Value {
     run_checks(&answering(root, None)).unwrap()
 }
 
@@ -133,7 +134,7 @@ fn triggers_fire_once_each() {
         );
         assert!(fired(root).is_empty());
     }
-    assert_eq!(run(root), Py::List(Vec::new())); // not enabled: nothing queued
+    assert_eq!(run(root), Value::Array(Vec::new())); // not enabled: nothing queued
 }
 
 #[test]
@@ -188,17 +189,17 @@ fn a_kept_panic_record_is_not_sent_again() {
     // Updated from a release that keyed on the hash of all records: a crash it saw is not resent.
     let mut value = state::state(root);
     let seen = value.get_mut("seen").unwrap();
-    seen.remove("pstore_crash");
-    seen.set("pstore", Py::str("old-hash"));
+    seen.take_field("pstore_crash");
+    seen.set("pstore", Value::from("old-hash"));
     state::save(root, &value).unwrap();
     assert!(triggers(root).is_empty());
     dump("dmesg-ramoops-2", 12.5, 1_761_490_000);
     assert_eq!(triggers(root), ["kernel_crash"]);
 }
 
-fn reports(result: &Py) -> Vec<Py> {
+fn reports(result: &Value) -> Vec<Value> {
     match result {
-        Py::List(items) => items.clone(),
+        Value::Array(items) => items.clone(),
         other => panic!("{other:?}"),
     }
 }
@@ -208,13 +209,13 @@ fn opting_in_reports_only_what_happens_afterwards() {
     let fixture = setup();
     let root = &fixture.root;
     enable(root); // old pstore and panic records exist
-    assert_eq!(run(root), Py::List(Vec::new()));
+    assert_eq!(run(root), Value::Array(Vec::new()));
     fixture.put("/data/reborn/logs/panic-last.json", r#"{"message": "new"}"#);
     touch(
         &fixture.path("/data/reborn/logs/panic-last.json"),
         2_000_000_000,
     );
-    let result: Vec<(Py, Py)> = reports(&run(root))
+    let result: Vec<(Value, Value)> = reports(&run(root))
         .iter()
         .map(|r| {
             (
@@ -223,7 +224,7 @@ fn opting_in_reports_only_what_happens_afterwards() {
             )
         })
         .collect();
-    assert_eq!(result, [(Py::str("reborn_crash"), Py::Bool(true))]);
+    assert_eq!(result, [(Value::from("reborn_crash"), Value::Bool(true))]);
 }
 
 #[test]
@@ -248,28 +249,28 @@ fn one_check_sends_one_report_for_all_its_triggers() {
     );
     let result = reports(&run(root));
     assert_eq!(result.len(), 1);
-    assert_eq!(result[0].get("queued"), Some(&Py::Bool(true)));
-    let expected = Py::List(
+    assert_eq!(result[0].get("queued"), Some(&Value::Bool(true)));
+    let expected = Value::Array(
         ["unclean_restart", "reborn_crash", "update_failure"]
             .iter()
-            .map(|t| Py::str(*t))
+            .map(|t| Value::from(*t))
             .collect(),
     );
     assert_eq!(result[0].get("triggers"), Some(&expected));
     let queued = state::queued(root);
     assert_eq!(queued.len(), 1);
     let members = player::members(&std::fs::read(&queued[0]).unwrap());
-    let index = pyjson::loads_bytes(&members["report.json"]).unwrap();
+    let index = loads_bytes(&members["report.json"]).unwrap();
     assert_eq!(
         (index.get("trigger"), index.get("triggers")),
-        (Some(&Py::str("unclean_restart")), Some(&expected))
+        (Some(&Value::from("unclean_restart")), Some(&expected))
     );
     assert!(index
         .get("detail")
-        .and_then(Py::as_str)
+        .and_then(Value::as_str)
         .unwrap()
         .contains("reborn_crash: panic"));
-    assert_eq!(run(root), Py::List(Vec::new()));
+    assert_eq!(run(root), Value::Array(Vec::new()));
 }
 
 #[test]

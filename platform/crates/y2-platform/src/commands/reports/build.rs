@@ -3,12 +3,11 @@
 //! packed as one tar.gz within the receiver's 2 MiB.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{
-    clock, json_dict,
-    pyjson::{self, Py, Style},
-    pyre,
+    clock, json_dict, pyre,
     scrub::{self, Scrubber, SECTION_MAX},
     secrets, sha256_hex, tarball,
 };
+use crate::commands::reports::{filled, loads_bytes, object, Value, ValueExt};
 use crate::reply::Failure;
 use std::{
     cell::Cell,
@@ -191,14 +190,16 @@ fn scrub_files(
 }
 
 /// The tar.gz within BUDGET: the largest optional sections are cut first.
-fn pack(root: &Root, index: &mut Py, members: &mut [(String, Vec<u8>)]) -> Vec<u8> {
+fn pack(root: &Root, index: &mut Value, members: &mut [(String, Vec<u8>)]) -> Vec<u8> {
     let mut optional: Vec<usize> = (0..members.len())
         .filter(|&i| members[i].0.starts_with("files/"))
         .collect();
     optional.sort_by_key(|&i| std::cmp::Reverse(members[i].1.len()));
     loop {
         let mut tar = tarball::Writer::new();
-        let body = pyjson::dumps(index, Style::Indent).into_bytes();
+        let body = serde_json::to_string_pretty(index)
+            .unwrap_or_default()
+            .into_bytes();
         let now = || (root.clock().wall_ns() / 1_000_000_000) as i64;
         tar.add(
             &tarball::Info::file("report.json", body.len(), now(), 0o600),
@@ -215,9 +216,12 @@ fn pack(root: &Root, index: &mut Py, members: &mut [(String, Vec<u8>)]) -> Vec<u
         let (name, data) = &mut members[victim];
         let half = data.len() / 2;
         data.drain(..half);
-        if let Some(section) = index.get_mut("sections").and_then(|s| s.get_mut(name)) {
-            section.set("cut", Py::Bool(true));
-            section.set("bytes", Py::from(data.len()));
+        if let Some(section) = index
+            .get_mut("sections")
+            .and_then(|s| s.get_mut(name.as_str()))
+        {
+            section.set("cut", Value::Bool(true));
+            section.set("bytes", Value::from(data.len()));
         }
         optional.push(victim);
         optional.sort_by_key(|&i| std::cmp::Reverse(members[i].1.len()));
@@ -249,10 +253,10 @@ pub fn build(
     triggers: &[String],
     detail: &str,
     topic: Option<&str>,
-    install_id: Py,
+    install_id: Value,
     now: clock::Instant,
     progress: &Progress,
-) -> Result<(Vec<u8>, Py), Failure> {
+) -> Result<(Vec<u8>, Value), Failure> {
     if triggers.is_empty() || !triggers.iter().all(|t| TRIGGERS.contains(&t.as_str())) {
         return Err(Failure::value("unknown_trigger"));
     }
@@ -270,46 +274,49 @@ pub fn build(
         .find(|s| !s.is_empty())
         .unwrap_or("0")
         .to_owned();
-    let mut index = Py::dict()
-        .with("schema", Py::int(1))
-        .with("report_id", Py::Str(super::state::uuid4()?))
+    let mut index = object()
+        .with("schema", Value::from(1))
+        .with("report_id", Value::String(super::state::uuid4()?))
         .with("install_id", install_id)
-        .with("trigger", Py::str(triggers[0].clone()))
+        .with("trigger", Value::from(triggers[0].clone()))
         .with(
             "triggers",
-            Py::List(triggers.iter().cloned().map(Py::Str).collect()),
+            Value::Array(triggers.iter().cloned().map(Value::String).collect()),
         )
-        .with("detail", Py::Str(scrubber.text(detail)))
-        .with("topic", topic.into())
-        .with("created_utc", Py::Str(clock::isoformat(now)))
+        .with("detail", Value::String(scrubber.text(detail)))
+        .with("topic", Value::from(topic))
+        .with("created_utc", Value::String(clock::isoformat(now)))
         .with(
             "utc_offset_minutes",
-            Py::int(clock::utc_offset_minutes(clock::Instant::now(root))),
+            Value::from(clock::utc_offset_minutes(clock::Instant::now(root))),
         )
-        .with("uptime_seconds", Py::Str(uptime))
-        .with("boot_id", root.boot_id().into())
+        .with("uptime_seconds", Value::String(uptime))
+        .with("boot_id", Value::from(root.boot_id()))
         .with(
             "release",
-            if release.truthy() {
+            if filled(&release) {
                 release
             } else {
                 versions.clone()
             },
         )
         .with("versions", versions)
-        .with("build_id", root.read("/etc/y2linux/build-id").into())
-        .with("kernel", root.read("/proc/sys/kernel/osrelease").into())
-        .with("sections", Py::dict())
-        .with("scrubbed", Py::dict());
+        .with("build_id", Value::from(root.read("/etc/y2linux/build-id")))
+        .with(
+            "kernel",
+            Value::from(root.read("/proc/sys/kernel/osrelease")),
+        )
+        .with("sections", object())
+        .with("scrubbed", object());
     let mut members: Vec<(String, Vec<u8>)> = Vec::new();
-    let mut add = |index: &mut Py, name: &str, data: Vec<u8>, source: Py, cut: bool| {
+    let mut add = |index: &mut Value, name: &str, data: Vec<u8>, source: Value, cut: bool| {
         if let Some(sections) = index.get_mut("sections") {
             sections.set(
                 name,
-                Py::dict()
-                    .with("bytes", Py::from(data.len()))
+                object()
+                    .with("bytes", Value::from(data.len()))
                     .with("source", source)
-                    .with("cut", Py::Bool(cut)),
+                    .with("cut", Value::Bool(cut)),
             );
         }
         members.push((name.to_owned(), data));
@@ -318,8 +325,10 @@ pub fn build(
     add(
         &mut index,
         "hardware.json",
-        pyjson::dumps(&hardware, Style::Indent).into_bytes(),
-        Py::str("sysfs"),
+        serde_json::to_string_pretty(&hardware)
+            .unwrap_or_default()
+            .into_bytes(),
+        Value::from("sysfs"),
         false,
     );
     let session = session_projection(large_json(root, "/data/reborn/state/session.json"))?;
@@ -327,15 +336,19 @@ pub fn build(
     add(
         &mut index,
         "reborn/session.json",
-        pyjson::dumps(&session, Style::Indent).into_bytes(),
-        Py::str("session.json (projected)"),
+        serde_json::to_string_pretty(&session)
+            .unwrap_or_default()
+            .into_bytes(),
+        Value::from("session.json (projected)"),
         false,
     );
     add(
         &mut index,
         "reborn/library.json",
-        pyjson::dumps(&library_statistics(root), Style::Indent).into_bytes(),
-        Py::str("library.db (counts)"),
+        serde_json::to_string_pretty(&library_statistics(root))
+            .unwrap_or_default()
+            .into_bytes(),
+        Value::from("library.db (counts)"),
         false,
     );
     // The live commands (≈4 s, mostly waiting) run while the files scrub.
@@ -394,8 +407,10 @@ pub fn build(
     for (name, result) in commands {
         let output = result.output.clone().unwrap_or_default();
         let (data, cut) = tail(output.as_bytes(), SECTION_MAX);
-        let clean = match pyjson::loads_bytes(&data) {
-            Some(value) => pyjson::dumps(&scrubber.value(&value, None), Style::Indent).into_bytes(),
+        let clean = match loads_bytes(&data) {
+            Some(value) => serde_json::to_string_pretty(&scrubber.value(&value, None))
+                .unwrap_or_default()
+                .into_bytes(),
             None => scrubber.text(&String::from_utf8_lossy(&data)).into_bytes(),
         };
         let source = if result.ok {
@@ -407,7 +422,7 @@ pub fn build(
             &mut index,
             &format!("commands/{name}.txt"),
             clean,
-            Py::Str(source),
+            Value::String(source),
             cut,
         );
     }
@@ -421,16 +436,16 @@ pub fn build(
             &mut index,
             &format!("files{name}"),
             clean,
-            Py::str(relative.clone()),
+            Value::from(relative.clone()),
             *cut,
         );
     }
     let counts = scrubber
         .counts
         .iter()
-        .map(|(k, v)| (k.clone(), Py::from(*v)))
+        .map(|(k, v)| (k.clone(), Value::from(*v)))
         .collect();
-    index.set("scrubbed", Py::Dict(counts));
+    index.set("scrubbed", Value::Object(counts));
     let packed = pack(root, &mut index, &mut members);
     progress.update("pack", 1.0, true, Bytes::NONE);
     Ok((packed, index))

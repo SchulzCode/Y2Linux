@@ -3,13 +3,13 @@
 use super::{
     build::{rel, Progress},
     json_dict, or_dict,
-    pyjson::{self, py_str, Py},
     pyops::{self, OrRefuse},
     pyre::{self, lazy, S},
     sha256_hex,
     state::Reports,
     HEALTH_UNREADABLE, STATE_UNREADABLE,
 };
+use crate::commands::reports::{filled, loads_text, object, text_of, Value, ValueExt};
 use crate::reply::Failure;
 use regex::Regex;
 use std::sync::OnceLock;
@@ -101,11 +101,14 @@ fn crash_signature(root: &Root) -> Option<[String; 3]> {
 
 /// `_changed(value, name, current)`: True once per new value of a watched marker (a `seen` that is
 /// no object is refused).
-fn changed(value: &mut Reports, name: &str, current: Py) -> Result<bool, Failure> {
-    if matches!(&current, Py::None) || current.py_eq(&Py::str("")) || current.py_eq(&Py::int(0)) {
+fn changed(value: &mut Reports, name: &str, current: Value) -> Result<bool, Failure> {
+    if matches!(&current, Value::Null)
+        || current.eq(&Value::from(""))
+        || current.eq(&Value::from(0))
+    {
         return Ok(false);
     }
-    if value.seen()?.get(name).is_some_and(|v| v.py_eq(&current)) {
+    if value.seen()?.get(name).is_some_and(|v| v.eq(&current)) {
         return Ok(false);
     }
     value.mark_seen(name, current);
@@ -149,8 +152,8 @@ fn kernel_crash(root: &Root, value: &mut Reports) -> Result<Fired, Failure> {
         let seen_map = value.seen()?;
         let previous = seen_map
             .get("pstore_crash")
-            .filter(|v| v.truthy())
-            .map(py_str)
+            .filter(|v| filled(v))
+            .map(text_of)
             .unwrap_or_default();
         let seen: Vec<String> = (previous + "||")
             .split('|')
@@ -160,7 +163,7 @@ fn kernel_crash(root: &Root, value: &mut Reports) -> Result<Fired, Failure> {
         // Before 8.42 the key was the all-records hash: a crash on record then was already reported
         // by that release (no resend after the update).
         let known = seen_map.get("pstore_crash").is_none() && seen_map.get("pstore").is_some();
-        value.mark_seen("pstore_crash", Py::Str(crash.join("|")));
+        value.mark_seen("pstore_crash", Value::String(crash.join("|")));
         if !known
             && !crash
                 .iter()
@@ -177,7 +180,7 @@ fn kernel_crash(root: &Root, value: &mut Reports) -> Result<Fired, Failure> {
 fn kernel_warning(root: &Root, value: &mut Reports, boot: &str) -> Result<Fired, Failure> {
     let tainted = int(root, "/proc/sys/kernel/tainted");
     if let Some(tainted) = tainted.filter(|t| *t != 0) {
-        if changed(value, "tainted", Py::Str(format!("{boot}:{tainted}")))? {
+        if changed(value, "tainted", Value::String(format!("{boot}:{tainted}")))? {
             return Ok(Some(("kernel_warning".into(), format!("taint {tainted}"))));
         }
     }
@@ -189,36 +192,36 @@ fn unclean_restart(root: &Root, value: &mut Reports, boot: &str) -> Result<Fired
     let evidence = json_dict(root, "/data/system/platform/previous-boot-evidence.json");
     if matches!(
         evidence.get("previous_orderly_shutdown"),
-        Some(Py::Bool(false))
+        Some(Value::Bool(false))
     ) {
         let previous = evidence
             .get("previous_boot_id")
-            .filter(|v| v.truthy())
-            .map(py_str)
+            .filter(|v| filled(v))
+            .map(text_of)
             .unwrap_or_else(|| boot.to_owned());
-        if changed(value, "unclean", Py::Str(previous))? {
+        if changed(value, "unclean", Value::String(previous))? {
             // F56/F57: the PMIC's long-press record tells a held Power from a cut, the loader's warm
             // start a watchdog reset (or kernel restart) from both.
             let pmic = evidence
                 .get("pmic")
-                .filter(|p| p.is_dict())
+                .filter(|p| p.is_object())
                 .cloned()
-                .unwrap_or(Py::dict());
+                .unwrap_or(object());
             let loader = evidence
                 .get("loader")
-                .filter(|p| p.is_dict())
+                .filter(|p| p.is_object())
                 .cloned()
-                .unwrap_or(Py::dict());
-            let field = |v: &Py, k: &str| py_str(v.get(k).unwrap_or(&Py::None));
+                .unwrap_or(object());
+            let field = |v: &Value, k: &str| text_of(v.get(k).unwrap_or(&Value::Null));
             let loader_text = match loader.get("reset") {
-                Some(reset) if reset.truthy() => {
-                    format!("{}({})", py_str(reset), field(&loader, "boot_reason"))
+                Some(reset) if filled(reset) => {
+                    format!("{}({})", text_of(reset), field(&loader, "boot_reason"))
                 }
                 _ => "not_observed".into(),
             };
             let pmic_text = pmic
                 .get("long_press_reset_reason")
-                .map_or_else(|| "not_observed".into(), py_str);
+                .map_or_else(|| "not_observed".into(), text_of);
             return Ok(Some((
                 "unclean_restart".into(),
                 format!(
@@ -240,12 +243,16 @@ fn reborn_crash(root: &Root, value: &mut Reports) -> Result<Fired, Failure> {
         // One report per crash, not per rewrite: a crash at every start (playlists.rs:223, #49)
         // rewrote the file each restart, every boot.
         let record = json_dict(root, "/data/reborn/logs/panic-last.json");
-        let parts: Vec<Py> = ["version", "location", "message"]
+        let parts: Vec<Value> = ["version", "location", "message"]
             .iter()
-            .map(|k| record.get(k).cloned().unwrap_or(Py::None))
+            .map(|k| record.get(k).cloned().unwrap_or(Value::Null))
             .collect();
-        let signature = if parts.iter().any(Py::truthy) {
-            let text = pyjson::dumps(&Py::List(parts), pyjson::Style::Spaced);
+        let signature = if parts.iter().any(filled) {
+            let text = y2p_core::json::python_dumps_sorted(
+                &Value::Array(parts),
+                y2p_core::json::Separators::Spaced,
+            )
+            .unwrap_or_default();
             sha256_hex(text.as_bytes())[..16].to_owned()
         } else {
             use std::os::unix::fs::MetadataExt;
@@ -258,25 +265,25 @@ fn reborn_crash(root: &Root, value: &mut Reports) -> Result<Fired, Failure> {
         // file still goes into any report.
         let version = record
             .get("version")
-            .and_then(Py::as_str)
+            .and_then(Value::as_str)
             .map(str::to_owned);
         let release = or_dict(json_dict(root, "/etc/y2linux/release.json"));
-        let running = if release.truthy() {
+        let running = if filled(&release) {
             release
         } else {
             or_dict(json_dict(root, "/etc/y2linux/versions.json"))
         };
         let running = running
             .get("reborn_version")
-            .and_then(Py::as_str)
+            .and_then(Value::as_str)
             .map(str::to_owned);
         let earlier = match (&version, &running) {
             (Some(v), Some(r)) => !r.is_empty() && v != r && !v.starts_with(&format!("{r}-")),
             _ => false,
         };
-        if changed(value, "reborn_panic", Py::Str(signature))? && !earlier {
+        if changed(value, "reborn_panic", Value::String(signature))? && !earlier {
             // Reborn 8.12 catches a worker's panic, skips that one file and runs on.
-            let isolated = matches!(record.get("isolated"), Some(Py::Bool(true)));
+            let isolated = matches!(record.get("isolated"), Some(Value::Bool(true)));
             return Ok(Some((
                 "reborn_crash".into(),
                 if isolated { "isolated panic" } else { "panic" }.into(),
@@ -297,21 +304,21 @@ fn reborn_failure(root: &Root, value: &mut Reports, boot: &str) -> Result<Fired,
         false,
     );
     let output = health.output.unwrap_or_default();
-    let subsystems = pyjson::loads(if output.is_empty() { "{}" } else { &output });
+    let subsystems = loads_text(if output.is_empty() { "{}" } else { &output });
     // An answer, or its subsystems, that is no object is refused: the check stops here, before
     // reports.json is saved.
     let subsystems = match subsystems {
-        None => Py::dict(),
-        Some(v @ Py::Dict(_)) => v.get("subsystems").cloned().unwrap_or(Py::dict()),
+        None => object(),
+        Some(v @ Value::Object(_)) => v.get("subsystems").cloned().unwrap_or(object()),
         Some(_) => return Err(Failure::value(HEALTH_UNREADABLE)),
     };
     let mut failed: Vec<String> = match &subsystems {
-        Py::Dict(items) => items
+        Value::Object(items) => items
             .iter()
             .filter(|(_, e)| {
-                e.is_dict()
-                    && e.get("state").is_some_and(|s| s.py_eq(&Py::str("failed")))
-                    && e.get("required").is_some_and(Py::truthy)
+                e.is_object()
+                    && e.get("state").is_some_and(|s| s.eq(&Value::from("failed")))
+                    && e.get("required").is_some_and(filled)
             })
             .map(|(k, _)| k.clone())
             .collect(),
@@ -322,7 +329,7 @@ fn reborn_failure(root: &Root, value: &mut Reports, boot: &str) -> Result<Fired,
         && changed(
             value,
             "reborn_failed",
-            Py::Str(format!("{boot}:{}", failed.join(","))),
+            Value::String(format!("{boot}:{}", failed.join(","))),
         )?
     {
         return Ok(Some(("reborn_failure".into(), failed.join(","))));
@@ -333,18 +340,18 @@ fn reborn_failure(root: &Root, value: &mut Reports, boot: &str) -> Result<Fired,
 /// An update that failed or was rolled back.
 fn update_failure(root: &Root, value: &mut Reports) -> Result<Fired, Failure> {
     let update = json_dict(root, "/data/updates/state.json");
-    let update_state = update.get("state").cloned().unwrap_or(Py::None);
+    let update_state = update.get("state").cloned().unwrap_or(Value::Null);
     if ["Failed", "RolledBack", "RescueRequired", "RollbackPending"]
         .iter()
-        .any(|s| update_state.py_eq(&Py::str(*s)))
+        .any(|s| update_state.eq(&Value::from(*s)))
     {
         let marker = format!(
             "{}:{}",
-            py_str(update.get("sequence").unwrap_or(&Py::None)),
-            py_str(&update_state)
+            text_of(update.get("sequence").unwrap_or(&Value::Null)),
+            text_of(&update_state)
         );
-        if changed(value, "update", Py::Str(marker))? {
-            return Ok(Some(("update_failure".into(), py_str(&update_state))));
+        if changed(value, "update", Value::String(marker))? {
+            return Ok(Some(("update_failure".into(), text_of(&update_state))));
         }
     }
     Ok(None)
@@ -377,7 +384,7 @@ fn sleep_failure(root: &Root, value: &mut Reports, boot: &str) -> Result<Fired, 
         && changed(
             value,
             "suspend_fail",
-            Py::Str(format!("{boot}:{fails}:{resumes}:{frozen}")),
+            Value::String(format!("{boot}:{fails}:{resumes}:{frozen}")),
         )?
     {
         let or_mark = |name: &str| {
@@ -416,7 +423,11 @@ fn radio_failure(root: &Root, value: &mut Reports, boot: &str) -> Result<Fired, 
         .next()
         .map(|c| c[1].to_owned());
     if let Some(error) = error.filter(|e| e != "0") {
-        if changed(value, "conn_error", Py::Str(format!("{boot}:{error}")))? {
+        if changed(
+            value,
+            "conn_error",
+            Value::String(format!("{boot}:{error}")),
+        )? {
             return Ok(Some((
                 "radio_failure".into(),
                 format!("connectivity error={error}"),
@@ -439,14 +450,14 @@ fn display_failure(
     let ready = or_dict(json_dict(root, "/run/y2/application-ready.json"));
     let lit = ready
         .get("boot_id")
-        .is_some_and(|b| b.py_eq(&Py::str(boot)))
-        && matches!(ready.get("first_frame"), Some(Py::Bool(true)));
+        .is_some_and(|b| b.eq(&Value::from(boot)))
+        && matches!(ready.get("first_frame"), Some(Value::Bool(true)));
     let darks: Vec<&str> = dark()
         .find_iter(kernel)
         .map(|m| m.as_str())
         .filter(|m| !(lit && m.starts_with("DSI register")))
         .collect();
-    if !darks.is_empty() && changed(value, "dark", Py::Str(boot.to_owned()))? {
+    if !darks.is_empty() && changed(value, "dark", Value::String(boot.to_owned()))? {
         return Ok(Some(("display_failure".into(), darks[0].to_owned())));
     }
     Ok(None)
@@ -469,7 +480,7 @@ fn storage_error(
         && changed(
             value,
             "storage",
-            Py::Str(format!(
+            Value::String(format!(
                 "{boot}:{}:{ext4}",
                 if found.is_some() { "True" } else { "False" }
             )),
@@ -488,13 +499,13 @@ fn storage_error(
 /// They usually share a cause (a crash loop: unclean restart, Reborn crash and a rolled-back update
 /// within seconds) and one report carries all of them; one report each sent near copies against the
 /// daily limit.
-pub fn run_checks(root: &Root) -> Result<Py, Failure> {
+pub fn run_checks(root: &Root) -> Result<Value, Failure> {
     if !Reports::load(root).enabled() {
-        return Ok(Py::List(Vec::new()));
+        return Ok(Value::Array(Vec::new()));
     }
     let fired = check(root)?;
     if fired.is_empty() {
-        return Ok(Py::List(Vec::new()));
+        return Ok(Value::Array(Vec::new()));
     }
     let boot = root.boot_id().unwrap_or_default();
     let reported = Reports::load(root).reported(&boot)?;
@@ -517,12 +528,12 @@ pub fn run_checks(root: &Root) -> Result<Py, Failure> {
     };
     let triggers: Vec<String> = fired.iter().map(|(t, _)| t.clone()).collect();
     let mut result = super::upload::queue(root, &triggers, &detail, None, &Progress::quiet())?;
-    result.set("trigger", Py::Str(trigger));
+    result.set("trigger", Value::String(trigger));
     result.set(
         "triggers",
-        Py::List(triggers.into_iter().map(Py::Str).collect()),
+        Value::Array(triggers.into_iter().map(Value::String).collect()),
     );
-    Ok(Py::List(vec![result]))
+    Ok(Value::Array(vec![result]))
 }
 
 #[cfg(test)]
