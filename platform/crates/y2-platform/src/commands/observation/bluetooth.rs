@@ -6,7 +6,7 @@ use crate::{
     commands::codec::{inventory_codec, requested, validate},
     reply::Failure,
 };
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
 use y2p_core::{
     command,
@@ -132,8 +132,32 @@ fn codec_settings(root: &Root, inventory: &Map<String, Value>) -> Result<Value, 
 }
 
 /// The encoder as observed, kept apart from the peer's configuration and the preference: BlueALSA's
-/// statistics count only while the PCM runs.
-fn quality(codec: &Value, pcm: &Map<String, Value>, settings: &Value) -> Map<String, Value> {
+/// statistics count only while the PCM runs (null where not observed or not this codec's).
+#[derive(Serialize, Default)]
+struct Encoder {
+    bitrate_bps: Option<i64>,
+    sbc_quality: Option<&'static str>,
+    sbc_bitpool: Option<i64>,
+    sbc_xq_peer_mode: Option<bool>,
+    sbc_abr_enabled: Option<bool>,
+    sbc_abr_adjustments: Option<i64>,
+    ldac_quality_index: Option<i64>,
+    ldac_nominal_choices_kbps: Option<[i64; 3]>,
+    ldac_abr_enabled: Option<bool>,
+    ldac_abr_adjustments: Option<i64>,
+    aac_abr_enabled: Option<bool>,
+    aac_abr_level: Option<i64>,
+    aac_abr_adjustments: Option<i64>,
+    preference: Value,
+    encoder_observed: bool,
+    bitrate_scope: &'static str,
+    ldac_abr_adaptation_observed: bool,
+    encoder_errors: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    sbc_negotiated_bitpool_range: Option<[i64; 2]>,
+}
+
+fn quality(codec: Option<&str>, pcm: &Map<String, Value>, settings: &Value) -> Encoder {
     let config: Vec<i64> = match pcm.get("CodecConfiguration") {
         Some(Value::Array(items)) => items
             .iter()
@@ -158,118 +182,65 @@ fn quality(codec: &Value, pcm: &Map<String, Value>, settings: &Value) -> Map<Str
             .filter(|v| (minimum..=maximum).contains(v))
     };
     const MAX: i64 = (1 << 31) - 1;
-    let mut value = Map::new();
-    for key in [
-        "bitrate_bps",
-        "sbc_quality",
-        "sbc_bitpool",
-        "sbc_xq_peer_mode",
-        "sbc_abr_enabled",
-        "sbc_abr_adjustments",
-        "ldac_quality_index",
-        "ldac_nominal_choices_kbps",
-        "ldac_abr_enabled",
-        "ldac_abr_adjustments",
-        "aac_abr_enabled",
-        "aac_abr_level",
-        "aac_abr_adjustments",
-    ] {
-        value.insert(key.into(), Value::Null);
-    }
-    value.insert(
-        "preference".into(),
-        settings.get("requested").cloned().unwrap_or(Value::Null),
-    );
-    value.insert("encoder_observed".into(), json!(live));
-    value.insert(
-        "bitrate_scope".into(),
-        json!("encoder_payload_nominal_not_radio_throughput"),
-    );
-    value.insert("ldac_abr_adaptation_observed".into(), json!(false));
-    value.insert("encoder_errors".into(), json!(observed("Errors", 0, MAX)));
-    let flag = |enabled: Option<i64>| enabled.map_or(Value::Null, |e| json!(e != 0));
-    match codec.as_str() {
+    let flag = |enabled: Option<i64>| enabled.map(|e| e != 0);
+    let mut encoder = Encoder {
+        preference: settings.get("requested").cloned().unwrap_or(Value::Null),
+        encoder_observed: live,
+        bitrate_scope: "encoder_payload_nominal_not_radio_throughput",
+        encoder_errors: observed("Errors", 0, MAX),
+        ..Encoder::default()
+    };
+    match codec {
         Some("SBC") => {
-            if config.len() == 4 {
+            if let [c0, c1, c2, c3] = config[..] {
                 // A2DP SBC: 44.1kHz dual-channel, 16 blocks, 8 subbands, loudness.
-                let xq = config[0] == 0x24 && config[1] == 0x15;
-                value.insert("sbc_xq_peer_mode".into(), json!(xq && config[3] >= 38));
-                value.insert(
-                    "sbc_negotiated_bitpool_range".into(),
-                    json!(config[2..4].to_vec()),
-                );
-                let bitpool = observed("Bitpool", 2, 250);
-                value.insert("sbc_bitpool".into(), json!(bitpool));
-                if let Some(bitpool) = bitpool {
-                    value.insert(
-                        "sbc_quality".into(),
-                        json!(if xq && bitpool == 47 {
-                            "xq+"
-                        } else if xq && bitpool == 38 {
-                            "xq"
-                        } else {
-                            "standard"
-                        }),
-                    );
-                }
+                let xq = c0 == 0x24 && c1 == 0x15;
+                encoder.sbc_xq_peer_mode = Some(xq && c3 >= 38);
+                encoder.sbc_negotiated_bitpool_range = Some([c2, c3]);
+                encoder.sbc_bitpool = observed("Bitpool", 2, 250);
+                encoder.sbc_quality = encoder.sbc_bitpool.map(|bitpool| {
+                    if xq && bitpool == 47 {
+                        "xq+"
+                    } else if xq && bitpool == 38 {
+                        "xq"
+                    } else {
+                        "standard"
+                    }
+                });
             }
             // BlueALSA patch 0003: Bitpool above is the live (possibly stepped down) value;
             // adjustments count how often the link forced a change.
-            value.insert("sbc_abr_enabled".into(), flag(observed("AbrEnabled", 0, 1)));
-            value.insert(
-                "sbc_abr_adjustments".into(),
-                json!(observed("AbrAdjustments", 0, MAX)),
-            );
+            encoder.sbc_abr_enabled = flag(observed("AbrEnabled", 0, 1));
+            encoder.sbc_abr_adjustments = observed("AbrAdjustments", 0, MAX);
         }
         Some("LDAC") => {
-            let rate = pcm.get("Rate").and_then(Value::as_i64);
-            let is = |n: i64| rate == Some(n);
-            value.insert(
-                "ldac_nominal_choices_kbps".into(),
-                if is(44100) || is(88200) {
-                    json!([303, 606, 909])
-                } else if is(48000) || is(96000) {
-                    json!([330, 660, 990])
-                } else {
-                    Value::Null
-                },
-            );
-            value.insert(
-                "ldac_quality_index".into(),
-                json!(observed("QualityIndex", 0, 15)),
-            );
+            encoder.ldac_nominal_choices_kbps = match pcm.get("Rate").and_then(Value::as_i64) {
+                Some(44100 | 88200) => Some([303, 606, 909]),
+                Some(48000 | 96000) => Some([330, 660, 990]),
+                _ => None,
+            };
+            encoder.ldac_quality_index = observed("QualityIndex", 0, 15);
             let enabled = observed("AbrEnabled", 0, 1);
-            value.insert("ldac_abr_enabled".into(), flag(enabled));
-            let adjustments = observed("AbrAdjustments", 0, MAX);
-            value.insert("ldac_abr_adjustments".into(), json!(adjustments));
-            value.insert(
-                "ldac_abr_adaptation_observed".into(),
-                json!(enabled == Some(1) && adjustments.unwrap_or(0) > 0),
-            );
+            encoder.ldac_abr_enabled = flag(enabled);
+            encoder.ldac_abr_adjustments = observed("AbrAdjustments", 0, MAX);
+            encoder.ldac_abr_adaptation_observed =
+                enabled == Some(1) && encoder.ldac_abr_adjustments.unwrap_or(0) > 0;
         }
         Some("AAC") => {
             // BlueALSA patch 0002: CBR rate actually in use, ABR level 0 = full rate (3 = half), and
             // how often the link forced a change.
-            value.insert("aac_abr_enabled".into(), flag(observed("AbrEnabled", 0, 1)));
-            value.insert(
-                "aac_abr_level".into(),
-                json!(observed("QualityIndex", 0, 3)),
-            );
-            value.insert(
-                "aac_abr_adjustments".into(),
-                json!(observed("AbrAdjustments", 0, MAX)),
-            );
+            encoder.aac_abr_enabled = flag(observed("AbrEnabled", 0, 1));
+            encoder.aac_abr_level = observed("QualityIndex", 0, 3);
+            encoder.aac_abr_adjustments = observed("AbrAdjustments", 0, MAX);
         }
         _ => {}
     }
-    if matches!(codec.as_str(), Some("SBC" | "LDAC" | "AAC")) {
-        let bitrate = observed("BitrateKbps", 1, 2000);
-        value.insert(
-            "bitrate_bps".into(),
-            json!(bitrate.filter(|b| *b != 0).map(|b| b * 1000)),
-        );
+    if matches!(codec, Some("SBC" | "LDAC" | "AAC")) {
+        encoder.bitrate_bps = observed("BitrateKbps", 1, 2000)
+            .filter(|b| *b != 0)
+            .map(|b| b * 1000);
     }
-    value
+    encoder
 }
 
 fn base(root: &Root, settings: Value, inventory: Option<Value>) -> Map<String, Value> {
@@ -544,18 +515,18 @@ fn transport(
         "valid_bits": format.map(|f| f.1), "physical_bits": format.map(|f| f.2),
         "rate_hz": rate, "channels": channels}),
     );
-    let codec = match pcm.get("Codec") {
-        Some(Value::String(s)) => json!(s),
-        _ => Value::Null,
-    };
-    result.insert("negotiated_codec".into(), codec.clone());
+    let codec = pcm.get("Codec").and_then(Value::as_str);
+    result.insert("negotiated_codec".into(), json!(codec));
     let encoder = quality(
-        &codec,
+        codec,
         pcm,
         result.get("codec_settings").unwrap_or(&Value::Null),
     );
-    result.insert("actual_bitrate_bps".into(), encoder["bitrate_bps"].clone());
-    result.insert("encoder".into(), Value::Object(encoder));
+    result.insert("actual_bitrate_bps".into(), json!(encoder.bitrate_bps));
+    result.insert(
+        "encoder".into(),
+        serde_json::to_value(encoder).unwrap_or(Value::Null),
+    );
     result.insert(
         "transport".into(),
         json!({"object": path, "bluealsa_owner": field(raw, "bluealsa_owner"),
