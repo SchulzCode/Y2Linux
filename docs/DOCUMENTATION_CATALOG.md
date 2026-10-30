@@ -363,6 +363,7 @@ Indexed pages: **341**. Explicit scope notices: **228**.
 | [Platform Rust port plan](planning/PLATFORM-RUST-PORT-PLAN.md) | Port of the Python platform service to Rust in phases, then Python removed from the player; inventory, contract, tests, gates |
 | [Platform Rust port handoff](planning/PLATFORM-RUST-PORT-HANDOFF.md) | State of the Rust platform after the port: measurements, where everything lives, build/test/install, what is owed |
 | [Platform Rust refactor plan](planning/PLATFORM-RUST-REFACTOR-PLAN.md) | Refactor of the ported platform: contract, phases, quick wins, duplication pass, next pass P1–P9 and what still follows Python |
+| [Platform Rust idiomatic plan](planning/PLATFORM-RUST-IDIOMATIC-PLAN.md) | From the port to idiomatic Rust: typed records instead of loose JSON (P0–P7, finishing Q1–Q5), owner decisions, test builds 180–185 |
 | [Platform Rust next-agent handoff](planning/PLATFORM-RUST-NEXT-AGENT-HANDOFF.md) | The remaining Rust-logic, refactor and duplication work for one agent: order, method, owner decisions, build/verify |
 | [Speaker and haptics plan](planning/SPEAKER-HAPTICS-PLAN.md) | Stock REA of the vibrator, AW87559 and CS43131 speaker route; plan and device checks |
 | [Y2Linux 1.0 Beta 8.39 report](validation/Y2-LINUX-1.0-BETA-8.39.md) | Beta 8.39 (Baseline 153): Folders by file name, Shuffle Albums, playlist Sort, a 120 000-song card measured and made fast |

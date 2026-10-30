@@ -256,6 +256,33 @@ decisions and fixes, each a re-recorded golden:
 - **Fixture argv:** below a fixture root the DNS probe records `["getaddrinfo", <host>]` (it named the Python
   one-liner).
 
+## Typed records (2026-10-30, test builds 181–185)
+
+[PLATFORM-RUST-IDIOMATIC-PLAN.md](../docs/planning/PLATFORM-RUST-IDIOMATIC-PLAN.md) (P0–P7, Q1–Q5): every record
+the platform owns is a Rust struct, read leniently where a field may be missing and written in its fields' types;
+the Python emulation (`pyjson`, `pyops`, `Failure::Crash`, the dict/`json.loads` error texts) is gone. Owner rules:
+- **/data stays rollback-safe:** a struct keeps the field names and types an earlier build wrote (new fields are
+  allowed); `tools/development/record-compat.py` (in the gate) compares every /data file the goldens write
+  with the release before, reviewed odd-fixture exceptions in `tools/development/record-compat-allow.txt`.
+  Digests over stored JSON keep their encoding (the reset plan's `confirmation` is checked over the plan as read).
+- **Status and health answers may change shape** (Reborn's parser and its contract test change in the same step):
+  a field that does not read is left out or `null`; a broken record makes its section Unavailable/Failed instead
+  of refusing the whole `status` (an update journal whose state is no text: update Unavailable, no longer
+  `invalid_update_journal`).
+- **The critical path fails closed with one reason** (owner decision for Q4): a sleep receipt that does not read
+  refuses as `suspend_receipt_unreadable` (the failure and the restore are still recorded, in a new receipt; the
+  next request starts a new one), Reborn's sleep answer that is no JSON object as `reborn_sleep_answer_unreadable`,
+  a corrupted quarantine guard as `sleep_recovery_required`, a reset plan that does not read as
+  `reset_plan_unreadable` before anything moves, a reset record as `reset_record_unreadable`, Reborn's saved
+  session as `invalid_saved_session`. The refusal reasons listed under the refactor above that named Python's
+  messages (`record_unreadable: …`, dict/`int()` texts) are these now.
+- **Shared types:** `y2p_contract::{Versions, Capabilities, Health, ObservationRecord, …}`; one record type per
+  file where several commands read it (the SD `MediaRecord`, the shutdown `Intent`, the suspend `Receipt`, the
+  power-journal row, the sleep-diagnostics row, `ProcessIdentity`, the battery profile, the mtp records).
+- **Boundaries kept as written:** the native update core's journal and answers (typed fields the platform reads,
+  its install records as written), Reborn's session file in a settings reset (only `settings` is replaced),
+  power.json's battery as copied into the receipt, report bundles' copies of release.json/versions.json.
+
 ## Defects found while inventorying and porting (fixed 2026-10-29)
 
 Ported 1:1 first (owner decision 2026-10-28: port, then fix), fixed in Rust after Phase 6, each with a test.

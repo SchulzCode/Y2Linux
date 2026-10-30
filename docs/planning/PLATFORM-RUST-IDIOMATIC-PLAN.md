@@ -342,6 +342,25 @@ native update core's journal and answers (a C program's records, shown as is), R
 reset (only its settings are replaced), versions.json and power.json's battery copied into rows. Small leftovers:
 Python truthiness inside a few typed readers (`py::truthy`, `python_number`), `argparse/python.rs`.
 
+Q5 (2026-10-30, after 185): the native update core's journal typed on the platform side (`CoreJournal`: the
+fields the platform and Reborn read; the core's install records kept as written) and one
+`y2p_contract::Versions` for versions.json (status, journal rows, observation records, capabilities, CPU idle,
+the sleep guard) (d7a909d2); CONTRACT.md "Typed records"; the plan in the documentation catalog. Tried and
+dropped: typing power.json's battery copy in the receipt (a reading of another shape lost fields and gained
+defaults; it stays a copy). Left on purpose: Python truthiness inside a few lenient readers, `argparse/python.rs`
+(CLI error texts), `py::os_error` texts (shown failure reasons), report bundles' copies.
+
+Measured on 185 (2026-10-30, screen off, charging, 6 min uptime):
+
+| | Python (165) | port end (≈171) | 185 |
+|---|---|---|---|
+| daemons RSS / PSS | 58.4 / 35.0 MB | 15.2 / 4.6 MB | 17.3 / 5.5 MB (binary 4.2 MB) |
+| daemons idle CPU | ≈92 s/h | ≈11–19.6 s/h | 12.0 s/h (power 4.4, service 5.5, ssh 1.9, connectivity 0.2) |
+| Reborn idle CPU | ≈45 s/h | ≈14 s/h | 15.7 s/h (early uptime) |
+| simple call (`sleep status`, `update status`) | 0.53 s | 8–17 ms | 6 / 8 ms |
+| `status` (any section) | — | — | 330 ms: ≈170 ms is the bounded `wakeup_count` read, which blocks while the charger holds a wakeup event |
+| application_ready | ≈44 s | 37.4 s | 37.0 s |
+
 ## 4. Test builds
 
 | build | content |
