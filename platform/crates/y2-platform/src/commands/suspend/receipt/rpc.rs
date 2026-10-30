@@ -3,10 +3,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use super::super::{interrupted, pyjson, E};
 use serde_json::{json, Map, Value};
-use std::os::{
-    fd::{AsRawFd, FromRawFd, OwnedFd},
-    unix::ffi::OsStrExt,
-};
+use std::os::fd::{AsFd, AsRawFd};
 use y2p_core::py::PyValue;
 use y2p_core::{
     json::{dumps, Separators},
@@ -65,61 +62,21 @@ pub fn application_rpc(root: &Root, operation: &str, dark: bool) -> Result<Map<S
         if dark { ", \"dark\": true" } else { "" }
     );
     let path = root.path("/run/reborn/control.sock");
-    // SAFETY: plain socket(2); the descriptor is owned below.
-    let raw = unsafe {
-        libc::socket(
-            libc::AF_UNIX,
-            libc::SOCK_STREAM | libc::SOCK_CLOEXEC | libc::SOCK_NONBLOCK,
-            0,
-        )
-    };
-    if raw < 0 {
-        return Err(E::os(&last_error(), None));
-    }
-    // SAFETY: `raw` is a fresh descriptor nobody else owns.
-    let socket = unsafe { OwnedFd::from_raw_fd(raw) };
+    let socket = y2p_core::sys::unix_stream(true).map_err(E::from)?;
     let fd = socket.as_raw_fd();
-    let bytes = path.as_os_str().as_bytes();
-    // SAFETY: a zeroed sockaddr_un is valid.
-    let mut address: libc::sockaddr_un = unsafe { std::mem::zeroed() };
-    if bytes.len() > address.sun_path.len() {
-        return Err(E::Os {
-            class: "OSError",
-            text: "AF_UNIX path too long".into(),
-            errno: None,
-        });
-    }
-    address.sun_family = libc::AF_UNIX as libc::sa_family_t;
-    for (slot, byte) in address.sun_path.iter_mut().zip(bytes) {
-        *slot = *byte as libc::c_char;
-    }
-    let length = (std::mem::size_of::<libc::sa_family_t>() + bytes.len()) as libc::socklen_t;
+    let address = y2p_core::sys::unix_address(&path).ok_or_else(|| E::Os {
+        class: "OSError",
+        text: "AF_UNIX path too long".into(),
+        errno: None,
+    })?;
     let deadline =
         std::time::Instant::now() + std::time::Duration::from_millis(RPC_TIMEOUT_MS as u64);
-    // SAFETY: `address` is an initialised sockaddr_un of `length` bytes.
-    let connected =
-        unsafe { libc::connect(fd, (&address as *const libc::sockaddr_un).cast(), length) };
-    if connected < 0 {
-        let error = last_error();
+    if let Err(error) = y2p_core::sys::connect_unix(socket.as_fd(), &address) {
         match error.raw_os_error() {
             Some(libc::EINPROGRESS) | Some(libc::EINTR) => {
                 interrupted()?;
                 wait(fd, libc::POLLOUT, deadline)?;
-                let mut code: libc::c_int = 0;
-                let mut size = std::mem::size_of::<libc::c_int>() as libc::socklen_t;
-                // SAFETY: SO_ERROR into a c_int.
-                unsafe {
-                    libc::getsockopt(
-                        fd,
-                        libc::SOL_SOCKET,
-                        libc::SO_ERROR,
-                        (&mut code as *mut libc::c_int).cast(),
-                        &mut size,
-                    )
-                };
-                if code != 0 {
-                    return Err(E::os(&std::io::Error::from_raw_os_error(code), None));
-                }
+                y2p_core::sys::socket_error(socket.as_fd())?;
             }
             _ => return Err(E::from(error)),
         }

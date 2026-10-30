@@ -8,11 +8,8 @@ use crate::reply::Failure;
 use std::{
     io,
     os::{
-        fd::{AsRawFd, FromRawFd, OwnedFd},
-        unix::{
-            ffi::OsStrExt,
-            net::{UnixListener, UnixStream},
-        },
+        fd::{AsFd, AsRawFd, OwnedFd},
+        unix::net::{UnixListener, UnixStream},
     },
     path::Path,
     time::{Duration, Instant},
@@ -27,34 +24,13 @@ pub fn timed_out() -> Failure {
 }
 
 fn address(path: &Path) -> Result<(libc::sockaddr_un, libc::socklen_t), Failure> {
-    let bytes = path.as_os_str().as_bytes();
-    // SAFETY: an all-zero sockaddr_un is valid.
-    let mut address: libc::sockaddr_un = unsafe { std::mem::zeroed() };
-    if bytes.len() > address.sun_path.len() {
-        return Err(Failure::os_message("AF_UNIX path too long"));
-    }
-    address.sun_family = libc::AF_UNIX as libc::sa_family_t;
-    for (slot, byte) in address.sun_path.iter_mut().zip(bytes) {
-        *slot = *byte as libc::c_char;
-    }
-    let length = std::mem::size_of::<libc::sa_family_t>() + bytes.len();
-    Ok((address, length as libc::socklen_t))
+    y2p_core::sys::unix_address(path).ok_or_else(|| Failure::os_message("AF_UNIX path too long"))
 }
 
 fn socket(flags: libc::c_int) -> Result<OwnedFd, Failure> {
-    // SAFETY: plain socket(2); the result is checked and owned below.
-    let fd = unsafe {
-        libc::socket(
-            libc::AF_UNIX,
-            libc::SOCK_STREAM | libc::SOCK_CLOEXEC | flags,
-            0,
-        )
-    };
-    if fd < 0 {
-        return Err(Failure::from(io::Error::last_os_error()));
-    }
-    // SAFETY: a new descriptor this function owns.
-    Ok(unsafe { OwnedFd::from_raw_fd(fd) })
+    Ok(y2p_core::sys::unix_stream(
+        flags & libc::SOCK_NONBLOCK != 0,
+    )?)
 }
 
 /// `bind(path)`, `chmod(path, 0o600)`, `listen(4)`; non-blocking for the timed accept.
@@ -156,38 +132,15 @@ pub fn peer(stream: &UnixStream) -> Result<(i64, u32), Failure> {
 /// `client.settimeout(timeout); client.connect(path)`.
 pub fn connect(path: &Path, timeout: Duration) -> Result<UnixStream, Failure> {
     let fd = socket(libc::SOCK_NONBLOCK)?;
-    let (address, length) = address(path)?;
-    // SAFETY: `address` is a valid sockaddr_un of `length` bytes.
-    let result = unsafe {
-        libc::connect(
-            fd.as_raw_fd(),
-            (&address as *const libc::sockaddr_un).cast(),
-            length,
-        )
-    };
-    if result < 0 {
-        let error = io::Error::last_os_error();
+    let address = address(path)?;
+    if let Err(error) = y2p_core::sys::connect_unix(fd.as_fd(), &address) {
         if error.raw_os_error() != Some(libc::EINPROGRESS) {
             return Err(Failure::from(error));
         }
         if !poll(fd.as_raw_fd(), libc::POLLOUT, Instant::now() + timeout)? {
             return Err(timed_out());
         }
-        let mut code: libc::c_int = 0;
-        let mut size = std::mem::size_of::<libc::c_int>() as libc::socklen_t;
-        // SAFETY: SO_ERROR into one int.
-        unsafe {
-            libc::getsockopt(
-                fd.as_raw_fd(),
-                libc::SOL_SOCKET,
-                libc::SO_ERROR,
-                (&mut code as *mut libc::c_int).cast(),
-                &mut size,
-            )
-        };
-        if code != 0 {
-            return Err(Failure::from(io::Error::from_raw_os_error(code)));
-        }
+        y2p_core::sys::socket_error(fd.as_fd())?;
     }
     let stream = UnixStream::from(fd);
     stream.set_nonblocking(false)?;

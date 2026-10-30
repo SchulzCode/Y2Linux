@@ -349,6 +349,71 @@ pub fn alive(pid: i64) -> bool {
     libc::pid_t::try_from(pid).is_ok_and(|pid| pid > 0 && kill(pid, 0).is_ok())
 }
 
+/// A stream `AF_UNIX` socket (close-on-exec, non-blocking when asked).
+pub fn unix_stream(nonblock: bool) -> io::Result<OwnedFd> {
+    let flags =
+        libc::SOCK_STREAM | libc::SOCK_CLOEXEC | if nonblock { libc::SOCK_NONBLOCK } else { 0 };
+    // SAFETY: a plain socket call; the descriptor is owned right after it is created.
+    let fd = unsafe { libc::socket(libc::AF_UNIX, flags, 0) };
+    if fd < 0 {
+        return Err(io::Error::last_os_error());
+    }
+    // SAFETY: the descriptor was just created and is owned once.
+    Ok(unsafe { OwnedFd::from_raw_fd(fd) })
+}
+
+/// A filesystem `AF_UNIX` address and its length; `None` for a path longer than `sun_path`.
+pub fn unix_address(path: &Path) -> Option<(libc::sockaddr_un, libc::socklen_t)> {
+    let bytes = path.as_os_str().as_bytes();
+    // SAFETY: an all-zero sockaddr_un is valid.
+    let mut address: libc::sockaddr_un = unsafe { std::mem::zeroed() };
+    if bytes.len() > address.sun_path.len() {
+        return None;
+    }
+    address.sun_family = libc::AF_UNIX as libc::sa_family_t;
+    for (slot, byte) in address.sun_path.iter_mut().zip(bytes) {
+        *slot = *byte as libc::c_char;
+    }
+    let length = std::mem::size_of::<libc::sa_family_t>() + bytes.len();
+    Some((address, length as libc::socklen_t))
+}
+
+/// `connect(fd, address)`: on a non-blocking socket `EINPROGRESS` is the error to wait out (for
+/// `POLLOUT`, then [`socket_error`]).
+pub fn connect_unix(
+    fd: BorrowedFd<'_>,
+    (address, length): &(libc::sockaddr_un, libc::socklen_t),
+) -> io::Result<()> {
+    // SAFETY: `address` is an initialised sockaddr_un of `length` bytes.
+    check(unsafe {
+        libc::connect(
+            fd.as_raw_fd(),
+            (address as *const libc::sockaddr_un).cast(),
+            *length,
+        )
+    })
+}
+
+/// `SO_ERROR`: how a non-blocking connect ended (`Ok` when it connected).
+pub fn socket_error(fd: BorrowedFd<'_>) -> io::Result<()> {
+    let mut code: libc::c_int = 0;
+    let mut size = std::mem::size_of::<libc::c_int>() as libc::socklen_t;
+    // SAFETY: SO_ERROR into one c_int of its size.
+    check(unsafe {
+        libc::getsockopt(
+            fd.as_raw_fd(),
+            libc::SOL_SOCKET,
+            libc::SO_ERROR,
+            (&mut code as *mut libc::c_int).cast(),
+            &mut size,
+        )
+    })?;
+    match code {
+        0 => Ok(()),
+        code => Err(io::Error::from_raw_os_error(code)),
+    }
+}
+
 /// An rtnetlink socket (close-on-exec, non-blocking when asked), bound to the multicast `groups`
 /// (`RTMGRP_*`) when there are any; without groups the kernel binds it on its first send.
 pub fn netlink_route(groups: u32, nonblock: bool) -> io::Result<OwnedFd> {
