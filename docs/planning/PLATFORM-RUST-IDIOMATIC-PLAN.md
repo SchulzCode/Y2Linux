@@ -361,6 +361,27 @@ Measured on 185 (2026-10-30, screen off, charging, 6 min uptime):
 | `status` (any section) | — | — | 330 ms: ≈170 ms is the bounded `wakeup_count` read, which blocks while the charger holds a wakeup event |
 | application_ready | ≈44 s | 37.4 s | 37.0 s |
 
+After Beta 9.0 (2026-10-30, owner: "do all of it, no extra testing from me for now"; not built or installed yet):
+- **Reborn on the contract types** (R-A–G): `y2p-contract` gained `sleep`, `update`, `power`, `network`,
+  `storage`, `usb`, `reports` and `radio`, moved out of the platform (the daemon writes the shared `PowerRecord`;
+  its borrowing copy and the media hand-off's own `UsbState` are gone); Reborn's update page, battery, shutdown
+  intent, Wi-Fi readiness, SD and Y2Media checks, USB receipt, report progress, Internal Storage setup and radio
+  firmware read them (CONTRACT.md "Records Reborn reads in the platform's types"). Reborn's recorded contract is
+  unchanged except for the removed `download_percent`. Left as JSON on purpose: the rest of the status snapshot
+  and the diagnostics page (it shows whatever a field holds).
+- **Reborn split without a code change:** `main.rs` 8,268 → 947 lines (Runtime's methods in `runtime/`, `run` in
+  `main_loop.rs`, tests in `main_tests/`), `playback.rs` 3,725 → 1,565, `reborn-ui/src/lib.rs` 4,493 → 1,069; the
+  same tests run. Still long single functions: `run` (2,086 lines) and `Playback::with_sink` (1,007), whose
+  closures share state; shortening them is a real change, best done with a player at hand.
+- **Platform leftovers:** `py::truthy` is the contract's `lenient::is_truthy`; `sys::pipe` and `sys::signal_note`
+  (both signal handlers' errno-keeping wakeup write) and the existing `sys` wrappers replace hand-written calls;
+  `unsafe` outside y2p-core 82 → 63.
+- **Not started: the update core in Rust.** `tools/update/core.c` is the signed rescue's trust boundary
+  (`rescue_tools.py` requires a full paired build when it changes), runs in the recovery image too, and needs
+  Ed25519 vendored (`ed25519-dalek`, a legal-info change). A port is checkable on the host against the core's 22
+  tests in `tests/test_platform_update.py`, but cannot ship before a hardware round including recovery boots;
+  owner decision pending.
+
 ## 4. Test builds
 
 | build | content |

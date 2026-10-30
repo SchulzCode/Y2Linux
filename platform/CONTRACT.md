@@ -283,6 +283,32 @@ the Python emulation (`pyjson`, `pyops`, `Failure::Crash`, the dict/`json.loads`
   its install records as written), Reborn's session file in a settings reset (only `settings` is replaced),
   power.json's battery as copied into the receipt, report bundles' copies of release.json/versions.json.
 
+## Records Reborn reads in the platform's types (2026-10-30, after Beta 9.0)
+
+The records Reborn decides on are now `y2p-contract` types the platform writes and Reborn reads, so a field
+renamed or retyped on one side no longer compiles on the other. Each module keeps the platform's own
+reading rules (lenient where a record of another version may be read, strict where the platform is the only
+writer); what needs the player (a root, the clock, a failure text) stays in the platform as free functions or
+a trait (`storage::records::OnPlayer`).
+
+| Module | Types | Platform | Reborn |
+| --- | --- | --- | --- |
+| `lenient` | the lenient field readers, `BootId`, `Shaped` | y2p-core re-exports it | client, power, storage |
+| `sleep` | `Product`, `ProductState`, `WakeSource` | the suspend receipt | sleep state |
+| `update` | `Status`, `CoreJournal`, `Records`, `Download`, `LastCheck`, `DownloadProgress`, `DownloadPhase` | `update status`, download.json, last-check.json, the live download record | Software Update page, download progress |
+| `power` | `PowerRecord`, `BatteryStatus`, `Estimate`, `BatterySource`, `Confidence`, `BatteryState`, `Intent`, `IntentState`, `ShutdownAction`, `Acknowledgement`, `Step`, `ProcessIdentity` | power.json (the daemon writes the shared record), shutdown.json | battery level, voltage reuse, shutdown intent |
+| `network` | `Published` | network.json's readers | Wi-Fi readiness |
+| `storage` | `MediaRecord`, `ReadOnly`, `Check`, `Identity`, `Geometry`, `Y2MediaClaim`, `SetupStatus` | the SD records, internal-media.json, the setup note | SD source checks, internal music folder, Internal Storage setup |
+| `usb` | `Receipt`, `View` | the media hand-off's view check | USB screen, library refresh |
+| `reports` | `ReportProgress`, `ReportPhase` | report-progress.json | report progress |
+| `radio` | `FirmwareStatus` | `firmware status` | Wi-Fi/Bluetooth firmware state |
+
+Still read as JSON on purpose: the status snapshot's other sections (volumes, USB controller states, health,
+capabilities, the diagnostics page, which shows whatever a field holds), and the platform's own writers that
+borrow (`connectivity::published::Record`, `service::usb::Transfer`), whose readers are the types above. The
+recorded contract (`crates/reborn-platform/tests/platform-contract.expected.json`) did not change in these
+steps except for the removed `download_percent` (download.json never carried a byte count).
+
 ## Defects found while inventorying and porting (fixed 2026-10-29)
 
 Ported 1:1 first (owner decision 2026-10-28: port, then fix), fixed in Rust after Phase 6, each with a test.
