@@ -191,17 +191,26 @@ fn wifi_authentication_is_insufficient_and_dns_epoch_expires() {
 #[test]
 fn space_reserve_and_read_only() {
     let mib = 1024 * 1024;
-    assert_eq!(space_state(200 * mib, 800 * mib, false, false), "Normal");
-    assert_eq!(space_state(90 * mib, 800 * mib, false, false), "LowSpace");
+    assert_eq!(
+        space_state(200 * mib, 800 * mib, false, false),
+        y2p_core::volume::SpaceState::Normal
+    );
+    assert_eq!(
+        space_state(90 * mib, 800 * mib, false, false),
+        y2p_core::volume::SpaceState::LowSpace
+    );
     assert_eq!(
         space_state(39 * mib, 800 * mib, false, false),
-        "CriticalSpace"
+        y2p_core::volume::SpaceState::CriticalSpace
     );
     assert_eq!(
         space_state(200 * mib, 800 * mib, true, false),
-        "ReadOnlyRisk"
+        y2p_core::volume::SpaceState::ReadOnlyRisk
     );
-    assert_eq!(space_state(200 * mib, 800 * mib, false, true), "Failed");
+    assert_eq!(
+        space_state(200 * mib, 800 * mib, false, true),
+        y2p_core::volume::SpaceState::Failed
+    );
 }
 
 // ---- Telemetry regressions: the owner-observed charging-time read hang -------------------------

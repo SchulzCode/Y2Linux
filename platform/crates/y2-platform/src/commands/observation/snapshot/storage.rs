@@ -11,6 +11,7 @@ use serde_json::{json, Map, Value};
 use std::path::Path;
 use y2p_core::json::{dumps_sorted, Object, ObjectExt, Separators};
 use y2p_core::py::PyValue;
+use y2p_core::volume::{SpaceState, VolumeState};
 use y2p_core::{command, py::truthy, Root};
 
 /// The filesystem UUIDs the image's own volumes are made with.
@@ -50,22 +51,17 @@ struct LastOperation {
 }
 
 /// Product capacity budget, not electrical thresholds. Never delete user data.
-pub(super) fn space_state(
-    available: i128,
-    total: i128,
-    readonly: bool,
-    error: bool,
-) -> &'static str {
+pub(super) fn space_state(available: i128, total: i128, readonly: bool, error: bool) -> SpaceState {
     if error {
-        "Failed"
+        SpaceState::Failed
     } else if readonly {
-        "ReadOnlyRisk"
+        SpaceState::ReadOnlyRisk
     } else if available < (32 * 1024 * 1024).max(total / 20) {
-        "CriticalSpace"
+        SpaceState::CriticalSpace
     } else if available < (96 * 1024 * 1024).max(total / 10) {
-        "LowSpace"
+        SpaceState::LowSpace
     } else {
-        "Normal"
+        SpaceState::Normal
     }
 }
 
@@ -194,7 +190,11 @@ pub fn storage(root: &Root) -> Result<Value, Failure> {
         let controller_valid = real.contains(expected) && device.exists();
         item.insert("source_instance".into(), text(instance.clone()));
         item.insert("controller_valid".into(), json!(controller_valid));
-        let mut state = if controller_valid { "Ready" } else { "Failed" };
+        let mut state = if controller_valid {
+            VolumeState::Ready
+        } else {
+            VolumeState::Failed
+        };
         let mut reason: Option<&str> =
             (!controller_valid).then_some("source_missing_or_wrong_controller");
         let mut uuid = Value::Null;
@@ -212,7 +212,7 @@ pub fn storage(root: &Root) -> Result<Value, Failure> {
                     .map_or(Value::Null, Value::String);
             }
             if expected_uuid(target).is_some_and(|expected| uuid.as_str() != Some(expected)) {
-                (state, reason) = ("Failed", Some("filesystem_identity_invalid"));
+                (state, reason) = (VolumeState::Failed, Some("filesystem_identity_invalid"));
             }
             if target == "/media/sd" {
                 let identity = media_identity(&device, &json!(mount.filesystem), &uuid);
@@ -222,14 +222,17 @@ pub fn storage(root: &Root) -> Result<Value, Failure> {
                     && claim.device_id.py_eq(&json!(device_id))
                     && claim.uuid.py_eq(&uuid);
                 if !matches {
-                    (state, reason) = ("Failed", Some("mount_claim_changed_or_missing"));
+                    (state, reason) = (VolumeState::Failed, Some("mount_claim_changed_or_missing"));
                 }
                 let claimed_other = !claim.identity.is_null() && !claim.identity.py_eq(&identity);
-                if state == "Ready" && (identity.is_null() || claimed_other) {
-                    (state, reason) = ("Failed", Some("media_identity_changed_or_missing"));
+                if state == VolumeState::Ready && (identity.is_null() || claimed_other) {
+                    (state, reason) = (
+                        VolumeState::Failed,
+                        Some("media_identity_changed_or_missing"),
+                    );
                 }
                 if instance.is_none() || !claim.source_instance.py_eq(&text(instance.clone())) {
-                    (state, reason) = ("Failed", Some("block_instance_changed"));
+                    (state, reason) = (VolumeState::Failed, Some("block_instance_changed"));
                 }
             }
         }
@@ -255,10 +258,14 @@ pub fn storage(root: &Root) -> Result<Value, Failure> {
                     json!((i128::from(vfs.bfree) * frsize) as u64),
                 );
                 item.insert("available_inodes".into(), json!(vfs.favail));
-                let mut space =
-                    space_state(available, total, readonly && !protected, state == "Failed");
+                let mut space = space_state(
+                    available,
+                    total,
+                    readonly && !protected,
+                    state == VolumeState::Failed,
+                );
                 if vfs.files > 0 && vfs.favail == 0 {
-                    space = "CriticalSpace";
+                    space = SpaceState::CriticalSpace;
                 }
                 item.insert("space_state".into(), json!(space));
                 if target == "/media/sd" {
@@ -279,12 +286,12 @@ pub fn storage(root: &Root) -> Result<Value, Failure> {
                 }
             }
             None => {
-                item.insert("space_state".into(), json!("Failed"));
-                (state, reason) = ("Failed", Some("statvfs_failed"));
+                item.insert("space_state".into(), json!(SpaceState::Failed));
+                (state, reason) = (VolumeState::Failed, Some("statvfs_failed"));
             }
         }
-        if state == "Ready" && readonly && !protected {
-            (state, reason) = ("Degraded", Some("read_only"));
+        if state == VolumeState::Ready && readonly && !protected {
+            (state, reason) = (VolumeState::Degraded, Some("read_only"));
             if target == "/media/sd" {
                 // Why the storage group mounted the card read-only: its check found errors or
                 // did not finish; Repair can make it writable.

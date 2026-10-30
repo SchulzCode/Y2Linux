@@ -11,6 +11,7 @@ use super::sys::{
 use serde_json::{json, Value};
 use std::{cell::OnceCell, path::Path};
 use y2p_core::py::PyValue;
+use y2p_core::volume::SpaceState;
 use y2p_core::{
     command,
     json::{dumps_sorted, Separators},
@@ -65,23 +66,23 @@ pub fn space_state(
     total: Option<u64>,
     readonly: bool,
     error: bool,
-) -> &'static str {
+) -> SpaceState {
     if error {
-        return "Failed";
+        return SpaceState::Failed;
     }
     if readonly {
-        return "ReadOnlyRisk";
+        return SpaceState::ReadOnlyRisk;
     }
     let (Some(available), Some(total)) = (available, total) else {
-        return "Unavailable";
+        return SpaceState::Unavailable;
     };
     if available < (32 << 20u64).max(total / 20) {
-        return "CriticalSpace";
+        return SpaceState::CriticalSpace;
     }
     if available < (96 << 20u64).max(total / 10) {
-        return "LowSpace";
+        return SpaceState::LowSpace;
     }
-    "Normal"
+    SpaceState::Normal
 }
 
 /// The card still inserted that the last mount refused (its check failed),
@@ -154,7 +155,7 @@ fn volume(root: &Root, mounts: &[Mount], boot: &Option<String>, target: &str) ->
         volume.insert("state".into(), json!("Unavailable"));
         volume.insert("reason".into(), json!("not_uniquely_mounted"));
         volume.insert("generation".into(), Value::Null);
-        volume.insert("space_state".into(), json!("Unavailable"));
+        volume.insert("space_state".into(), json!(SpaceState::Unavailable));
         if sd && found.is_empty() {
             volume.extend(refused_card(root));
         }
@@ -269,7 +270,7 @@ fn volume(root: &Root, mounts: &[Mount], boot: &Option<String>, target: &str) ->
             let mut state =
                 space_state(Some(available), Some(total), readonly && !protected, error);
             if vfs.files > 0 && vfs.favail == 0 {
-                state = "CriticalSpace";
+                state = SpaceState::CriticalSpace;
             }
             set(&mut item, "space_state", json!(state));
             if sd {
@@ -291,7 +292,7 @@ fn volume(root: &Root, mounts: &[Mount], boot: &Option<String>, target: &str) ->
             }
         }
         Err(_) => {
-            set(&mut item, "space_state", json!("Failed"));
+            set(&mut item, "space_state", json!(SpaceState::Failed));
             failed(&mut item, "statvfs_failed");
         }
     }
@@ -324,21 +325,27 @@ mod tests {
         let gib = 1u64 << 30;
         assert_eq!(
             space_state(Some(gib), Some(4 * gib), false, false),
-            "Normal"
+            SpaceState::Normal
         );
         assert_eq!(
             space_state(Some(300 << 20), Some(4 * gib), false, false),
-            "LowSpace"
+            SpaceState::LowSpace
         );
         assert_eq!(
             space_state(Some(100 << 20), Some(4 * gib), false, false),
-            "CriticalSpace"
+            SpaceState::CriticalSpace
         );
-        assert_eq!(space_state(None, Some(gib), false, false), "Unavailable");
+        assert_eq!(
+            space_state(None, Some(gib), false, false),
+            SpaceState::Unavailable
+        );
         assert_eq!(
             space_state(Some(gib), Some(gib), true, false),
-            "ReadOnlyRisk"
+            SpaceState::ReadOnlyRisk
         );
-        assert_eq!(space_state(Some(gib), Some(gib), true, true), "Failed");
+        assert_eq!(
+            space_state(Some(gib), Some(gib), true, true),
+            SpaceState::Failed
+        );
     }
 }
