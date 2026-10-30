@@ -48,9 +48,7 @@ impl Io for Kernel {}
 pub(super) fn write_all(io: &dyn Io, fd: RawFd, data: &[u8], offset: usize) -> Result<()> {
     let mut written = 0;
     while written < data.len() {
-        let n = io
-            .pwrite(borrowed(fd), &data[written..], (offset + written) as u64)
-            .map_err(|e| Error::os(e, None))?;
+        let n = io.pwrite(borrowed(fd), &data[written..], (offset + written) as u64)?;
         if n == 0 {
             return Err(Error::raised(libc::EIO, "short_write"));
         }
@@ -62,9 +60,7 @@ pub(super) fn write_all(io: &dyn Io, fd: RawFd, data: &[u8], offset: usize) -> R
 /// One pread of up to `size` bytes at `offset`.
 pub(super) fn pread(io: &dyn Io, fd: RawFd, size: usize, offset: usize) -> Result<Vec<u8>> {
     let mut buffer = vec![0u8; size];
-    let n = io
-        .pread(borrowed(fd), &mut buffer, offset as u64)
-        .map_err(|e| Error::os(e, None))?;
+    let n = io.pread(borrowed(fd), &mut buffer, offset as u64)?;
     buffer.truncate(n);
     Ok(buffer)
 }

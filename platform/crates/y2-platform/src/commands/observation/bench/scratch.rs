@@ -48,12 +48,7 @@ impl<'a> Scratch<'a> {
         if volume != "/data" && volume != "/media/sd" {
             return Err(Error::value("scratch_volume_not_allowed"));
         }
-        let name = format!(
-            "run-{}",
-            py::uuid4()
-                .map_err(|e| Error::os(e, None))?
-                .replace('-', "")
-        );
+        let name = format!("run-{}", py::uuid4()?.replace('-', ""));
         let mut scratch = Scratch {
             root,
             volume: volume.into(),

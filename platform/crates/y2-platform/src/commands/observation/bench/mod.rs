@@ -57,6 +57,13 @@ impl Error {
     }
 }
 
+/// An OSError from a call without a file name.
+impl From<io::Error> for Error {
+    fn from(error: io::Error) -> Error {
+        Error::os(error, None)
+    }
+}
+
 type Result<T> = std::result::Result<T, Error>;
 
 /// `y2-platform bench-storage`.

@@ -44,11 +44,11 @@ pub(super) fn borrowed(fd: RawFd) -> BorrowedFd<'static> {
 }
 
 pub(super) fn fstat(fd: RawFd) -> Result<y2p_core::sys::Stat> {
-    y2p_core::sys::fstat(borrowed(fd)).map_err(|e| Error::os(e, None))
+    y2p_core::sys::fstat(borrowed(fd)).map_err(Error::from)
 }
 
 pub(super) fn fstatvfs(fd: RawFd) -> Result<y2p_core::sys::Space> {
-    y2p_core::sys::fstatvfs(borrowed(fd)).map_err(|e| Error::os(e, None))
+    y2p_core::sys::fstatvfs(borrowed(fd)).map_err(Error::from)
 }
 
 pub(super) fn sync(fd: RawFd, data_only: bool) -> Result<()> {
@@ -60,5 +60,5 @@ pub(super) fn sync(fd: RawFd, data_only: bool) -> Result<()> {
             libc::fsync(fd)
         }
     };
-    check(result).map(drop).map_err(|e| Error::os(e, None))
+    check(result).map(drop).map_err(Error::from)
 }
