@@ -137,7 +137,7 @@
    "pcm_contract": null,
    "qualified_profile": {
     "card": "Y2Audio",
-    "channels": 2.0,
+    "channels": 2,
     "qualified_formats": [
      "S16_LE"
     ],

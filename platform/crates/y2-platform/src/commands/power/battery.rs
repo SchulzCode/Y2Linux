@@ -14,7 +14,7 @@ pub use status::{BatteryStatus, Confidence, DisplayRecord, UI_STATE};
 use std::sync::Mutex;
 use y2p_core::{
     power_text::{python_split, sense_current},
-    root::{python_int, Attribute, READ_LIMIT},
+    root::{parse_int, Attribute, READ_LIMIT},
     Root,
 };
 
@@ -44,7 +44,7 @@ pub fn boot_kind(text: Option<&str>) -> Option<&'static str> {
     if get("offline") == Some("1") {
         return Some("charged");
     }
-    let reason = python_int(get("boot_reason")?)?;
+    let reason = parse_int(get("boot_reason")?)?;
     Some(if WARM_BOOT_REASONS.contains(&reason) {
         "warm"
     } else {
@@ -96,7 +96,7 @@ pub fn read(root: &Root, engine: &Soc, now: f64) -> Reading {
     let int = |name: &str| root.integer(&format!("{base}{name}"));
     // Read every second: kept open on the player.
     let each = |name: &'static str| every_sample(root, name);
-    let each_int = |name: &'static str| each(name).and_then(|text| python_int(&text));
+    let each_int = |name: &'static str| each(name).and_then(|text| parse_int(&text));
     let present = root.is_real().then(|| {
         PRESENT.get_or_init(|| OPTIONAL.map(|n| root.path(&format!("{base}{n}")).exists()))
     });

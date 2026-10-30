@@ -4,7 +4,7 @@
 //! the forms below and nothing else (`None`: no implementation).
 // SPDX-License-Identifier: GPL-2.0-only
 use super::Command;
-use y2p_core::root::python_int;
+use y2p_core::root::parse_int;
 
 mod codec_settings;
 pub(crate) mod ssh;
@@ -74,7 +74,7 @@ fn integer(text: &str) -> Option<i64> {
             return None;
         }
     }
-    python_int(text)
+    parse_int(text)
 }
 
 #[cfg(test)]
@@ -91,7 +91,8 @@ mod tests {
         assert!(route(&["time-set", "-5"]).is_some());
         assert!(route(&["time-set", "-x"]).is_none());
         assert!(route(&["time-set", "17.5"]).is_none());
-        assert!(route(&["rtc-alarm", "1_0"]).is_some());
+        assert!(route(&["rtc-alarm", "10"]).is_some());
+        assert!(route(&["rtc-alarm", "1_0"]).is_none());
         // Options reach a route in the canonical form cli::parse gives; what it refuses (exit 2)
         // never runs.
         let runs = |args: &[&str]| match crate::cli::parse(args) {

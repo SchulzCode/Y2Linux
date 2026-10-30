@@ -55,7 +55,7 @@ pub fn check_from(
             state = CheckState::Degraded;
         }
         let reason = match volume.get("reason") {
-            Some(r) if y2p_core::py::truthy(r) => r.clone(),
+            Some(r @ Value::String(text)) if !text.is_empty() => r.clone(),
             _ => space.clone(),
         };
         add(name, state, reason, None);

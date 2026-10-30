@@ -4,10 +4,12 @@
   "step"
  ],
  "calls": [],
- "exit": 0,
+ "exit": 1,
  "stdout": {
-  "reason": "ntp_unsynchronized_or_implausible",
-  "state": "Unavailable"
+  "reason": "invalid stratum: \"999999999999999999999999999999\"",
+  "schema": "org.y2linux.error/v1",
+  "state": "Failed",
+  "type": "ValueError"
  },
  "tree": {
   "added": {

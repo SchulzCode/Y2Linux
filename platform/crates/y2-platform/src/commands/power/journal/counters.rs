@@ -6,7 +6,7 @@ use y2p_core::clock::process_time;
 use y2p_core::{
     json::{Object, ObjectExt},
     power_text::python_split,
-    root::{python_int, read},
+    root::{parse_int, read},
     text::splitlines,
     Root,
 };
@@ -41,7 +41,7 @@ pub fn idle_counters(root: &Root) -> Object {
             .first()
             .filter(|f| ["ctxt", "intr", "processes"].contains(f))
         {
-            scheduler.set(name, fields.get(1).and_then(|v| python_int(v)));
+            scheduler.set(name, fields.get(1).and_then(|v| parse_int(v)));
         }
     }
     let mut runtime = Object::new();

@@ -174,7 +174,7 @@ pub(super) fn health_ack(root: &Root) -> Result<Value> {
     let stat = root.read(&format!("/proc/{pid}/stat")).unwrap_or_default();
     let tail = stat.rsplit_once(") ").map_or(stat.as_str(), |(_, t)| t);
     let fields: Vec<&str> = tail.split_whitespace().collect();
-    let start_ticks = fields.get(19).and_then(|f| y2p_core::root::python_int(f));
+    let start_ticks = fields.get(19).and_then(|f| y2p_core::root::parse_int(f));
     if !same_number(start_ticks, ready.0.get("start_ticks")) {
         return Ok(json!({"state": "PendingHealth", "reason": "application_generation_changed"}));
     }

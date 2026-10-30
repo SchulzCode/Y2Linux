@@ -90,12 +90,12 @@ pub(crate) fn evidence_status(root: &Root) -> Result<Value, Failure> {
     result.insert("retained".into(), get("retained"));
     result.insert("pmic".into(), get("pmic"));
     result.insert("loader".into(), get("loader"));
-    // The logs are a list of objects (boot-evidence writes them; an empty object or text holds none
-    // either); anything else is a broken record.
+    // The logs are a list of objects (boot-evidence writes them); anything else is a broken record.
     let invalid = || Failure::value("invalid_previous_boot_evidence");
     let logs = match value.get("logs") {
         None => Vec::new(),
-        Some(other) => y2p_core::py::iterate(other).ok_or_else(invalid)?,
+        Some(Value::Array(items)) => items.clone(),
+        Some(_) => return Err(invalid()),
     };
     let mut tails = Vec::new();
     for log in logs {

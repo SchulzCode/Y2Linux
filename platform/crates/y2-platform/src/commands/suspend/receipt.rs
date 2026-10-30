@@ -23,7 +23,7 @@ use std::{
 };
 use y2p_core::{
     py::{is_true, truthy},
-    root::{python_int, read},
+    root::{parse_int, read},
     suspend_text::Regex,
     Root,
 };
@@ -293,7 +293,7 @@ pub fn record(root: &Root, s: Stage) -> Result<Receipt, E> {
                 Some(Value::String(t)) => t.clone(),
                 _ => "0".into(),
             };
-            let ticks = python_int(&text).ok_or_else(|| int_literal(&text))?;
+            let ticks = parse_int(&text).ok_or_else(|| int_literal(&text))?;
             let seconds = py_add(
                 value.get("suspended_seconds"),
                 ticks as f64 / 32768.0,

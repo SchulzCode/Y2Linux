@@ -6,7 +6,7 @@
  "calls": [],
  "exit": 1,
  "stdout": {
-  "reason": "invalid literal for int() with base 10: \"x'\"",
+  "reason": "invalid stratum: \"x'\"",
   "schema": "org.y2linux.error/v1",
   "state": "Failed",
   "type": "ValueError"

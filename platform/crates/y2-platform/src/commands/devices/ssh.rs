@@ -67,10 +67,9 @@ fn usb_address(root: &Root) -> Address {
     }
 }
 
-/// The items of a JSON list (an object's keys, a string's characters: `py::iterate`); `Err` for a
-/// value that has none.
+/// The items of a JSON list; `Err` for anything else.
 fn items(value: &Value) -> Result<Vec<Value>, ()> {
-    y2p_core::py::iterate(value).ok_or(())
+    value.as_array().cloned().ok_or(())
 }
 
 /// Whether an interface named usb0 has the address 10.42.0.1 with prefix length 24. The interfaces
@@ -396,7 +395,7 @@ mod tests {
             Err(())
         );
         assert_eq!(configured(&json!({"a": 1})), Err(()));
-        assert_eq!(configured(&json!({})), Ok(false));
+        assert_eq!(configured(&json!({})), Err(()));
         assert_eq!(configured(&json!(null)), Err(()));
         // The first match ends the search before a later malformed entry.
         let early =

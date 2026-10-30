@@ -10,7 +10,6 @@ use crate::{
 };
 use serde::Serialize;
 use serde_json::{json, Value};
-use y2p_core::py::PyValue;
 use y2p_core::{
     json::{sorted, Object, ObjectExt},
     py::{is_true, truthy},
@@ -154,7 +153,7 @@ fn status(root: &Root) -> Result<Status, Failure> {
     for key in KEYS {
         requested.set(key, policy.get(key).cloned().unwrap_or(Value::Null));
     }
-    let pending_restart = !effective.py_eq(&Value::Object(policy));
+    let pending_restart = effective != Value::Object(policy);
     // The build's codec inventory: `codecs` and each codec in it must be objects.
     let compiled = |name: &str| -> Result<Option<Value>, Failure> {
         let codec = inventory_codec(&inventory, name)?;

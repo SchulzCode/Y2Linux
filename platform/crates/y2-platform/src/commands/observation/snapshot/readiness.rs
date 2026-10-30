@@ -1,7 +1,7 @@
 //! The `readiness` section: what each subsystem's state means for the product.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{section, Snapshot};
-use crate::commands::observation::util::{self, get_eq};
+use crate::commands::observation::util;
 use crate::{regex, reply::Failure};
 use serde::Serialize;
 use serde_json::{json, Value};
@@ -68,7 +68,7 @@ pub(super) fn readiness(status: &Snapshot) -> Result<Value, Failure> {
     let valid = profile.as_object().is_some_and(|p| {
         p.get("schema").and_then(Value::as_str) == Some("org.y2linux.audio-qualification/v1")
             && p.get("card").and_then(Value::as_str) == Some("Y2Audio")
-            && get_eq(p, "channels", &json!(2))
+            && p.get("channels").and_then(Value::as_i64) == Some(2)
             && p.get("qualified_formats")
                 .and_then(Value::as_array)
                 .is_some_and(|f| util::contains(f, &json!("S16_LE")))

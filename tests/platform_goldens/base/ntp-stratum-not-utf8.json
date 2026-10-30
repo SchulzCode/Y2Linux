@@ -6,7 +6,7 @@
  "calls": [],
  "exit": 1,
  "stdout": {
-  "reason": "invalid literal for int() with base 10: '\\udce2\\udc822'",
+  "reason": "invalid stratum: \"\\u{10dce2}\\u{10dc82}2\"",
   "schema": "org.y2linux.error/v1",
   "state": "Failed",
   "type": "ValueError"

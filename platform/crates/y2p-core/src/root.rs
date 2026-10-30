@@ -143,7 +143,7 @@ impl Root {
 
     /// `ctx.integer`: Python `int()` of the stripped text.
     pub fn integer(&self, name: &str) -> Option<i64> {
-        self.read(name).and_then(|text| python_int(&text))
+        self.read(name).and_then(|text| parse_int(&text))
     }
 
     /// `ctx.json` without a default: the parsed document, or `None` when missing or not JSON.
@@ -318,26 +318,10 @@ impl Attribute {
 /// Python `str.strip()` (`text::strip`).
 pub use crate::text::strip as python_strip;
 
-/// Python `int(text)` for the decimal forms the platform reads (sign, digits, `_` between digits).
-pub fn python_int(text: &str) -> Option<i64> {
-    let text = python_strip(text);
-    let (sign, digits) = match text.strip_prefix('-') {
-        Some(rest) => (-1, rest),
-        None => (1, text.strip_prefix('+').unwrap_or(text)),
-    };
-    let valid = !digits.is_empty()
-        && !digits.starts_with('_')
-        && !digits.ends_with('_')
-        && !digits.contains("__")
-        && digits.chars().all(|c| c.is_ascii_digit() || c == '_');
-    if !valid {
-        return None;
-    }
-    digits
-        .replace('_', "")
-        .parse::<i64>()
-        .ok()
-        .map(|v| sign * v)
+/// An integer read from a kernel or record text: the trimmed text as an i64 (sign and ASCII digits);
+/// anything else none.
+pub fn parse_int(text: &str) -> Option<i64> {
+    text.trim().parse().ok()
 }
 
 #[cfg(test)]
@@ -396,13 +380,13 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn integers_and_json_follow_python() {
+    fn integers_and_json_read_as_written() {
         let (dir, root) = fixture();
         for (text, value) in [
             ("42\n", Some(42)),
             ("-7", Some(-7)),
             ("+3", Some(3)),
-            ("1_000", Some(1000)),
+            ("1_000", None),
             ("1__0", None),
             ("0x10", None),
             ("", None),

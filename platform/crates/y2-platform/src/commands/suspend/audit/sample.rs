@@ -11,7 +11,7 @@ use std::{
     path::{Path, PathBuf},
 };
 use y2p_core::{
-    root::{fnmatch, python_int, python_strip},
+    root::{fnmatch, parse_int, python_strip},
     suspend_text::{split, splitlines},
     Root,
 };
@@ -171,7 +171,7 @@ pub(super) struct Thread {
 pub(super) type Threads = Vec<(String, Thread)>;
 
 pub(super) fn int(text: &str) -> Result<i64, E> {
-    python_int(text).ok_or_else(|| int_literal(text))
+    parse_int(text).ok_or_else(|| int_literal(text))
 }
 
 pub(super) fn processes(root: &Root) -> Result<Threads, E> {

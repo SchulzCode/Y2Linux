@@ -31,7 +31,7 @@ use std::{fs::File, io, os::unix::fs::MetadataExt, path::Path, sync::atomic::Ord
 use y2p_core::lock;
 use y2p_core::py::PyValue;
 use y2p_core::sys::{set_signal, Disposition, Handler};
-use y2p_core::{command, py::is_true, root::python_int, suspend_text::is_decimal, Root};
+use y2p_core::{command, py::is_true, root::parse_int, suspend_text::is_decimal, Root};
 
 const OPERATION_LOCKS: [(&str, &str); 3] = [
     ("activity_operation", "/run/y2/activity.lock"),
@@ -67,7 +67,7 @@ pub fn main(root: &Root, args: &[String]) -> crate::reply::Outcome {
     let Some(text) = args.first() else {
         fail(NAME, &E::value("descriptor_required"))
     };
-    let Some(fd) = python_int(text).and_then(|fd| i32::try_from(fd).ok()) else {
+    let Some(fd) = parse_int(text).and_then(|fd| i32::try_from(fd).ok()) else {
         fail(NAME, &int_literal(text))
     };
     if fd < 0 {

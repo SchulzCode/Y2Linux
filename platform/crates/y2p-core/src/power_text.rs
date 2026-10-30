@@ -44,7 +44,7 @@ pub fn charger_fields(text: Option<&str>) -> Vec<(String, String)> {
 pub fn sense_current(text: Option<&str>) -> Option<i64> {
     let pattern = crate::regex!(r"\bsense_current_est_ua=(-?\d+)");
     let found = pattern.captures(text?)?;
-    crate::root::python_int(&found[1])
+    crate::root::parse_int(&found[1])
 }
 
 /// `re.match(r'[|+`-]*\s*([0-9]+(?:\.[0-9]+){3})$', text)` on a stripped /proc/net/fib_trie line.

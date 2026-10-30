@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
 use y2p_core::{
     json::{Object, ObjectExt},
-    py::{truthy, PyValue},
+    py::truthy,
     Root,
 };
 
@@ -108,7 +108,7 @@ pub fn power(root: &Root) -> Result<Value, Failure> {
     let fresh = is_int(Some(&stamp.monotonic_ns)).is_some_and(|t| {
         (0..5_000_000_000).contains(&(i128::from(root.clock().monotonic_ns()) - t))
     });
-    if !stamp.boot_id.py_eq(&Value::from(root.boot_id())) || !fresh {
+    if !root.is_this_boot(Some(&stamp.boot_id)) || !fresh {
         policy = Object::new()
             .with("state", "Unavailable")
             .with("reason", "policy_not_running_or_stale");

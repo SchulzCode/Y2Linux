@@ -236,7 +236,7 @@
      "result": "current"
     },
     "physical_qualification": false,
-    "schema": 2.0,
+    "schema": 2,
     "state": "Queued"
    },
    "uptime_seconds": "<volatile>",

@@ -12,7 +12,6 @@ use std::{
 };
 pub use y2p_core::paths::realpath;
 pub use y2p_core::paths::{name, parent_name};
-use y2p_core::py::PyValue;
 pub use y2p_core::text::{split as split_ws, splitlines};
 use y2p_core::{
     root::{self, python_strip},
@@ -157,12 +156,12 @@ pub fn present<'de, D: serde::Deserializer<'de>>(value: D) -> Result<Option<Valu
 
 /// `d.get(key) == other` where a missing key is None.
 pub fn get_eq(map: &Map<String, Value>, key: &str, other: &Value) -> bool {
-    map.get(key).unwrap_or(&Value::Null).py_eq(other)
+    map.get(key).unwrap_or(&Value::Null) == other
 }
 
 /// `value in sequence` for a list.
 pub fn contains(list: &[Value], value: &Value) -> bool {
-    list.iter().any(|item| item.py_eq(value))
+    list.contains(value)
 }
 
 /// `isinstance(value, int)`: an int or a bool, as an exact integer.

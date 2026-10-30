@@ -7,7 +7,7 @@ pub use crate::paths::realpath;
 use crate::{
     json::{Object, ObjectExt},
     power_text::python_split,
-    root::python_int,
+    root::parse_int,
     Root,
 };
 
@@ -22,7 +22,7 @@ pub fn process_identity(root: &Root, name: &str, expected: &str) -> Option<Objec
     }
     let value = root.read(&format!("/proc/{pid}/stat"))?;
     let (_, tail) = value.rsplit_once(") ")?;
-    let ticks = python_int(python_split(tail).get(19)?)?;
+    let ticks = parse_int(python_split(tail).get(19)?)?;
     Some(Object::new().with("pid", pid).with("start_ticks", ticks))
 }
 
