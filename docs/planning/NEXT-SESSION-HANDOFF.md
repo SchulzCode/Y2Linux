@@ -5,7 +5,7 @@
 > "Since Beta 9.1"), then: "going forward I only want high grade production level code everywhere" — the
 > [coding standard](../CODING-STANDARD.md) and its ratchet (`tools/development/code-quality.py`, in the gate) are
 > the answer; read both before writing code. Test build 190 (seq 11510) built and installed on the owner's player,
-> not published. Next free label 191, sequence above 11510. Open: plugins/store design (owner question 2026-10-31),
+> not published. Next free label 191, sequence above 11510. Plugins: [PLUGINS-PLAN.md](PLUGINS-PLAN.md) (owner: one unified kind of package, every plugin with code WebAssembly, Rust everywhere; next P0 spike). Open:
 > the hardware round, the update core in Rust, 184 broken links in old docs (`tools/development/check-docs.py`).
 >
 > Previous entry: **START HERE (2026-10-30, late night): BETA 9.1 (BASELINE 189) RELEASE.** Owner: "build it install it test it
