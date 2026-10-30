@@ -8,7 +8,7 @@ use std::collections::BTreeMap;
 use y2p_core::root::python_int;
 
 mod codec_settings;
-mod ssh;
+pub(crate) mod ssh;
 pub(crate) mod storage;
 mod timekeeping;
 mod transfer;

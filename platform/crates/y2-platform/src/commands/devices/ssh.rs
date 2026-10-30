@@ -9,7 +9,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use crate::reply::At;
 use crate::reply::{atomic_json, private_directory, Failure, Outcome};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{
     io::{self, Write},
@@ -24,6 +24,8 @@ use std::{
 };
 use wake::{AddressEvents, Signals, RUNNING};
 use y2p_core::{
+    json::Object,
+    lenient::{self, BootId},
     py::{self, eq_int},
     Root,
 };
@@ -144,6 +146,34 @@ struct State<'a> {
     sftp: bool,
     /// dropbear's process id once it was started.
     pid: Option<u32>,
+}
+
+/// What a reader of /run/y2/ssh.json checks before trusting it (the record itself is shown whole):
+/// whether it is this boot's and how fresh it is. Read leniently: an odd field reads as absent.
+#[derive(Deserialize, Default)]
+#[serde(default)]
+pub struct Published {
+    boot_id: BootId,
+    #[serde(deserialize_with = "lenient::number")]
+    monotonic_s: Option<f64>,
+}
+
+impl Published {
+    /// The fields of a parsed record.
+    pub fn of(record: &Object) -> Published {
+        lenient::read(record.clone())
+    }
+
+    /// Whether the record was written this boot.
+    pub fn is_this_boot(&self, root: &Root) -> bool {
+        self.boot_id.is(root.boot_id().as_deref())
+    }
+
+    /// Whether the record was renewed less than `seconds` ago (`0 <= now - monotonic_s < seconds`).
+    pub fn fresh(&self, root: &Root, seconds: f64) -> bool {
+        self.monotonic_s
+            .is_some_and(|t| (0.0..seconds).contains(&(root.clock().monotonic() - t)))
+    }
 }
 
 /// The daemon between ticks. A tick runs every 1-5 s for as long as the player is awake, so what

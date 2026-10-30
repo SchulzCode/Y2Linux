@@ -57,3 +57,44 @@ pub fn pairs<'de, D: Deserializer<'de>>(
 pub fn read<T: DeserializeOwned + Default>(object: Object) -> T {
     serde_json::from_value(Value::Object(object)).unwrap_or_default()
 }
+
+/// A number as Python's `isinstance(value, (int, float))` takes it: a JSON number, or a bool as 0/1;
+/// anything else none.
+pub fn number<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Option<f64>, D::Error> {
+    Ok(crate::py::number(Some(&Value::deserialize(deserializer)?)))
+}
+
+/// A record's `boot_id` field, compared with this boot's id as Python's `==` did: a missing or null
+/// field equals an unreadable boot id, a text equals the same text, anything else equals nothing.
+#[derive(Debug, Default, Clone, PartialEq)]
+pub enum BootId {
+    #[default]
+    Null,
+    Text(String),
+    Other,
+}
+
+impl BootId {
+    /// Whether the field names `boot` (this boot's id, `None` when it is unreadable).
+    pub fn is(&self, boot: Option<&str>) -> bool {
+        match (self, boot) {
+            (BootId::Null, None) => true,
+            (BootId::Text(text), Some(boot)) => text == boot,
+            _ => false,
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for BootId {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        Ok(match Value::deserialize(deserializer)? {
+            Value::Null => BootId::Null,
+            Value::String(text) => BootId::Text(text),
+            _ => BootId::Other,
+        })
+    }
+}
+
+#[cfg(test)]
+#[path = "lenient_tests.rs"]
+mod lenient_tests;

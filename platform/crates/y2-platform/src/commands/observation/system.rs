@@ -6,6 +6,7 @@ use super::util::{
     self, findall2, findall_map, get_eq, name, number, read, read_limited, record_fields,
     splitlines, text,
 };
+use crate::commands::devices::ssh;
 use crate::{regex, reply::Failure};
 use serde::Deserialize;
 use serde_json::{json, Map, Value};
@@ -415,8 +416,8 @@ pub fn system(root: &Root) -> Result<Value, Failure> {
     let clock = time_status(root)?;
     // The SSH supervisor's record while it is renewed (every few seconds) this boot.
     let mut ssh = root.json_object("/run/y2/ssh.json");
-    let boot = Value::from(root.boot_id());
-    if !get_eq(&ssh, "boot_id", &boot) || !util::fresh_seconds(root, ssh.get("monotonic_s"), 10.0) {
+    let published = ssh::Published::of(&ssh);
+    if !published.is_this_boot(root) || !published.fresh(root, 10.0) {
         ssh = Object::new()
             .with("state", "Unavailable")
             .with("reason", "ssh_record_stale_or_absent");
