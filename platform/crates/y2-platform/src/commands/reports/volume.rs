@@ -8,7 +8,7 @@ pub use crate::commands::devices::storage::{data_volume, Volume};
 use crate::reply::Failure;
 use std::os::fd::AsFd;
 use std::os::fd::OwnedFd;
-use y2p_core::Root;
+use y2p_core::{volume::SpaceState, Root};
 
 pub const RESERVE: u64 = 96 * 1024 * 1024;
 
@@ -17,14 +17,14 @@ pub const RESERVE: u64 = 96 * 1024 * 1024;
 pub fn admitted(volume: &Volume, requested: u64) -> bool {
     if matches!(
         volume.space_state,
-        "ReadOnlyRisk" | "Failed" | "Unavailable"
+        SpaceState::ReadOnlyRisk | SpaceState::Failed | SpaceState::Unavailable
     ) {
         return false;
     }
     let allowed = volume
         .available_bytes
         .is_some_and(|free| free as i128 - requested as i128 >= RESERVE as i128);
-    allowed && volume.space_state == "Normal"
+    allowed && volume.space_state == SpaceState::Normal
 }
 
 /// `update.free(fd, size)`.

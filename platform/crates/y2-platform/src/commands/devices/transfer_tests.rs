@@ -168,10 +168,10 @@ fn interrupted_upload_bad_hash_and_reserve_never_publish() {
     // 97 MiB free cannot keep a 1 MiB upload, its seal and the 96 MiB reserve (begin's admission).
     let low = Volume {
         path: "/data",
-        state: "Ready",
+        state: y2p_core::volume::VolumeState::Ready,
         generation: Some("boot:1:179:7".into()),
         uuid: None,
-        space_state: "Normal",
+        space_state: y2p_core::volume::SpaceState::Normal,
         available_bytes: Some(97 * 1024 * 1024),
     };
     assert!(!storage::admitted(&low, 2 * 1024 * 1024));

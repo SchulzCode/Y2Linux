@@ -5,37 +5,86 @@
 //! observation; nothing here reads them.
 // SPDX-License-Identifier: GPL-2.0-only
 use crate::{command, mounts::mounts, sys::statvfs, Root};
+use serde::Serialize;
 use std::path::{Path, PathBuf};
 
 /// The volume paths in their consumer order (an index order consumers rely on).
 pub const TARGETS: [&str; 4] = ["/", "/data", "/media/sd", "/media/internal"];
 
+/// A volume's state: `Ready`, `Degraded` (mounted read-only), `Failed` (wrong controller or
+/// filesystem, or no statvfs), `Unavailable` (not mounted exactly once).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+pub enum VolumeState {
+    Ready,
+    Degraded,
+    Failed,
+    Unavailable,
+}
+
+/// A volume's capacity budget (`space_state`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+pub enum SpaceState {
+    Normal,
+    LowSpace,
+    CriticalSpace,
+    /// Mounted read-only.
+    ReadOnlyRisk,
+    Failed,
+    Unavailable,
+}
+
+impl VolumeState {
+    /// The text records and replies carry.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            VolumeState::Ready => "Ready",
+            VolumeState::Degraded => "Degraded",
+            VolumeState::Failed => "Failed",
+            VolumeState::Unavailable => "Unavailable",
+        }
+    }
+}
+
+impl SpaceState {
+    /// The text records and replies carry.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            SpaceState::Normal => "Normal",
+            SpaceState::LowSpace => "LowSpace",
+            SpaceState::CriticalSpace => "CriticalSpace",
+            SpaceState::ReadOnlyRisk => "ReadOnlyRisk",
+            SpaceState::Failed => "Failed",
+            SpaceState::Unavailable => "Unavailable",
+        }
+    }
+}
+
 /// One entry of `storage(ctx)['volumes']`.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Volume {
     pub path: &'static str,
-    pub state: &'static str,
+    pub state: VolumeState,
     /// `<boot id>:<mount id>:<device id>`: the same value means the same mount of the same device
     /// this boot.
     pub generation: Option<String>,
     pub uuid: Option<String>,
-    pub space_state: &'static str,
+    pub space_state: SpaceState,
     pub available_bytes: Option<u64>,
 }
 
 /// `observe.space_state`: product capacity budget, not electrical thresholds. Never delete user data.
-pub fn space_state(available: u64, total: u64, readonly: bool, error: bool) -> &'static str {
+pub fn space_state(available: u64, total: u64, readonly: bool, error: bool) -> SpaceState {
     const MIB: u64 = 1024 * 1024;
     if error {
-        "Failed"
+        SpaceState::Failed
     } else if readonly {
-        "ReadOnlyRisk"
+        SpaceState::ReadOnlyRisk
     } else if available < (32 * MIB).max(total / 20) {
-        "CriticalSpace"
+        SpaceState::CriticalSpace
     } else if available < (96 * MIB).max(total / 10) {
-        "LowSpace"
+        SpaceState::LowSpace
     } else {
-        "Normal"
+        SpaceState::Normal
     }
 }
 
@@ -87,10 +136,10 @@ fn probe(
         let [item] = found[..] else {
             return Volume {
                 path: target,
-                state: "Unavailable",
+                state: VolumeState::Unavailable,
                 generation: None,
                 uuid: None,
-                space_state: "Unavailable",
+                space_state: SpaceState::Unavailable,
                 available_bytes: None,
             };
         };
@@ -105,7 +154,11 @@ fn probe(
         };
         let controller_valid =
             resolve(&device).to_string_lossy().contains(expected) && device.exists();
-        let mut state = if controller_valid { "Ready" } else { "Failed" };
+        let mut state = if controller_valid {
+            VolumeState::Ready
+        } else {
+            VolumeState::Failed
+        };
         let mut uuid = None;
         if controller_valid {
             let answer = command::run(
@@ -125,7 +178,7 @@ fn probe(
                 _ => None,
             };
             if expected_uuid.is_some() && uuid.as_deref() != expected_uuid {
-                state = "Failed";
+                state = VolumeState::Failed;
             }
         }
         let readonly = item.read_only();
@@ -135,20 +188,20 @@ fn probe(
                     space.available(),
                     space.total(),
                     readonly,
-                    state == "Failed",
+                    state == VolumeState::Failed,
                 );
                 if space.files > 0 && space.favail == 0 {
-                    space_state = "CriticalSpace";
+                    space_state = SpaceState::CriticalSpace;
                 }
                 (space_state, Some(space.available()))
             }
             Err(_) => {
-                state = "Failed";
-                ("Failed", None)
+                state = VolumeState::Failed;
+                (SpaceState::Failed, None)
             }
         };
-        if state == "Ready" && readonly {
-            state = "Degraded";
+        if state == VolumeState::Ready && readonly {
+            state = VolumeState::Degraded;
         }
         Volume {
             path: target,
@@ -173,7 +226,7 @@ pub fn volume(root: &Root, path: &str) -> Volume {
 
 /// The volume at `path` when it is verified: Ready, with a generation this boot.
 pub fn verified(root: &Root, path: &str) -> Option<Volume> {
-    Some(volume(root, path)).filter(|v| v.state == "Ready" && v.generation.is_some())
+    Some(volume(root, path)).filter(|v| v.state == VolumeState::Ready && v.generation.is_some())
 }
 
 #[cfg(test)]
@@ -182,10 +235,25 @@ mod tests {
 
     #[test]
     fn space_states_follow_the_budget() {
-        assert_eq!(space_state(10, 100, false, false), "CriticalSpace");
-        assert_eq!(space_state(1 << 40, 1 << 41, false, false), "Normal");
-        assert_eq!(space_state(80 << 20, 100 << 20, false, false), "LowSpace");
-        assert_eq!(space_state(1 << 40, 1 << 41, true, false), "ReadOnlyRisk");
-        assert_eq!(space_state(1 << 40, 1 << 41, true, true), "Failed");
+        assert_eq!(
+            space_state(10, 100, false, false),
+            SpaceState::CriticalSpace
+        );
+        assert_eq!(
+            space_state(1 << 40, 1 << 41, false, false),
+            SpaceState::Normal
+        );
+        assert_eq!(
+            space_state(80 << 20, 100 << 20, false, false),
+            SpaceState::LowSpace
+        );
+        assert_eq!(
+            space_state(1 << 40, 1 << 41, true, false),
+            SpaceState::ReadOnlyRisk
+        );
+        assert_eq!(
+            space_state(1 << 40, 1 << 41, true, true),
+            SpaceState::Failed
+        );
     }
 }

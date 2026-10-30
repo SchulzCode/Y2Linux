@@ -3,6 +3,7 @@
 //! Y2Media is the music volume.
 // SPDX-License-Identifier: GPL-2.0-only
 use crate::reply::Failure;
+use y2p_core::volume::SpaceState;
 pub use y2p_core::volume::Volume;
 use y2p_core::Root;
 
@@ -21,7 +22,7 @@ pub fn data_volume(root: &Root) -> Result<Volume, Failure> {
 pub fn admitted(volume: &Volume, requested: u64) -> bool {
     if matches!(
         volume.space_state,
-        "ReadOnlyRisk" | "Failed" | "Unavailable"
+        SpaceState::ReadOnlyRisk | SpaceState::Failed | SpaceState::Unavailable
     ) {
         return false;
     }
