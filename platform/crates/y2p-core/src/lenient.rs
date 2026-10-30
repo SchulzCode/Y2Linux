@@ -69,6 +69,19 @@ pub fn truthy<'de, D: Deserializer<'de>>(deserializer: D) -> Result<bool, D::Err
     Ok(crate::py::truthy(&Value::deserialize(deserializer)?))
 }
 
+/// An integer as `isinstance(value, int)` and not a bool took it, within i64 (`py::exact_int`);
+/// anything else none.
+pub fn integer<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Option<i64>, D::Error> {
+    Ok(crate::py::exact_int(Some(&Value::deserialize(
+        deserializer,
+    )?)))
+}
+
+/// A flag that is set only by JSON `true` (`value is True`); anything else, a missing field too, false.
+pub fn is_true<'de, D: Deserializer<'de>>(deserializer: D) -> Result<bool, D::Error> {
+    Ok(crate::py::is_true(Some(&Value::deserialize(deserializer)?)))
+}
+
 /// A record's `boot_id` field, compared with this boot's id as Python's `==` did: a missing or null
 /// field equals an unreadable boot id, a text equals the same text, anything else equals nothing.
 #[derive(Debug, Default, Clone, PartialEq)]

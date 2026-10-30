@@ -2,12 +2,14 @@
 //! lease, the core's request and the restart through the power daemon.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{
-    core, is_true, json, json_error, py, remove_package, sorted, state_is, status, string, truthy,
-    Duration, Map, Object, Raise, Result, Root, Value, MINIMUM_PERCENT,
+    core, json, json_error, py, remove_package, sorted, state_is, status, truthy, Duration, Object,
+    Raise, Result, Root, Value, MINIMUM_PERCENT,
 };
+use crate::commands::power::published::{Battery, PowerState};
 use std::io::Read;
 use std::io::Write;
 use y2p_core::json::ObjectExt;
+use y2p_core::lenient::BootId;
 use y2p_core::py::PyValue;
 
 /// Restart into the installer and back (proven on 43 and 45). Owner override:
@@ -23,22 +25,17 @@ pub(super) fn restart_mode(root: &Root) -> &'static str {
 
 /// Charger connected, or at least MINIMUM_PERCENT from this boot's estimate.
 pub(super) fn battery_gate(root: &Root) -> Result<()> {
-    let power = root.json_object("/run/y2/power.json");
-    let mut battery = match power.get("battery") {
-        Some(Value::Object(map)) => map.clone(),
-        // The power daemon never writes another; read as no battery estimate.
-        _ => Map::new(),
+    let power = PowerState::read(root);
+    // A record without an owner counts; one of another boot reads as no battery estimate.
+    let battery = match power.boot_id {
+        BootId::Null => power.battery.reading(),
+        _ if power.is_this_boot(root) => power.battery.reading(),
+        _ => Battery::Absent.reading(),
     };
-    let owner = power.get("boot_id").cloned().unwrap_or(Value::Null);
-    if !owner.is_null() && owner != Value::from(root.boot_id()) {
-        battery = Map::new();
-    }
-    if is_true(battery.get("charging"))
-        || matches!(string(battery.get("status")), Some("Charging" | "Full"))
-    {
+    if battery.charging_or_full() {
         return Ok(());
     }
-    match py::exact_int(battery.get("percent")) {
+    match battery.percent {
         Some(percent) if percent >= MINIMUM_PERCENT => Ok(()),
         _ => Err(Raise::value("update_needs_charger_or_half_battery")),
     }

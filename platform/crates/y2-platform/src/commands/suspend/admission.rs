@@ -4,12 +4,13 @@
 //! (`power::policy::load_policy`).
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{is_text, pattern, py_gt, text_value, wall, E};
+use crate::commands::power::published::PowerState;
 use serde::Serialize;
 use serde_json::{json, Map, Value};
 use std::{path::Path, sync::OnceLock};
 use y2p_core::py::PyValue;
 use y2p_core::{
-    py::{exact_int, is_true, truthy},
+    py::{is_true, truthy},
     root::read,
     suspend_text::{field, fields, split, splitlines, Regex},
     Root,
@@ -190,49 +191,33 @@ pub fn battery_and_cable(root: &Root) -> Result<(), E> {
     // The power daemon's own qualified thresholds (power::policy), never a copy of them.
     let (policy, _) = crate::commands::power::policy::load_policy(root);
     let voltage = root.integer("/sys/class/power_supply/BAT0/voltage_now");
-    let state = root.json_object("/run/y2/power.json");
-    let age: i128 = match state.get("monotonic_ns") {
-        Some(Value::Number(n)) if n.is_i64() || n.is_u64() => {
-            let sampled = n
-                .as_i64()
-                .map(i128::from)
-                .or_else(|| n.as_u64().map(i128::from))
-                .unwrap_or(0);
-            i128::from(root.clock().monotonic_ns()) - sampled
-        }
-        _ => -1,
-    };
+    let state = PowerState::read(root);
+    let age = state.monotonic_ns.map_or(-1, |sampled| {
+        i128::from(root.clock().monotonic_ns()) - sampled
+    });
     // F55: Low (20 %) and Critical (10 %) may sleep; asleep drains ~8 mA, awake and dark far more.
     // Every sleep returns within the 30-min SPM maintenance timer and admits again here, so a
     // sleeping player still reaches the low-battery power-off (shutdown_soc / critical_uv) awake.
-    if !state
-        .get("boot_id")
-        .unwrap_or(&Value::Null)
-        .py_eq(&Value::from(root.boot_id()))
+    if !state.is_this_boot(root)
         || !(0..=10_000_000_000).contains(&age)
-        || !["Normal", "Low", "Critical"]
-            .iter()
-            .any(|s| is_text(state.get("state"), s))
+        || !matches!(state.state.as_deref(), Some("Normal" | "Low" | "Critical"))
     {
         return Err(refused("battery_safety_owner"));
     }
     // F55 (189640af): one loaded sample at 3.56-3.58 V (37 %) refused every sleep below recover_uv.
     // Judge the filtered voltage and refuse only where the low-battery owner is about to power off
     // (power.LowBattery).
-    let empty = Map::new();
-    let battery = state
-        .get("battery")
-        .and_then(Value::as_object)
-        .unwrap_or(&empty);
-    let filtered = exact_int(battery.get("filtered_voltage_uv")).filter(|f| *f > 0);
+    let battery = state.battery.reading();
+    let filtered = battery.filtered_voltage_uv.filter(|f| *f > 0);
     let level = filtered.or(voltage);
-    let percent = exact_int(battery.get("percent"));
+    let percent = battery.percent;
     let flat = match (percent, &policy) {
         (Some(percent), Some(policy)) => {
             policy.schema2
-                && ["hardware", "calibrated_estimate"]
-                    .iter()
-                    .any(|c| is_text(battery.get("confidence"), c))
+                && matches!(
+                    battery.confidence.as_deref(),
+                    Some("hardware" | "calibrated_estimate")
+                )
                 && percent <= policy.shutdown_soc
         }
         _ => false,

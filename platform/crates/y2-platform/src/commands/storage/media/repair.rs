@@ -3,7 +3,7 @@
 use super::super::observe::{refused_card, MEDIA_STATE};
 use super::super::records::{Claim, ReadOnly};
 use super::super::sys::{
-    get, get_eq, maintenance, mkdir_io, object, statvfs, to_object, try_lock, wall_seconds, Object,
+    get, maintenance, mkdir_io, object, statvfs, to_object, try_lock, wall_seconds, Object,
 };
 use super::change::detach_for_change;
 use super::check::identity_id;
@@ -11,6 +11,7 @@ use super::{
     begin, candidates, milliseconds, operation, owned_mount, prefix, runtime, set, set_state,
     state_is, Card, SD,
 };
+use crate::commands::power::published::{Battery, PowerState};
 use crate::reply::{atomic_json, Failure};
 use serde::Serialize;
 use serde_json::{json, Value};
@@ -24,7 +25,7 @@ use y2p_core::py::strerror;
 use y2p_core::{
     command,
     mounts::mounts_at,
-    py::{exact_int, is_true, truthy, PyValue},
+    py::{truthy, PyValue},
     storage_media::{repair_summary, tables_bytes},
     Root,
 };
@@ -70,21 +71,15 @@ pub(super) fn marked_for_repair(root: &Root) -> Option<Object> {
 }
 
 fn battery_allows_repair(root: &Root) -> Result<bool, Failure> {
-    let power = object(root, "/run/y2/power.json");
-    if !get_eq(&power, "boot_id", &Value::from(root.boot_id())) {
+    let power = PowerState::read(root);
+    if !power.is_this_boot(root) {
         return Ok(false);
     }
-    let battery = match power.get("battery") {
-        Some(Value::Object(battery)) => battery.clone(),
-        Some(other) if truthy(other) => return Err(Failure::value("power_battery_invalid")),
-        _ => Object::new(),
+    let battery = match &power.battery {
+        Battery::Odd => return Err(Failure::value("power_battery_invalid")),
+        battery => battery.reading(),
     };
-    let percent = exact_int(battery.get("percent"));
-    Ok(is_true(battery.get("charging"))
-        || get(&battery, "status")
-            .as_str()
-            .is_some_and(|s| ["Charging", "Full"].contains(&s))
-        || percent.is_some_and(|p| p >= REPAIR_MINIMUM_PERCENT))
+    Ok(battery.charging_or_full() || battery.percent.is_some_and(|p| p >= REPAIR_MINIMUM_PERCENT))
 }
 
 /// Up to `n` bytes, fewer only at the end of the file.

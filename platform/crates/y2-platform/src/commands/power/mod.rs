@@ -8,6 +8,7 @@ pub mod coordinator;
 pub mod daemon;
 pub mod journal;
 pub mod policy;
+pub mod published;
 pub mod unix;
 
 use super::Command;
