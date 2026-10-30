@@ -356,4 +356,5 @@ dependencies = [
  "serde_json",
  "sha2",
  "tar",
+ "y2p-contract",
 ]

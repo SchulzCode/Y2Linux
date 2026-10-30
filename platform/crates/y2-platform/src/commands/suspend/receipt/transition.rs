@@ -2,7 +2,7 @@
 //! sleeping, waking, restored, restore_failed), proven only by the same boot's kernel journal and
 //! Reborn's acknowledgement.
 // SPDX-License-Identifier: GPL-2.0-only
-use super::{Product, ProductState, Receipt};
+use super::{Product, ProductState, Receipt, WakeSource};
 use y2p_core::suspend_text::fields;
 
 /// `reason or fallback`.
@@ -29,7 +29,7 @@ pub fn transition(
         p.request_boot_id = boot_id.map(str::to_owned);
         p.same_boot = boot_id.is_some_and(|b| !b.is_empty()).then_some(true);
         p.kernel_completed = false;
-        p.wake_reason = Some("unknown".into());
+        p.wake_reason = Some(WakeSource::Unknown);
     }
     if matches!(stage, "reborn_prepared" | "quiescing_radios" | "syncing") {
         p.state = Some(Preparing);
@@ -71,11 +71,12 @@ pub fn transition(
                 })
                 .collect();
             let wake = match sources.as_slice() {
-                [one] => *one,
-                [] => "unknown",
-                _ => "multiple",
+                ["rtc"] => WakeSource::Rtc,
+                ["power"] => WakeSource::Power,
+                [] => WakeSource::Unknown,
+                _ => WakeSource::Multiple,
             };
-            p.wake_reason = Some(wake.into());
+            p.wake_reason = Some(wake);
         }
         if !p.state_is(Refused) {
             p.set(Waking, reason_value);

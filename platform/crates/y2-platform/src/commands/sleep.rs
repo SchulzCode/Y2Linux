@@ -31,7 +31,7 @@ pub fn product(value: &Receipt, boot_id: Option<&str>) -> Product {
         result.request_boot_id = None;
         result.same_boot = None;
         result.kernel_completed = false;
-        result.wake_reason = Some("unknown".into());
+        result.wake_reason = Some(super::suspend::receipt::WakeSource::Unknown);
     }
     if result
         .state

@@ -326,6 +326,24 @@ pub fn parse_int(text: &str) -> Option<i64> {
 
 #[cfg(test)]
 pub(crate) mod tests {
+    #[test]
+    fn this_boot_fields_match_as_boot_id_is() {
+        use serde_json::json;
+        use tempdir::Dir;
+        let dir = Dir::new();
+        let root = Root::fixture(dir.path());
+        // Unreadable boot id: only a missing or null field is this boot.
+        assert!(root.is_this_boot(None) && root.is_this_boot(Some(&json!(null))));
+        assert!(!root.is_this_boot(Some(&json!("a"))));
+        std::fs::create_dir_all(dir.path().join("proc/sys/kernel/random")).unwrap();
+        std::fs::write(dir.path().join("proc/sys/kernel/random/boot_id"), "a\n").unwrap();
+        assert!(root.is_this_boot(Some(&json!("a"))));
+        for other in [json!(null), json!("b"), json!(1), json!(true), json!(["a"])] {
+            assert!(!root.is_this_boot(Some(&other)), "{other}");
+        }
+        assert!(!root.is_this_boot(None));
+    }
+
     use super::*;
     use std::fs;
 
