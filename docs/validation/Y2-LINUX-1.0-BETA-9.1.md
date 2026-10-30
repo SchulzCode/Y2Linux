@@ -70,6 +70,19 @@ handling two services each did on their own, and fewer places that call the oper
 - Nothing else should look or behave differently. If something does, please send an error report
   (Settings → Diagnostics): that would be a mistake in this release.
 
+## How it was tested
+
+- **Before release:** the platform's full check on every change (formatting, code checks, the ARM build, the host
+  tests, the recorded answers of every command, old records still readable), Reborn's 748 tests, and 549 tests of
+  the finished release images.
+- **On the developer's player:** installed over the air from Beta 9.0 and confirmed by the player itself. All four
+  services and Reborn running, Wi-Fi online, storage and health OK, no warning or error in Reborn's log since the
+  update. Reborn read the battery record and the SD card's claim through the new shared definitions. Its built-in
+  decoder, playback, storage and baseline tests pass on the player. From Power to the music player: 37.4 s, as
+  with 9.0.
+- **Not repeated for this release:** overnight sleep, a low-battery shutdown, an SD card repair or format, and a
+  reset (see Known issues).
+
 ## Updating
 
 Settings → About & Updates → Check for Updates → **Update Now**. Your music, playlists, settings, Wi-Fi networks and
