@@ -111,7 +111,7 @@ fn report(root: &Root, action: &str, to: Option<&str>, topic: Option<&str>) -> O
         "status" => state::status(root),
         "enable" | "disable" => state::set_enabled(root, action == "enable"),
         "new-id" => state::new_install_id(root),
-        "send" => upload::send(root, topic),
+        "send" => upload::send(root, topic).map(|queued| serde_json::json!(queued)),
         "save" => match to {
             None => Err(Failure::value("save_needs_to")),
             Some(to) => {
@@ -121,13 +121,11 @@ fn report(root: &Root, action: &str, to: Option<&str>, topic: Option<&str>) -> O
                 result
             }
         },
-        "upload" => upload::upload(root, None, None),
+        "upload" => upload::upload(root, None, None).map(|run| serde_json::json!(run)),
         "work" => checks::run_checks(root).map(|reports| {
-            object()
-                .with("reports", reports)
-                .with("upload", upload::upload_now(root, None, None))
+            serde_json::json!({"reports": reports, "upload": upload::upload_now(root, None, None)})
         }),
-        _ => checks::run_checks(root).map(|reports| object().with("reports", reports)),
+        _ => checks::run_checks(root).map(|reports| serde_json::json!({ "reports": reports })),
     };
     match result {
         Ok(value) => Ok(Reply::text(
@@ -178,19 +176,6 @@ pub fn loads_text(text: &str) -> Option<Value> {
 /// A JSON document of bytes, or none.
 pub fn loads_bytes(raw: &[u8]) -> Option<Value> {
     serde_json::from_slice(raw).ok()
-}
-
-/// A value as text in markers and details kept on /data (reports.json `seen`): a text as it is, and the
-/// spellings markers recorded by earlier releases used for the others (`None`, `True`), so they still compare
-/// equal; numbers as written, lists and objects as compact JSON.
-pub fn text_of(value: &Value) -> String {
-    match value {
-        Value::String(text) => text.clone(),
-        Value::Null => "None".into(),
-        Value::Bool(true) => "True".into(),
-        Value::Bool(false) => "False".into(),
-        other => other.to_string(),
-    }
 }
 
 /// A JSON record that is an object, `{}` for anything else.

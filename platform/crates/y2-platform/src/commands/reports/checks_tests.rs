@@ -43,7 +43,7 @@ fn pairs(list: &[(&str, &str)]) -> Vec<(String, String)> {
 }
 
 fn run(root: &Root) -> Value {
-    run_checks(&answering(root, None)).unwrap()
+    serde_json::json!(run_checks(&answering(root, None)).unwrap())
 }
 
 fn enable(root: &Root) {

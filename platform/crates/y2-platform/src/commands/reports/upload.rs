@@ -8,8 +8,8 @@ use super::{
     state::{self, Reports, Retry, QUEUE},
     tarball,
 };
-use crate::commands::reports::{object, text_of, Value, ValueExt};
 use crate::reply::{mkdir_parents, Failure};
+use serde::Serialize;
 use std::{
     io::Write,
     os::unix::fs::OpenOptionsExt,
@@ -44,11 +44,10 @@ pub fn queue(
     detail: &str,
     topic: Option<&str>,
     progress: &build::Progress,
-) -> Result<Value, Failure> {
-    let not_queued = |reason: &str| {
-        object()
-            .with("queued", Value::Bool(false))
-            .with("reason", Value::from(reason))
+) -> Result<Queued, Failure> {
+    let not_queued = |reason: &'static str| Queued {
+        reason: Some(reason),
+        ..Queued::default()
     };
     let mut value = Reports::load(root);
     if !value.enabled() {
@@ -113,11 +112,59 @@ pub fn queue(
         ..state::Last::default()
     });
     value.save(root)?;
-    Ok(object()
-        .with("queued", Value::Bool(true))
-        .with("report_id", Value::String(report_id))
-        .with("bytes", Value::from(data.len()))
-        .with("name", Value::String(name)))
+    Ok(Queued {
+        queued: true,
+        report_id: Some(report_id),
+        bytes: Some(data.len() as u64),
+        name: Some(name),
+        ..Queued::default()
+    })
+}
+
+/// What queuing a report came to (`report check|send|work`'s items): queued with its name, ID and
+/// size, or why not; `report check` adds the triggers, `report send` the upload that followed.
+#[derive(Serialize, Debug, Default)]
+pub struct Queued {
+    pub queued: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reason: Option<&'static str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub report_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bytes: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub trigger: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub triggers: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub upload: Option<UploadRun>,
+}
+
+/// What one upload run did: each queued report it handled, or why it did not run.
+#[derive(Serialize, Debug, Default)]
+pub struct UploadRun {
+    pub uploaded: Vec<UploadItem>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reason: Option<String>,
+}
+
+impl UploadRun {
+    fn not_run(reason: &str) -> UploadRun {
+        UploadRun {
+            uploaded: Vec::new(),
+            reason: Some(reason.into()),
+        }
+    }
+}
+
+/// One queued report's outcome in a run.
+#[derive(Serialize, Debug)]
+pub struct UploadItem {
+    pub name: String,
+    #[serde(flatten)]
+    pub outcome: Uploaded,
 }
 
 /// Why queued reports must wait now, or None. Uploads run in the
@@ -189,13 +236,11 @@ pub fn upload(
     root: &Root,
     progress: Option<&build::Progress>,
     first: Option<&str>,
-) -> Result<Value, Failure> {
+) -> Result<UploadRun, Failure> {
     let _lease = crate::commands::workload::Lease::take(root, "NetworkTransfer")?;
     let now = wall(root);
     if let Some(blocked) = upload_blocked(root)? {
-        return Ok(object()
-            .with("uploaded", Value::Array(Vec::new()))
-            .with("reason", Value::from(blocked)));
+        return Ok(UploadRun::not_run(blocked));
     }
     let directory = root.path(QUEUE);
     mkdir_parents(&directory, 0o700)?;
@@ -203,24 +248,22 @@ pub fn upload(
     let Some(_lock) =
         y2p_core::lock::try_exclusive(&lock_path).map_err(|e| super::os(e, &lock_path))?
     else {
-        return Ok(object()
-            .with("uploaded", Value::Array(Vec::new()))
-            .with("reason", Value::from("busy")));
+        return Ok(UploadRun::not_run("busy"));
     };
     // The key once more, under the lock (upload_blocked read it first): a key gone meanwhile is the
     // same answer as no key.
     let Some(key) = state::upload_key(root) else {
-        return Ok(object()
-            .with("uploaded", Value::Array(Vec::new()))
-            .with("reason", Value::from("no_upload_key")));
+        return Ok(UploadRun::not_run("no_upload_key"));
     };
     upload_queue(root, now, &key, progress, first)
 }
 
-/// What one queued report's run came to: an item of the answer's `uploaded`.
-enum Uploaded {
-    /// Stored: the receiver's own report ID (any JSON it answered, `null` without one).
-    Sent { report_id: Value },
+/// What one queued report's run came to (`outcome`).
+#[derive(Serialize, Debug)]
+#[serde(tag = "outcome", rename_all = "lowercase")]
+pub enum Uploaded {
+    /// Stored: the receiver's own report ID (null without one).
+    Sent { report_id: Option<String> },
     /// Gone from the queue without being stored.
     Dropped { reason: String },
     /// Still queued until `next`.
@@ -228,19 +271,10 @@ enum Uploaded {
 }
 
 impl Uploaded {
-    fn item(self, name: String) -> Value {
-        let item = object().with("name", Value::String(name));
-        match self {
-            Uploaded::Sent { report_id } => item
-                .with("outcome", Value::from("sent"))
-                .with("report_id", report_id),
-            Uploaded::Dropped { reason } => item
-                .with("outcome", Value::from("dropped"))
-                .with("reason", Value::String(reason)),
-            Uploaded::Retry { reason, next } => item
-                .with("outcome", Value::from("retry"))
-                .with("reason", Value::String(reason))
-                .with("next", Value::from(next)),
+    fn item(self, name: String) -> UploadItem {
+        UploadItem {
+            name,
+            outcome: self,
         }
     }
 }
@@ -272,7 +306,7 @@ fn upload_queue(
     key: &str,
     progress: Option<&build::Progress>,
     first: Option<&str>,
-) -> Result<Value, Failure> {
+) -> Result<UploadRun, Failure> {
     let mut value = Reports::load(root);
     let mut queued = state::queued(root);
     queued.sort_by_key(|p| {
@@ -338,19 +372,13 @@ fn upload_queue(
                 settle(&mut value, &index, "sent", |last| {
                     last.sent_utc = Some(sent)
                 });
-                let report_id = answer
-                    .ok()
-                    .and_then(|a| a.get("report_id").cloned())
-                    .unwrap_or(Value::Null);
+                let report_id = answer.ok().and_then(|a| a.report_id);
                 results.push(Uploaded::Sent { report_id }.item(name));
             }
             (Some(code), answer) if REFUSED.contains(&code) => {
                 crate::reply::unlink_missing_ok(path)?;
                 retries.remove(&name);
-                let error = answer
-                    .ok()
-                    .and_then(|a| a.get("error").cloned())
-                    .map_or_else(String::new, |e| text_of(&e));
+                let error = answer.ok().and_then(|a| a.error).unwrap_or_default();
                 let reason = format!("refused_{code}_{error}");
                 settle(&mut value, &index, "dropped", |last| {
                     last.reason = Some(reason.clone())
@@ -391,37 +419,36 @@ fn upload_queue(
     }
     value.uploads = retries;
     value.save(root)?;
-    Ok(object().with("uploaded", Value::Array(results)))
+    Ok(UploadRun {
+        uploaded: results,
+        reason: None,
+    })
 }
 
 /// `upload` for callers whose own work must not fail with it (a
 /// queued report stays queued): a sleep in progress, a refusal or an I/O error becomes the reason
 /// (an OSError by its class).
-pub fn upload_now(root: &Root, progress: Option<&build::Progress>, first: Option<&str>) -> Value {
+pub fn upload_now(
+    root: &Root,
+    progress: Option<&build::Progress>,
+    first: Option<&str>,
+) -> UploadRun {
     upload(root, progress, first).unwrap_or_else(|error| {
-        let reason = match &error {
-            Failure::Os { class, .. } | Failure::Crash { class, .. } => (*class).to_owned(),
-            Failure::Value(text) => text.clone(),
-        };
-        object()
-            .with("uploaded", Value::Array(Vec::new()))
-            .with("reason", Value::String(reason))
+        UploadRun::not_run(match &error {
+            Failure::Os { class, .. } | Failure::Crash { class, .. } => class,
+            Failure::Value(text) => text,
+        })
     })
 }
 
 /// `report send`: queue a manual report, then send it at once when it can be; otherwise it
 /// waits in the queue.
-pub fn send(root: &Root, topic: Option<&str>) -> Result<Value, Failure> {
+pub fn send(root: &Root, topic: Option<&str>) -> Result<Queued, Failure> {
     let progress = build::Progress::new(root, None);
     let result = (|| {
         let mut result = queue(root, &["manual".to_owned()], "", topic, &progress)?;
-        if matches!(result.get("queued"), Some(Value::Bool(true))) {
-            let name = result
-                .get("name")
-                .and_then(Value::as_str)
-                .map(str::to_owned);
-            let upload = upload_now(root, Some(&progress), name.as_deref());
-            result.set("upload", upload);
+        if result.queued {
+            result.upload = Some(upload_now(root, Some(&progress), result.name.as_deref()));
         }
         Ok(result)
     })();
@@ -442,8 +469,8 @@ mod tests {
         let (status, value) = answer(&outcome);
         assert_eq!(status, Some(201));
         let value = value.unwrap();
-        assert_eq!(value.get("report_id"), Some(&Value::from("r")));
-        assert_eq!(value.get("bytes").and_then(Value::as_i64), Some(100_000));
+        assert_eq!(value.report_id.as_deref(), Some("r"));
+        assert_eq!(value.bytes, Some(100_000));
         let failed = stream(
             &[
                 "/bin/sh",
@@ -463,8 +490,8 @@ mod tests {
         };
         let (status, value) = answer(&refused);
         assert_eq!(
-            (status, value.unwrap().get("error").cloned()),
-            (Some(400), Some(Value::from("bad_trigger")))
+            (status, value.unwrap().error),
+            (Some(400), Some("bad_trigger".into()))
         );
     }
 }

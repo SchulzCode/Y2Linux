@@ -6,13 +6,12 @@
 //! screen follows the upload. Below a fixture root the call is a fixture command like any other (its
 //! argv carries the headers, so the golden cases compare them).
 // SPDX-License-Identifier: GPL-2.0-only
-use super::{build, command, Bytes, Duration, Monotonic, ReportIndex, Root, Value, ENDPOINT};
-use crate::commands::reports::{loads_text, object};
+use super::{build, command, Bytes, Duration, Monotonic, ReportIndex, Root, ENDPOINT};
 use std::io::Read;
 use std::io::Write;
 
 /// curl's answer as urllib's: (HTTP status, answer) or (None, the exception class Python names).
-pub(super) fn answer(outcome: &command::Outcome) -> (Option<i64>, Result<Value, String>) {
+pub(super) fn answer(outcome: &command::Outcome) -> (Option<i64>, Result<ReceiverAnswer, String>) {
     let output = outcome.output.clone().unwrap_or_default();
     let (body, last) = match output.rsplit_once('\n') {
         Some((body, last)) => (body, last),
@@ -45,11 +44,10 @@ pub(super) fn answer(outcome: &command::Outcome) -> (Option<i64>, Result<Value, 
             cut -= 1;
         }
         let text = &body[..cut];
-        let value = match loads_text(if text.is_empty() { "{}" } else { text }) {
-            Some(v @ Value::Object(_)) => v,
-            _ => object(),
-        };
-        return (Some(status), Ok(value));
+        return (
+            Some(status),
+            Ok(serde_json::from_str(text).unwrap_or_default()),
+        );
     }
     let lower = message.to_lowercase();
     let class = match exit {
@@ -65,6 +63,21 @@ pub(super) fn answer(outcome: &command::Outcome) -> (Option<i64>, Result<Value, 
         _ => "OSError",
     };
     (None, Err(class.into()))
+}
+
+/// The receiver's answer (JSON; an answer that does not read has none of these).
+#[derive(serde::Deserialize, Default, Debug, PartialEq)]
+#[serde(default)]
+pub(super) struct ReceiverAnswer {
+    /// Its ID of a stored report.
+    #[serde(deserialize_with = "y2p_core::lenient::text")]
+    pub report_id: Option<String>,
+    /// Why it refused one.
+    #[serde(deserialize_with = "y2p_core::lenient::text")]
+    pub error: Option<String>,
+    /// The bytes it received.
+    #[serde(deserialize_with = "y2p_core::lenient::or_none")]
+    pub bytes: Option<i64>,
 }
 
 /// The curl command line: the request's headers as `--header` arguments (urllib's names, title-cased as
@@ -157,7 +170,7 @@ pub(super) fn post(
     index: &ReportIndex,
     key: &str,
     progress: Option<&build::Progress>,
-) -> (Option<i64>, Result<Value, String>) {
+) -> (Option<i64>, Result<ReceiverAnswer, String>) {
     let argv = argv(&headers(data, index, key));
     let refs: Vec<&str> = argv.iter().map(String::as_str).collect();
     let outcome = if root.is_real() {

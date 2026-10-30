@@ -61,8 +61,8 @@ fn queued(root: &Root) -> Value {
         &build::Progress::quiet(),
     )
     .unwrap();
-    assert_eq!(result.get("queued"), Some(&Value::Bool(true)), "{result:?}");
-    result
+    assert!(result.queued, "{result:?}");
+    serde_json::json!(result)
 }
 
 /// A report queued earlier (Python gave queue() an earlier `now`): its file gets an older stamp.
@@ -122,7 +122,7 @@ fn send_with(
     first: Option<&str>,
 ) -> (Value, Vec<Vec<String>>) {
     let answering = root.clone().with_answers(answers);
-    let result = upload(&answering, progress, first).unwrap();
+    let result = serde_json::json!(upload(&answering, progress, first).unwrap());
     let curls = answering
         .calls()
         .into_iter()
@@ -588,7 +588,7 @@ fn the_owners_screen_follows_build_and_upload_and_the_record_goes_away() {
     let root = &fixture.root;
     state::set_enabled(root, true).unwrap();
     let progress = build::Progress::new(root, None);
-    let item = queue(root, &["manual".to_owned()], "", None, &progress).unwrap();
+    let item = json!(queue(root, &["manual".to_owned()], "", None, &progress).unwrap());
     let name = text(&item, "name");
     // The build ends with its pack step (at most five writes a second: the forced ones show).
     let built = fixture.json(build::PROGRESS);
@@ -638,7 +638,7 @@ fn a_sleep_in_progress_leaves_the_report_queued() {
     queued(root);
     // Sleep takes the activity lease exclusively.
     let sleep = y2p_core::lock::exclusive(&root.path("/run/y2/activity.lock")).unwrap();
-    let result = upload_now(root, None, None);
+    let result = json!(upload_now(root, None, None));
     drop(sleep);
     assert_eq!(reason(&result), "sleep_operation_in_progress");
     assert_eq!(queue_names(root).len(), 1);
@@ -650,7 +650,8 @@ fn queue_is_opt_in_and_bounded() {
     player::player(fixture.base());
     let root = &fixture.root;
     let quiet = build::Progress::quiet();
-    let queue_one = |trigger: &str| queue(root, &[trigger.to_owned()], "", None, &quiet).unwrap();
+    let queue_one =
+        |trigger: &str| json!(queue(root, &[trigger.to_owned()], "", None, &quiet).unwrap());
     assert_eq!(reason(&queue_one("manual")), "not_enabled");
     assert_eq!(
         state::status(root).unwrap().get("enabled"),

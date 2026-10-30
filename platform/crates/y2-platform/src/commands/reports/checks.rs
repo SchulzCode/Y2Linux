@@ -7,7 +7,7 @@ use super::{
     sha256_hex,
     state::Reports,
 };
-use crate::commands::reports::{filled, Value, ValueExt};
+use crate::commands::reports::{filled, Value};
 use crate::reply::Failure;
 use regex::Regex;
 use serde::Deserialize;
@@ -521,13 +521,13 @@ fn storage_error(
 /// They usually share a cause (a crash loop: unclean restart, Reborn crash and a rolled-back update
 /// within seconds) and one report carries all of them; one report each sent near copies against the
 /// daily limit.
-pub fn run_checks(root: &Root) -> Result<Value, Failure> {
+pub fn run_checks(root: &Root) -> Result<Vec<super::upload::Queued>, Failure> {
     if !Reports::load(root).enabled() {
-        return Ok(Value::Array(Vec::new()));
+        return Ok(Vec::new());
     }
     let fired = check(root)?;
     if fired.is_empty() {
-        return Ok(Value::Array(Vec::new()));
+        return Ok(Vec::new());
     }
     let boot = root.boot_id().unwrap_or_default();
     let state = Reports::load(root);
@@ -550,12 +550,9 @@ pub fn run_checks(root: &Root) -> Result<Value, Failure> {
     };
     let triggers: Vec<String> = fired.iter().map(|(t, _)| t.clone()).collect();
     let mut result = super::upload::queue(root, &triggers, &detail, None, &Progress::quiet())?;
-    result.set("trigger", Value::String(trigger));
-    result.set(
-        "triggers",
-        Value::Array(triggers.into_iter().map(Value::String).collect()),
-    );
-    Ok(Value::Array(vec![result]))
+    result.trigger = Some(trigger);
+    result.triggers = Some(triggers);
+    Ok(vec![result])
 }
 
 #[cfg(test)]
