@@ -323,6 +323,25 @@ daemon (d590c239), power-save policy/record (b69813c9). Loose JSON in product co
 ≈2,380. Left for Q3: devices transfer/time/ssh records, capabilities template, storage observe/records/sys read
 sides, service usb/download, coexistence record, then Q4.
 
+Q4 (2026-10-30, after midnight). Part 1, in test build 184 (seq 11290, Acknowledged): update health-ack, time
+floor, update restart/channel (one power-socket client), SD records (one `MediaRecord` for media.json, the mount
+claim and the lifecycle; card `Identity`; `Check`; write windows), USB hand-off (usb-transfer views, one mtp-roots
+and one mtp-events record), Y2Media (setup note/status, resume record keeps unknown fields, marker/claim), battery
+profile loader (shared with the setup gate), boot journal, CPU idle policy, power policy, shutdown `Intent` (one
+`ProcessIdentity`). Found on the way: the USB tick and radiofw read the write-window answer's `holders` as an
+object (it is a list), so USB re-opened its SD window every tick and never closed it on unplug.
+Owner decision for part 2 (2026-10-30): a corrupted /data record on the remaining critical path fails closed with
+ONE refusal reason; no Python error-text parity. Part 2: Reborn's sleep answer typed and `suspend/pyjson.rs`
+deleted (83778bce); suspend `Receipt`/`Product`/`Moment`/`StageRow` for sleep status, the transition,
+record/progress, the helper and both journals (2f2a4658; an unreadable receipt refuses as
+`suspend_receipt_unreadable`, and the failure is still recorded in a new receipt); sleep admission (4d1903df);
+reset `Plan`/`FileIdentity`/`ResetRecord` with the confirmation still a hash over the plan as read, `pyops`
+deleted (a9c67d19); one journal row for the power daemon and the suspend stages, one sleep-diagnostics row
+(a683b584). `Failure::Crash` (Python's uncaught-exception emulation) is gone. Boundaries left as they are: the
+native update core's journal and answers (a C program's records, shown as is), Reborn's session file in a settings
+reset (only its settings are replaced), versions.json and power.json's battery copied into rows. Small leftovers:
+Python truthiness inside a few typed readers (`py::truthy`, `python_number`), `argparse/python.rs`.
+
 ## 4. Test builds
 
 | build | content |
