@@ -1,6 +1,15 @@
 # Current Y2Linux platform state
 
-## Y2Linux 1.0 Beta 8.43, Baseline 164 — 2026-10-28 (latest, published)
+## Y2Linux 1.0 Beta 9.0, Baseline 186 — 2026-10-30 (latest, published)
+
+Release `1.0.0-beta.9.0`, tag `baseline-186`, Linux `1e55c79f`, Reborn `2bc1e2c`, sequence 11400. The platform is
+Rust (no Python on the player): the port (test builds 165–171), the refactor (172–179) and typed records
+(180–185, owner decisions: /data rollback-safe, status shape may change, the critical path fails closed with one
+reason). Fixes: SD write window closed on USB unplug, expired windows re-protected, SFTP root, two update checks,
+Restore Previous System's battery gate, radio firmware failures, DNS after a DHCP renew, Reborn's sleep requests on
+the cable. Test build 186 = the published images. Details: [Beta 9.0 report](validation/Y2-LINUX-1.0-BETA-9.0.md).
+
+## Y2Linux 1.0 Beta 8.43, Baseline 164 — 2026-10-28 (published)
 
 Release `1.0.0-beta.8.43`, tag `baseline-164`, Linux `f5529b7`, Reborn `a08ca5d`, sequence 11000. Reborn only (the
 platform changes the version): Y2Reborn issues #51 (leaving Search), #45/#46 (one album per folder and title), #52/#55

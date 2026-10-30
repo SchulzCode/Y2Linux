@@ -9791,3 +9791,12 @@ throughout; the check's greps accept both spellings); ntpd started by S43's new 
 no platform warning or error; `report status` still prints through reports' own Py writer (P6). 179's idle (battery
 Full, 30.8 min): power 4.2, service 4.6, ssh 1.9, Reborn 14.2 s/h; Reborn's sleep refusals on the cable: 1 in 37 min
 (68af9ac).
+
+**BETA-9.0 (2026-10-30, owner: "make a build and publish it as beta 9.0"):** release `1.0.0-beta.9.0`, sequence
+11400, root `2026.08-platform-v1.212`, label/tag 186 (`baseline-186`). Content since Beta 8.43 (`baseline-164`): the
+platform in Rust (port 165–171, refactor 172–179, idiomatic plan P0–P7 and finishing Q1–Q5 180–185), Reborn's dark
+idle and charger hold, the fixes listed in the [Beta 9.0 report](../validation/Y2-LINUX-1.0-BETA-9.0.md) (written for
+owners). Gate OK on the release commit (formatting, clippy, armv7, host tests, goldens, record-compat against 185,
+Reborn contract); Reborn workspace 738 tests (its architecture guard caught a device path in the shared contract
+crate, moved back into the platform). The owner's hardware round on 184/185 (overnight sleep, low-battery shutdown,
+SD repair/format, reset) was not done before publishing; the report's Known issues say so.

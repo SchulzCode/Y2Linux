@@ -1,6 +1,12 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.4 candidate (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-30, evening): 185 ON THE PLAYER, Q5 CLEAN-UP COMMITTED (NOT YET IN A BUILD); HARDWARE ROUND OPEN.**
+> **START HERE (2026-10-30, night): BETA 9.0 (BASELINE 186) RELEASE.** Owner: "make a build and publish it as beta
+> 9.0" with a report users can read: [Beta 9.0 report](../validation/Y2-LINUX-1.0-BETA-9.0.md). Release
+> `1.0.0-beta.9.0`, sequence 11400, label 186. Open: the owner's hardware round (overnight sleep, low-battery shutdown,
+> SD repair/format, reset) — not done before publishing; answer error reports against 9.0 first. Next free label 187,
+> sequence above 11400.
+>
+> Previous entry: **START HERE (2026-10-30, evening): 185 ON THE PLAYER, Q5 CLEAN-UP COMMITTED (NOT YET IN A BUILD); HARDWARE ROUND OPEN.**
 > Q5 since 185: the update core's journal typed on the platform side and one `y2p_contract::Versions` (d7a909d2;
 > an update journal whose state is no text now leaves `status` readable, update Unavailable), CONTRACT.md "Typed
 > records", measurements in the idiomatic plan (185: daemons 17.3 MB RSS / 5.5 MB PSS, idle 12.0 s/h, Reborn 15.7
