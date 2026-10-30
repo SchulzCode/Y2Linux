@@ -618,6 +618,7 @@
      "negotiated_speed": null,
      "network": {
       "address": null,
+      "ipv4": null,
       "operstate": null
      },
      "out_path": {},
@@ -1198,6 +1199,7 @@
      "negotiated_speed": null,
      "network": {
       "address": null,
+      "ipv4": null,
       "operstate": null
      },
      "out_path": {},

@@ -415,7 +415,6 @@ pub fn run(root: &Root) -> Outcome {
     if let Some(text) = root.read(RESET_STATUS) {
         cause = reset_cause(Some(&text), "not_observed");
     }
-    let mut cause = |key: &str| cause.shift_remove(key).unwrap_or(Value::Null);
     let earlier = match previous.get("pmic") {
         Some(Value::Object(pmic)) => pmic.get("lk_long_press_record").cloned(),
         _ => None,
@@ -430,11 +429,11 @@ pub fn run(root: &Root) -> Outcome {
         previous_boot_id: journal_get("boot_id"),
         previous_last_stage: journal_get("last_stage"),
         previous_orderly_shutdown: journal_get("orderly_shutdown"),
-        reset_cause: cause("reset_cause"),
-        reset_cause_reason: cause("reset_cause_reason"),
+        reset_cause: json!(cause.reset_cause),
+        reset_cause_reason: json!(cause.reset_cause_reason),
         kernel_panic_retention_guaranteed: false,
         logs_are_private: true,
-        reset_status_raw: cause("reset_status_raw"),
+        reset_status_raw: json!(cause.reset_status_raw),
         record: util::record(root, "previous-boot-evidence", Map::new()),
         loader: loader_boot(root.read(BOOT_METADATA).as_deref()),
         pmic: pmic_power_status(root.read(PMIC_POWER_STATUS).as_deref(), earlier.as_ref()),

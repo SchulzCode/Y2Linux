@@ -51,20 +51,25 @@ fn fields(text: &str) -> HashMap<&str, &str> {
 /// The reset cause boot.json records: the MT6582 RGU WDT_STATUS the watchdog driver read at probe,
 /// before its first write.
 #[derive(Debug, PartialEq, Serialize)]
-struct ResetCause {
+pub(crate) struct ResetCause {
     /// A cause the RGU status proves; none for zero, unknown bits or an absent file (those never
     /// prove a power-on reset).
-    reset_cause: Option<String>,
-    reset_cause_reason: String,
-    reset_status_raw: Option<String>,
+    pub reset_cause: Option<String>,
+    pub reset_cause_reason: String,
+    pub reset_status_raw: Option<String>,
 }
 
 fn reset_cause(text: Option<&str>) -> ResetCause {
+    reset_cause_or(text, "not_observed")
+}
+
+/// The reset cause of the RGU status `text`; `missing` is the reason where no valid status was read.
+pub(crate) fn reset_cause_or(text: Option<&str>, missing: &str) -> ResetCause {
     let fields = fields(text.unwrap_or_default());
     if fields.get("valid") != Some(&"1") {
         return ResetCause {
             reset_cause: None,
-            reset_cause_reason: "not_observed".into(),
+            reset_cause_reason: missing.into(),
             reset_status_raw: None,
         };
     }

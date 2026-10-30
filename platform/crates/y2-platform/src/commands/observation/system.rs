@@ -3,64 +3,23 @@
 //! radio firmware.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::util::{
-    self, findall2, findall_map, get_eq, name, number, read, read_limited, record_fields,
-    splitlines, text,
+    self, findall2, findall_map, get_eq, int, name, read, read_limited, record_fields, splitlines,
+    Counted,
 };
 use crate::commands::devices::ssh;
 use crate::{regex, reply::Failure};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
+use y2p_contract::BootStageLine;
 use y2p_core::{
     command,
     json::{Object, ObjectExt},
-    py::truthy,
     Root,
 };
 
 pub const RESET_STATUS: &str = "/sys/firmware/y2_pm/reset_status";
 
-/// The reset cause: the MT6582 RGU WDT_STATUS the watchdog driver read at
-/// probe, before its first write. Zero, unknown bits or an absent file never prove a power-on reset.
-pub fn reset_cause(text: Option<&str>, missing: &str) -> Map<String, Value> {
-    let fields = findall_map(regex!(r"(\w+)=(\S+)"), text.unwrap_or_default());
-    let mut result = Map::new();
-    if fields.get("valid").map(String::as_str) != Some("1") {
-        result.insert("reset_cause".into(), Value::Null);
-        result.insert("reset_cause_reason".into(), json!(missing));
-        result.insert("reset_status_raw".into(), Value::Null);
-        return result;
-    }
-    let cause = fields.get("cause").map(String::as_str).unwrap_or_default();
-    let known = [
-        "watchdog_timeout",
-        "software_reset",
-        "watchdog_irq",
-        "debug_reset",
-        "spm_watchdog",
-    ]
-    .contains(&cause);
-    result.insert(
-        "reset_cause".into(),
-        if known { json!(cause) } else { Value::Null },
-    );
-    result.insert(
-        "reset_cause_reason".into(),
-        json!(if known {
-            "rgu_wdt_status_at_probe".to_owned()
-        } else {
-            format!(
-                "rgu_status_{}",
-                if cause.is_empty() {
-                    "unreadable"
-                } else {
-                    cause
-                }
-            )
-        }),
-    );
-    result.insert("reset_status_raw".into(), json!(fields.get("raw")));
-    result
-}
+pub(crate) use crate::commands::boot::{reset_cause_or as reset_cause, ResetCause};
 
 /// The previous boot's evidence (boot-evidence's record) as the snapshot shows it: its findings
 /// and the log tails' digests, never the private lines.
@@ -158,41 +117,73 @@ fn radiofw_state(root: &Root) -> Value {
 }
 
 /// The kernel marks the detected BC1.1 class in brackets: 'Unknown [SDP] DCP CDP'.
-fn source_type(text: Option<&str>) -> Value {
+fn source_type(text: Option<&str>) -> Option<String> {
     regex!(r"\[(\w+)\]")
         .captures(text.unwrap_or_default())
-        .map_or(Value::Null, |c| json!(&c[1]))
+        .map(|c| c[1].to_owned())
 }
 
 /// The charger's `charging_state` fields the USB diagnostics show, each with its pattern (compiled
 /// once).
-fn charge_field(state: &str, name: &str) -> Result<Value, Failure> {
+fn charge_field(state: &str, name: &str) -> Result<Option<i64>, Failure> {
     let pattern = match name {
         "stock_request_ua" => regex!(r"\bstock_request_ua=(-?[0-9]+)"),
         "class_ceiling_ua" => regex!(r"\bclass_ceiling_ua=(-?[0-9]+)"),
         "thermal_level" => regex!(r"\bthermal_level=(-?[0-9]+)"),
         "sense_current_est_ua" => regex!(r"\bsense_current_est_ua=(-?[0-9]+)"),
-        _ => return Ok(Value::Null),
+        _ => return Ok(None),
     };
     match pattern.captures(state) {
-        Some(c) => Ok(json!(util::int_or_raise(&c[1])?)),
-        None => Ok(Value::Null),
+        Some(c) => Ok(Some(util::int_or_raise(&c[1])?)),
+        None => Ok(None),
     }
 }
 
 /// Read-only USB platform diagnostics: negotiated speed, link lifecycle, charging source/ceiling,
 /// USB network, MTP storage roots and OUT-path counters.
-fn usb_diagnostics(
-    root: &Root,
-    udcs: &[Value],
-    link: Value,
-) -> Result<Map<String, Value>, Failure> {
+#[derive(Serialize)]
+pub struct UsbDiagnostics {
+    negotiated_speed: Option<String>,
+    functions: Vec<String>,
+    link: Counted,
+    charging: Charging,
+    network: UsbNetwork,
+    mtp_roots: Object,
+    out_path: Counted,
+}
+
+/// The charger as the USB diagnostics show it. Three different currents: the stock request for the
+/// detected source, what the PMIC selector is programmed to, and an unvalidated charger-path estimate.
+#[derive(Serialize)]
+struct Charging {
+    source_type: Option<String>,
+    host_allowance_ua: Option<i64>,
+    programmed_charge_ua: Option<i64>,
+    owner_charge_ceiling_ua: Option<i64>,
+    stock_request_ua: Option<i64>,
+    class_ceiling_ua: Option<i64>,
+    thermal_level: Option<i64>,
+    sense_current_est_ua: Option<i64>,
+    sense_current_basis: &'static str,
+    state: Option<String>,
+    usb_online: Option<String>,
+}
+
+/// The USB network interface (usb0).
+#[derive(Serialize)]
+struct UsbNetwork {
+    operstate: Option<String>,
+    address: Option<String>,
+    /// The first IPv4 address with its prefix; null when not read.
+    ipv4: Option<String>,
+}
+
+fn usb_diagnostics(root: &Root, udcs: &[Udc], link: Counted) -> Result<UsbDiagnostics, Failure> {
     let base = "/sys/class/power_supply/";
-    let speed = udcs
+    let negotiated_speed = udcs
         .iter()
-        .map(|u| u.get("speed").cloned().unwrap_or(Value::Null))
-        .find(truthy)
-        .unwrap_or(Value::Null);
+        .filter_map(|u| u.speed.clone())
+        .find(|speed| !speed.is_empty());
     let mut functions: Vec<String> = root
         .glob("/sys/kernel/config/usb_gadget/y2/configs/c.1/*")
         .iter()
@@ -203,109 +194,72 @@ fn usb_diagnostics(
         .map(|p| name(p))
         .collect();
     functions.sort();
-    let mut rx = Map::new();
+    let mut out_path = Counted::new();
     // One y2-usb device: its OUT-path counters (the first line).
     if let [source] = &root.glob("/sys/bus/platform/drivers/y2-usb/*/rxdiag")[..] {
         let all = read_limited(source, 4096).unwrap_or_default();
         let first = splitlines(&all).first().copied().unwrap_or("");
         for (key, value) in findall2(regex!(r"\b([a-z_]+)=([0-9]+)\b"), first) {
-            rx.insert(key, number(Some(&value)));
+            out_path.insert(key, int(&value));
         }
     }
-    let mut network = Map::new();
-    network.insert(
-        "operstate".into(),
-        text(read(&root.path("/sys/class/net/usb0/operstate"))),
-    );
-    network.insert(
-        "address".into(),
-        text(read(&root.path("/sys/class/net/usb0/address"))),
-    );
     // `ip -4 -o addr show dev usb0`'s first `inet <address>/<prefix>`; on the player read from
     // rtnetlink (connectivity::direct), below a fixture root the recorded command as before.
-    if root.is_real() {
+    let ipv4 = if root.is_real() {
         let answer = crate::commands::connectivity::direct::ipv4_addresses(root, "usb0", 0.5);
-        if answer.ok {
+        answer.ok.then(|| {
             let parsed: Value =
                 serde_json::from_str(answer.output.as_deref().unwrap_or("[]")).unwrap_or_default();
-            let first = parsed[0]["addr_info"][0].clone();
-            network.insert(
-                "ipv4".into(),
-                match (first["local"].as_str(), first["prefixlen"].as_u64()) {
-                    (Some(local), Some(prefix)) => json!(format!("{local}/{prefix}")),
-                    _ => Value::Null,
-                },
-            );
-        }
+            let first = &parsed[0]["addr_info"][0];
+            match (first["local"].as_str(), first["prefixlen"].as_u64()) {
+                (Some(local), Some(prefix)) => Some(format!("{local}/{prefix}")),
+                _ => None,
+            }
+        })
     } else {
         let answer = command::run(
             root,
             &["/sbin/ip", "-4", "-o", "addr", "show", "dev", "usb0"],
             0.5,
         );
-        if answer.ok {
-            network.insert(
-                "ipv4".into(),
-                regex!(r"inet (\S+)")
-                    .captures(answer.output.as_deref().unwrap_or_default())
-                    .map_or(Value::Null, |c| json!(&c[1])),
-            );
-        }
+        answer.ok.then(|| {
+            regex!(r"inet (\S+)")
+                .captures(answer.output.as_deref().unwrap_or_default())
+                .map(|c| c[1].to_owned())
+        })
     }
+    .flatten();
     let charging_state = root
         .read(&format!("{base}BAT0/charging_state"))
         .unwrap_or_default();
-    let mut charging = Map::new();
-    charging.insert(
-        "source_type".into(),
-        source_type(read(&root.path(&format!("{base}y2-usb-presence/usb_type"))).as_deref()),
-    );
-    charging.insert(
-        "host_allowance_ua".into(),
-        json!(root.integer(&format!("{base}y2-usb-input/current_max"))),
-    );
-    // Three different quantities: the stock request for the detected source, what the PMIC selector
-    // is programmed to, and an unvalidated charger-path estimate.
-    charging.insert(
-        "programmed_charge_ua".into(),
-        json!(root.integer(&format!("{base}BAT0/constant_charge_current"))),
-    );
-    charging.insert(
-        "owner_charge_ceiling_ua".into(),
-        json!(root.integer(&format!("{base}BAT0/constant_charge_current_max"))),
-    );
-    for key in [
-        "stock_request_ua",
-        "class_ceiling_ua",
-        "thermal_level",
-        "sense_current_est_ua",
-    ] {
-        charging.insert(key.into(), charge_field(&charging_state, key)?);
-    }
-    charging.insert(
-        "sense_current_basis".into(),
-        json!("bsp-200mohm-unvalidated-charger-path-estimate"),
-    );
-    charging.insert(
-        "state".into(),
-        text(read(&root.path(&format!("{base}BAT0/status")))),
-    );
-    charging.insert(
-        "usb_online".into(),
-        text(read(&root.path(&format!("{base}y2-usb-presence/online")))),
-    );
-    let mut result = Map::new();
-    result.insert("negotiated_speed".into(), speed);
-    result.insert("functions".into(), json!(functions));
-    result.insert("link".into(), link);
-    result.insert("charging".into(), Value::Object(charging));
-    result.insert("network".into(), Value::Object(network));
-    result.insert(
-        "mtp_roots".into(),
-        Value::Object(root.json_object("/run/y2/mtp-roots.json")),
-    );
-    result.insert("out_path".into(), Value::Object(rx));
-    Ok(result)
+    let charging = Charging {
+        source_type: source_type(
+            read(&root.path(&format!("{base}y2-usb-presence/usb_type"))).as_deref(),
+        ),
+        host_allowance_ua: root.integer(&format!("{base}y2-usb-input/current_max")),
+        programmed_charge_ua: root.integer(&format!("{base}BAT0/constant_charge_current")),
+        owner_charge_ceiling_ua: root.integer(&format!("{base}BAT0/constant_charge_current_max")),
+        stock_request_ua: charge_field(&charging_state, "stock_request_ua")?,
+        class_ceiling_ua: charge_field(&charging_state, "class_ceiling_ua")?,
+        thermal_level: charge_field(&charging_state, "thermal_level")?,
+        sense_current_est_ua: charge_field(&charging_state, "sense_current_est_ua")?,
+        sense_current_basis: "bsp-200mohm-unvalidated-charger-path-estimate",
+        state: read(&root.path(&format!("{base}BAT0/status"))),
+        usb_online: read(&root.path(&format!("{base}y2-usb-presence/online"))),
+    };
+    Ok(UsbDiagnostics {
+        negotiated_speed,
+        functions,
+        link,
+        charging,
+        network: UsbNetwork {
+            operstate: read(&root.path("/sys/class/net/usb0/operstate")),
+            address: read(&root.path("/sys/class/net/usb0/address")),
+            ipv4,
+        },
+        mtp_roots: root.json_object("/run/y2/mtp-roots.json"),
+        out_path,
+    })
 }
 
 /// The time section: `y2-platform time`'s record.
@@ -326,16 +280,18 @@ pub fn system(root: &Root) -> Result<System, Failure> {
     }
     let trail = root.read("/run/y2/boot-stages.jsonl").unwrap_or_default();
     let lines = splitlines(&trail);
-    let mut stages = Vec::new();
-    for line in &lines[lines.len().saturating_sub(32)..] {
-        if let Ok(Value::Object(map)) = serde_json::from_str::<Value>(line) {
-            stages.push(Value::Object(map));
-        }
-    }
-    let udcs: Vec<Value> = root
+    let stages: Vec<BootStageLine> = lines[lines.len().saturating_sub(32)..]
+        .iter()
+        .filter_map(|line| serde_json::from_str(line).ok())
+        .collect();
+    let udcs: Vec<Udc> = root
         .glob("/sys/class/udc/*")
         .iter()
-        .map(|p| json!({"name": name(p), "state": read(&p.join("state")), "speed": read(&p.join("current_speed"))}))
+        .map(|p| Udc {
+            name: name(p),
+            state: read(&p.join("state")),
+            speed: read(&p.join("current_speed")),
+        })
         .collect();
     let rtcs = root
         .glob("/sys/class/rtc/rtc*")
@@ -351,30 +307,32 @@ pub fn system(root: &Root) -> Result<System, Failure> {
     let sources = root.glob("/sys/bus/platform/drivers/y2-usb/*/status");
     let (dma, link) = if let [source] = &sources[..] {
         let status = read_limited(source, 8192).unwrap_or_default();
-        let mut dma = Map::new();
+        let mut dma = Dma {
+            transfer: None,
+            counters: Counted::new(),
+        };
         for (key, value) in findall_map(
             regex!(r"\b(transfer|dma_[a-z_]+|pio_[a-z_]+|irq_[a-z_]+)=([a-z_]+|-?[0-9]+)\b"),
             &status,
         ) {
-            let typed = if key == "transfer" {
-                json!(value)
+            if key == "transfer" {
+                dma.transfer = Some(value);
             } else {
-                number(Some(&value))
-            };
-            dma.insert(key, typed);
+                dma.counters.insert(key, int(&value));
+            }
         }
-        let mut link = Map::new();
+        let mut link = Counted::new();
         for (key, value) in findall_map(
             regex!(
                 r"\b(detached|reconnect_retries|reconnect_failures|monitor_failures|monitor_transients|runtime_held)=([0-9]+)\b"
             ),
             &status,
         ) {
-            link.insert(key, number(Some(&value)));
+            link.insert(key, int(&value));
         }
-        (Value::Object(dma), Value::Object(link))
+        (Some(dma), link)
     } else {
-        (Value::Null, json!({}))
+        (None, Counted::new())
     };
     let diagnostics = usb_diagnostics(root, &udcs, link)?;
     let usb = Usb {
@@ -442,9 +400,9 @@ pub struct System {
     boot_history: Option<Value>,
     previous_boot_evidence: Value,
     application_readiness: Option<Value>,
-    boot_stages: Vec<Value>,
+    boot_stages: Vec<BootStageLine>,
     #[serde(flatten)]
-    reset: Map<String, Value>,
+    reset: ResetCause,
     kernel_taint: Option<i64>,
     kernel_warning_count: Option<i64>,
     kernel_warning_reason: &'static str,
@@ -484,9 +442,26 @@ pub struct Rtc {
 #[derive(Serialize)]
 pub struct Usb {
     mode: &'static str,
-    pub udcs: Vec<Value>,
-    dma: Value,
+    pub udcs: Vec<Udc>,
+    dma: Option<Dma>,
     file_transfer: Map<String, Value>,
     #[serde(flatten)]
-    diagnostics: Map<String, Value>,
+    diagnostics: UsbDiagnostics,
+}
+
+/// One USB device controller.
+#[derive(Serialize)]
+pub struct Udc {
+    name: String,
+    state: Option<String>,
+    speed: Option<String>,
+}
+
+/// The y2-usb driver's transfer mode and DMA/PIO/IRQ counters.
+#[derive(Serialize)]
+struct Dma {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    transfer: Option<String>,
+    #[serde(flatten)]
+    counters: Counted,
 }
