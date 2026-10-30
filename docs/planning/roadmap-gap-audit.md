@@ -9686,6 +9686,18 @@ Idle, screen off (bl_power 4), charging, 300 s window from 6 min uptime: Reborn 
 ssh-daemon 1.9, connectivity-daemon 0.1 s/h (172: 7.8/7.8/2.1/0.0, measured later after boot; within the window's
 noise and boot-time work, not a regression shown). power.json is still rewritten every second (10 inodes in 10 s): the intended change test sees
 the raw ADC voltage change each sample. Idle process starts after start-up ≈10/min (PID counter over 60 s), mostly
-kernel workers. Owed: the owner's dark-wake checks (Power, USB plug, Bluetooth
+kernel workers.
+
+**Test builds 174 and 175 (2026-10-30, the refactor plan's next pass P1–P9):** every step byte-identical against 171
+except deliberately re-recorded call lists (a volume probed alone: transfer commit blkid 8 → 4; the service
+daemon's space policy in process: 31 service goldens lose the `y2-platform space --cleanup` child; diagnostics
+export one snapshot), host suite 576 OK. On the owner's player by staged OTA: 174 (seq 11190) Acknowledged, Wi-Fi
+power policy Ready with the nl80211 readback equal to `iw` (off/off), usb0 10.42.0.1/24 equal to `ip`, Wi-Fi
+Online, storage.json written by the service daemon, SSH Ready, health OK (Bluetooth UNAVAILABLE: radio off).
+power.json was still written every second on 174 (the estimate's own figures flicker near a step); 175 (seq
+11200, applied 01:20:18, Acknowledged by 01:22:59) leaves them out of the change test: 10 writes in 20 s. Idle on
+174, screen off, charging, 300 s at 5–10 min uptime: power-daemon 7.3, service-daemon 7.7, ssh-daemon 1.9,
+connectivity 0.1, Reborn 14.4 s/h (main 6.0, watchdog 2.4). Owed: a long-uptime idle measurement on 175, the
+owner's dark-wake checks (Power, USB plug, Bluetooth Play, automatic sleep on battery), handoff §6 A. Owed: the owner's dark-wake checks (Power, USB plug, Bluetooth
 Play, automatic sleep on battery) and PLATFORM-RUST-PORT-HANDOFF.md §6 A.
 

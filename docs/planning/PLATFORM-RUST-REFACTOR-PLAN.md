@@ -72,7 +72,23 @@ them); Reborn dark and quiet: a full main-loop pass on an event or a due timer, 
 s, observation 10 s, snapshot 30 s. **Left on purpose:** `space --cleanup` stays its own process (statvfs of the SD
 card can block in D state; that must not stop Wi-Fi), ssh.json keeps its 5-s renewal (`status` refuses one 10 s old).
 
-**Next pass — review of 2026-10-30 (four read-only reviewers, findings spot-checked; not started).** Ranked by gain
+**Next pass — review of 2026-10-30 — DONE in test builds 174/175** except where marked left: P1, P2 and P8 done;
+P3 done for netlink, pidfd, kill/alive, new_session, dir_names, *at, unix sockets, BorrowedFd in transfer (left:
+the five poll loops, which round differently on purpose; the bench scratch layer); P4 done as per-target probes
+and the space policy in process (left: merging the three observers, byte change); P5 done for the USB tick's
+media.lock (left: synchronous health-ack until settled, a Job type for the child slots); P6 done for the usb0
+address and one snapshot in diagnostics export (left: the cats, blkid in status, report children); P7 done for
+health's CheckState (left: the typed records and state enums, see "What still follows Python"); P9 done for iw's
+readback (left: rare wpa_cli/ip/date/rebornctl starts). Original findings:
+
+**What still follows Python (2026-10-30 count, non-test code):** ~1,650 `Value` mentions, ~910 `json!`, ~500
+`.get("field")` against ~70 typed Serialize records; worst observation (539 Value, 300 json!, 0 typed), then
+service and suspend; reports carries a Python value type (`Py`, 544 uses) for byte-identical bundles. Owner
+discussion: gains are correctness and maintainability, not speed; recommended selectively — type the records
+written and read across components (ssh.json, network.json, power.json readers, media-mount.json, the update
+journal, the status sections Reborn reads) and convert a group when it is next changed.
+
+**Original next-pass findings (2026-10-30, four read-only reviewers, spot-checked).** Ranked by gain
 per risk; "byte" = needs the raw byte comparison, "owner" = needs an owner decision.
 - **P1 power daemon sample (S, none):** of the 9 BAT0 files read every second, `capacity`, `current_now`, `temp`,
   `charge_counter` do not exist (checked on 173); `charging_state` (≈1.2 KB under the charger mutex + regex) is used only

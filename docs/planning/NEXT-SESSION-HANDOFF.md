@@ -1,6 +1,13 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.4 candidate (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-29, night): TEST BUILD 173 (DUPLICATION PASS + IDLE GAINS) ON THE OWNER'S PLAYER, NOT PUBLISHED.**
+> **START HERE (2026-10-30, night): TEST BUILD 175 (REFACTOR NEXT PASS P1–P9) ON THE OWNER'S PLAYER, NOT PUBLISHED.**
+> 174 + 175 on top of 173 (refactor plan "Next pass"): BAT0 reads only what the estimate uses, power.json every
+> 2 s, ~25 duplicate merges (low-battery policy, SD write window, /proc/locks, SHA-256, regex …), From<io::Error>
+> errors, y2p_core::sys wrappers (unsafe 200 → 173, purge fd leak fixed), one-volume probes, space policy in the
+> service daemon, USB tick never waits for media.lock, nl80211 power-save readback. 175 (seq 11200) by OTA,
+> Acknowledged. **Owed:** long-uptime idle measurement, dark-wake checks. Next free label 176, sequence above 11200.
+>
+> Previous entry: **START HERE (2026-10-29, night): TEST BUILD 173 (DUPLICATION PASS + IDLE GAINS) ON THE OWNER'S PLAYER, NOT PUBLISHED.**
 > On top of 172 (refactor plan "Duplication pass and idle gains"): shared paths/digest/clock/json helpers; Wi-Fi
 > look and ssh's usb0 address without processes (`connectivity::direct`); power.json on change/2 s (no effect: voltage changes every sample); NTP start only
 > without ntpd; Reborn (639049b) dark-quiet cadence and metrics from the control thread. 173 (seq 11180) by OTA,
