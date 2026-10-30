@@ -162,7 +162,7 @@ pub(super) fn daily_update_check(
     if network.state != "Online" {
         return None;
     }
-    let last = update::LastCheck::read(root);
+    let last = update::read_last_check(root);
     let now = time::wall();
     if update::within(last.checked(), now, update::CHECK_INTERVAL)
         || update::within(last.attempted(), now, update::ATTEMPT_INTERVAL)

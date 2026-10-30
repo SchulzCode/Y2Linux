@@ -43,7 +43,7 @@ pub(crate) use journal::{state as journal_state, status as journal_status, Journ
 mod source;
 mod staging;
 
-pub(super) use self::check::{within, LastCheck};
+pub(super) use self::check::{read_last_check, within};
 pub(crate) use self::health::ApplicationReady;
 use self::{apply::*, check::*, health::*, journal::*, source::*, staging::*};
 

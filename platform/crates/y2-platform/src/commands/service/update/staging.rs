@@ -8,12 +8,12 @@ use super::{
     Progress, Raise, Result, Root, Source, Value, BACKUPS, CANCELLED, CHECK_PROGRESS, FILES,
     IN_PROGRESS, KEPT_LOGS, MANIFEST_ATTEMPTS, RESERVE,
 };
-use serde::{Deserialize, Serialize};
 use std::ops::ControlFlow;
 use std::os::fd::AsFd;
 use std::os::unix::fs::DirBuilderExt;
 use std::os::unix::fs::MetadataExt;
 use std::os::unix::fs::OpenOptionsExt;
+use y2p_contract::update::{Download, DownloadPhase};
 
 fn payload_file(key: &str) -> Option<&'static str> {
     match key {
@@ -257,70 +257,9 @@ struct Payload {
     sha256: Value,
 }
 
-/// download.json, what the Software Update page shows (written sorted; a field is left out where
-/// its state has none). Read back by `update status`, a later check and a failed check (which keeps
-/// what the page offered).
-#[derive(Serialize, Deserialize, Default, Clone, Debug)]
-#[serde(default)]
-pub(crate) struct Download {
-    pub(crate) schema: u8,
-    pub(crate) state: String,
-    /// The token of the check or download that runs (Checking, Staging).
-    #[serde(skip_serializing_if = "Option::is_none")]
-    id: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    up_to_date: Option<bool>,
-    /// Up to date: whether the channel has a release at all.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    published: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    release_version: Option<Value>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    sequence: Option<Value>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    download_bytes: Option<i64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    bytes: Option<i64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    notes: Option<Value>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    reborn_version: Option<Value>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    backup_budget: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    reserve_bytes: Option<i64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    cleaned_bytes: Option<i64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub(crate) failure: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    needed_bytes: Option<i64>,
-    /// A check that failed after one had offered a release: why (the offer stays).
-    #[serde(skip_serializing_if = "Option::is_none")]
-    last_check_failure: Option<String>,
-}
-
-impl Download {
-    pub(crate) fn state(state: &str) -> Download {
-        Download {
-            schema: 1,
-            state: state.to_owned(),
-            ..Download::default()
-        }
-    }
-
-    /// The record at /data/updates/download.json; none when missing or of another shape.
-    /// A download or check that ended without its own record.
-    pub(crate) fn failed(failure: &str) -> Download {
-        Download {
-            failure: Some(failure.into()),
-            ..Download::state("Failed")
-        }
-    }
-
-    pub(crate) fn read(root: &Root) -> Option<Download> {
-        serde_json::from_str(&root.read("/data/updates/download.json")?).ok()
-    }
+/// The record at /data/updates/download.json; none when missing or of another shape.
+pub(crate) fn read_download(root: &Root) -> Option<Download> {
+    serde_json::from_str(&root.read("/data/updates/download.json")?).ok()
 }
 
 /// What the core's `check-manifest` answers about a signed release.
@@ -465,7 +404,7 @@ impl Staging<'_> {
         // still find the release (OTA-46).
         let cleaned = make_room(root, io, file, 64 * 1024)?;
         // What the Software Update page showed: a failed check keeps it.
-        self.previous = Download::read(root);
+        self.previous = read_download(root);
         fs::DirBuilder::new()
             .mode(0o700)
             .create(&self.incoming)
@@ -621,7 +560,7 @@ impl Staging<'_> {
             manifest.release.clone(),
             manifest.total,
         ));
-        live.finish("download");
+        live.finish(DownloadPhase::Download);
         let mut count: i64 = 0;
         for payload in &manifest.payloads {
             let name = payload_file(&payload.key).ok_or_else(malformed)?;
@@ -636,7 +575,7 @@ impl Staging<'_> {
                 true,
                 |done| {
                     live.done = count + done;
-                    live.publish("download", false);
+                    live.publish(DownloadPhase::Download, false);
                 },
             )?;
             drop(stream);
@@ -649,7 +588,7 @@ impl Staging<'_> {
         // The queue below decodes and checks every payload once (OTA-48: the separate check before it
         // decoded the same files a second time).
         let _ = fs::remove_file(root.path(CHECK_PROGRESS));
-        live.finish("verify");
+        live.finish(DownloadPhase::Verify);
         if CANCELLED.load(Ordering::SeqCst) {
             return Err(Raise::Net(Net::Cancelled));
         }
@@ -679,7 +618,7 @@ impl Staging<'_> {
         drop(parent);
         let result = core(root, "queue", None, 300.0)?;
         if let Some(live) = self.live.as_mut() {
-            live.finish("done");
+            live.finish(DownloadPhase::Done);
         }
         atomic_json(
             &self.record(),
@@ -762,7 +701,7 @@ pub(super) fn stage(
             let _ = remove_package(&staging.incoming);
             atomic_json(&download, &staging.summary, true)?;
             if let Some(live) = staging.live.as_mut() {
-                live.finish("failed");
+                live.finish(DownloadPhase::Failed);
             }
             Err(error)
         }
@@ -796,7 +735,7 @@ pub(super) fn stage(
                 atomic_json(&download, &record, true)?;
             }
             if let Some(live) = staging.live.as_mut() {
-                live.finish("failed");
+                live.finish(DownloadPhase::Failed);
             }
             Err(error)
         }

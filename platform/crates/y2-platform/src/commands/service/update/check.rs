@@ -5,7 +5,7 @@ use super::{
     stage, Io, ManifestUrl, Raise, Result, Root, Value, CHECK_INTERVAL, IN_PROGRESS, LAST_CHECK,
 };
 use crate::commands::connectivity::published::Published;
-use serde::{Deserialize, Serialize};
+use y2p_contract::update::LastCheck;
 
 /// The manifest URL `stage` gets from the channel: none for a missing or empty one, refused for one
 /// that is not text (an owner's channel.json naming a number, say).
@@ -23,7 +23,7 @@ pub(super) fn automatic_check(root: &Root, io: &dyn Io) -> Result<Value> {
     let now = io.now();
     let directory = root.path("/data/updates");
     private_directory(&directory)?;
-    let last = LastCheck::read(root);
+    let last = read_last_check(root);
     if within(last.checked(), now, CHECK_INTERVAL) {
         return Ok(skipped("not_due"));
     }
@@ -91,65 +91,20 @@ pub(super) fn automatic_check(root: &Root, io: &dyn Io) -> Result<Value> {
     Ok(json!(record))
 }
 
-/// last-check.json: when a check last reached the server (`time`, kept from the last successful
-/// check) and when one was last tried (`attempt`), with the last check's result. Each field reads
-/// leniently.
-#[derive(Serialize, Deserialize, Default, Clone, Debug)]
-#[serde(default)]
-pub(crate) struct LastCheck {
-    #[serde(deserialize_with = "y2p_core::lenient::or_none")]
-    pub(crate) schema: Option<i64>,
-    #[serde(
-        deserialize_with = "y2p_core::lenient::or_none",
-        skip_serializing_if = "Option::is_none"
-    )]
-    pub(crate) attempt: Option<f64>,
-    #[serde(
-        deserialize_with = "y2p_core::lenient::or_none",
-        skip_serializing_if = "Option::is_none"
-    )]
-    pub(crate) time: Option<f64>,
-    #[serde(
-        deserialize_with = "y2p_core::lenient::text",
-        skip_serializing_if = "Option::is_none"
-    )]
-    pub(crate) result: Option<String>,
-    /// The release the check found, as the signed manifest names it.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub(crate) release_version: Option<Value>,
-    #[serde(
-        deserialize_with = "y2p_core::lenient::text",
-        skip_serializing_if = "Option::is_none"
-    )]
-    pub(crate) failure: Option<String>,
+/// last-check.json as written (none when missing or of another shape).
+pub(crate) fn load_last_check(root: &Root) -> Option<LastCheck> {
+    serde_json::from_str(&root.read(LAST_CHECK)?).ok()
 }
 
-impl LastCheck {
-    /// The record as written (none when missing or of another shape).
-    pub(crate) fn load(root: &Root) -> Option<LastCheck> {
-        serde_json::from_str(&root.read(LAST_CHECK)?).ok()
+/// last-check.json as the daily check reads it: a `time` that no successful check wrote does not
+/// count (≤ 8.14 also stamped a failed one, which held off every automatic check for a day, report
+/// ef22a23d).
+pub(crate) fn read_last_check(root: &Root) -> LastCheck {
+    let mut record = load_last_check(root).unwrap_or_default();
+    if record.result.as_deref() != Some("checked") {
+        record.time = None;
     }
-
-    /// The record as the daily check reads it: a `time` that no successful check wrote does not
-    /// count (≤ 8.14 also stamped a failed one, which held off every automatic check for a day,
-    /// report ef22a23d).
-    pub(crate) fn read(root: &Root) -> LastCheck {
-        let mut record = LastCheck::load(root).unwrap_or_default();
-        if record.result.as_deref() != Some("checked") {
-            record.time = None;
-        }
-        record
-    }
-
-    /// When a check last reached the server (seconds since the epoch).
-    pub(crate) fn checked(&self) -> Option<f64> {
-        self.time
-    }
-
-    /// When a check was last tried.
-    pub(crate) fn attempted(&self) -> Option<f64> {
-        self.attempt
-    }
+    record
 }
 
 /// Whether `stamp` lies less than `period` seconds before `now` (one in the future does not: a clock

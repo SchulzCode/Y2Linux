@@ -2,8 +2,8 @@
 //! (`Io`, the channel, the streams and their copy with its live progress).
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{
-    clock, download, free, json, py, record, Duration, File, Net, OpenOptions, Ordering, Path,
-    PathBuf, Raise, Read, Response, Result, Root, Sha256, Value, VecDeque, CANCELLED, CHANNEL,
+    clock, download, free, py, record, Duration, File, Net, OpenOptions, Ordering, Path, PathBuf,
+    Raise, Read, Response, Result, Root, Sha256, Value, VecDeque, CANCELLED, CHANNEL,
     NETWORK_WAIT_S, PROGRESS, RETRY_PAUSE,
 };
 use crate::commands::connectivity::published::Published;
@@ -11,6 +11,7 @@ use serde::Deserialize;
 use std::io::Write;
 use std::os::fd::AsFd;
 use std::os::unix::fs::OpenOptionsExt;
+use y2p_contract::update::{DownloadPhase, DownloadProgress};
 use y2p_core::lenient;
 
 /// The release channel: the shipped one, with the owner's `name` and `manifest_url` from
@@ -174,7 +175,7 @@ impl Progress {
         }
     }
 
-    pub(super) fn publish(&mut self, phase: &str, force: bool) {
+    pub(super) fn publish(&mut self, phase: DownloadPhase, force: bool) {
         let now = self.root.clock().monotonic();
         if !force && now - self.written < 0.25 {
             return;
@@ -187,15 +188,21 @@ impl Progress {
         let ((t0, b0), (t1, b1)) = (self.samples[0], self.samples[self.samples.len() - 1]);
         let speed = (t1 - t0 >= 0.5).then(|| ((b1 - b0) as f64 / (t1 - t0)) as i64);
         let left = speed
-            .filter(|s| *s != 0 && phase == "download")
+            .filter(|s| *s != 0 && phase == DownloadPhase::Download)
             .map(|s| ((self.total - self.done) as f64 / s as f64) as i64);
-        let value = json!({"schema": 1, "phase": phase, "release_version": self.release,
-                           "bytes_done": self.done, "bytes_total": self.total,
-                           "speed_bytes_per_s": speed, "seconds_left": left});
-        let _ = record::atomic_json(&self.path, &value, false, 0o644);
+        let progress = DownloadProgress {
+            schema: 1,
+            phase,
+            release_version: self.release.clone(),
+            bytes_done: self.done,
+            bytes_total: self.total,
+            speed_bytes_per_s: speed,
+            seconds_left: left,
+        };
+        let _ = record::atomic_json(&self.path, &progress, false, 0o644);
     }
 
-    pub(super) fn finish(&mut self, phase: &str) {
+    pub(super) fn finish(&mut self, phase: DownloadPhase) {
         self.publish(phase, true);
     }
 }
