@@ -11,6 +11,37 @@ use std::path::{Path, PathBuf};
 /// The volume paths in their consumer order (an index order consumers rely on).
 pub const TARGETS: [&str; 4] = ["/", "/data", "/media/sd", "/media/internal"];
 
+/// The eMMC's controller (MSDC0) and the SD card's (MSDC1), as their sysfs device paths name them.
+pub const EMMC_CONTROLLER: &str = "11230000.mmc";
+pub const SD_CONTROLLER: &str = "11240000.mmc";
+/// The filesystem UUIDs the image's own volumes are made with.
+pub const ROOT_UUID: &str = "79324c69-6e75-4801-8000-000000000101";
+pub const DATA_UUID: &str = "79324c69-6e75-4801-8000-000000000102";
+pub const Y2MEDIA_UUID: &str = "79324c69-6e75-4801-8000-000000000103";
+/// Y2Media's partition (eMMC p8): its start and size in sectors, as sysfs `start`/`size` read.
+pub const Y2MEDIA_START: &str = "3742720";
+pub const Y2MEDIA_SIZE: &str = "11460608";
+
+/// The filesystem UUID a volume target must have (none for the SD card).
+pub fn expected_uuid(target: &str) -> Option<&'static str> {
+    match target {
+        "/" => Some(ROOT_UUID),
+        "/data" => Some(DATA_UUID),
+        "/media/internal" => Some(Y2MEDIA_UUID),
+        _ => None,
+    }
+}
+
+/// The controller a volume target's device sits on: the SD card on MSDC1, everything else on the
+/// eMMC.
+pub fn controller(target: &str) -> &'static str {
+    if target == "/media/sd" {
+        SD_CONTROLLER
+    } else {
+        EMMC_CONTROLLER
+    }
+}
+
 /// A volume's state: `Ready`, `Degraded` (mounted read-only), `Failed` (wrong controller or
 /// filesystem, or no statvfs), `Unavailable` (not mounted exactly once).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
@@ -147,11 +178,7 @@ fn probe(
             .filter(|b| !b.is_empty())
             .map(|b| format!("{b}:{}:{}", item.mount_id, item.device_id));
         let device = root.path(&format!("/sys/dev/block/{}", item.device_id));
-        let expected = if target == "/media/sd" {
-            "11240000.mmc"
-        } else {
-            "11230000.mmc"
-        };
+        let expected = controller(target);
         let controller_valid =
             resolve(&device).to_string_lossy().contains(expected) && device.exists();
         let mut state = if controller_valid {
@@ -171,12 +198,7 @@ fn probe(
             } else {
                 None
             };
-            let expected_uuid = match target {
-                "/" => Some("79324c69-6e75-4801-8000-000000000101"),
-                "/data" => Some("79324c69-6e75-4801-8000-000000000102"),
-                "/media/internal" => Some("79324c69-6e75-4801-8000-000000000103"),
-                _ => None,
-            };
+            let expected_uuid = expected_uuid(target);
             if expected_uuid.is_some() && uuid.as_deref() != expected_uuid {
                 state = VolumeState::Failed;
             }

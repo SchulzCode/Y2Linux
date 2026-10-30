@@ -45,9 +45,7 @@ const PATH: &str = "/media/internal";
 const MUSIC: &str = "/media/internal/music";
 const LEGACY_MUSIC: &str = "/data/music";
 const LABEL: &str = "Y2MEDIA";
-const UUID: &str = "79324c69-6e75-4801-8000-000000000103";
-const START: &str = "3742720";
-const SIZE: &str = "11460608";
+use y2p_core::volume::{Y2MEDIA_SIZE as SIZE, Y2MEDIA_START as START, Y2MEDIA_UUID as UUID};
 const CONTROLLER: &str = "/11230000.mmc/";
 const MARKER: &str = "/run/y2/internal-media.json";
 // 30: noatime, no access-time writes during playback. noinit_itable: the eMMC write guard

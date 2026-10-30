@@ -11,7 +11,7 @@ use super::sys::{
 use serde_json::{json, Value};
 use std::{cell::OnceCell, path::Path};
 use y2p_core::py::PyValue;
-use y2p_core::volume::SpaceState;
+use y2p_core::volume::{controller, expected_uuid, SpaceState};
 use y2p_core::{
     command,
     json::{dumps_sorted, Separators},
@@ -180,7 +180,7 @@ fn volume(root: &Root, mounts: &[Mount], boot: &Option<String>, target: &str) ->
     );
     let device = root.path(&format!("/sys/dev/block/{}", mount.device_id));
     let real = resolve(&device).to_string_lossy().into_owned();
-    let expected = if sd { "11240000.mmc" } else { "11230000.mmc" };
+    let expected = controller(target);
     let device_exists = exists(&device);
     let instance = device_instance(root, &mount.device_id);
     set(&mut item, "source_instance", text(&instance));
@@ -208,12 +208,7 @@ fn volume(root: &Root, mounts: &[Mount], boot: &Option<String>, target: &str) ->
             .filter(|o| answer.ok && !o.is_empty())
             .map_or(Value::Null, Value::String);
         set(&mut item, "uuid", uuid.clone());
-        let expected_uuid = match target {
-            "/" => Some("79324c69-6e75-4801-8000-000000000101"),
-            "/data" => Some("79324c69-6e75-4801-8000-000000000102"),
-            "/media/internal" => Some("79324c69-6e75-4801-8000-000000000103"),
-            _ => None,
-        };
+        let expected_uuid = expected_uuid(target);
         if expected_uuid.is_some_and(|e| uuid.as_str() != Some(e)) {
             failed(&mut item, "filesystem_identity_invalid");
         }

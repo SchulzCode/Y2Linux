@@ -11,18 +11,10 @@ use serde_json::{json, Map, Value};
 use std::path::Path;
 use y2p_core::json::{dumps_sorted, Object, ObjectExt, Separators};
 use y2p_core::py::PyValue;
-use y2p_core::volume::{SpaceState, VolumeState};
+use y2p_core::volume::{
+    controller, expected_uuid, SpaceState, VolumeState, EMMC_CONTROLLER, SD_CONTROLLER,
+};
 use y2p_core::{command, py::truthy, Root};
-
-/// The filesystem UUIDs the image's own volumes are made with.
-fn expected_uuid(target: &str) -> Option<&'static str> {
-    match target {
-        "/" => Some("79324c69-6e75-4801-8000-000000000101"),
-        "/data" => Some("79324c69-6e75-4801-8000-000000000102"),
-        "/media/internal" => Some("79324c69-6e75-4801-8000-000000000103"),
-        _ => None,
-    }
-}
 
 /// `/run/y2/media-mount.json`: what the platform mounted at /media/sd (storage group), checked
 /// against the live mount before the card counts as Ready.
@@ -181,11 +173,7 @@ pub fn storage(root: &Root) -> Result<Value, Failure> {
         let device = root.path(&format!("/sys/dev/block/{device_id}"));
         let real = realpath(&device).to_string_lossy().into_owned();
         // The SD card on MSDC1, everything else on the eMMC (MSDC0).
-        let expected = if target == "/media/sd" {
-            "11240000.mmc"
-        } else {
-            "11230000.mmc"
-        };
+        let expected = controller(target);
         let instance = device_instance(root, device_id);
         let controller_valid = real.contains(expected) && device.exists();
         item.insert("source_instance".into(), text(instance.clone()));
@@ -311,7 +299,7 @@ pub fn storage(root: &Root) -> Result<Value, Failure> {
     let mut blocks = Vec::new();
     for path in root.glob("/sys/class/block/*") {
         let real = realpath(&path).to_string_lossy().into_owned();
-        if !["11230000.mmc", "11240000.mmc"]
+        if ![EMMC_CONTROLLER, SD_CONTROLLER]
             .iter()
             .any(|c| real.contains(c))
         {

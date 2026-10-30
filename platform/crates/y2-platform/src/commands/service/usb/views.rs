@@ -7,6 +7,7 @@ use super::{
 };
 use serde::Serialize;
 use y2p_core::py::PyValue;
+use y2p_core::volume::{Y2MEDIA_SIZE, Y2MEDIA_START, Y2MEDIA_UUID};
 
 pub(super) fn name_of(path: &str) -> Option<&'static str> {
     NAMES.iter().find(|(p, _)| *p == path).map(|(_, n)| *n)
@@ -66,12 +67,11 @@ pub(super) fn media_views(root: &Root) -> Vec<View> {
         if path == "/media/internal/music" {
             let device = mount.map(|m| root.path(&format!("/sys/dev/block/{}", m.device_id)));
             let fits = device.is_some_and(|d| {
-                read(&d.join("start")).as_deref() == Some("3742720")
-                    && read(&d.join("size")).as_deref() == Some("11460608")
+                read(&d.join("start")).as_deref() == Some(Y2MEDIA_START)
+                    && read(&d.join("size")).as_deref() == Some(Y2MEDIA_SIZE)
             });
             if !fits
-                || volume.get("uuid").and_then(Value::as_str)
-                    != Some("79324c69-6e75-4801-8000-000000000103")
+                || volume.get("uuid").and_then(Value::as_str) != Some(Y2MEDIA_UUID)
                 || mount.is_none_or(|m| m.filesystem != "ext4")
             {
                 continue;
