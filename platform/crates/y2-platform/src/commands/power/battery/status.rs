@@ -1,7 +1,7 @@
 //! What a sample publishes and what survives a restart: the reading in power.json and the journal,
 //! and `battery-ui.json`.
 // SPDX-License-Identifier: GPL-2.0-only
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use y2p_core::py::PyValue;
 
@@ -10,7 +10,7 @@ use y2p_core::py::PyValue;
 pub const UI_STATE: &str = "/data/system/platform/battery-ui.json";
 
 /// Where a sample's percentage comes from (`battery.source`).
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum BatterySource {
     Unavailable,
@@ -22,7 +22,7 @@ pub enum BatterySource {
 
 /// How far a sample's percentage can be trusted (`battery.confidence`): the low-battery policy acts
 /// on a percentage only from `hardware` or `calibrated_estimate`.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Confidence {
     Unavailable,
@@ -33,7 +33,8 @@ pub enum Confidence {
 
 /// What one sample publishes (`battery` in power.json and in the journal rows), in this key order:
 /// the reading, then for a voltage estimate the estimate's own fields.
-#[derive(Clone, Debug, PartialEq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
 pub struct BatteryStatus {
     pub percent: Option<i64>,
     pub source: BatterySource,
@@ -71,7 +72,7 @@ impl Default for BatteryStatus {
 }
 
 /// The voltage estimate's fields of a [`BatteryStatus`]; the capacity pair only with a design capacity.
-#[derive(Clone, Debug, PartialEq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Estimate {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub design_capacity_uah: Option<i64>,

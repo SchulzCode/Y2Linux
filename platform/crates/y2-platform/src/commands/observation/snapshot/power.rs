@@ -1,32 +1,24 @@
 //! The `power` section: the power supplies, the power daemon's battery record and the sleep receipt.
 // SPDX-License-Identifier: GPL-2.0-only
-use crate::commands::observation::util::{fields, is_int, name, read};
-use crate::reply::Failure;
-use serde::{Deserialize, Serialize};
-use serde_json::{json, Map, Value};
-use y2p_core::{
-    json::{Object, ObjectExt},
-    py::truthy,
-    Root,
+use crate::commands::observation::util::{name, read};
+use crate::commands::power::{
+    battery::{BatterySource, BatteryStatus, Confidence},
+    published::PowerRecord,
 };
+use crate::reply::Failure;
+use serde::Serialize;
+use serde_json::{json, Map, Value};
+use y2p_core::{py::truthy, Root};
 
-/// When `/run/y2/power.json` (the power daemon's policy record, renewed every second) was written.
-#[derive(Deserialize, Default)]
-#[serde(default)]
-struct PolicyStamp {
-    boot_id: Value,
-    monotonic_ns: Value,
-}
-
-/// The power daemon's battery reading (power.json `battery`).
-#[derive(Deserialize, Default)]
-#[serde(default)]
-struct Battery {
-    current_ua: Value,
-    percent: Value,
-    source: Value,
-    confidence: Value,
-    temperature_millicelsius: Value,
+/// The power daemon's policy record while it renews it, else why it is not shown.
+#[derive(Serialize)]
+#[serde(untagged)]
+pub enum LowBattery {
+    Policy(Box<PowerRecord>),
+    Unavailable {
+        state: &'static str,
+        reason: &'static str,
+    },
 }
 
 /// The `power` section (in this key order).
@@ -34,15 +26,15 @@ struct Battery {
 pub struct Power {
     pub supplies: Vec<Supply>,
     units: Units,
-    battery: Map<String, Value>,
-    measured_current_ua: Value,
-    soc_percent: Value,
-    soc_source: Value,
-    soc_confidence: Value,
-    pack_temperature: Value,
+    battery: Option<BatteryStatus>,
+    measured_current_ua: Option<i64>,
+    soc_percent: Option<i64>,
+    soc_source: Option<BatterySource>,
+    soc_confidence: Option<Confidence>,
+    pack_temperature: Option<i64>,
     unavailable_reason: &'static str,
     normal_boot: Option<i64>,
-    low_battery: Map<String, Value>,
+    low_battery: LowBattery,
     pub sleep: Map<String, Value>,
 }
 
@@ -103,23 +95,24 @@ pub fn power(root: &Root) -> Result<Power, Failure> {
         .map(|path| Supply::read(path))
         .collect();
     // The policy record counts while the daemon renews it: this boot, within the last 5 s.
-    let mut policy = root.json_object("/run/y2/power.json");
-    let stamp: PolicyStamp = fields(&policy);
-    let fresh = is_int(Some(&stamp.monotonic_ns)).is_some_and(|t| {
-        (0..5_000_000_000).contains(&(i128::from(root.clock().monotonic_ns()) - t))
+    let now = i128::from(root.clock().monotonic_ns());
+    let record = PowerRecord::read(root).filter(|record| {
+        record.boot_id.is_some()
+            && record.boot_id == root.boot_id()
+            && (0..5_000_000_000).contains(&(now - i128::from(record.monotonic_ns)))
     });
-    if !root.is_this_boot(Some(&stamp.boot_id)) || !fresh {
-        policy = Object::new()
-            .with("state", "Unavailable")
-            .with("reason", "policy_not_running_or_stale");
-    }
-    // No battery is an empty one; a battery that is no object is a broken record.
-    let battery = match policy.get("battery") {
-        None => Map::new(),
-        Some(Value::Object(map)) => map.clone(),
-        Some(_) => return Err(Failure::value("invalid_power_record")),
+    let battery = record.as_ref().map(|record| record.battery.clone());
+    let low_battery = match record {
+        Some(record) => LowBattery::Policy(Box::new(record)),
+        None => LowBattery::Unavailable {
+            state: "Unavailable",
+            reason: if root.path("/run/y2/power.json").exists() {
+                "policy_not_running_or_stale"
+            } else {
+                "policy_not_running"
+            },
+        },
     };
-    let reading: Battery = fields(&battery);
     let mut receipt = root.json_object("/data/system/platform/suspend-last.json");
     if let Some(product) = receipt
         .get("product")
@@ -139,15 +132,15 @@ pub fn power(root: &Root) -> Result<Power, Failure> {
             voltage: "uV",
             configured_current: "uA",
         },
+        measured_current_ua: battery.as_ref().and_then(|b| b.current_ua),
+        soc_percent: battery.as_ref().and_then(|b| b.percent),
+        soc_source: battery.as_ref().map(|b| b.source),
+        soc_confidence: battery.as_ref().map(|b| b.confidence),
+        pack_temperature: battery.as_ref().and_then(|b| b.temperature_millicelsius),
         battery,
-        measured_current_ua: reading.current_ua,
-        soc_percent: reading.percent,
-        soc_source: reading.source,
-        soc_confidence: reading.confidence,
-        pack_temperature: reading.temperature_millicelsius,
         unavailable_reason: "not_exposed_by_qualified_y2_battery_driver",
         normal_boot: root.integer("/sys/firmware/y2_boot/normal_boot"),
-        low_battery: policy,
+        low_battery,
         sleep,
     })
 }

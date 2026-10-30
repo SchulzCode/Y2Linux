@@ -465,7 +465,7 @@
          "vmstat": null
         },
         "power": {
-         "battery": {},
+         "battery": null,
          "low_battery": {
           "reason": "[redacted]",
           "state": "Unavailable"

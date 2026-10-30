@@ -9,7 +9,7 @@ mod status;
 
 pub use profile::{interpolate_int, load_profile};
 pub use soc::Soc;
-pub use status::{BatteryStatus, Confidence, DisplayRecord, UI_STATE};
+pub use status::{BatterySource, BatteryStatus, Confidence, DisplayRecord, UI_STATE};
 
 use std::sync::Mutex;
 use y2p_core::{

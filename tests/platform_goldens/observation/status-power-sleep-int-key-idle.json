@@ -33,9 +33,9 @@
  "exit": 0,
  "stdout": {
   "power": {
-   "battery": {},
+   "battery": null,
    "low_battery": {
-    "reason": "policy_not_running_or_stale",
+    "reason": "policy_not_running",
     "state": "Unavailable"
    },
    "measured_current_ua": null,

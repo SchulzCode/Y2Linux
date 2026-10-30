@@ -227,9 +227,9 @@
   "vmstat": null
  },
  "power": {
-  "battery": {},
+  "battery": null,
   "low_battery": {
-   "reason": "policy_not_running_or_stale",
+   "reason": "policy_not_running",
    "state": "Unavailable"
   },
   "measured_current_ua": null,
@@ -315,11 +315,11 @@
  "record": {
   "boot_id": "boot-a",
   "build_id": "fixture-build",
-  "collection_duration_ns": 18267307,
+  "collection_duration_ns": 18459251,
   "evidence_level": "IMPLEMENTED",
   "failure": null,
   "kernel": "6.18.0-fixture",
-  "monotonic_ns": 102201336176005,
+  "monotonic_ns": 102618264537612,
   "parameters": {},
   "reborn_commit": "reborn",
   "result": "observed",
@@ -327,7 +327,7 @@
   "units": {
    "collection_duration": "ns"
   },
-  "wall_timestamp": "2026-10-30T13:39:05.237194+00:00",
+  "wall_timestamp": "2026-10-30T13:46:02.165556+00:00",
   "workload": "observation",
   "y2linux_commit": "linux-commit"
  },
@@ -347,7 +347,7 @@
   "volumes": [
    {
     "available_bytes": 11726012416,
-    "available_inodes": 3934848,
+    "available_inodes": 3934846,
     "controller_valid": false,
     "device_id": "179:2",
     "filesystem": "ext4",
@@ -372,7 +372,7 @@
    },
    {
     "available_bytes": 11726012416,
-    "available_inodes": 3934848,
+    "available_inodes": 3934846,
     "controller_valid": false,
     "device_id": "179:9",
     "filesystem": "ext4",
@@ -497,7 +497,7 @@
    "build_epoch": 1788000000,
    "clock_sane": true,
    "entropy_ready": null,
-   "epoch": 1793367545.2375238,
+   "epoch": 1793367962.165875,
    "ntp_authenticated": false,
    "reason": "clock_not_established",
    "rtc_retention_qualified": false,

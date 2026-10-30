@@ -33,6 +33,9 @@ class ObservationGoldens(unittest.TestCase):
         for name, reason in observation.REFUSALS.items():
             record = {'schema': 'org.y2linux.error/v1', 'state': 'Failed', 'reason': reason, 'type': 'ValueError'}
             self.assertEqual((results[name]['exit'], results[name]['stdout']), (1, record), name)
+        for name in observation.UNREADABLE_POWER:
+            self.assertEqual((results[name]['exit'], results[name]['stdout']['power']['low_battery']['state']),
+                             (0, 'Unavailable'), name)
         for name in observation.UNREADABLE_IP:
             self.assertEqual((results[name]['exit'], results[name]['stdout']['wifi']['ip_addresses']), (0, []), name)
         for name in observation.UNREADABLE_EVIDENCE:

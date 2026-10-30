@@ -2,7 +2,7 @@
 //! are owner-qualified data.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::battery::{BatteryStatus, Confidence};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use y2p_core::{
     py::{exact_int, is_true, python_eq_int},
@@ -112,7 +112,7 @@ pub fn load_policy(root: &Root) -> (Option<Policy>, Option<&'static str>) {
 
 /// The low-battery state (power.json `state`, the journal rows): ShutdownPending after
 /// `critical_samples` consecutive critical samples.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub enum BatteryState {
     /// No policy, or no battery reading.
     #[default]

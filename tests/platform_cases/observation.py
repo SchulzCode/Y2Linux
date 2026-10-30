@@ -143,7 +143,7 @@ THERMAL = {
     '/sys/class/thermal/cooling_device0/max_state': '3\n',
 }
 POWER = {'/run/y2/power.json': fresh({'boot_id': BOOT, 'state': 'Normal', 'battery': {
-    'current_ua': -120000, 'percent': 81, 'source': 'ui_soc', 'confidence': 'high', 'temperature_millicelsius': 30000}},
+    'current_ua': -120000, 'percent': 81, 'source': 'fuel_gauge', 'confidence': 'hardware', 'temperature_millicelsius': 30000}},
     'monotonic_ns', ns=True), '/sys/firmware/y2_boot/normal_boot': '1\n'}
 SYSTEM = {
     '/run/y2/ssh.json': fresh({'boot_id': BOOT, 'state': 'Listening'}),
@@ -608,8 +608,6 @@ CASES += [
 # it cannot read, which Python ended on with a traceback): exit 1 and the error record with this reason.
 REFUSALS = {
     'status-cpu-timer-crash': 'invalid_timer_list',
-    'status-power-battery-list': 'invalid_power_record',
-    'status-power-battery-null': 'invalid_power_record',
     'status-power-sleep-int-key': 'invalid_sleep_receipt',
     'status-power-sleep-number': 'invalid_sleep_receipt',
     'status-power-sleep-number-pair': 'invalid_sleep_receipt',
@@ -625,8 +623,10 @@ UNREADABLE_EVIDENCE = ['status-system-evidence-bad-logs', 'status-system-evidenc
 # Odd `ip -j` output reads as no address (the snapshot stays readable).
 UNREADABLE_IP = ['status-wifi-ip-text', 'status-wifi-ip-number-link', 'status-wifi-ip-info-dict',
                  'status-wifi-ip-object']
+# A power.json of another shape is not shown (the low-battery policy reads as unavailable).
+UNREADABLE_POWER = ['status-power-battery-list', 'status-power-battery-null']
 EXTRA_CASES = [case for case in CASES if case[0] in REFUSALS or case[0] in UNREADABLE_EVIDENCE
-               or case[0] in UNREADABLE_IP or (
+               or case[0] in UNREADABLE_IP or case[0] in UNREADABLE_POWER or (
     case[1] == ['boot-evidence'] and case[0] not in ('boot-evidence-again', 'boot-evidence-missed-boundary',
                                                      'boot-evidence-no-data', 'boot-evidence-wrong-mount',
                                                      'boot-evidence-no-boot-id'))]

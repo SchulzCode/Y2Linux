@@ -764,23 +764,41 @@
   },
   "power": {
    "battery": {
-    "confidence": "high",
+    "charge_counter_uah": null,
+    "charging": false,
+    "confidence": "hardware",
     "current_ua": -120000,
     "percent": 81,
-    "source": "ui_soc",
-    "temperature_millicelsius": 30000
+    "provisional": true,
+    "resting": false,
+    "source": "fuel_gauge",
+    "status": null,
+    "temperature_millicelsius": 30000,
+    "voltage_uv": null
    },
    "low_battery": {
     "battery": {
-     "confidence": "high",
+     "charge_counter_uah": null,
+     "charging": false,
+     "confidence": "hardware",
      "current_ua": -120000,
      "percent": 81,
-     "source": "ui_soc",
-     "temperature_millicelsius": 30000
+     "provisional": true,
+     "resting": false,
+     "source": "fuel_gauge",
+     "status": null,
+     "temperature_millicelsius": 30000,
+     "voltage_uv": null
     },
     "boot_id": "boot-a",
     "monotonic_ns": "<volatile>",
-    "state": "Normal"
+    "qualification_reference": null,
+    "reason": null,
+    "schema": 0,
+    "shutdown": null,
+    "state": "Normal",
+    "thresholds_enabled": false,
+    "voltage_uv": null
    },
    "measured_current_ua": -120000,
    "normal_boot": 1,
@@ -795,9 +813,9 @@
     "state": "restored",
     "wake_reason": "power"
    },
-   "soc_confidence": "high",
+   "soc_confidence": "hardware",
    "soc_percent": 81,
-   "soc_source": "ui_soc",
+   "soc_source": "fuel_gauge",
    "supplies": [
     {
      "constant_charge_current": "450000",

@@ -33,7 +33,7 @@
  "exit": 0,
  "stdout": {
   "power": {
-   "battery": {},
+   "battery": null,
    "low_battery": {
     "reason": "policy_not_running_or_stale",
     "state": "Unavailable"
