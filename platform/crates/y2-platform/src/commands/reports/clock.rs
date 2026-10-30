@@ -113,16 +113,7 @@ pub fn local_fields(secs: i64) -> (Fields, i64) {
 
 /// `now.isoformat()` of an aware UTC datetime.
 pub fn isoformat(at: Instant) -> String {
-    let f = utc_fields(at.secs);
-    let fraction = if at.micros > 0 {
-        format!(".{:06}", at.micros)
-    } else {
-        String::new()
-    };
-    format!(
-        "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}{fraction}+00:00",
-        f.year, f.month, f.day, f.hour, f.minute, f.second
-    )
+    y2p_core::devices_support::utc_isoformat(at.secs, at.micros)
 }
 
 /// `now.date().isoformat()` (UTC).
