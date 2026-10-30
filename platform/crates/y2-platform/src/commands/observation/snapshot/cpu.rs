@@ -95,7 +95,7 @@ struct Cpu {
     utilization_percent: Value,
     policies: Vec<Policy>,
     idle: Vec<IdleState>,
-    idle_completion: Map<String, Value>,
+    idle_completion: super::idle::IdleCompletion,
     voltage_uv: Option<i64>,
     stock_bin: Option<String>,
     dvfs_ceiling_khz: Option<i64>,

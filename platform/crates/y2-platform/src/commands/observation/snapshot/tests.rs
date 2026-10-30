@@ -348,7 +348,7 @@ fn broadcast_and_dormant_abort_observations_are_explicit() {
 #[test]
 fn diagnostics_do_not_fabricate_absent_states_or_mask_owners() {
     let fixture = Fixture::new();
-    let result = idle_completion(&unanswered(&fixture), &[]);
+    let result = serde_json::to_value(idle_completion(&unanswered(&fixture), &[])).unwrap();
     assert_eq!(result["C1"]["registered"], false);
     assert!(result["C1"]["entries"].is_null());
     assert!(result["C2"]["blocker_owners"].is_null());
@@ -389,7 +389,7 @@ fn diagnostics_do_not_fabricate_absent_states_or_mask_owners() {
         rejected: Some(0),
         disabled: Some(0),
     };
-    let result = idle_completion(&unanswered(&fixture), &[row]);
+    let result = serde_json::to_value(idle_completion(&unanswered(&fixture), &[row])).unwrap();
     assert_eq!(result["C1"]["enabled"], true);
     assert_eq!(result["C1"]["residency_us"], 1000);
     let owners = |label: &str, key: &str| -> Vec<Value> {
