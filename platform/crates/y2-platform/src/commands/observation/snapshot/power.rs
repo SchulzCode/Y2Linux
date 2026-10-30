@@ -1,8 +1,8 @@
 //! The `power` section: the power supplies, the power daemon's battery record and the sleep receipt.
 // SPDX-License-Identifier: GPL-2.0-only
-use crate::commands::observation::util::{fields, is_int, name, read, text};
+use crate::commands::observation::util::{fields, is_int, name, read};
 use crate::reply::Failure;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
 use y2p_core::{
     json::{Object, ObjectExt},
@@ -29,32 +29,79 @@ struct Battery {
     temperature_millicelsius: Value,
 }
 
-pub fn power(root: &Root) -> Result<Value, Failure> {
-    let supply_fields = [
-        "type",
-        "status",
-        "health",
-        "online",
-        "present",
-        "usb_type",
-        "voltage_now",
-        "voltage_min_design",
-        "voltage_max_design",
-        "constant_charge_current",
-        "constant_charge_current_max",
-        "constant_charge_voltage",
-        "constant_charge_voltage_max",
-        "input_current_limit",
-    ];
-    let mut supplies = Vec::new();
-    for path in root.glob("/sys/class/power_supply/*") {
-        let mut supply = Map::new();
-        for field in supply_fields {
-            supply.insert(field.into(), text(read(&path.join(field))));
+/// The `power` section (in this key order).
+#[derive(Serialize)]
+struct Power {
+    supplies: Vec<Supply>,
+    units: Units,
+    battery: Map<String, Value>,
+    measured_current_ua: Value,
+    soc_percent: Value,
+    soc_source: Value,
+    soc_confidence: Value,
+    pack_temperature: Value,
+    unavailable_reason: &'static str,
+    normal_boot: Option<i64>,
+    low_battery: Map<String, Value>,
+    sleep: Map<String, Value>,
+}
+
+#[derive(Serialize)]
+struct Units {
+    voltage: &'static str,
+    configured_current: &'static str,
+}
+
+/// One power supply's attributes (null where a file is missing), then its name.
+#[derive(Serialize)]
+struct Supply {
+    #[serde(rename = "type")]
+    kind: Option<String>,
+    status: Option<String>,
+    health: Option<String>,
+    online: Option<String>,
+    present: Option<String>,
+    usb_type: Option<String>,
+    voltage_now: Option<String>,
+    voltage_min_design: Option<String>,
+    voltage_max_design: Option<String>,
+    constant_charge_current: Option<String>,
+    constant_charge_current_max: Option<String>,
+    constant_charge_voltage: Option<String>,
+    constant_charge_voltage_max: Option<String>,
+    input_current_limit: Option<String>,
+    name: String,
+}
+
+impl Supply {
+    fn read(path: &std::path::Path) -> Self {
+        let attribute = |field: &str| read(&path.join(field));
+        Supply {
+            kind: attribute("type"),
+            status: attribute("status"),
+            health: attribute("health"),
+            online: attribute("online"),
+            present: attribute("present"),
+            usb_type: attribute("usb_type"),
+            voltage_now: attribute("voltage_now"),
+            voltage_min_design: attribute("voltage_min_design"),
+            voltage_max_design: attribute("voltage_max_design"),
+            constant_charge_current: attribute("constant_charge_current"),
+            constant_charge_current_max: attribute("constant_charge_current_max"),
+            constant_charge_voltage: attribute("constant_charge_voltage"),
+            constant_charge_voltage_max: attribute("constant_charge_voltage_max"),
+            input_current_limit: attribute("input_current_limit"),
+            name: name(path),
         }
-        supply.insert("name".into(), json!(name(&path)));
-        supplies.push(Value::Object(supply));
     }
+}
+
+pub fn power(root: &Root) -> Result<Value, Failure> {
+    let supplies = root
+        .glob("/sys/class/power_supply/*")
+        .iter()
+        .map(|path| Supply::read(path))
+        .collect();
     // The policy record counts while the daemon renews it: this boot, within the last 5 s.
     let mut policy = root.json_object("/run/y2/power.json");
     let stamp: PolicyStamp = fields(&policy);
@@ -86,16 +133,24 @@ pub fn power(root: &Root) -> Result<Value, Failure> {
         Err(error @ Failure::Value(_)) => return Err(error),
         Err(_) => return Err(invalid_sleep_receipt()),
     };
-    Ok(json!({
-        "supplies": supplies, "units": {"voltage": "uV", "configured_current": "uA"},
-        "battery": battery,
-        "measured_current_ua": reading.current_ua, "soc_percent": reading.percent,
-        "soc_source": reading.source, "soc_confidence": reading.confidence,
-        "pack_temperature": reading.temperature_millicelsius,
-        "unavailable_reason": "not_exposed_by_qualified_y2_battery_driver",
-        "normal_boot": root.integer("/sys/firmware/y2_boot/normal_boot"),
-        "low_battery": policy, "sleep": sleep,
-    }))
+    let section = Power {
+        supplies,
+        units: Units {
+            voltage: "uV",
+            configured_current: "uA",
+        },
+        battery,
+        measured_current_ua: reading.current_ua,
+        soc_percent: reading.percent,
+        soc_source: reading.source,
+        soc_confidence: reading.confidence,
+        pack_temperature: reading.temperature_millicelsius,
+        unavailable_reason: "not_exposed_by_qualified_y2_battery_driver",
+        normal_boot: root.integer("/sys/firmware/y2_boot/normal_boot"),
+        low_battery: policy,
+        sleep,
+    };
+    serde_json::to_value(section).map_err(|_| Failure::value("power_section_unserializable"))
 }
 
 /// A sleep receipt whose product the snapshot cannot show: no object and no list of pairs, a key
