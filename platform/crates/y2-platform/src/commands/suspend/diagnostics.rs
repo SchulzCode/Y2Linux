@@ -6,22 +6,12 @@
 //! filtered kernel-log tail, appended to a bounded private file on Y2DATA. A failure is counted and
 //! never blocks, delays or changes sleep.
 // SPDX-License-Identifier: GPL-2.0-only
-use super::{journal::plain, E};
-use crate::commands::power::journal::state::{features, kernel_tail, Features};
-use crate::commands::power::journal::usb;
-pub(crate) use crate::commands::power::journal::usb::UsbNet;
-use serde::Serialize;
-use serde_json::Value;
+use super::E;
 use y2p_core::mounts::data_ready;
-use y2p_core::{json::dumps, power_journal::append_bounded, Root};
+use y2p_core::Root;
 
+#[cfg(test)]
 pub const PATH: &str = "/data/system/platform/sleep-diagnostics.jsonl";
-const LIMIT: u64 = 2_097_152;
-const ROW_LIMIT: usize = 65_536;
-/// The USB state (power::journal::usb, shared with the power journal's rows).
-pub fn usb_net(root: &Root) -> Result<UsbNet, E> {
-    usb::usb_net(root).map_err(|error| E::value(error.0))
-}
 
 /// `Diagnostics(ctx).record(stage, golden=stage == 'kernel_resumed')`: one row for a suspend
 /// stage. `Ok(false)` when the data mount is not verified or a failure was counted.
@@ -33,67 +23,26 @@ pub fn record(root: &Root, stage: &str) -> Result<bool, E> {
     }
 }
 
-/// One `sleep-diagnostics.jsonl` row (compact JSON in this order).
-#[derive(Serialize)]
-struct Row<'a> {
-    schema: u8,
-    stage: &'a str,
-    usb_reason: Option<&'a str>,
-    wall_time: f64,
-    monotonic_s: f64,
-    boottime_s: f64,
-    boot_id: Option<String>,
-    build_id: Value,
-    features: Features,
-    usb_net: UsbNet,
-    kernel_pm: Option<String>,
-    kernel_tail: Option<Vec<String>>,
-}
-
 fn row(root: &Root, stage: &str, golden: bool) -> Result<bool, E> {
-    let now = super::monotonic();
     if !data_ready(root) {
         return Ok(false);
     }
-    let build_id = match root.json("/etc/y2linux/versions.json") {
-        Some(Value::Object(map)) => map.get("build_id").cloned().unwrap_or(Value::Null),
-        _ => Value::Null,
-    };
-    let mut row = Row {
-        schema: 1,
+    // A row that cannot be made or written is counted and dropped, as an OS error is.
+    crate::commands::power::journal::diagnostics::write_row(
+        root,
         stage,
-        usb_reason: None,
-        wall_time: super::wall(),
-        monotonic_s: now,
-        boottime_s: super::boottime(),
-        boot_id: root.boot_id(),
-        build_id: plain(build_id),
-        features: features(root, golden),
-        usb_net: usb_net(root)?,
-        kernel_pm: root.read_limited("/sys/firmware/y2_pm/state", 8192),
-        kernel_tail: kernel_tail(root, 80, 240),
-    };
-    let encode = |row: &Row| -> Result<Vec<u8>, E> {
-        let text = dumps(row).map_err(|e| E::value(e.to_string()))?;
-        Ok((text + "\n").into_bytes())
-    };
-    let mut encoded = encode(&row)?;
-    // An oversized row loses the oldest quarter of its kernel tail at a time, never the row.
-    while encoded.len() > ROW_LIMIT {
-        let Some(tail) = row.kernel_tail.as_mut().filter(|t| !t.is_empty()) else {
-            return Err(E::value("sleep_diagnostics_row_too_large"));
-        };
-        let drop = (tail.len() / 4).max(1);
-        tail.drain(..drop);
-        encoded = encode(&row)?;
-    }
-    append_bounded(root, PATH, &encoded, LIMIT, true).map_err(E::from)?;
-    Ok(true)
+        None,
+        super::monotonic(),
+        golden,
+    )
+    .map(|()| true)
+    .map_err(|_| E::value("sleep_diagnostics_row_dropped"))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::commands::power::journal::usb;
     use crate::commands::suspend::tests::Dir;
     use std::fs;
 

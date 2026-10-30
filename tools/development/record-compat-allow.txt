@@ -9,3 +9,4 @@ reports/report-check-fired-odd-count: /data/system/platform/reports.json: daily.
 reports/report-check-fired-reported-number: /data/system/platform/reports.json: boot_triggers.boot-a: number -> list
 reports/report-check-fired-reported-text: /data/system/platform/reports.json: boot_triggers.boot-a: text -> list
 reports/report-enable-bad-seen: /data/system/platform/reports.json: seen: list -> object
+power/power-daemon-journal-inputs: /data/system/platform/power-journal.jsonl: idle_policy.a: number -> (absent)

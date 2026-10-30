@@ -94,7 +94,6 @@
       "scheduler": {}
      },
      "idle_policy": {
-      "a": 1,
       "state": "Enabled"
      },
      "kernel_pm": "stage=EXIT",

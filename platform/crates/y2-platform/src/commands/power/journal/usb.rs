@@ -37,9 +37,9 @@ pub(crate) const USB_SUMMARY: [&str; 21] = [
     "dma_intr_after",
 ];
 
-/// Why a row has no USB state: a route field that is not hex (Python's `int(text, 16)` ValueError).
+/// A row has no USB state: a route field that is not hex, an address octet that is no number.
 #[derive(Debug)]
-pub struct Unreadable(pub String);
+pub struct Unreadable;
 
 /// Which of the USB services run (`/proc/*/comm`).
 #[derive(Serialize)]
@@ -96,14 +96,7 @@ pub(crate) fn ipv4(root: &Root, interface: &str) -> Result<Vec<String>, Unreadab
     for line in splitlines(&routes).into_iter().skip(1) {
         let fields = split(line);
         if fields.len() >= 8 && fields[0] == interface {
-            let hex = |text: &str| {
-                int16(text).ok_or_else(|| {
-                    Unreadable(format!(
-                        "invalid literal for int() with base 16: {}",
-                        y2p_core::py::repr(text)
-                    ))
-                })
-            };
+            let hex = |text: &str| int16(text).ok_or(Unreadable);
             networks.push((hex(fields[1])?, hex(fields[7])?));
         }
     }
@@ -117,7 +110,7 @@ pub(crate) fn ipv4(root: &Root, interface: &str) -> Result<Vec<String>, Unreadab
             if let Some(previous) = previous.as_deref().filter(|p| !p.is_empty()) {
                 let mut value: i64 = 0;
                 for (index, octet) in previous.split('.').enumerate() {
-                    let octet: i64 = octet.parse().map_err(|_| Unreadable("octet".into()))?;
+                    let octet: i64 = octet.parse().map_err(|_| Unreadable)?;
                     value |= octet << (8 * index);
                 }
                 if networks

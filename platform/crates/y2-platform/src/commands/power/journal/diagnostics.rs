@@ -1,31 +1,18 @@
 //! The parts of `sleep_diagnostics` the power sample drives: a row around each USB state change
 //! (POWER-FINAL-14), with the USB, network and sleep-parity state; `sleep-diagnostics.jsonl`.
 // SPDX-License-Identifier: GPL-2.0-only
-use super::{glob_name, json, Dropped};
+use super::state::{features, kernel_tail, Features};
+use super::usb::UsbNet;
+use super::{glob_name, Dropped};
 use crate::commands::time::wall;
-use serde_json::Value;
-use y2p_core::{
-    json::dumps,
-    json::{Object, ObjectExt},
-    mounts::data_ready,
-    power_journal::append_bounded,
-    root::read,
-    Root,
-};
+use serde::{Deserialize, Serialize};
+use y2p_core::{json::dumps, mounts::data_ready, power_journal::append_bounded, root::read, Root};
 
 const DIAGNOSTICS: &str = "/data/system/platform/sleep-diagnostics.jsonl";
-const DIAGNOSTICS_LIMIT: u64 = 2097152;
+pub(crate) const DIAGNOSTICS_LIMIT: u64 = 2097152;
 const DIAGNOSTICS_ROW: usize = 65536;
 pub(crate) const FOLLOW_UP_S: f64 = 30.0;
 const MIN_INTERVAL_S: f64 = 10.0;
-
-/// The USB state (journal::usb) as a row's object; a row without it is dropped.
-pub fn usb_net(root: &Root) -> Result<Object, Dropped> {
-    match serde_json::to_value(super::usb::usb_net(root).map_err(|_| Dropped)?) {
-        Ok(Value::Object(map)) => Ok(map),
-        _ => Err(Dropped),
-    }
-}
 
 /// `sleep_diagnostics.Diagnostics`: rows on suspend stages and around USB state changes.
 #[derive(Debug, Default)]
@@ -70,60 +57,7 @@ impl Diagnostics {
         if !data_ready(root) {
             return Ok(false);
         }
-        let build_id = match json(root, "/etc/y2linux/versions.json") {
-            Value::Object(o) => o.value("build_id"),
-            _ => Value::Null,
-        };
-        let mut tail = super::state::kernel_tail(root, 80, 240);
-        let mut row = Object::new()
-            .with("schema", 1i64)
-            .with("stage", stage)
-            .with("usb_reason", usb_reason)
-            .with("wall_time", wall())
-            .with("monotonic_s", now)
-            .with("boottime_s", root.clock().boottime_ns() as f64 / 1e9)
-            .with("boot_id", root.boot_id())
-            .with("build_id", build_id)
-            .with(
-                "features",
-                serde_json::to_value(super::state::features(root, golden)).unwrap_or(Value::Null),
-            )
-            .with("usb_net", usb_net(root)?)
-            .with(
-                "kernel_pm",
-                root.read_limited("/sys/firmware/y2_pm/state", 8192),
-            )
-            .with(
-                "kernel_tail",
-                tail.clone()
-                    .map(|t| t.into_iter().map(Value::from).collect::<Vec<_>>()),
-            );
-        let encode = |row: &Object| dumps(row).map(|t| t + "\n").map_err(|_| Dropped);
-        let mut encoded = encode(&row)?;
-        while encoded.len() > DIAGNOSTICS_ROW {
-            // Too large: drop the oldest quarter of the kernel lines, as long as there are any.
-            let Some(lines) = tail.as_mut().filter(|t| !t.is_empty()) else {
-                break;
-            };
-            let cut = (lines.len() / 4).max(1);
-            lines.drain(..cut);
-            row.set(
-                "kernel_tail",
-                lines.iter().cloned().map(Value::from).collect::<Vec<_>>(),
-            );
-            encoded = encode(&row)?;
-        }
-        if encoded.len() > DIAGNOSTICS_ROW {
-            return Err(Dropped); // sleep_diagnostics_row_too_large
-        }
-        append_bounded(
-            root,
-            DIAGNOSTICS,
-            encoded.as_bytes(),
-            DIAGNOSTICS_LIMIT,
-            true,
-        )
-        .map_err(|_| Dropped)?;
+        write_row(root, stage, usb_reason, now, golden)?;
         Ok(true)
     }
 
@@ -160,10 +94,82 @@ impl Diagnostics {
     }
 }
 
+/// One `sleep-diagnostics.jsonl` row (a suspend stage's or a USB change's), compact JSON in this
+/// order.
+#[derive(Serialize)]
+struct Row<'a> {
+    schema: u8,
+    stage: &'a str,
+    usb_reason: Option<&'a str>,
+    wall_time: f64,
+    monotonic_s: f64,
+    boottime_s: f64,
+    boot_id: Option<String>,
+    build_id: Option<String>,
+    features: Features,
+    usb_net: UsbNet,
+    kernel_pm: Option<String>,
+    kernel_tail: Option<Vec<String>>,
+}
+
+/// The build a row names (versions.json's `build_id`).
+#[derive(Deserialize, Default)]
+#[serde(default)]
+struct Build {
+    #[serde(deserialize_with = "y2p_core::lenient::text")]
+    build_id: Option<String>,
+}
+
+/// Write one row (on a verified data mount: the caller checks). An oversized row loses the oldest
+/// quarter of its kernel tail at a time, never the row; one still too large is dropped.
+pub(crate) fn write_row(
+    root: &Root,
+    stage: &str,
+    usb_reason: Option<&str>,
+    now: f64,
+    golden: bool,
+) -> Result<(), Dropped> {
+    let build: Build = y2p_core::lenient::read(root.json_object("/etc/y2linux/versions.json"));
+    let mut row = Row {
+        schema: 1,
+        stage,
+        usb_reason,
+        wall_time: wall(),
+        monotonic_s: now,
+        boottime_s: root.clock().boottime_ns() as f64 / 1e9,
+        boot_id: root.boot_id(),
+        build_id: build.build_id,
+        features: features(root, golden),
+        usb_net: super::usb::usb_net(root).map_err(|_| Dropped)?,
+        kernel_pm: root.read_limited("/sys/firmware/y2_pm/state", 8192),
+        kernel_tail: kernel_tail(root, 80, 240),
+    };
+    let encode = |row: &Row| dumps(row).map(|t| t + "\n").map_err(|_| Dropped);
+    let mut encoded = encode(&row)?;
+    while encoded.len() > DIAGNOSTICS_ROW {
+        let Some(tail) = row.kernel_tail.as_mut().filter(|t| !t.is_empty()) else {
+            return Err(Dropped); // sleep_diagnostics_row_too_large
+        };
+        let cut = (tail.len() / 4).max(1);
+        tail.drain(..cut);
+        encoded = encode(&row)?;
+    }
+    append_bounded(
+        root,
+        DIAGNOSTICS,
+        encoded.as_bytes(),
+        DIAGNOSTICS_LIMIT,
+        true,
+    )
+    .map_err(|_| Dropped)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::Value;
     use std::fs;
+    use y2p_core::json::ObjectExt;
     use y2p_core::py::PyValue;
 
     /// POWER-FINAL-14: a UDC state change gives a durable row, then one follow-up 30 s later; rows

@@ -54,7 +54,7 @@ fn disable(root: &Root) -> Vec<String> {
 /// leniently (`previous` of a second start this boot).
 #[derive(Serialize, Deserialize, Default, Debug)]
 #[serde(default)]
-struct Policy {
+pub(crate) struct Policy {
     #[serde(
         skip_serializing_if = "Option::is_none",
         deserialize_with = "lenient::text"
@@ -219,6 +219,16 @@ pub fn apply(root: &Root, action: &str) -> Outcome {
         return Err(error);
     }
     finish(result)
+}
+
+impl Policy {
+    /// This boot's record (none before the boot policy ran).
+    pub(crate) fn read(root: &Root) -> Option<Policy> {
+        match root.json(RECORD)? {
+            serde_json::Value::Object(map) => Some(lenient::read(map)),
+            _ => None,
+        }
+    }
 }
 
 /// /etc/y2linux/versions.json: the kernel the build installed.

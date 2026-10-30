@@ -2,7 +2,10 @@
 //! (tests/test_sleep_diagnostics.py; the USB rows of the power sample are `power::journal`'s
 //! `Diagnostics`), and the 32-bit DMA fields of POWER-FINAL-16 (tests/test_usb_dma_unmask.py).
 // SPDX-License-Identifier: GPL-2.0-only
-use super::{kernel_tail, record, usb_net, LIMIT, PATH};
+use super::{record, PATH};
+use crate::commands::power::journal::diagnostics::DIAGNOSTICS_LIMIT as LIMIT;
+use crate::commands::power::journal::state::kernel_tail;
+use crate::commands::power::journal::usb::usb_net;
 use crate::commands::power::journal::usb::USB_SUMMARY;
 use crate::commands::{
     power::journal::{Diagnostics, PowerJournal, FOLLOW_UP_S, PATH as JOURNAL},

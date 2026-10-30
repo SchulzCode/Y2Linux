@@ -231,7 +231,7 @@ fn overnight_retention_at_maximum_row_size_and_real_sleep_receipt() {
         let row = Object::new()
             .with("sample", index as i64)
             .with("detail", detail.as_str());
-        journal.append(&fixture.root, &row, false).expect("append");
+        append(&fixture.root, &row, false).expect("append");
     }
     let retained: Vec<i64> = rows_of(&fixture, PREVIOUS)
         .iter()
