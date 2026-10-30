@@ -5,7 +5,6 @@ use crate::reply::{Failure, Outcome, Reply};
 use serde_json::{json, Map, Value};
 use y2p_core::{
     json::{Object, ObjectExt},
-    py::is_true,
     Root,
 };
 
@@ -106,9 +105,9 @@ pub fn run(root: &Root) -> Outcome {
         if let Some(cap) = entry(caps, "wifi_power_save")? {
             cap.insert(
                 "enabled".into(),
-                json!(is_true(
-                    root.json_object("/run/y2/wifi-power.json").get("enabled")
-                )),
+                json!(
+                    super::connectivity::radio_policy::WifiPower::read(root).enabled == Some(true)
+                ),
             );
         }
         if let Some(cap) = entry(caps, "dvfs")? {

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use crate::commands::connectivity::direct;
 use crate::commands::connectivity::direct::{Link, Route};
+use crate::commands::connectivity::radio_policy::WifiPower;
 use crate::commands::connectivity::wifi::failure::FailureRecord;
 use crate::commands::observation::util::{int, Counted};
 use crate::commands::observation::util::{key_values, name, read, record_fields};
@@ -290,7 +291,10 @@ pub fn observe(root: &Root, signal_cache: Option<&Wifi>) -> Wifi {
         traffic_counters: stats,
         events: root.json("/run/y2/wifi-events.json"),
         reconnect_owner: "wpa_supplicant".into(),
-        power_save: root.json("/run/y2/wifi-power.json"),
+        power_save: root
+            .path("/run/y2/wifi-power.json")
+            .exists()
+            .then(|| WifiPower::read(root)),
         coexistence: root.json("/run/y2/coexistence.json"),
     }
 }
@@ -317,7 +321,7 @@ pub struct Wifi {
     pub traffic_counters: Counted,
     events: Option<Value>,
     reconnect_owner: String,
-    power_save: Option<Value>,
+    power_save: Option<WifiPower>,
     coexistence: Option<Value>,
 }
 

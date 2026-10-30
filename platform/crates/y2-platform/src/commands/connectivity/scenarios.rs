@@ -354,10 +354,8 @@ fn power_save_with_a_heavy_transfer_as_python_does() {
             &files,
             answers,
             |root| {
-                let activity =
-                    json!({"wifi_heavy_transfer": if heavy { json!(true) } else { json!(0) }});
-                let value = radio_policy::wifi_policy(root, activity.as_object()).unwrap();
-                Value::Object(y2p_core::json::sorted_object(&value))
+                let value = radio_policy::wifi_policy(root, heavy).unwrap();
+                y2p_core::json::sorted(json!(value))
             },
         );
     }

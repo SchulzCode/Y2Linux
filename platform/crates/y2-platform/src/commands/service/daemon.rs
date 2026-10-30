@@ -200,7 +200,8 @@ impl Service {
             if value.association.as_deref() == Some("COMPLETED")
                 && radio_policy_timer.due(before, 30.0)
             {
-                wifi_policy(root, Some(&activity))?;
+                let heavy = activity.get("wifi_heavy_transfer") == Some(&Value::Bool(true));
+                wifi_policy(root, heavy)?;
             }
             atomic_json(
                 &runtime.join("time-status.json"),

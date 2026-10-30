@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use super::*;
 use crate::testing::{failed, ok, Fixture};
+use serde_json::{json, Value};
 
 const GET: [&str; 5] = ["/usr/sbin/iw", "dev", "wlan0", "get", "power_save"];
 
@@ -15,7 +16,7 @@ fn fixture() -> Fixture {
 
 /// `wifi_policy(root, activity)` with cfg80211's flag reading `enabled`; the record and whether a
 /// set was sent.
-fn policy(fixture: &Fixture, enabled: bool, activity: Option<Value>) -> (Object, bool) {
+fn policy(fixture: &Fixture, enabled: bool, activity: Option<Value>) -> (Value, bool) {
     let state = if enabled { "on" } else { "off" };
     let answers = vec![
         ok(&GET, &format!("Power save: {state}")),
@@ -28,9 +29,9 @@ fn policy(fixture: &Fixture, enabled: bool, activity: Option<Value>) -> (Object,
             "",
         ),
     ];
-    let activity = activity.map(|a| a.as_object().cloned().unwrap());
+    let heavy = activity.is_some_and(|a| a["wifi_heavy_transfer"] == json!(true));
     let root = fixture.root.clone().with_answers(answers);
-    let value = wifi_policy(&root, activity.as_ref()).unwrap();
+    let value = json!(wifi_policy(&root, heavy).unwrap());
     let set = root
         .calls()
         .iter()
@@ -38,7 +39,7 @@ fn policy(fixture: &Fixture, enabled: bool, activity: Option<Value>) -> (Object,
     (value, set)
 }
 
-fn applied(value: &Object) -> bool {
+fn applied(value: &Value) -> bool {
     value.get("applied") == Some(&json!(true))
 }
 
@@ -56,8 +57,8 @@ fn standard_ps_has_readback_and_failure_is_not_success() {
         .root
         .clone()
         .with_answers(vec![failed(&GET, "timeout")]);
-    let value = wifi_policy(&root, None).unwrap();
-    assert_eq!(value.get("enabled"), Some(&Value::Null));
+    let value = wifi_policy(&root, false).unwrap();
+    assert_eq!(value.enabled, None);
 }
 
 #[test]

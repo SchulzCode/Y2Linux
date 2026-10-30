@@ -169,7 +169,19 @@
     "192.168.1.40"
    ],
    "power_save": {
-    "enabled": true
+    "applied": false,
+    "boot_id": null,
+    "enabled": true,
+    "epoch": null,
+    "ifindex": null,
+    "mode": null,
+    "monotonic_s": "<volatile>",
+    "provisional": false,
+    "reason": null,
+    "requested": false,
+    "requested_driver_profile": null,
+    "schema": 0,
+    "state": null
    },
    "radio_present": true,
    "reason": null,
