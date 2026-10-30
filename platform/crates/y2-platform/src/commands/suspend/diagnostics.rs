@@ -13,11 +13,7 @@ pub(crate) use crate::commands::power::journal::usb::UsbNet;
 use serde::Serialize;
 use serde_json::Value;
 use y2p_core::mounts::data_ready;
-use y2p_core::{
-    json::{dumps, Separators},
-    power_journal::append_bounded,
-    Root,
-};
+use y2p_core::{json::dumps, power_journal::append_bounded, Root};
 
 pub const PATH: &str = "/data/system/platform/sleep-diagnostics.jsonl";
 const LIMIT: u64 = 2_097_152;
@@ -78,7 +74,7 @@ fn row(root: &Root, stage: &str, golden: bool) -> Result<bool, E> {
         kernel_tail: kernel_tail(root, 80, 240),
     };
     let encode = |row: &Row| -> Result<Vec<u8>, E> {
-        let text = dumps(row, Separators::Compact).map_err(|e| E::value(e.to_string()))?;
+        let text = dumps(row).map_err(|e| E::value(e.to_string()))?;
         Ok((text + "\n").into_bytes())
     };
     let mut encoded = encode(&row)?;

@@ -3,12 +3,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use serde::Serialize;
 use y2p_core::clock::wall;
-use y2p_core::{
-    json::{dumps, Separators},
-    mounts::data_ready,
-    power_journal::append_bounded,
-    Root,
-};
+use y2p_core::{json::dumps, mounts::data_ready, power_journal::append_bounded, Root};
 
 /// Durable Wi-Fi self-heal rows (F52/F53); never a network name or address.
 pub const JOURNAL: &str = "/data/system/platform/wifi-journal.jsonl";
@@ -33,7 +28,7 @@ pub fn journal<T: Serialize>(root: &Root, event: &str, fields: &T) -> bool {
         boot_id: root.boot_id(),
         fields,
     };
-    let Ok(text) = dumps(&row, Separators::Compact) else {
+    let Ok(text) = dumps(&row) else {
         return false;
     };
     append_bounded(

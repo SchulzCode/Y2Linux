@@ -4,7 +4,7 @@
 use super::delta::delta;
 use super::sample::{Sample, Thread};
 use serde_json::{json, Value};
-use y2p_core::json::{dumps, Separators};
+use y2p_core::json::dumps;
 
 const IDLE: &str = "/sys/devices/system/cpu/cpu0/cpuidle/state2";
 const OPP: &str = "/sys/devices/system/cpu/cpufreq/policy0/stats/time_in_state";
@@ -75,7 +75,7 @@ fn set(sample: &mut Sample, key: &str, value: &str) {
 
 fn delta_json(a: &Sample, b: &Sample, duration: f64) -> Value {
     let node = delta(a, b, duration).expect("delta");
-    serde_json::from_str(&dumps(&node, Separators::Compact).unwrap()).unwrap()
+    serde_json::from_str(&dumps(&node).unwrap()).unwrap()
 }
 
 fn number(value: &Value) -> f64 {

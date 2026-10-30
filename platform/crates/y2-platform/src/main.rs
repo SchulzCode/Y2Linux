@@ -18,7 +18,7 @@ mod testing;
 
 use std::{env, ffi::OsString, io::Write, process::ExitCode};
 use y2p_core::{
-    json::{dumps, Separators},
+    json::dumps,
     os_text::{backslashreplace, fsdecode_os},
 };
 
@@ -87,10 +87,7 @@ fn main() -> ExitCode {
         Ok(reply) => (reply.stdout, reply.code),
         // An error no command turned into its own record: the error record, exit 1 (an input of an
         // unexpected type included; it no longer ends as a traceback with nothing on stdout).
-        Err(error) => (
-            dumps(&error.record(), Separators::Spaced).expect("record"),
-            1,
-        ),
+        Err(error) => (dumps(&error.record()).expect("record"), 1),
     };
     let mut out = std::io::stdout().lock();
     // print(): a closed pipe after the work is done changes nothing (Python reports it on stderr).

@@ -22,7 +22,7 @@ pub(super) fn sleep_status(receipt: &Object, boot_id: Option<&str>) -> Result<Ob
 mod tests {
     use super::*;
     use serde_json::Value;
-    use y2p_core::json::{dumps, ObjectExt, Separators};
+    use y2p_core::json::{dumps, ObjectExt};
 
     #[test]
     fn sleep_status_follows_sleep_py() {
@@ -30,7 +30,7 @@ mod tests {
             Value::Object(o) => o,
             _ => unreachable!(),
         };
-        let text = |o: &Object| dumps(o, Separators::Spaced).unwrap();
+        let text = |o: &Object| dumps(o).unwrap();
         assert_eq!(
             text(&sleep_status(&parse("{}"), Some("b")).unwrap()),
             "{\"state\":\"idle\",\"reason\":null,\"request_boot_id\":null,\"kernel_completed\":false,\

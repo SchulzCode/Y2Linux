@@ -76,13 +76,12 @@ mod charger_state_tests;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::json::{dumps, Separators};
+    use crate::json::dumps;
 
     #[test]
     fn categories_follow_charger_state_py() {
-        let text = |state: Option<&str>, usb| {
-            dumps(&classify(state, usb, Some("Charging")), Separators::Spaced).unwrap()
-        };
+        let text =
+            |state: Option<&str>, usb| dumps(&classify(state, usb, Some("Charging"))).unwrap();
         assert_eq!(
             text(Some("phase=CONSTANT_CURRENT active=1 stop_error=0"), true),
             "{\"category\":\"charging_active\",\"usb_present\":true,\"phase\":\"CONSTANT_CURRENT\",\

@@ -15,7 +15,7 @@ use std::{
 use y2p_contract::BootStage;
 use y2p_core::mounts::mounts_at;
 use y2p_core::{
-    json::{dumps, Object, ObjectExt, Separators},
+    json::{dumps, Object, ObjectExt},
     py::{python_number, truthy},
     Root,
 };
@@ -254,7 +254,7 @@ pub fn mark(root: &Root, stage: &str) -> Outcome {
             stage: stage.as_str(),
             monotonic_s: root.clock().monotonic(),
         };
-        let text = dumps(&line, Separators::Spaced).map_err(Failure::value)? + "\n";
+        let text = dumps(&line).map_err(Failure::value)? + "\n";
         trail.write_all(text.as_bytes()).at(&runtime)?;
     }
     drop(trail);

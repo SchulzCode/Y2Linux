@@ -17,10 +17,7 @@ use delta::Summary;
 use sample::{counters, snapshot, Sample, Snapshot};
 use serde::Serialize;
 use std::{fs::OpenOptions, io::Write, os::unix::fs::OpenOptionsExt, path::Path};
-use y2p_core::{
-    json::{dumps, Separators},
-    Root,
-};
+use y2p_core::{json::dumps, Root};
 
 pub fn main(root: &Root, args: &[String]) -> Outcome {
     let parsed = match parse(args) {
@@ -120,7 +117,7 @@ fn run(root: &Root, args: &Args) -> Result<(), E> {
         .custom_flags(libc::O_NOFOLLOW)
         .open(path)
         .map_err(|e| E::os(&e, Some(path)))?;
-    let text = dumps(&result, Separators::Compact).map_err(|e| E::value(e.to_string()))? + "\n";
+    let text = dumps(&result).map_err(|e| E::value(e.to_string()))? + "\n";
     out.write_all(text.as_bytes())?;
     Ok(())
 }

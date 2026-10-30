@@ -5,11 +5,7 @@ use super::super::{interrupted, pyjson, E};
 use serde_json::{json, Map, Value};
 use std::os::fd::{AsFd, AsRawFd};
 use y2p_core::py::PyValue;
-use y2p_core::{
-    json::{dumps, Separators},
-    py::is_true,
-    Root,
-};
+use y2p_core::{json::dumps, py::is_true, Root};
 
 const RESPONSE_LIMIT: usize = 131_072;
 const RPC_TIMEOUT_MS: i32 = 5000;
@@ -48,7 +44,7 @@ fn last_error() -> std::io::Error {
 /// `application_rpc(ctx, operation, **fields)`: a bounded explicit application acknowledgement over
 /// Reborn's control socket, never just process liveness. `dark` adds `"dark": true` (F47).
 pub fn application_rpc(root: &Root, operation: &str, dark: bool) -> Result<Map<String, Value>, E> {
-    let op = dumps(&operation, Separators::Spaced).map_err(|e| E::value(e.to_string()))?;
+    let op = dumps(&operation).map_err(|e| E::value(e.to_string()))?;
     let request = format!(
         "{{\"version\": 1, \"id\": 6582, \"command\": {{\"op\": {op}{}}}}}\n",
         if dark { ", \"dark\": true" } else { "" }

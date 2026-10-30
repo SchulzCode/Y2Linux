@@ -10,7 +10,7 @@ use std::{
     path::Path,
 };
 use y2p_core::{
-    json::{dumps, dumps_sorted, Object, ObjectExt, Separators},
+    json::{dumps, dumps_sorted, Object, ObjectExt},
     py,
 };
 
@@ -24,7 +24,7 @@ impl Reply {
     /// `print(json.dumps(result, sort_keys=True))`.
     pub fn sorted<T: Serialize + ?Sized>(value: &T, code: u8) -> Result<Reply, Failure> {
         Ok(Reply {
-            stdout: dumps_sorted(value, Separators::Spaced).map_err(Failure::value)?,
+            stdout: dumps_sorted(value).map_err(Failure::value)?,
             code,
         })
     }
@@ -32,7 +32,7 @@ impl Reply {
     /// `print(json.dumps(result))`: insertion order (an `Object`, or a struct's field order).
     pub fn unsorted<T: Serialize + ?Sized>(value: &T, code: u8) -> Result<Reply, Failure> {
         Ok(Reply {
-            stdout: dumps(value, Separators::Spaced).map_err(Failure::value)?,
+            stdout: dumps(value).map_err(Failure::value)?,
             code,
         })
     }
@@ -276,7 +276,7 @@ mod tests {
             "invalid_power_feature"
         );
         assert_eq!(
-            dumps(&Failure::value("unknown_boot_stage").record(), Separators::Spaced).unwrap(),
+            dumps(&Failure::value("unknown_boot_stage").record()).unwrap(),
             "{\"schema\":\"org.y2linux.error/v1\",\"state\":\"Failed\",\"reason\":\"unknown_boot_stage\",\
              \"type\":\"ValueError\"}"
         );

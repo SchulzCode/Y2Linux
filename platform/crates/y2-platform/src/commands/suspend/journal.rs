@@ -10,7 +10,7 @@ use super::{diagnostics, E};
 use serde::Serialize;
 use serde_json::Value;
 use y2p_core::{
-    json::{dumps, Object, Separators},
+    json::{dumps, Object},
     power_journal::append_bounded,
     Root,
 };
@@ -142,7 +142,7 @@ fn row(root: &Root, battery: &Value, event: &str, now: f64) -> Result<bool, E> {
         suspend,
         kernel_pm: root.read_limited("/sys/firmware/y2_pm/state", 8192),
     };
-    let encoded = dumps(&row, Separators::Compact).map_err(|e| E::value(e.to_string()))? + "\n";
+    let encoded = dumps(&row).map_err(|e| E::value(e.to_string()))? + "\n";
     if encoded.len() > 16384 {
         return Err(E::value("power_journal_row_too_large"));
     }

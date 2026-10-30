@@ -5,7 +5,7 @@ use super::{glob_name, json, Dropped};
 use crate::commands::time::wall;
 use serde_json::Value;
 use y2p_core::{
-    json::{dumps, Separators},
+    json::dumps,
     json::{Object, ObjectExt},
     mounts::data_ready,
     power_journal::append_bounded,
@@ -98,11 +98,7 @@ impl Diagnostics {
                 tail.clone()
                     .map(|t| t.into_iter().map(Value::from).collect::<Vec<_>>()),
             );
-        let encode = |row: &Object| {
-            dumps(row, Separators::Compact)
-                .map(|t| t + "\n")
-                .map_err(|_| Dropped)
-        };
+        let encode = |row: &Object| dumps(row).map(|t| t + "\n").map_err(|_| Dropped);
         let mut encoded = encode(&row)?;
         while encoded.len() > DIAGNOSTICS_ROW {
             // Too large: drop the oldest quarter of the kernel lines, as long as there are any.

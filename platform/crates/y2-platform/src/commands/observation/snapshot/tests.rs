@@ -127,7 +127,7 @@ fn unknown_sensors_are_null_not_zero_and_die_temperature_is_separate() {
     );
     assert_eq!(result["record"]["evidence_level"], "IMPLEMENTED");
     // json.dumps(allow_nan=False): every number is finite.
-    y2p_core::json::dumps_sorted(&result, y2p_core::json::Separators::Spaced).unwrap();
+    y2p_core::json::dumps_sorted(&result).unwrap();
 }
 
 #[test]

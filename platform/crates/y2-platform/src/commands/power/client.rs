@@ -7,7 +7,7 @@ use crate::reply::{Failure, Outcome, Reply};
 use serde_json::Value;
 use std::time::Duration;
 use y2p_core::{
-    json::{dumps, Separators},
+    json::dumps,
     json::{Object, ObjectExt},
     Root,
 };
@@ -18,7 +18,7 @@ const RESPONSE_LIMIT: usize = 8192;
 
 /// `rpc(ctx, request)`: the daemon's `result`, or its `error` as a ValueError.
 pub fn rpc(root: &Root, request: &Object) -> Result<Value, Failure> {
-    let data = dumps(request, Separators::Spaced).map_err(Failure::value)? + "\n";
+    let data = dumps(request).map_err(Failure::value)? + "\n";
     if data.len() > REQUEST_LIMIT {
         return Err(Failure::value("request_too_large"));
     }

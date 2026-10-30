@@ -10,11 +10,7 @@ use std::{
     os::unix::fs::PermissionsExt,
     path::{Path, PathBuf},
 };
-use y2p_core::{
-    clock,
-    json::{dumps, Separators},
-    Root,
-};
+use y2p_core::{clock, json::dumps, Root};
 
 /// Clock readings, and records of them, by key.
 const VOLATILE: [&str; 9] = [
@@ -90,11 +86,12 @@ fn tree(root: &Path) -> Value {
             let content = if name.ends_with(".jsonl") {
                 json!(text
                     .lines()
-                    .map(|line| dumps(
-                        &normalise_ordered(serde_json::from_str(line).expect("a JSON line")),
-                        Separators::Compact
-                    )
-                    .unwrap())
+                    .map(|line| {
+                        dumps(&normalise_ordered(
+                            serde_json::from_str(line).expect("a JSON line"),
+                        ))
+                        .unwrap()
+                    })
                     .collect::<Vec<_>>())
             } else {
                 serde_json::from_str(&text)

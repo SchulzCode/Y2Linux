@@ -235,13 +235,8 @@ pub fn sorted_object(map: &Object) -> Object {
     }
 }
 
-/// The value as compact JSON (serde_json). The separators no longer matter: outputs are not kept
-/// byte-identical to Python's `json.dumps` any more (PLATFORM-RUST-IDIOMATIC-PLAN.md); the parameter goes
-/// with the callers' clean-up.
-pub fn dumps<T: Serialize + ?Sized>(
-    value: &T,
-    _separators: Separators,
-) -> serde_json::Result<String> {
+/// The value as compact JSON (serde_json).
+pub fn dumps<T: Serialize + ?Sized>(value: &T) -> serde_json::Result<String> {
     serde_json::to_string(value)
 }
 
@@ -261,11 +256,8 @@ pub fn python_dumps_sorted<T: Serialize + ?Sized>(
 
 /// `json.dumps(value, sort_keys=True)`: through a `Value` whose objects are then sorted at every level
 /// (by code point, the byte order of UTF-8).
-pub fn dumps_sorted<T: Serialize + ?Sized>(
-    value: &T,
-    separators: Separators,
-) -> serde_json::Result<String> {
-    dumps(&sorted(serde_json::to_value(value)?), separators)
+pub fn dumps_sorted<T: Serialize + ?Sized>(value: &T) -> serde_json::Result<String> {
+    dumps(&sorted(serde_json::to_value(value)?))
 }
 
 /// `value` with the keys of every object in it sorted, nested ones too.
@@ -365,19 +357,19 @@ mod tests {
                            "n": {"z": 0.00001, "y": -3}});
         // Compact, UTF-8 as it is, serde_json's floats; dumps_sorted sorts every object.
         assert_eq!(
-            dumps_sorted(&value, Separators::Spaced).unwrap(),
+            dumps_sorted(&value).unwrap(),
             "{\"a\":\"é\u{7f}\u{1f600}\\\"\\n\\t/\",\"b\":[1,2.0,null,true],\
                     \"n\":{\"y\":-3,\"z\":0.00001},\"schema\":\"org.y2linux.status/v1\"}"
         );
         // json.dumps(v): the insertion order of the literal.
         assert_eq!(
-            dumps(&json!({"b": 1, "a": {"d": 2, "c": 3}}), Separators::Compact).unwrap(),
+            dumps(&json!({"b": 1, "a": {"d": 2, "c": 3}})).unwrap(),
             "{\"b\":1,\"a\":{\"d\":2,\"c\":3}}"
         );
-        assert_eq!(dumps(&json!({}), Separators::Spaced).unwrap(), "{}");
-        assert_eq!(dumps(&json!([]), Separators::Spaced).unwrap(), "[]");
+        assert_eq!(dumps(&json!({})).unwrap(), "{}");
+        assert_eq!(dumps(&json!([])).unwrap(), "[]");
         assert_eq!(
-            dumps(&json!("\u{1}\u{8}\u{c}\r"), Separators::Spaced).unwrap(),
+            dumps(&json!("\u{1}\u{8}\u{c}\r")).unwrap(),
             "\"\\u0001\\b\\f\\r\""
         );
     }
@@ -387,7 +379,7 @@ mod tests {
         let mut value = Object::new().with("state", "Ready").with("boot_id", "b");
         value.set("state", "Failed").set("monotonic_s", 1.5);
         assert_eq!(
-            dumps(&value, Separators::Spaced).unwrap(),
+            dumps(&value).unwrap(),
             "{\"state\":\"Failed\",\"boot_id\":\"b\",\"monotonic_s\":1.5}"
         );
     }
@@ -404,11 +396,11 @@ mod tests {
             boot_id: "b",
         };
         assert_eq!(
-            dumps(&value, Separators::Spaced).unwrap(),
+            dumps(&value).unwrap(),
             "{\"state\":\"Ready\",\"boot_id\":\"b\"}"
         );
         assert_eq!(
-            dumps_sorted(&value, Separators::Spaced).unwrap(),
+            dumps_sorted(&value).unwrap(),
             "{\"boot_id\":\"b\",\"state\":\"Ready\"}"
         );
     }

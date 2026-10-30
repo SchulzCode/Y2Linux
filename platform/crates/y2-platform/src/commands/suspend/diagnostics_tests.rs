@@ -12,7 +12,7 @@ use crate::testing::Fixture;
 use serde_json::{json, Value};
 use y2p_core::{
     clock,
-    json::{dumps, Separators},
+    json::dumps,
     json::{Object, ObjectExt},
 };
 
@@ -288,7 +288,7 @@ fn power_journal_rows_carry_the_usb_snapshot() {
     let line = fixture.read(JOURNAL).lines().last().unwrap().to_owned();
     let row: Value = serde_json::from_str(&line).unwrap();
     assert_eq!(row["usb_net"]["usb0"]["statistics"]["tx_packets"], 7);
-    assert!(dumps(&row, Separators::Spaced).unwrap().len() < 16384);
+    assert!(dumps(&row).unwrap().len() < 16384);
 }
 
 #[test]

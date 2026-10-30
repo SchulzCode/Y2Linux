@@ -33,7 +33,7 @@ use std::{
 use y2p_core::digest::sha256_hex as hex;
 use y2p_core::mounts::mounts_at;
 use y2p_core::{
-    json::{dumps, dumps_sorted, Separators},
+    json::{dumps, dumps_sorted},
     py::{self, is_false, truthy},
     Root,
 };
@@ -296,7 +296,7 @@ fn capture(
         }
         result.insert("files".into(), Value::Array(files));
         result.insert("errors".into(), Value::Array(errors));
-        let manifest = dumps_sorted(&result, Separators::Spaced).map_err(|e| e.to_string())?;
+        let manifest = dumps_sorted(&result).map_err(|e| e.to_string())?;
         archive
             .add(b"manifest.json", manifest.as_bytes())
             .and_then(|()| archive.close())
@@ -499,9 +499,7 @@ pub fn run(root: &Root) -> Outcome {
     }
     result.logs = entries;
     loop {
-        let size = dumps(&result, Separators::Spaced)
-            .map_err(Failure::value)?
-            .len();
+        let size = dumps(&result).map_err(Failure::value)?.len();
         if size <= 96_000 {
             break;
         }

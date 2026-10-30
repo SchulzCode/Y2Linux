@@ -308,8 +308,7 @@ pub fn platform(root: &Root, args: &[&str]) -> ! {
                 Err(_) => exit(1),
             },
             Err(error) => {
-                let text =
-                    y2p_core::json::dumps(&error.record(), y2p_core::json::Separators::Spaced);
+                let text = y2p_core::json::dumps(&error.record());
                 if let Ok(text) = text {
                     println!("{text}");
                 }

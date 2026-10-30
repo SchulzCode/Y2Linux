@@ -9,11 +9,7 @@ use super::{
 use crate::reply::{Failure, Outcome, Reply};
 use serde_json::{json, Map, Value};
 use std::io::Write;
-use y2p_core::{
-    clock,
-    json::{dumps_sorted, Separators},
-    Root,
-};
+use y2p_core::{clock, json::dumps_sorted, Root};
 
 pub struct Options {
     pub seconds: i64,
@@ -157,7 +153,7 @@ pub fn run(root: &Root, options: &Options) -> Outcome {
                 .is_some_and(|r| r.values().any(|item| item["state"] == "Failed")),
         );
         super::snapshot::printable(&value)?;
-        let line = dumps_sorted(&value, Separators::Spaced).map_err(Failure::value)? + "\n";
+        let line = dumps_sorted(&value).map_err(Failure::value)? + "\n";
         bytes += line.len();
         if bytes > 64 * 1024 * 1024 {
             return Err(Failure::value("collection_output_limit_64MiB"));

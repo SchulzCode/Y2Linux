@@ -5,7 +5,7 @@ use super::super::{coordinator::Coordinator, unix};
 use serde_json::Value;
 use std::{os::unix::net::UnixStream, time::Duration};
 use y2p_core::{
-    json::{dumps, Object, ObjectExt, Separators},
+    json::{dumps, Object, ObjectExt},
     py::PyValue,
 };
 
@@ -48,7 +48,7 @@ pub(super) fn serve_client(mut client: UnixStream, coordinator: &mut Coordinator
         Ok(intent) => Object::new().with("ok", true).with("result", intent),
         Err(error) => Object::new().with("ok", false).with("error", error),
     };
-    if let Ok(text) = dumps(&answer, Separators::Spaced) {
+    if let Ok(text) = dumps(&answer) {
         let _ = unix::send_all(&mut client, (text + "\n").as_bytes());
     }
 }

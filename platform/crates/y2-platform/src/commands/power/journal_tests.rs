@@ -104,7 +104,7 @@ fn rotation_keeps_complete_rows_and_private_permissions() {
         let row = Object::new()
             .with("i", i as i64)
             .with("detail", "x".repeat(80));
-        let encoded = dumps(&row, Separators::Compact).unwrap() + "\n";
+        let encoded = dumps(&row).unwrap() + "\n";
         append_bounded(&fixture.root, PATH, encoded.as_bytes(), 200, false).unwrap();
     }
     assert_eq!(rows(&fixture).last().unwrap()["i"], 9);

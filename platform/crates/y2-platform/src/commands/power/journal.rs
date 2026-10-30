@@ -28,7 +28,7 @@ use sleep::sleep_status;
 use y2p_core::mounts::data_ready;
 use y2p_core::paths::{name as glob_name, parent_name};
 use y2p_core::{
-    json::{dumps, Separators},
+    json::dumps,
     json::{Object, ObjectExt},
     power_journal::append_bounded,
     root::read,
@@ -301,7 +301,7 @@ impl PowerJournal {
     }
 
     fn append(&self, root: &Root, row: &impl Serialize, durable: bool) -> Result<(), Dropped> {
-        let encoded = dumps(row, Separators::Compact).map_err(|_| Dropped)? + "\n";
+        let encoded = dumps(row).map_err(|_| Dropped)? + "\n";
         if encoded.len() > ROW {
             return Err(Dropped); // power_journal_row_too_large
         }

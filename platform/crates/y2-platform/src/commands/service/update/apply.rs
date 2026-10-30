@@ -47,9 +47,7 @@ fn rpc(root: &Root, action: &str) -> Result<Value> {
     let request = Object::new()
         .with("action", action)
         .with("reason", "update");
-    let data = y2p_core::json::dumps(&request, y2p_core::json::Separators::Spaced)
-        .map_err(|e| Raise::Value(e.to_string()))?
-        + "\n";
+    let data = y2p_core::json::dumps(&request).map_err(|e| Raise::Value(e.to_string()))? + "\n";
     if data.len() > 2048 {
         return Err(Raise::value("request_too_large"));
     }

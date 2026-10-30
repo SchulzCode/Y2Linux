@@ -5,7 +5,7 @@ use super::soc::round_int;
 use super::*;
 use super::{profile::*, soc::*, status::*};
 use serde_json::Value;
-use y2p_core::json::{dumps, Separators};
+use y2p_core::json::dumps;
 
 fn profile() -> Profile {
     let text = std::fs::read_to_string(concat!(
@@ -378,7 +378,7 @@ fn soc_matches_python_battery_py() {
             let state = serde_json::to_value(soc.state().map(DisplayRecord::new)).unwrap();
             out.push(Value::Array(vec![result, state]));
         }
-        ours += &(dumps(&out, Separators::Spaced).unwrap() + "\n");
+        ours += &(dumps(&out).unwrap() + "\n");
     }
     y2p_core::recorded::check(
         env!("CARGO_MANIFEST_DIR"),
