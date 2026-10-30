@@ -41,9 +41,9 @@ fn projection_and_event_excerpts_never_include_private_free_text() {
         at(&output, &["boot_id"]),
         &string("159f7c81-ab89-4440-bc89-df827dd8bc34")
     );
-    let log = events(Some(&format!(
+    let log = serde_json::json!(events(Some(&format!(
         "reborn failed to open /data/music/{secret} error=-5\nwifi error password={secret} ssid=personal\n"
-    )));
+    ))));
     assert!(!dumped(&log).contains(secret));
     let Value::Array(rows) = &log else {
         panic!("{log:?}")
@@ -208,7 +208,7 @@ fn answering(root: &Root) -> Root {
 }
 
 fn exported(root: &Root) -> Result<Value, Failure> {
-    export_inner(&answering(root))
+    export_inner(&answering(root)).map(|answer| serde_json::json!(answer))
 }
 
 fn names(directory: &std::path::Path, suffix: &str) -> Vec<String> {

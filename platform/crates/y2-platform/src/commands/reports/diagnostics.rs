@@ -18,9 +18,10 @@ use super::{
     tarball,
     volume::{admitted, data_volume},
 };
-use crate::commands::reports::{object, Value, ValueExt};
+use crate::commands::reports::Value;
 use crate::reply::{private_directory, Failure, Outcome, Reply};
 use regex::Regex;
+use serde::Serialize;
 use std::{io::Write, os::unix::fs::OpenOptionsExt, sync::OnceLock};
 use y2p_core::json::ObjectExt;
 use y2p_core::{command, Root};
@@ -190,7 +191,7 @@ pub fn project(value: &Value, key: &str, depth: usize) -> Value {
 }
 
 /// `events(raw)`: fixed-vocabulary excerpts; no source text is ever copied into the bundle.
-pub fn events(raw: Option<&str>) -> Value {
+pub fn events(raw: Option<&str>) -> Vec<LogEvent> {
     static ERRNO: OnceLock<Regex> = OnceLock::new();
     let errno = lazy(
         &ERRNO,
@@ -201,36 +202,78 @@ pub fn events(raw: Option<&str>) -> Value {
     let mut result = Vec::new();
     for (number, line) in lines[start..].iter().enumerate() {
         let lower = line.to_lowercase();
-        let tags: Vec<Value> = EVENTS
+        let tags: Vec<&'static str> = EVENTS
             .iter()
             .filter(|tag| {
                 lower
                     .match_indices(*tag)
                     .any(|(at, _)| pyre::word_start(&lower, at))
             })
-            .map(|t| Value::from(*t))
+            .copied()
             .collect();
-        let components: Vec<Value> = COMPONENTS
+        let components: Vec<&'static str> = COMPONENTS
             .iter()
             .filter(|c| lower.contains(*c))
-            .map(|c| Value::from(*c))
+            .copied()
             .collect();
         if !tags.is_empty() && !components.is_empty() {
-            let numbers: Vec<Value> = pyre::finditer(errno, &lower, 1, pyre::word_start)
+            let numbers: Vec<i64> = pyre::finditer(errno, &lower, 1, pyre::word_start)
                 .iter()
                 .take(4)
-                .filter_map(|c| c[1].parse::<i64>().ok().map(Value::from))
+                .filter_map(|c| c[1].parse::<i64>().ok())
                 .collect();
-            result.push(
-                object()
-                    .with("tail_line", Value::from(number))
-                    .with("components", Value::Array(components))
-                    .with("events", Value::Array(tags))
-                    .with("errno", Value::Array(numbers)),
-            );
+            result.push(LogEvent {
+                tail_line: number,
+                components,
+                events: tags,
+                errno: numbers,
+            });
         }
     }
-    Value::Array(result)
+    result
+}
+
+/// One log line's event classes: which line of the tail, which components and events it names, and
+/// up to four error numbers (never the text).
+#[derive(Serialize, Debug, PartialEq)]
+pub struct LogEvent {
+    pub tail_line: usize,
+    pub components: Vec<&'static str>,
+    pub events: Vec<&'static str>,
+    pub errno: Vec<i64>,
+}
+
+/// A log's events in the bundle, or why there are none.
+#[derive(Serialize, Debug)]
+#[serde(untagged)]
+pub enum LogExcerpt {
+    Events(Vec<LogEvent>),
+    Missing { state: &'static str },
+}
+
+/// diagnostics.json: counters and known enums only (every value through `project`).
+#[derive(Serialize)]
+struct Bundle {
+    schema: &'static str,
+    redacted: bool,
+    privacy: &'static str,
+    versions: Value,
+    boot_id: Value,
+    platform: Value,
+    health: Value,
+    previous_boot: Value,
+    suspend: Value,
+    logs: std::collections::BTreeMap<&'static str, LogExcerpt>,
+}
+
+/// `export-diagnostics`' answer.
+#[derive(Serialize)]
+struct Exported {
+    state: &'static str,
+    path: String,
+    sha256: String,
+    bytes: usize,
+    redacted: bool,
 }
 
 /// The platform snapshot and the health checks made from it (one snapshot, its commands run once).
@@ -243,7 +286,7 @@ fn platform_state(root: &Root) -> Result<(Value, Value), Failure> {
 
 /// The events of a log's tail: walk reviewed data paths with no symlinks; never read arbitrary
 /// files.
-fn log_tail(root: &Root, relative: &str) -> Result<Value, Failure> {
+fn log_tail(root: &Root, relative: &str) -> Result<Vec<LogEvent>, Failure> {
     use super::media::{fstat, open_at};
     use std::io::{Read, Seek, SeekFrom};
     let directory = libc::O_RDONLY | libc::O_DIRECTORY | libc::O_NOFOLLOW | libc::O_CLOEXEC;
@@ -260,7 +303,7 @@ fn log_tail(root: &Root, relative: &str) -> Result<Value, Failure> {
     for part in &parts[..parts.len() - 1] {
         fd = match open_at(Some(&fd), part, directory, 0) {
             Ok(child) => child,
-            Err(e) => return missing(e, part).map(|_| Value::Array(Vec::new())),
+            Err(e) => return missing(e, part).map(|_| Vec::new()),
         };
     }
     let name = parts[parts.len() - 1];
@@ -271,7 +314,7 @@ fn log_tail(root: &Root, relative: &str) -> Result<Value, Failure> {
         0,
     ) {
         Ok(file) => file,
-        Err(e) => return missing(e, name).map(|_| Value::Array(Vec::new())),
+        Err(e) => return missing(e, name).map(|_| Vec::new()),
     };
     let meta = fstat(&file)?;
     if meta.mode & libc::S_IFMT != libc::S_IFREG || meta.nlink != 1 {
@@ -284,60 +327,46 @@ fn log_tail(root: &Root, relative: &str) -> Result<Value, Failure> {
     Ok(events(Some(&String::from_utf8_lossy(&tail))))
 }
 
-fn collect(root: &Root) -> Result<Value, Failure> {
+fn collect(root: &Root) -> Result<Bundle, Failure> {
     let (snapshot, health) = platform_state(root)?;
-    let mut logs = object();
+    let mut logs = std::collections::BTreeMap::new();
     for (name, path) in [
         ("system", "logs/system.log"),
         ("reborn", "reborn/logs/reborn.log"),
     ] {
-        let value =
-            log_tail(root, path).unwrap_or_else(|_| object().with("state", Value::from("Failed")));
-        logs.set(name, value);
+        let excerpt = match log_tail(root, path) {
+            Ok(events) => LogExcerpt::Events(events),
+            Err(_) => LogExcerpt::Missing { state: "Failed" },
+        };
+        logs.insert(name, excerpt);
     }
     let kernel = command::run_with(root, &["dmesg"], 2.0, 1 << 20, false);
-    logs.set(
+    logs.insert(
         "kernel",
         if kernel.ok {
-            events(kernel.output.as_deref())
+            LogExcerpt::Events(events(kernel.output.as_deref()))
         } else {
-            object().with("state", Value::from("Unavailable"))
+            LogExcerpt::Missing {
+                state: "Unavailable",
+            }
         },
     );
-    Ok(object()
-        .with("schema", Value::from("org.y2linux.tester-diagnostics/v1"))
-        .with("redacted", Value::Bool(true))
-        .with(
-            "privacy",
-            Value::from("Counters and known enums only; logs are event classes, never raw text."),
-        )
-        .with(
-            "versions",
-            project(&json_dict(root, "/etc/y2linux/versions.json"), "", 0),
-        )
-        .with("boot_id", project(&root.boot_id().into(), "boot_id", 0))
-        .with("platform", project(&snapshot, "", 0))
-        .with("health", project(&health, "", 0))
-        .with(
-            "previous_boot",
-            project(
-                &json_dict(root, "/data/system/platform/previous-boot-evidence.json"),
-                "",
-                0,
-            ),
-        )
-        .with(
-            "suspend",
-            project(
-                &json_dict(root, "/data/system/platform/suspend-last.json"),
-                "",
-                0,
-            ),
-        )
-        .with("logs", logs))
+    let projected = |name: &str| project(&json_dict(root, name), "", 0);
+    Ok(Bundle {
+        schema: "org.y2linux.tester-diagnostics/v1",
+        redacted: true,
+        privacy: "Counters and known enums only; logs are event classes, never raw text.",
+        versions: projected("/etc/y2linux/versions.json"),
+        boot_id: project(&root.boot_id().into(), "boot_id", 0),
+        platform: project(&snapshot, "", 0),
+        health: project(&health, "", 0),
+        previous_boot: projected("/data/system/platform/previous-boot-evidence.json"),
+        suspend: projected("/data/system/platform/suspend-last.json"),
+        logs,
+    })
 }
 
-fn export_inner(root: &Root) -> Result<Value, Failure> {
+fn export_inner(root: &Root) -> Result<Exported, Failure> {
     let volume = data_volume(root)?;
     if !admitted(&volume, MAX_BYTES as u64) {
         return Err(Failure::value("diagnostic_space_reserved"));
@@ -391,12 +420,13 @@ fn export_inner(root: &Root) -> Result<Value, Failure> {
         std::fs::File::open(&directory).and_then(|d| d.sync_all())?;
         let bytes = std::fs::read(&complete).map_err(|e| os(e, &complete))?;
         let digest = sha256_hex(&bytes);
-        Ok(object()
-            .with("state", Value::from("Complete"))
-            .with("path", Value::String(format!("/data/exports/{name}")))
-            .with("sha256", Value::String(digest))
-            .with("bytes", Value::from(bytes.len()))
-            .with("redacted", Value::Bool(true)))
+        Ok(Exported {
+            state: "Complete",
+            path: format!("/data/exports/{name}"),
+            sha256: digest,
+            bytes: bytes.len(),
+            redacted: true,
+        })
     })();
     let _ = std::fs::remove_file(&partial);
     result
