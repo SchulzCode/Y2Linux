@@ -13,7 +13,6 @@
 use super::image::{self, Ext4, Image};
 use crate::commands::storage::media;
 use crate::reply::{Failure, Outcome, Reply};
-use serde_json::Value;
 use std::{
     fs::{self, OpenOptions},
     path::{Path, PathBuf},

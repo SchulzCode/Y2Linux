@@ -2,9 +2,9 @@
 //! re-enumeration, acknowledged by the roots it pins (`mtp-roots.json`).
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{
-    expectations, json, name_of, thread, write_text, Child, Duration, Failure, Start, UsbService,
-    Value, View,
+    expectations, name_of, thread, write_text, Child, Duration, Failure, Start, UsbService, View,
 };
+use crate::commands::storage::sys::MtpRoots;
 
 impl UsbService {
     /// `command(message)`: one IPC command to the running responder.
@@ -15,20 +15,20 @@ impl UsbService {
     }
 
     /// `pinned()`: the roots the running responder has pinned, if its record is this responder's.
-    pub(super) fn pinned(&mut self) -> Option<Vec<Value>> {
-        let state = self.root.json_object("/run/y2/mtp-roots.json");
+    pub(super) fn pinned(&mut self) -> Option<Vec<String>> {
+        let state = MtpRoots::read(&self.root);
         let pid = self.child.as_ref().map(Child::pid)?;
-        if *state.get("pid").unwrap_or(&Value::Null) != json!(pid) {
+        if state.pid != Some(i64::from(pid)) {
             return None;
         }
-        state.get("roots").and_then(Value::as_array).cloned()
+        state.roots
     }
 
     pub(super) fn await_root(&mut self, path: &str, present: bool) -> bool {
         let deadline = self.root.clock().monotonic() + 3.0;
         while self.root.clock().monotonic() < deadline {
             if let Some(roots) = self.pinned() {
-                if roots.iter().any(|r| r.as_str() == Some(path)) == present {
+                if roots.iter().any(|r| r == path) == present {
                     return true;
                 }
             }

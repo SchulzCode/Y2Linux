@@ -3,30 +3,16 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{
     from_system_image, fs, install, installed, media, os_path, present, record, start, Path,
-    PathBuf, Result, Reviewed, Root, SystemTime, Value, ENOSPC, FOLDER, INBOX, INTERNAL_INBOX,
-    README, SD_INBOX, SOURCE, STATE, UNIX_EPOCH,
+    PathBuf, Result, Reviewed, Root, SystemTime, ENOSPC, FOLDER, INBOX, INTERNAL_INBOX, README,
+    SD_INBOX, SOURCE, STATE, UNIX_EPOCH,
 };
 use serde::{Deserialize, Serialize};
 use std::os::unix::fs::DirBuilderExt;
 use std::os::unix::fs::MetadataExt;
 
-/// The MTP responder's records read here: the roots it exports and its last copy error.
-#[derive(Deserialize, Default)]
-#[serde(default)]
-struct Responder {
-    #[serde(deserialize_with = "y2p_core::lenient::some_texts")]
-    roots: Option<Vec<String>>,
-    #[serde(deserialize_with = "y2p_core::lenient::or_none")]
-    error: Option<i64>,
-}
-
-fn responder(root: &Root, name: &str) -> Responder {
-    serde_json::from_value(Value::Object(root.json_object(name))).unwrap_or_default()
-}
-
 /// The MTP roots the responder exports (its record), as device paths below the root.
 pub(super) fn roots(root: &Root) -> Vec<PathBuf> {
-    responder(root, "/run/y2/mtp-roots.json")
+    crate::commands::storage::sys::MtpRoots::read(root)
         .roots
         .unwrap_or_default()
         .iter()
@@ -209,7 +195,7 @@ pub fn state(root: &Root) -> Status {
     }
     // The responder refuses a copy that does not fit before writing anything (mtp-safe space()), so
     // nothing is left behind; only say why (#39).
-    let full = responder(root, "/run/y2/mtp-events.json").error == Some(ENOSPC);
+    let full = crate::commands::service::usb::Activity::record(root).error == Some(ENOSPC);
     Status {
         state: "Missing".into(),
         reason: full.then(|| "no_space".into()),

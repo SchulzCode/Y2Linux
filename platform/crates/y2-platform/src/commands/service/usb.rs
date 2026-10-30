@@ -74,26 +74,28 @@ pub struct Transfer {
 /// Each field reads leniently.
 #[derive(Deserialize, Default)]
 #[serde(default)]
-struct Activity {
+pub(crate) struct Activity {
     #[serde(deserialize_with = "y2p_core::lenient::or_none")]
     pid: Option<i64>,
     #[serde(deserialize_with = "y2p_core::lenient::or_default")]
     active: bool,
     #[serde(deserialize_with = "y2p_core::lenient::or_none")]
-    error: Option<i64>,
+    pub(crate) error: Option<i64>,
     #[serde(deserialize_with = "y2p_core::lenient::or_none")]
     generation: Option<i64>,
 }
 
 impl Activity {
+    /// The record as it is, whichever responder wrote it.
+    pub(crate) fn record(root: &Root) -> Self {
+        y2p_core::lenient::read(root.json_object("/run/y2/mtp-events.json"))
+    }
+
     fn read(root: &Root, responder: Option<i32>) -> Self {
         let Some(pid) = responder else {
             return Self::default();
         };
-        let record: Activity = root
-            .read("/run/y2/mtp-events.json")
-            .and_then(|text| serde_json::from_str(&text).ok())
-            .unwrap_or_default();
+        let record = Activity::record(root);
         if record.pid != Some(i64::from(pid)) {
             return Self::default();
         }

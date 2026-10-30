@@ -129,7 +129,7 @@ pub struct UsbDiagnostics {
     link: Counted,
     charging: Charging,
     network: UsbNetwork,
-    mtp_roots: Object,
+    mtp_roots: crate::commands::storage::sys::MtpRoots,
     out_path: Counted,
 }
 
@@ -236,7 +236,7 @@ fn usb_diagnostics(root: &Root, udcs: &[Udc], link: Counted) -> Result<UsbDiagno
             address: read(&root.path("/sys/class/net/usb0/address")),
             ipv4,
         },
-        mtp_roots: root.json_object("/run/y2/mtp-roots.json"),
+        mtp_roots: crate::commands::storage::sys::MtpRoots::read(root),
         out_path,
     })
 }

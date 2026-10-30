@@ -5,7 +5,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use crate::reply::At;
 use crate::reply::{atomic_json, mkdir_parents, Failure};
-use serde_json::{json, Map, Value};
+use serde::{Deserialize, Serialize};
+use serde_json::{Map, Value};
 use std::{
     fs::{self, File},
     io,
@@ -18,6 +19,7 @@ pub use y2p_core::mounts::{mounts, Mount};
 pub use y2p_core::paths::name;
 pub use y2p_core::sys::statvfs;
 use y2p_core::{
+    lenient::{self, BootId},
     lock,
     root::{read as read_text, READ_LIMIT},
     Root,
@@ -211,44 +213,110 @@ pub fn lock_within(path: &Path, seconds: f64) -> Result<Option<File>, Failure> {
 
 const USB_SCHEMA: &str = "org.y2linux.usb-transfer/v1";
 
-/// The USB responder's state this boot; one that did not report this boot is `Unavailable`.
-pub fn usb_status(root: &Root) -> Object {
-    let state = object(root, "/run/y2/usb-transfer.json");
-    if !get_eq(&state, "schema", &json!(USB_SCHEMA)) || !root.is_this_boot(state.get("boot_id")) {
-        let mut value = Object::new();
-        value.insert("schema".into(), json!(USB_SCHEMA));
-        value.insert("state".into(), json!("Unavailable"));
-        value.insert("reason".into(), json!("service_not_observed"));
-        value.insert("filesystem_owner".into(), json!("linux"));
-        value.insert("block_export".into(), json!(false));
-        return value;
-    }
-    state
+/// The USB responder's record (/run/y2/usb-transfer.json) as the media hand-off reads it.
+#[derive(Deserialize, Default)]
+#[serde(default)]
+struct UsbState {
+    #[serde(deserialize_with = "lenient::text")]
+    schema: Option<String>,
+    boot_id: BootId,
+    #[serde(deserialize_with = "lenient::text")]
+    state: Option<String>,
+    #[serde(deserialize_with = "lenient::text")]
+    cable: Option<String>,
+    /// `None` for views that cannot be read.
+    #[serde(default = "no_views", deserialize_with = "views")]
+    views: Option<Vec<View>>,
 }
 
-/// Whether the USB responder shows `path` to the computer (`views`: a list of `{"path": …}`
-/// objects, read up to the first match). Views that cannot be read are refused
-/// (`usb_transfer_views_invalid`) rather than guessed: the computer might still hold the card.
-fn has_view(current: &Object, path: &str) -> Result<bool, Failure> {
-    let invalid = || Failure::value("usb_transfer_views_invalid");
-    match current.get("views") {
-        None => Ok(false),
-        Some(Value::Array(items)) => {
-            for item in items {
-                match item {
-                    Value::Object(view) if get(view, "path").as_str() == Some(path) => {
-                        return Ok(true)
-                    }
-                    Value::Object(_) => {}
-                    _ => return Err(invalid()),
-                }
-            }
-            Ok(false)
+/// One item of `views`: a view's path, or something that is no view.
+enum View {
+    Path(Option<String>),
+    Invalid,
+}
+
+fn no_views() -> Option<Vec<View>> {
+    Some(Vec::new())
+}
+
+/// A list of `{"path": …}` objects; an empty text or object holds no views.
+fn views<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Result<Option<Vec<View>>, D::Error> {
+    Ok(match Value::deserialize(deserializer)? {
+        Value::Array(items) => Some(
+            items
+                .into_iter()
+                .map(|item| match item {
+                    Value::Object(view) => match view.get("path") {
+                        Some(Value::String(path)) => View::Path(Some(path.clone())),
+                        _ => View::Path(None),
+                    },
+                    _ => View::Invalid,
+                })
+                .collect(),
+        ),
+        Value::String(text) if text.is_empty() => Some(Vec::new()),
+        Value::Object(map) if map.is_empty() => Some(Vec::new()),
+        _ => None,
+    })
+}
+
+impl UsbState {
+    /// The responder's state this boot; one that did not report this boot has no views.
+    fn read(root: &Root) -> UsbState {
+        let state: UsbState = lenient::read(root.json_object("/run/y2/usb-transfer.json"));
+        if state.schema.as_deref() != Some(USB_SCHEMA)
+            || !state.boot_id.is(root.boot_id().as_deref())
+        {
+            return UsbState {
+                state: Some("Unavailable".into()),
+                views: no_views(),
+                ..UsbState::default()
+            };
         }
-        // An empty text or object holds no views.
-        Some(Value::String(text)) if text.is_empty() => Ok(false),
-        Some(Value::Object(map)) if map.is_empty() => Ok(false),
-        Some(_) => Err(invalid()),
+        state
+    }
+
+    /// Whether the responder shows `path` to the computer (read up to the first match). Views that
+    /// cannot be read are refused (`usb_transfer_views_invalid`) rather than guessed: the computer
+    /// might still hold the card.
+    fn has_view(&self, path: &str) -> Result<bool, Failure> {
+        let invalid = || Failure::value("usb_transfer_views_invalid");
+        for view in self.views.as_ref().ok_or_else(invalid)? {
+            match view {
+                View::Path(Some(shown)) if shown == path => return Ok(true),
+                View::Path(_) => {}
+                View::Invalid => return Err(invalid()),
+            }
+        }
+        Ok(false)
+    }
+}
+
+/// /run/y2/mtp-roots.json (written by the MTP responder): its pid and the roots it has pinned.
+#[derive(Serialize, Deserialize, Default, Debug)]
+#[serde(default)]
+pub struct MtpRoots {
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "lenient::integer"
+    )]
+    pub schema: Option<i64>,
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "lenient::integer"
+    )]
+    pub pid: Option<i64>,
+    /// The texts of the list (none for anything but a list).
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "lenient::some_texts"
+    )]
+    pub roots: Option<Vec<String>>,
+}
+
+impl MtpRoots {
+    pub fn read(root: &Root) -> MtpRoots {
+        lenient::read(root.json_object("/run/y2/mtp-roots.json"))
     }
 }
 
@@ -280,16 +348,16 @@ pub fn wake_service(root: &Root) -> bool {
 /// from the responder anyway: the host only sees the storage leave, exactly as
 /// it would on removal.
 pub fn release_sd(root: &Root, mount_id: i64, explicit: bool) -> Result<bool, Failure> {
-    let current = usb_status(root);
-    if !has_view(&current, "/media/sd")? {
+    let current = UsbState::read(root);
+    if !current.has_view("/media/sd")? {
         return Ok(true);
     }
-    if !explicit && get(&current, "cable").as_str() != Some("not attached") {
+    if !explicit && current.cable.as_deref() != Some("not attached") {
         return Ok(false);
     }
     atomic_json(
         &root.path("/run/y2/usb-release-sd.json"),
-        &json!({"mount_id": mount_id}),
+        &serde_json::json!({"mount_id": mount_id}),
         false,
     )?;
     if !wake_service(root) {
@@ -297,8 +365,8 @@ pub fn release_sd(root: &Root, mount_id: i64, explicit: bool) -> Result<bool, Fa
     }
     let deadline = Instant::now() + Duration::from_secs(2);
     while Instant::now() < deadline {
-        let current = usb_status(root);
-        if get(&current, "state").as_str() != Some("Failed") && !has_view(&current, "/media/sd")? {
+        let current = UsbState::read(root);
+        if current.state.as_deref() != Some("Failed") && !current.has_view("/media/sd")? {
             return Ok(true);
         }
         thread::sleep(Duration::from_millis(50));
@@ -314,9 +382,8 @@ pub fn release_view(root: &Root, path: &str) -> bool {
     }
     let deadline = Instant::now() + Duration::from_secs(5);
     while Instant::now() < deadline {
-        let roots = object(root, "/run/y2/mtp-roots.json");
-        match roots.get("roots") {
-            Some(Value::Array(items)) if items.iter().any(|r| r.as_str() == Some(path)) => {}
+        match MtpRoots::read(root).roots {
+            Some(roots) if roots.iter().any(|r| r == path) => {}
             _ => return true,
         }
         thread::sleep(Duration::from_millis(50));
