@@ -1235,7 +1235,8 @@
     "failure": null,
     "full_system": true,
     "last_check": {
-     "result": "current"
+     "result": "current",
+     "schema": null
     },
     "physical_qualification": false,
     "schema": 2,

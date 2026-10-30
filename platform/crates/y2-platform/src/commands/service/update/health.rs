@@ -139,7 +139,7 @@ fn same_number(read: Option<i64>, recorded: Option<&Value>) -> bool {
 /// answers, or asks for the rollback after 180 s.
 pub(super) fn health_ack(root: &Root) -> Result<Value> {
     if journal_state(root) != JournalState::PendingHealth {
-        return Ok(Value::Object(status(root)));
+        return Ok(json!(status(root)));
     }
     let runtime = root.path("/run/y2");
     private_directory(&runtime)?;

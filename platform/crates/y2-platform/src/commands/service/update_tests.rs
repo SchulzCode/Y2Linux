@@ -340,7 +340,7 @@ fn download_stage_authenticates_before_payload_and_never_queues_partial() {
         "/data/updates/state.json",
         &json!({"schema": 2, "state": "Queued"}),
     );
-    assert_eq!(status(&fixture.root)["state"], json!("Queued"));
+    assert_eq!(json!(status(&fixture.root))["state"], json!("Queued"));
     // The installed release offered again: a check says up to date, not a failure.
     fixture.put_json(
         "/etc/y2linux/versions.json",
@@ -572,7 +572,7 @@ fn a_download_whose_process_is_gone_shows_as_interrupted() {
     );
     fixture.put("/data/updates/.stage.lock", "");
     assert_eq!(
-        status(&fixture.root)["download"],
+        json!(status(&fixture.root))["download"],
         json!({"schema": 1, "state": "Failed", "failure": "download_interrupted"})
     );
     // A live download (its flock in /proc/locks) is still shown as running.
@@ -586,7 +586,10 @@ fn a_download_whose_process_is_gone_shows_as_interrupted() {
             meta.ino()
         ),
     );
-    assert_eq!(status(&fixture.root)["download"]["state"], json!("Staging"));
+    assert_eq!(
+        json!(status(&fixture.root))["download"]["state"],
+        json!("Staging")
+    );
     // A failed background check never writes the leftover back.
     fixture.put("/proc/locks", "");
     fixture.put_json("/run/y2/network.json", &json!({"state": "Online"}));
@@ -719,13 +722,16 @@ fn journal_schemas_and_unpublished_channel() {
         "/data/updates/state.json",
         &json!({"schema": 2, "state": "PendingHealth"}),
     );
-    assert_eq!(status(&fixture.root)["state"], json!("PendingHealth"));
+    assert_eq!(
+        json!(status(&fixture.root))["state"],
+        json!("PendingHealth")
+    );
     fixture.put_json(
         "/data/updates/state.json",
         &json!({"schema": 3, "state": "Idle"}),
     );
     assert_eq!(
-        status(&fixture.root)["failure"],
+        json!(status(&fixture.root))["failure"],
         json!("journal_unreadable")
     );
     fixture.remove("/data/updates/state.json");

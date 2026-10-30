@@ -39,7 +39,7 @@ mod apply;
 mod check;
 mod health;
 mod journal;
-pub(crate) use journal::{state as journal_state, status as journal_status, JournalState};
+pub(crate) use journal::{state as journal_state, status as journal_status, JournalState, Status};
 mod source;
 mod staging;
 
@@ -172,7 +172,7 @@ pub fn run(root: &Root, action: &str, url: Option<&str>, package: Option<&str>) 
             "apply" | "rollback" => apply(root, action == "rollback"),
             "cancel" => cancel_update(root),
             "health-ack" => health_ack(root),
-            _ => Ok(Value::Object(status(root))),
+            _ => Ok(json!(status(root))),
         }
     })();
     match result {

@@ -365,7 +365,7 @@ pub fn system(root: &Root) -> Result<System, Failure> {
         entropy_available_bits: root.integer("/proc/sys/kernel/random/entropy_avail"),
         crng_ready: crng,
         usb,
-        update: Value::Object(crate::commands::service::update::journal_status(root)),
+        update: crate::commands::service::update::journal_status(root),
         radio_firmware: crate::commands::service::radiofw::status(root),
         reborn_supervisor: root.json("/data/reborn/logs/supervisor-last.json"),
     })
@@ -394,7 +394,7 @@ pub struct System {
     entropy_available_bits: Option<i64>,
     crng_ready: Value,
     pub usb: Usb,
-    pub update: Value,
+    pub update: crate::commands::service::update::Status,
     radio_firmware: crate::commands::service::radiofw::Status,
     reborn_supervisor: Option<Value>,
 }

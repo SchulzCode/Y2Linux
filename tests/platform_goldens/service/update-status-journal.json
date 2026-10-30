@@ -14,7 +14,7 @@
   },
   "full_system": true,
   "last_check": {
-   "attempt": 5,
+   "attempt": 5.0,
    "result": "failed",
    "schema": 1
   },

@@ -1,10 +1,12 @@
 //! The records an update reads besides its payloads: the native core's journal and answers
 //! (`status`, `core`) and download.json as the Software Update page sees it.
 // SPDX-License-Identifier: GPL-2.0-only
+use super::check::LastCheck;
 use super::staging::Download;
 use super::{
-    channel, command, fs, json, py, sorted, string, truthy, Map, Path, Raise, Result, Root, Value,
+    channel, command, fs, json, sorted, string, truthy, Map, Path, Raise, Result, Root, Value,
 };
+use serde::{Deserialize, Serialize};
 pub(super) use y2p_core::json::python_error as json_error;
 use y2p_core::py::PyValue;
 
@@ -32,41 +34,80 @@ pub(crate) fn download_record(root: &Root) -> Option<Download> {
 
 /// `update status`: the core's journal (Idle on a ready Y2DATA without one, Unavailable without a
 /// ready Y2DATA), with the download and check records and the channel's name.
-pub fn status(root: &Root) -> Map<String, Value> {
+#[derive(Serialize, Clone, Debug)]
+pub struct Status {
+    /// The core's journal as it wrote it (the platform's stand-in without one).
+    #[serde(flatten)]
+    pub journal: Map<String, Value>,
+    /// What a readable journal is shown with.
+    #[serde(flatten)]
+    pub records: Option<Records>,
+}
+
+/// The records `update status` shows next to a readable journal.
+#[derive(Serialize, Clone, Debug)]
+pub struct Records {
+    pub download: Option<Download>,
+    pub last_check: Option<LastCheck>,
+    pub channel: Value,
+    pub full_system: bool,
+    pub physical_qualification: bool,
+}
+
+/// The journal's fields the platform reads (each lenient).
+#[derive(Deserialize, Default)]
+#[serde(default)]
+struct Head {
+    /// Compared as a number (1 or 2; `2.0` too): an update in progress must never read as none.
+    schema: Value,
+    #[serde(deserialize_with = "y2p_core::lenient::text")]
+    state: Option<String>,
+}
+
+impl Status {
+    /// The journal's failure text (none without one).
+    pub fn failure(&self) -> Option<&str> {
+        self.journal.get("failure").and_then(Value::as_str)
+    }
+}
+
+/// The journal as an object of schema 1 or 2 (the native core writes 2 since OTA-35, BOOTIMG and
+/// root); none for a journal of another schema or shape.
+fn journal(root: &Root) -> Option<Map<String, Value>> {
+    let map = root.json_object("/data/updates/state.json");
+    let head: Head = serde_json::from_value(Value::Object(map.clone())).ok()?;
+    let schema = Some(&head.schema);
+    (y2p_core::py::python_eq_int(schema, 1) || y2p_core::py::python_eq_int(schema, 2))
+        .then_some(map)
+}
+
+pub fn status(root: &Root) -> Status {
     let path = root.path("/data/updates/state.json");
-    let mut value = root.json("/data/updates/state.json");
-    if value.is_none() && !path.exists() && path.symlink_metadata().is_err() {
+    let missing = root.json("/data/updates/state.json").is_none()
+        && !path.exists()
+        && path.symlink_metadata().is_err();
+    let journal = if missing {
         let ready = root.read("/data/.y2data-schema").as_deref() == Some("1")
             && root.path("/data/updates").is_dir();
-        value = Some(
-            json!({"schema": 1, "state": if ready { "Idle" } else { "Unavailable" },
-                            "failure": if ready { Value::Null } else { json!("data_state_unavailable") }}),
-        );
-    }
-    // The native core writes journal schema 2 since OTA-35 (BOOTIMG + root).
-    let mut value = match value {
-        Some(Value::Object(map))
-            if py::python_eq_int(map.get("schema"), 1)
-                || py::python_eq_int(map.get("schema"), 2) =>
-        {
-            map
-        }
-        _ => {
-            return object(Some(
-                json!({"schema": 1, "state": "Failed", "failure": "journal_unreadable"}),
-            ))
+        json!({"schema": 1, "state": if ready { "Idle" } else { "Unavailable" },
+               "failure": if ready { Value::Null } else { json!("data_state_unavailable") }})
+    } else {
+        match journal(root) {
+            Some(map) => Value::Object(map),
+            None => json!({"schema": 1, "state": "Failed", "failure": "journal_unreadable"}),
         }
     };
-    value.insert("download".into(), json!(download_record(root)));
-    value.insert(
-        "last_check".into(),
-        root.json("/data/updates/last-check.json")
-            .unwrap_or(Value::Null),
-    );
-    value.insert("channel".into(), channel(root).name);
-    value.insert("full_system".into(), json!(true));
-    value.insert("physical_qualification".into(), json!(false));
-    value
+    let unreadable = !missing && journal.get("failure") == Some(&json!("journal_unreadable"));
+    Status {
+        journal: object(Some(journal)),
+        records: (!unreadable).then(|| Records {
+            download: download_record(root),
+            last_check: LastCheck::load(root),
+            channel: channel(root).name,
+            full_system: true,
+            physical_qualification: false,
+        }),
+    }
 }
 
 /// Whether any live process holds a flock on `path` (/proc/locks names the device and inode).
@@ -197,14 +238,8 @@ pub(crate) fn state(root: &Root) -> JournalState {
             JournalState::Unavailable
         };
     }
-    match value {
-        Some(Value::Object(map))
-            if map
-                .get("schema")
-                .is_some_and(|s| s.py_eq(&json!(1)) || s.py_eq(&json!(2))) =>
-        {
-            JournalState::named(string(map.get("state")))
-        }
-        _ => JournalState::Failed,
+    match value.and_then(|_| journal(root)) {
+        Some(map) => JournalState::named(string(map.get("state"))),
+        None => JournalState::Failed,
     }
 }

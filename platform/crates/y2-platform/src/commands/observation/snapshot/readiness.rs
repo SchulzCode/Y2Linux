@@ -105,7 +105,7 @@ pub(super) fn readiness(status: &Snapshot) -> Result<Section, Failure> {
     let cards = status.audio.cards.as_deref().unwrap_or_default();
     let audio = regex!(r"(?m)^\s*\d+\s+\[Y2Audio\s*\]").is_match(cards) && valid;
     let update = &status.system.update;
-    let update_state = match update.get("state") {
+    let update_state = match update.journal.get("state") {
         Some(Value::Array(_) | Value::Object(_)) => {
             return Err(Failure::value("invalid_update_journal"))
         }
@@ -131,7 +131,7 @@ pub(super) fn readiness(status: &Snapshot) -> Result<Section, Failure> {
             },
             Some("profile_does_not_imply_current_physical_acceptance"),
         ),
-        update: item(update_state, update.get("failure").and_then(Value::as_str)),
+        update: item(update_state, update.failure()),
     };
     Ok(section)
 }
