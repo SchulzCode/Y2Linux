@@ -39,7 +39,7 @@ mod apply;
 mod check;
 mod health;
 mod journal;
-pub(crate) use journal::{state as journal_state, JournalState};
+pub(crate) use journal::{state as journal_state, status as journal_status, JournalState};
 mod source;
 mod staging;
 

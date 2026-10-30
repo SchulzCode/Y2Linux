@@ -117,71 +117,6 @@ pub fn internal_ready(root: &Root) -> bool {
     crate::commands::storage::internal::ready(root)
 }
 
-/// The update download's record (download.json), with a download or check whose process is gone shown as
-/// interrupted. A user's player (8.17) said "Downloading Update… Keep Wi-Fi on." for a day: the
-/// record a download writes first stays `Staging` when the download dies without reaching its own
-/// handler (power loss, a kill), and that page offered neither Cancel nor Check for Updates; a
-/// restart kept it (it is on /data).
-fn download_record(root: &Root) -> Value {
-    let record = root.json("/data/updates/download.json");
-    let in_progress = record
-        .as_ref()
-        .and_then(|r| r.get("state"))
-        .and_then(Value::as_str)
-        .is_some_and(|state| matches!(state, "Staging" | "Checking"));
-    // Only a download in progress needs its process: the lock's live holders.
-    if in_progress
-        && !std::fs::metadata(root.path("/data/updates/.stage.lock"))
-            .is_ok_and(|meta| !y2p_core::lock::flock_pids(root, &meta).is_empty())
-    {
-        return json!({"schema": 1, "state": "Failed", "failure": "download_interrupted"});
-    }
-    record.unwrap_or(Value::Null)
-}
-
-/// The update journal (state.json) with the download, the last check and the channel; Idle on a
-/// data volume that has none yet.
-pub fn update_status(root: &Root) -> Value {
-    let path = root.path("/data/updates/state.json");
-    let mut value = root.json("/data/updates/state.json");
-    if value.is_none() && !path.exists() && path.symlink_metadata().is_err() {
-        let ready = root.read("/data/.y2data-schema").as_deref() == Some("1")
-            && root.path("/data/updates").is_dir();
-        value = Some(
-            json!({"schema": 1, "state": if ready { "Idle" } else { "Unavailable" },
-                            "failure": if ready { Value::Null } else { json!("data_state_unavailable") }}),
-        );
-    }
-    // The native core writes journal schema 2 since OTA-35 (BOOTIMG + root).
-    let mut value = match value {
-        Some(Value::Object(map))
-            if get_eq(&map, "schema", &json!(1)) || get_eq(&map, "schema", &json!(2)) =>
-        {
-            map
-        }
-        _ => return json!({"schema": 1, "state": "Failed", "failure": "journal_unreadable"}),
-    };
-    value.insert("download".into(), download_record(root));
-    value.insert(
-        "last_check".into(),
-        root.json("/data/updates/last-check.json")
-            .unwrap_or(Value::Null),
-    );
-    // The owner's channel on /data, or the shipped one.
-    let name = root
-        .json_object("/data/updates/channel.json")
-        .shift_remove("name")
-        .or_else(|| {
-            root.json_object("/etc/y2linux/update-channel.json")
-                .shift_remove("name")
-        })
-        .unwrap_or(Value::Null);
-    value.insert("channel".into(), name);
-    value.insert("full_system".into(), json!(true));
-    value.insert("physical_qualification".into(), json!(false));
-    Value::Object(value)
-}
-
 /// `/run/y2/radio-firmware.json`: the last firmware install's answer (service group).
 #[derive(Deserialize, Default)]
 #[serde(default)]
@@ -493,7 +428,7 @@ pub fn system(root: &Root) -> Result<System, Failure> {
         entropy_available_bits: root.integer("/proc/sys/kernel/random/entropy_avail"),
         crng_ready: crng,
         usb,
-        update: update_status(root),
+        update: Value::Object(crate::commands::service::update::journal_status(root)),
         radio_firmware: radiofw_state(root),
         reborn_supervisor: root.json("/data/reborn/logs/supervisor-last.json"),
     })
