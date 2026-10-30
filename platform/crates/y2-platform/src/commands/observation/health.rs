@@ -7,20 +7,24 @@ use super::{
 };
 use crate::reply::{Failure, Outcome, Reply};
 use serde_json::{json, Map, Value};
+use y2p_contract::CheckState;
 use y2p_core::{command, Root};
 
 /// The health record: every check and the worst state among them.
 pub fn check(root: &Root, full: bool) -> Result<Map<String, Value>, Failure> {
     let status = snapshot(root, &[], false, 0.0)?;
     let mut checks: Vec<Map<String, Value>> = Vec::new();
-    let mut add = |name: &str, state: &str, reason: Value, details: Option<Map<String, Value>>| {
-        let mut check = Map::new();
-        check.insert("name".into(), json!(name));
-        check.insert("state".into(), json!(state));
-        check.insert("reason".into(), reason);
-        check.extend(details.unwrap_or_default());
-        checks.push(check);
-    };
+    let mut states: Vec<CheckState> = Vec::new();
+    let mut add =
+        |name: &str, state: CheckState, reason: Value, details: Option<Map<String, Value>>| {
+            let mut check = Map::new();
+            check.insert("name".into(), json!(name));
+            check.insert("state".into(), json!(state));
+            states.push(state);
+            check.insert("reason".into(), reason);
+            check.extend(details.unwrap_or_default());
+            checks.push(check);
+        };
     let empty = Vec::new();
     for volume in section(&status, "storage")["volumes"]
         .as_array()
@@ -33,14 +37,14 @@ pub fn check(root: &Root, full: bool) -> Result<Map<String, Value>, Failure> {
             _ => "internal_media",
         };
         let mut state = match volume["state"].as_str() {
-            Some("Ready") => "OK",
-            Some("Degraded") => "DEGRADED",
-            Some("Failed") => "FAILED",
-            _ => "UNAVAILABLE",
+            Some("Ready") => CheckState::Ok,
+            Some("Degraded") => CheckState::Degraded,
+            Some("Failed") => CheckState::Failed,
+            _ => CheckState::Unavailable,
         };
         let space = &volume["space_state"];
         if matches!(space.as_str(), Some("LowSpace" | "CriticalSpace")) {
-            state = "DEGRADED";
+            state = CheckState::Degraded;
         }
         let reason = match volume.get("reason") {
             Some(r) if y2p_core::py::truthy(r) => r.clone(),
@@ -69,11 +73,11 @@ pub fn check(root: &Root, full: bool) -> Result<Map<String, Value>, Failure> {
     add(
         "filesystem_errors",
         if failed {
-            "FAILED"
+            CheckState::Failed
         } else if available {
-            "OK"
+            CheckState::Ok
         } else {
-            "UNAVAILABLE"
+            CheckState::Unavailable
         },
         json!(if failed {
             "kernel_reported_errors"
@@ -103,7 +107,11 @@ pub fn check(root: &Root, full: bool) -> Result<Map<String, Value>, Failure> {
     ] {
         add(
             name,
-            if present { "OK" } else { "UNAVAILABLE" },
+            if present {
+                CheckState::Ok
+            } else {
+                CheckState::Unavailable
+            },
             json!(if present {
                 "observed"
             } else {
@@ -115,10 +123,10 @@ pub fn check(root: &Root, full: bool) -> Result<Map<String, Value>, Failure> {
     for name in ["wifi", "bluetooth", "update"] {
         let item = &section(&status, "readiness")[name];
         let state = match item["state"].as_str() {
-            Some("Ready") => "OK",
-            Some("Starting" | "Degraded") => "DEGRADED",
-            Some("Failed") => "FAILED",
-            Some("Unavailable") => "UNAVAILABLE",
+            Some("Ready") => CheckState::Ok,
+            Some("Starting" | "Degraded") => CheckState::Degraded,
+            Some("Failed") => CheckState::Failed,
+            Some("Unavailable") => CheckState::Unavailable,
             // The snapshot's readiness knows no other state.
             _ => return Err(Failure::value("invalid_readiness_state")),
         };
@@ -130,9 +138,9 @@ pub fn check(root: &Root, full: bool) -> Result<Map<String, Value>, Failure> {
         ("tickless_idle", "no_hz_active"),
     ] {
         let (state, reason) = match timers[key].as_bool() {
-            Some(true) => ("OK", "runtime_observed"),
-            Some(false) => ("DEGRADED", "legacy_fallback"),
-            None => ("UNAVAILABLE", "runtime_unavailable"),
+            Some(true) => (CheckState::Ok, "runtime_observed"),
+            Some(false) => (CheckState::Degraded, "legacy_fallback"),
+            None => (CheckState::Unavailable, "runtime_unavailable"),
         };
         add(name, state, json!(reason), None);
     }
@@ -145,7 +153,11 @@ pub fn check(root: &Root, full: bool) -> Result<Map<String, Value>, Failure> {
             let answer = command::run(root, argv, 2.0);
             add(
                 name,
-                if answer.ok { "OK" } else { "UNAVAILABLE" },
+                if answer.ok {
+                    CheckState::Ok
+                } else {
+                    CheckState::Unavailable
+                },
                 json!(answer
                     .reason
                     .filter(|r| !r.is_empty())
@@ -154,10 +166,15 @@ pub fn check(root: &Root, full: bool) -> Result<Map<String, Value>, Failure> {
             );
         }
     }
-    let state = ["FAILED", "DEGRADED", "UNAVAILABLE", "OK"]
-        .into_iter()
-        .find(|s| checks.iter().any(|c| c["state"] == *s))
-        .unwrap_or("OK");
+    // The worst state among the checks: FAILED, then DEGRADED, then UNAVAILABLE.
+    let state = [
+        CheckState::Failed,
+        CheckState::Degraded,
+        CheckState::Unavailable,
+    ]
+    .into_iter()
+    .find(|s| states.contains(s))
+    .unwrap_or(CheckState::Ok);
     let mut parameters = Map::new();
     parameters.insert("mode".into(), json!(if full { "full" } else { "quick" }));
     let mut record = util::record(root, "health", parameters);
@@ -167,8 +184,9 @@ pub fn check(root: &Root, full: bool) -> Result<Map<String, Value>, Failure> {
         Value::Array(
             checks
                 .iter()
-                .filter(|c| c["state"] == "FAILED")
-                .map(|c| c["name"].clone())
+                .zip(&states)
+                .filter(|(_, s)| **s == CheckState::Failed)
+                .map(|(c, _)| c["name"].clone())
                 .collect(),
         ),
     );
