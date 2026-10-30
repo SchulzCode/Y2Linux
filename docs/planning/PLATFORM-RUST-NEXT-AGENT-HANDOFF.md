@@ -75,20 +75,40 @@ cheap timer (no Reborn change).
   calls, eMMC entries one readlink each; left per pass: the SD sysfs path canonicalised 4×, media-mount.json 4×,
   mountinfo 3×. Idle 177 (battery Full, 30.6 min, builtin-only script): power 4.1, service 4.9, ssh 2.0,
   connectivity 0.2, Reborn 12.5 s/h; process starts 3.0/min.
-- **Next:** G (process starts: now 3/min dark, so mostly done; check what the 15 were), the C–F remainders, the
-  service pass's repeated SD canonicalisation/record reads, J2/J3 (device now reachable). Next free label **178**,
-  sequence above **11220**.
+- **Late morning (2026-10-30), same agent, test builds 178 and 179** (details: roadmap-gap-audit.md):
+  - item 9 done: wlan0 counters by rtnetlink; `y2p_core::sys::real_path`; service 4.9 → 4.2 s/h dark.
+  - J3 done as analysis + one fix: application_ready within a pass on plain restarts (was up to 30 s late); boot
+    profile in the audit; **owner decisions** there: the connectivity driver's fixed 5 s `msleep` in
+    `pmic_prepare` (move to probe time?) and boot-gate holding Reborn until the radios are up.
+  - C done: all six status sections built from types (power, cpu with IdleState, idle completion, wifi, storage,
+    system). Left on purpose: typed reads in readiness/health (the snapshot holds Values: `status <section>` prints
+    sorted, diagnostics export walks insertion order; typed reads would re-deserialize or change every consumer).
+  - D done except "arguments parsed twice" (left: the three re-parsers see only cli.rs's canonical form; typed
+    values from cli.rs means reworking all eight groups' routing). Bluetooth normalize and reset execute split
+    into steps; idle_completion typed and split.
+  - E done except the two repr/JSON serialisers (they differ for odd input: owner decision) and the ssh wake fold
+    (different signals/flags; its errno save moved into signal_wake! instead): Root::is_this_boot, one sys::poll,
+    one sleep status, one setup_status.
+  - F done: no unsafe in power/unix.rs and suspend/helper/kernel.rs (new sys wrappers).
+  - G: health-ack's rebornctl → control socket; Reborn's once-a-minute `sleep request` on the cable stopped
+    (Reborn 764b024 + 68af9ac). Left on purpose (event-only, Wi-Fi/clock risk for a few starts per event):
+    wpa_cli -g interface_add/remove/list and autoscan, ip flush/addr/route on DHCP/supplicant events, busybox
+    date -s, the report build's children.
+  - I and J2 not done: both need the owner's hands (event sources; Bluetooth headphones for avrcp).
+  - 178 (seq 11230) and 179 (seq 11240, Reborn 68af9ac) Acknowledged, device checks OK; 179's health-ack went
+    through the control socket. Next free label **180**, sequence above
+    **11240**.
 - **Owed (owner)**: the hands-on event-source checks for I (USB plug/unplug, SD insert/remove, screen dark/lit with
-  a uevent/POLLPRI probe); §7 below.
+  a uevent/POLLPRI probe); the two boot decisions above; §7 below.
 
 
 ## 1. Where it stands
 
 - The platform is Rust only: `platform/` (crates `y2p-core`, `y2p-contract`, `y2-platform`), about 49,600
   non-test lines, built into `/usr/sbin/y2-platform` (32-bit ARM, armv7). No Python runs on the player.
-- On the owner's player: **test build 177** (sequence 11220), Acknowledged 2026-10-30 07:49 (see §0; 176's USB
-  network stall after its OTA was a one-off, Acknowledged after a replug). All work is on local `main`; nothing is
-  pushed. Next free label **178**, sequence **above 11220**.
+- On the owner's player: **test build 179** (sequence 11240, Reborn 68af9ac), installed 2026-10-30 11:21 (see
+  §0). All work is on local `main` (Y2Linux and Y2Reborn); nothing is pushed. Next free label **180**, sequence
+  **above 11240**.
 - Done so far (details in the refactor plan and `roadmap-gap-audit.md`): the port (170), the refactor plan's
   waves 1–2 (171), quick wins (172), the duplication pass and idle gains (173), the "next pass" P1–P9 (174/175):
   shared helpers in `y2p_core` (paths, digest, text, clock, json, lock, sys, record, power_journal, regex!),

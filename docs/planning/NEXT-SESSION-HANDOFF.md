@@ -1,6 +1,14 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.4 candidate (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-30, morning): TEST BUILD 177 ON THE OWNER'S PLAYER, ACKNOWLEDGED; NOT PUBLISHED.**
+> **START HERE (2026-10-30, midday): TEST BUILD 179 ON THE OWNER'S PLAYER; NOT PUBLISHED.**
+> 178 + 179 finished the next-agent handoff's code items the agent could do alone (C, D, E, F, item 9, parts of G
+> and J3; what was left on purpose and why: PLATFORM-RUST-NEXT-AGENT-HANDOFF.md §0). Service daemon dark 4.2 s/h;
+> Reborn (764b024, 68af9ac) no longer asks to sleep every minute on the cable; application_ready follows the
+> first frame on plain restarts. **Owner decisions:** the radio driver's fixed 5 s PMIC settle on every boot and
+> boot-gate holding Reborn for the radios (roadmap-gap-audit.md "Boot profile"). **Owed:** event-source checks for
+> I, dark-wake checks. Next free label 180, sequence above 11240.
+>
+> Previous entry: **START HERE (2026-10-30, morning): TEST BUILD 177 ON THE OWNER'S PLAYER, ACKNOWLEDGED; NOT PUBLISHED.**
 > 176's silent USB network was a one-off ECM bulk-OUT stall after its OTA boot (host transmit timeouts, usb0 had its
 > address; replug fixed it, 176 Acknowledged, no fault counter, no gadget code in 176). 177 = 176 + eMMC entries
 > skipped in the SD inventory/USB tick + BAT0 pread in the power daemon; seq 11220, Acknowledged, device check OK.

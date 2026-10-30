@@ -9741,3 +9741,42 @@ off, battery **Full** (not charging, unlike 174/176), 300 s at 30.6 min uptime, 
 forks of its own but one sleep): power-daemon 4.1, service-daemon 4.9, ssh-daemon 2.0, connectivity 0.2, Reborn
 12.5 s/h (main 5.9, watchdog 2.0, wifi 1.4, avrcp 1.2); **process starts 3.0/min** (15 in 300 s). Owed: the owner's
 dark-wake checks, the hands-on event-source checks for handoff §4 I, PLATFORM-RUST-PORT-HANDOFF.md §6 A.
+
+**Test build 178 (2026-10-30 late morning; handoff §4 item 9, J3, C, E, F, Reborn 764b024):** every step
+byte-identical against 177's code (platform-gate.sh, baseline from 0e2d066a, no golden re-recorded), host suite 576
+OK. Changes: wlan0's 24 traffic counters from one RTM_GETLINK dump (IFLA_STATS64) instead of 24 files per service
+pass; `y2p_core::sys::real_path` (O_PATH + /proc/self/fd: 3 calls instead of ~13 readlinks per sysfs block path);
+the application_ready boot stage within a pass of Reborn's first frame once no update waits for health (a plain
+restart recorded it on the next 30-s maintenance pass: 177's update boot had the first frame at 23.4 s, the stage
+at 40.2 s); typed status sections power, cpu, idle completion, wifi, storage. Reborn 764b024: after a
+`charger_or_usb_active` refusal automatic sleep waits while the battery shows a cable (strace on 177, dark on USB:
+one `y2-platform sleep request` a minute, the only steady process start). On the player by staged OTA: seq 11230,
+Acknowledged, USB clean; device check OK; `status wifi` counters equal the sysfs files; SD volume Ready through
+real_path. Idle, screen off, battery Full, 300 s from 30.8 min (builtins-only script): power-daemon 4.1,
+service-daemon **4.2** (177: 4.9), ssh 1.8, connectivity 0.1, Reborn 13.9 s/h. Reborn's sleep requests on USB: at
+123, 1291, 1351, 2450 s instead of every minute; the leaks came from BAT0 reading "Not charging" while the charger
+holds a full battery (shown as on battery) → Reborn 68af9ac holds on a cable flag (Charging, Full, Not charging).
+Remaining process starts are event-driven: Wi-Fi idle power-down/up (wpa_cli -g interface_add/remove, ip flush ×4,
+udhcpc, wpa-event/dhcp-event/wifi-event), the report check (blkid, report work, rebornctl health, dmesg), ntpd's
+periodic hwclock.
+
+**Boot profile (177's update boot, J3):** initramfs 0.44 s; storage discovery → rescue_update 6.2 s is the update
+boot only (e2fsck of Y2DATA + boot-check; a plain restart skips it, platform_start ≈ 8.7 s there); rcS 8.75–9.69 s;
+**S90reborn 9.69 → 22.68 s = boot-gate waiting for the radios** (factory records ≈10 s, calibration, then
+radio-activate: the connectivity driver's `pmic_prepare` has a fixed `msleep(5000)` after the PMIC connectivity
+settings, then the MD1 calibration boot ends 20.75 s (FS=841 requests served from RAM), WMT patches and RF
+calibration to 21.4 s, Wi-Fi up 22.6 s); Reborn's first frame 23.4 s. **Owner decisions:** (a) do the PMIC
+settings at probe time (normal boot) so the 5 s settle overlaps the boot instead of following S41 (a kernel timing
+change); (b) let Reborn start before the radios and show Wi-Fi/Bluetooth coming up (boot-gate's design choice).
+
+**Test build 179 (2026-10-30, handoff §4 E/F/D/G, Reborn 68af9ac):** byte-identical against 177's code (gate OK
+each), host suite 576 OK. Root::is_this_boot for the record checks (and one setup_status), one sys::poll with each
+caller's rounding, signal_wake! restores errno, no unsafe in power/unix.rs and suspend/helper/kernel.rs (sys
+bind_unix/listen/peer_credentials/nanosleep/real timer), the power journal's sleep status is sleep::product,
+typed status system section, Bluetooth normalize and reset execute split into steps, update health-ack asks
+Reborn's control socket (observation::reborn_control) instead of starting rebornctl. On the player by staged OTA from 178: seq 11240,
+Acknowledged by health-ack through Reborn's control socket (no rebornctl process), USB clean (re-enumerated 49 s
+after the apply); device check OK (health: Bluetooth UNAVAILABLE, radio off); `status system` and `status
+bluetooth` answer (Bluetooth: radio_off at the adapter step, as before). Update boot: first frame 20.5 s,
+application_ready 37.4 s (health-ack's, as designed for an update boot). Owed: idle on 179 after ≥ 30 min,
+Reborn's sleep requests on the cable over an hour (68af9ac), the owner's checks.
