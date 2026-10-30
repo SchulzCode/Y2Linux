@@ -9715,3 +9715,29 @@ state (Acknowledged or not) and the device check could not be read. Owner's rule
 page; replug the USB cable (a new enumeration) and check `ip addr show usb0` and `update status` on 176; if 176 is
 at fault, the commits after 2e68d63e are the suspects (none touches usb0 or S20y2-usb directly; the USB tick's
 views became a typed struct in 82503b14).
+**176 afterwards (2026-10-30 morning):** the owner replugged the cable at 07:34; usb0 answered at once and 176 was
+**Acknowledged** (seq 11210, 6fd3e065, no reboot since the install, uptime 3:48). Cause class, from both kernels: on
+the player usb0 had 10.42.0.1/24 from 10.7 s (`Y2NET: usb0 … ready`), so the address script was fine; on the host
+cdc_ether logged `NETDEV WATCHDOG: transmit queue 0 timed out` 11 times (03:49:29–05:00:11), i.e. the gadget's
+bulk-OUT (ECM) endpoint took no packet from the host until the re-enumeration. The gadget was not rebound in between
+(one host register 03:49:23, the next 07:34:25). This is the only transmit timeout in the host's journal (kept since
+2026-10-26), across ≈10 OTA/restart enumerations on 10-29/30 including 175; 177's OTA right after came back clean. The
+controller counters for the whole boot show no fault (dma_errors 0, m1_fallback 0, nuke 0, restart_flush 0, storm
+guard and unexplained IRQs 0); the 40-event `rxdiag` ring held only post-replug traffic. 176's diff touches only the
+MTP view types, not the configfs/ECM setup. Verdict: a one-off ECM OUT stall after an OTA boot, cause not found;
+if it repeats, read `/sys/devices/platform/11200000.usb/rxdiag` and `status` **before** replugging (the ring is
+overwritten by the new traffic). Device check on 176: all OK (health OK, Bluetooth UNAVAILABLE: radio off). Idle on
+176, screen off, charging, 300 s at 231 min uptime: power-daemon 6.2, service 7.7, ssh 2.0, connectivity 0.1,
+Reborn 14.5 s/h (main 6.0, wifi 3.0, watchdog 2.3, avrcp 1.3).
+
+**Test build 177 (2026-10-30 morning):** 176 + the SD inventory/USB tick skipping the 11 eMMC entries after one
+readlink (979f124b, 3d2bd3b0) and the power daemon's pread of BAT0 from kept descriptors (db11884f); host suite 576
+OK. Staged from 176 (seq 11220, 9f708af2), applied 07:46:49, Acknowledged at the first check ≈3 min later; host
+re-enumeration 07:47:47, no transmit timeout. Device check all OK (power.json 11 writes in 20 s at 2.5 min uptime).
+strace, screen off: the power daemon ≈29 calls per sample (175: ≈46) with 4 preads/s; a dark service pass runs every
+10 s at ≈560 calls with 73 readlinks, the eMMC entries one readlink each (18/pass); left in a pass: the SD card's
+sysfs path resolved component by component 4× (36 readlinks), media-mount.json read 4×, mountinfo 3×. Idle, screen
+off, battery **Full** (not charging, unlike 174/176), 300 s at 30.6 min uptime, measured with builtins only (no
+forks of its own but one sleep): power-daemon 4.1, service-daemon 4.9, ssh-daemon 2.0, connectivity 0.2, Reborn
+12.5 s/h (main 5.9, watchdog 2.0, wifi 1.4, avrcp 1.2); **process starts 3.0/min** (15 in 300 s). Owed: the owner's
+dark-wake checks, the hands-on event-source checks for handoff §4 I, PLATFORM-RUST-PORT-HANDOFF.md §6 A.

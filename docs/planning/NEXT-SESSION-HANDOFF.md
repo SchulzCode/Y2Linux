@@ -1,6 +1,14 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.4 candidate (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-30, early morning): TEST BUILD 176 (NEXT-AGENT HANDOFF A–F) APPLIED ON THE OWNER'S PLAYER — ITS USB NETWORK DID NOT COME BACK; NOT PUBLISHED.**
+> **START HERE (2026-10-30, morning): TEST BUILD 177 ON THE OWNER'S PLAYER, ACKNOWLEDGED; NOT PUBLISHED.**
+> 176's silent USB network was a one-off ECM bulk-OUT stall after its OTA boot (host transmit timeouts, usb0 had its
+> address; replug fixed it, 176 Acknowledged, no fault counter, no gadget code in 176). 177 = 176 + eMMC entries
+> skipped in the SD inventory/USB tick + BAT0 pread in the power daemon; seq 11220, Acknowledged, device check OK.
+> Idle dark (battery Full): power 4.1, service 4.9, ssh 2.0, Reborn 12.5 s/h, process starts 3.0/min. **Next:**
+> [PLATFORM-RUST-NEXT-AGENT-HANDOFF.md](PLATFORM-RUST-NEXT-AGENT-HANDOFF.md) §0 (C–F remainders, G, J2/J3).
+> **Owed (owner):** event-source checks for I, dark-wake checks. Next free label 178, sequence above 11220.
+>
+> Previous entry: **START HERE (2026-10-30, early morning): TEST BUILD 176 (NEXT-AGENT HANDOFF A–F) APPLIED ON THE OWNER'S PLAYER — ITS USB NETWORK DID NOT COME BACK; NOT PUBLISHED.**
 > One overnight agent: §4 A (typed shared records) and B (state enums) done, C–F partly (see the handoff's §0),
 > 34 commits on local `main` from 2e68d63e, every step byte-identical (platform-gate.sh), host suite 576 OK.
 > 176 (seq 11210) staged and applied 03:48; the player enumerated (MTP + ECM) and MTP answers from the PC, but usb0

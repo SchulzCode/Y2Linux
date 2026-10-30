@@ -64,19 +64,31 @@ cheap timer (no Reborn change).
   cheaper pass (the inventory/signature work above) rather than a longer interval.
 - **J**: J1 committed (not built); J2 (Reborn wifi/avrcp threads) and J3 (boot-stage profiling) not done
   (device needed).
-- **Owed (owner)**: see what 176 shows on the screen; replug the USB cable and check `ip addr show usb0`,
-  `y2-platform update status` and `tools/development/platform-device-check.sh`; then the 176 device check and
-  the idle measurement; the hands-on event-source checks for I (USB plug/unplug, SD insert/remove, screen
-  dark/lit with a uevent/POLLPRI probe); §7 below.
+- **Morning (2026-10-30), second agent:** the owner replugged USB at 07:34; 176 was **Acknowledged**. Cause class:
+  usb0 had its address from 10.7 s; the host's cdc_ether logged transmit-queue timeouts (the gadget's ECM bulk-OUT
+  took nothing) until the re-enumeration; first such timeout in the host journal since 10-26, no controller fault
+  counter set, 176 touches no gadget/ECM code → one-off, cause not found (if it repeats: read the controller's
+  `rxdiag` and `status` before replugging). 176 device check OK; idle 176 (charging, 231 min): power 6.2, service
+  7.7, ssh 2.0, connectivity 0.1, Reborn 14.5 s/h.
+- **Test build 177** (seq 11220, 9f708af2 = db11884f + bump: eMMC skip + BAT0 pread) staged and applied 07:46:49,
+  Acknowledged, USB clean, device check OK. strace: power daemon ≈29 calls/sample (≈46); service pass every 10 s ≈560
+  calls, eMMC entries one readlink each; left per pass: the SD sysfs path canonicalised 4×, media-mount.json 4×,
+  mountinfo 3×. Idle 177 (battery Full, 30.6 min, builtin-only script): power 4.1, service 4.9, ssh 2.0,
+  connectivity 0.2, Reborn 12.5 s/h; process starts 3.0/min.
+- **Next:** G (process starts: now 3/min dark, so mostly done; check what the 15 were), the C–F remainders, the
+  service pass's repeated SD canonicalisation/record reads, J2/J3 (device now reachable). Next free label **178**,
+  sequence above **11220**.
+- **Owed (owner)**: the hands-on event-source checks for I (USB plug/unplug, SD insert/remove, screen dark/lit with
+  a uevent/POLLPRI probe); §7 below.
 
 
 ## 1. Where it stands
 
 - The platform is Rust only: `platform/` (crates `y2p-core`, `y2p-contract`, `y2-platform`), about 49,600
   non-test lines, built into `/usr/sbin/y2-platform` (32-bit ARM, armv7). No Python runs on the player.
-- On the owner's player: **test build 176** (sequence 11210) applied 2026-10-30 03:48 by staged OTA; its USB
-  network stayed silent afterwards (see §0). Before it: 175 (sequence 11200), Acknowledged. All work is on local
-  `main`; nothing is pushed. Next free label **177**, sequence **above 11210**.
+- On the owner's player: **test build 177** (sequence 11220), Acknowledged 2026-10-30 07:49 (see §0; 176's USB
+  network stall after its OTA was a one-off, Acknowledged after a replug). All work is on local `main`; nothing is
+  pushed. Next free label **178**, sequence **above 11220**.
 - Done so far (details in the refactor plan and `roadmap-gap-audit.md`): the port (170), the refactor plan's
   waves 1–2 (171), quick wins (172), the duplication pass and idle gains (173), the "next pass" P1–P9 (174/175):
   shared helpers in `y2p_core` (paths, digest, text, clock, json, lock, sys, record, power_journal, regex!),
