@@ -1,7 +1,7 @@
 //! Y2DATA admission policy and bounded cleanup of explicitly disposable files
 //! (`y2-platform space [--cleanup]`).
 // SPDX-License-Identifier: GPL-2.0-only
-use super::observe::volumes;
+use super::observe::volume_at;
 use super::sys::{get, mkdir, observation_record, wall, Object};
 use crate::reply::At;
 use crate::reply::{atomic_json, Failure};
@@ -173,7 +173,7 @@ fn disposable_cleanup(root: &Root, max_files: u64, max_bytes: u64) -> Result<Val
 }
 
 pub fn policy(root: &Root, cleanup: bool) -> Result<Value, Failure> {
-    let [_, data, _, _] = volumes(root);
+    let data = volume_at(root, "/data");
     let admission: Object = PURPOSES
         .iter()
         .map(|p| (p.to_string(), admission(&data, p)))

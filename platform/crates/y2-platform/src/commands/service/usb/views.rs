@@ -2,8 +2,8 @@
 //! responder's configuration and mount expectations for them.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{
-    internal, json, mounts, py, radiofw, read, setup_status, volumes, Failure, Mount, Object, Root,
-    Value, NAMES, OLD,
+    internal, json, mounts, py, radiofw, read, setup_status, volume_at, Failure, Mount, Object,
+    Root, Value, NAMES, OLD,
 };
 use y2p_core::py::PyValue;
 
@@ -35,16 +35,16 @@ pub(super) fn view(
 
 /// `media_views(ctx)`: the host receives user music, never Y2DATA/private/system contents or a LUN.
 pub(super) fn media_views(root: &Root) -> Vec<Object> {
-    let volumes = volumes(root);
+    let (internal, sd) = (
+        volume_at(root, "/media/internal"),
+        volume_at(root, "/media/sd"),
+    );
     let mounts = mounts(root);
     let mut result = Vec::new();
     let at = |path: &str| mounts.iter().find(|m| m.path == path);
-    // Internal Storage is the Y2Media partition's music folder (volumes[3]); the old /data/music folder
+    // Internal Storage is the Y2Media partition's music folder; the old /data/music folder
     // on Y2DATA is no longer exported.
-    for (volume, path) in [
-        (&volumes[3], "/media/internal/music"),
-        (&volumes[2], "/media/sd"),
-    ] {
+    for (volume, path) in [(&internal, "/media/internal/music"), (&sd, "/media/sd")] {
         let mount = volume.get("path").and_then(Value::as_str).and_then(at);
         let folder = root.path(path);
         if path == "/media/internal/music" {

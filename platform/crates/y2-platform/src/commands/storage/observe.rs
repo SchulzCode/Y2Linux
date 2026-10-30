@@ -136,13 +136,9 @@ pub fn setup_status(root: &Root) -> Object {
     }
 }
 
-/// The volumes `status` reports, in this order: root, Y2DATA, SD, then Y2Media (the order is a
-/// consumer contract). Runs `blkid` for every mount on its controller, in this order.
-pub fn volumes(root: &Root) -> [Object; 4] {
-    let mounts = mounts(root);
-    let boot = root.boot_id();
-    ["/", "/data", "/media/sd", "/media/internal"]
-        .map(|target| volume(root, &mounts, &boot, target))
+/// The volume at `target` (one of the four), probed alone: no other volume's `blkid` or `statvfs`.
+pub fn volume_at(root: &Root, target: &str) -> Object {
+    volume(root, &mounts(root), &root.boot_id(), target)
 }
 
 /// One volume of `volumes`.

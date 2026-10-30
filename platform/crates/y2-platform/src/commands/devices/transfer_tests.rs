@@ -255,8 +255,8 @@ fn same_filesystem_media_still_uses_an_atomic_link() {
 
 /// Y2Media mounted again while a commit runs: the volume is read again after the target directories
 /// are opened, and a new generation refuses before anything is published. Once the upload is sealed
-/// the commit reads the volumes twice before it opens the target (/data, then Y2Media); the runner
-/// remounts Y2Media (a new mount id) as it answers the second of these reads' `blkid`, so the read
+/// the commit reads /data, then Y2Media, before it opens the target (each volume probed alone); the
+/// runner remounts Y2Media (a new mount id) as it answers that Y2Media read's `blkid`, so only the read
 /// after the target is open sees it.
 #[test]
 fn media_replacement_fails_closed_before_publishing() {
@@ -273,7 +273,7 @@ fn media_replacement_fails_closed_before_publishing() {
             .any(|stage| stage.path().join("sealed.part").exists());
         if device == "/dev/mmcblk0p8"
             && sealed
-            && sealed_reads.fetch_add(1, std::sync::atomic::Ordering::SeqCst) == 1
+            && sealed_reads.fetch_add(1, std::sync::atomic::Ordering::SeqCst) == 0
         {
             fs::write(
                 &mountinfo,

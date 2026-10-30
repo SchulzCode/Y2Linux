@@ -3,7 +3,7 @@
 //! controller offers, their admission and the insertion/removal work; the filesystem checks and
 //! `verify` in `check`, write windows in `window`, `format`/`grow` in `change`, `repair` in `repair`.
 // SPDX-License-Identifier: GPL-2.0-only
-use super::observe::{media_identity, volumes, MEDIA_MOUNT};
+use super::observe::{media_identity, MEDIA_MOUNT};
 use super::records::{Claim, Properties, ReadOnly};
 use super::sys::{
     device_instance, exists, get, is_symlink, lock_now, mkdir, name, object, read, release_sd,
@@ -244,8 +244,7 @@ pub fn reconcile(root: &Root) -> Result<Object, Failure> {
 
 pub fn operation(root: &Root, action: &str) -> Result<Object, Failure> {
     if action == "status" {
-        let [_, _, sd, _] = volumes(root);
-        return Ok(sd);
+        return Ok(super::observe::volume_at(root, "/media/sd"));
     }
     let runtime = runtime(root)?;
     let _lock = lock_now(&runtime.join("media.lock"))?;

@@ -7,7 +7,7 @@ use super::process::{self, Child, Launch, Start};
 use super::radiofw;
 use crate::commands::storage::{
     internal, media,
-    observe::{setup_status, volumes},
+    observe::{setup_status, volume_at},
     sys::{mounts, read, Mount, Object},
 };
 use crate::reply::{atomic_json, mkdir_parents, write_text, Failure};

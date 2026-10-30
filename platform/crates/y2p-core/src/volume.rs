@@ -69,22 +69,32 @@ fn resolve(path: &Path) -> PathBuf {
 pub fn volumes(root: &Root) -> Vec<Volume> {
     let mounts = mounts(root);
     let boot_id = root.boot_id();
-    let mut volumes = Vec::new();
-    for target in TARGETS {
+    TARGETS
+        .into_iter()
+        .map(|target| probe(root, &mounts, boot_id.as_deref(), target))
+        .collect()
+}
+
+/// One target's entry: its single mount's controller, filesystem UUID (`blkid`) and space.
+fn probe(
+    root: &Root,
+    mounts: &[crate::mounts::Mount],
+    boot_id: Option<&str>,
+    target: &'static str,
+) -> Volume {
+    {
         let found: Vec<_> = mounts.iter().filter(|m| m.path == target).collect();
         let [item] = found[..] else {
-            volumes.push(Volume {
+            return Volume {
                 path: target,
                 state: "Unavailable",
                 generation: None,
                 uuid: None,
                 space_state: "Unavailable",
                 available_bytes: None,
-            });
-            continue;
+            };
         };
         let generation = boot_id
-            .as_deref()
             .filter(|b| !b.is_empty())
             .map(|b| format!("{b}:{}:{}", item.mount_id, item.device_id));
         let device = root.path(&format!("/sys/dev/block/{}", item.device_id));
@@ -140,25 +150,25 @@ pub fn volumes(root: &Root) -> Vec<Volume> {
         if state == "Ready" && readonly {
             state = "Degraded";
         }
-        volumes.push(Volume {
+        Volume {
             path: target,
             state,
             generation,
             uuid,
             space_state,
             available_bytes,
-        });
+        }
     }
-    volumes
 }
 
-/// The volume at `path` (one of [`TARGETS`]; every volume is computed, in order, for the same
-/// `blkid` requests).
+/// The volume at `path` (one of [`TARGETS`]), probed alone: the other volumes (the SD card's
+/// `blkid` and `statvfs` among them) are not touched.
 pub fn volume(root: &Root, path: &str) -> Volume {
-    volumes(root)
+    let target = TARGETS
         .into_iter()
-        .find(|v| v.path == path)
-        .expect("one of the four volume targets")
+        .find(|t| *t == path)
+        .expect("one of the four volume targets");
+    probe(root, &mounts(root), root.boot_id().as_deref(), target)
 }
 
 /// The volume at `path` when it is verified: Ready, with a generation this boot.
