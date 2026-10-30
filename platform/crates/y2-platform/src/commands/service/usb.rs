@@ -13,7 +13,6 @@ use crate::commands::storage::{
 use crate::reply::{atomic_json, mkdir_parents, write_text, Failure};
 use serde_json::{json, Value};
 use std::{fs, path::Path, thread, time::Duration};
-use y2p_core::py::PyValue;
 use y2p_core::{py, Root};
 
 mod gadget;
@@ -84,11 +83,11 @@ impl Activity {
             return Self::default();
         };
         let record = root.json_object("/run/y2/mtp-events.json");
-        if !record.get("pid").unwrap_or(&Value::Null).py_eq(&json!(pid)) {
+        if *record.get("pid").unwrap_or(&Value::Null) != json!(pid) {
             return Self::default();
         }
         Self {
-            active: record.get("active").is_some_and(py::truthy),
+            active: record.get("active") == Some(&Value::Bool(true)),
             error: record.get("error").cloned().unwrap_or(Value::Null),
             generation: match record.get("generation") {
                 Some(Value::Bool(b)) => Some(i64::from(*b)),
@@ -185,7 +184,7 @@ impl UsbService {
             restarts: self.failures,
         };
         let value = serde_json::to_value(&record).map_err(Failure::value)?;
-        if !self.last_record.as_ref().is_some_and(|l| l.py_eq(&value)) {
+        if self.last_record.as_ref() != Some(&value) {
             atomic_json(&self.root.path("/run/y2/usb-transfer.json"), &value, false)?;
             self.last_record = Some(value.clone());
         }
@@ -203,7 +202,12 @@ impl UsbService {
             // tick (the window is renewed well before it ends).
             let answer =
                 media::write_window_within(&self.root, "usb", SD_WINDOW_SECONDS, false, 0.0);
-            if answer.is_ok_and(|answer| answer.get("holders").is_some_and(py::truthy)) {
+            if answer.is_ok_and(|answer| {
+                answer
+                    .get("holders")
+                    .and_then(Value::as_object)
+                    .is_some_and(|holders| !holders.is_empty())
+            }) {
                 self.sd_window = now;
             }
         } else if !host

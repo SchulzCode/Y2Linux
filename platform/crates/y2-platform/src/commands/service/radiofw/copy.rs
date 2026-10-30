@@ -9,13 +9,15 @@ use super::{
 use std::os::unix::fs::DirBuilderExt;
 use std::os::unix::fs::MetadataExt;
 use y2p_core::json::ObjectExt;
-use y2p_core::py::PyValue;
 
 /// The MTP roots the responder exports (its record), as device paths below the root.
 pub(super) fn roots(root: &Root) -> Vec<PathBuf> {
     let value = root.json_object("/run/y2/mtp-roots.json");
-    // `for r in value.get('roots', [])`: a list's items, a dict's keys, a string's characters.
-    let items = value.get("roots").and_then(py::iterate).unwrap_or_default();
+    let items = value
+        .get("roots")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
     items
         .iter()
         .filter_map(Value::as_str)
@@ -102,7 +104,11 @@ fn remove(root: &Root, source: &Path) {
         return;
     };
     let _ = fs::remove_file(source);
-    if answer.get("holders").is_some_and(py::truthy) {
+    if answer
+        .get("holders")
+        .and_then(Value::as_object)
+        .is_some_and(|holders| !holders.is_empty())
+    {
         let _ = media::write_window(root, "radiofw", 30, true);
     }
 }
@@ -177,7 +183,7 @@ pub(super) fn scan(root: &Root, reviewed: &Reviewed) -> Result<Value> {
         };
         let (seen, arriving) = seen(&info);
         // A copy still arriving over USB changes size or time between passes.
-        if !get_or_null(&previous, "seen").py_eq(&seen) || arriving {
+        if *get_or_null(&previous, "seen") != seen || arriving {
             record_state(
                 root,
                 &json!({"schema": 1, "state": "Missing", "seen": seen}),
@@ -232,11 +238,11 @@ pub(super) fn leftover(root: &Root, reviewed: &Reviewed) -> Result<Value> {
             continue;
         };
         let (seen, arriving) = seen(&info);
-        if seen.py_eq(get_or_null(&previous, "kept")) {
+        if seen == *get_or_null(&previous, "kept") {
             continue;
         }
         // A copy still arriving changes size or time between passes.
-        if !get_or_null(&previous, "leftover").py_eq(&seen) || arriving {
+        if *get_or_null(&previous, "leftover") != seen || arriving {
             value.set("leftover", seen);
             break;
         }
@@ -247,9 +253,7 @@ pub(super) fn leftover(root: &Root, reviewed: &Reviewed) -> Result<Value> {
         remove(root, &source);
         tidy(root);
     }
-    let differs = value
-        .iter()
-        .any(|(k, v)| !v.py_eq(get_or_null(&previous, k)))
+    let differs = value.iter().any(|(k, v)| v != get_or_null(&previous, k))
         || previous.keys().any(|k| value.get(k).is_none());
     if differs {
         record_state(root, &Value::Object(value))?;
@@ -266,5 +270,5 @@ pub fn leftover_waiting(root: &Root) -> bool {
         .unwrap_or(Value::Null);
     candidates(root)
         .iter()
-        .any(|source| regular(source).is_some_and(|info| !seen(&info).0.py_eq(&kept)))
+        .any(|source| regular(source).is_some_and(|info| seen(&info).0 != kept))
 }

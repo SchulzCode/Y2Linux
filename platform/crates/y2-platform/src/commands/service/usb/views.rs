@@ -2,11 +2,10 @@
 //! responder's configuration and mount expectations for them.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{
-    internal, json, mounts, radiofw, read, setup_status, volume_at, Failure, Mount, Root, Value,
-    NAMES, OLD,
+    internal, mounts, radiofw, read, setup_status, volume_at, Failure, Mount, Root, Value, NAMES,
+    OLD,
 };
 use serde::Serialize;
-use y2p_core::py::PyValue;
 use y2p_core::volume::{Y2MEDIA_SIZE, Y2MEDIA_START, Y2MEDIA_UUID};
 
 pub(super) fn name_of(path: &str) -> Option<&'static str> {
@@ -81,11 +80,7 @@ pub(super) fn media_views(root: &Root) -> Vec<View> {
         // Never create a view of an absent underlying mount.
         let release = root.json_object("/run/y2/usb-release-sd.json");
         if let Some(mount) = mount.filter(|_| path == "/media/sd") {
-            if release
-                .get("mount_id")
-                .unwrap_or(&Value::Null)
-                .py_eq(&json!(mount.mount_id))
-            {
+            if release.get("mount_id").and_then(Value::as_i64) == Some(mount.mount_id) {
                 continue;
             }
         }

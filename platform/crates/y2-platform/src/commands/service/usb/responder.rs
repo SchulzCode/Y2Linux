@@ -5,7 +5,6 @@ use super::{
     expectations, json, name_of, thread, write_text, Child, Duration, Failure, Start, UsbService,
     Value, View,
 };
-use y2p_core::py::PyValue;
 
 impl UsbService {
     /// `command(message)`: one IPC command to the running responder.
@@ -19,7 +18,7 @@ impl UsbService {
     pub(super) fn pinned(&mut self) -> Option<Vec<Value>> {
         let state = self.root.json_object("/run/y2/mtp-roots.json");
         let pid = self.child.as_ref().map(Child::pid)?;
-        if !state.get("pid").unwrap_or(&Value::Null).py_eq(&json!(pid)) {
+        if *state.get("pid").unwrap_or(&Value::Null) != json!(pid) {
             return None;
         }
         state.get("roots").and_then(Value::as_array).cloned()
