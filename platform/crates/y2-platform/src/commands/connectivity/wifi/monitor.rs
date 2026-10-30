@@ -1,10 +1,10 @@
 //! The supplicant event monitor: event counts for reports, the failure record with the F52 password
 //! latch Reborn reads, and the scan evidence of a "not found".
 // SPDX-License-Identifier: GPL-2.0-only
-use super::super::observe_wifi::clock_value;
+use super::failure::{Credential, FailureRecord, WrongKey};
 use super::journal::round1;
 use super::scan::scan_evidence;
-use super::wpa::{search_value, value_of};
+use super::wpa::search_value;
 use crate::commands::network::{publish, wlan_switched_off};
 use crate::reply::Failure;
 use serde_json::{json, Value};
@@ -19,28 +19,17 @@ use std::{
 };
 use y2p_core::{
     json::{Object, ObjectExt},
-    py::{self, truthy},
     Root,
 };
 
 /// Only a password verdict is kept until a connect. A rejected or failed association (CONN_FAILED,
 /// AUTH-REJECT) is no password on WPA2-PSK.
 pub const CREDENTIAL_ERRORS: [&str; 1] = ["wrong_credentials"];
-const LAST_FAILURE_KEYS: [&str; 8] = [
-    "error",
-    "reason",
-    "epoch",
-    "failures",
-    "scan",
-    "scan_monotonic_s",
-    "boot_id",
-    "monotonic_s",
-];
 /// F52 (aa96e00a): wpa_supplicant says WRONG_KEY for any 4-way handshake that ends early (events.c
 /// could_be_psk_mismatch), also one this player cut short (a Join, the sleep's radio off). A password
 /// is wrong only when one network fails this often with no connect between; a single failure is
 /// `handshake_failed`, one after our own disconnect is not counted.
-pub const WRONG_KEY_REPEAT: i64 = 2;
+pub const WRONG_KEY_REPEAT: u64 = 2;
 /// Supplicant events counted for reports: what it did while it sat DISCONNECTED (F52). Kinds and times
 /// only, never the event text.
 const EVENT_KINDS: [&str; 11] = [
@@ -293,113 +282,78 @@ impl EventMonitor {
             _ => return Ok(()),
         };
         let root = &self.root;
-        let old = root.json_object("/run/y2/wifi-failure.json");
+        let old = FailureRecord::read(root);
         let boot = root.boot_id();
+        let this_boot = |id: &Option<String>| id.is_some() && *id == boot;
         // Failed handshakes per network since the last connect (kept here, so a service restart does
         // not forget the first one).
-        let valid = match old.get("wrong_key") {
-            Some(Value::Object(w)) => {
-                root.is_this_boot(w.get("boot_id"))
-                    && w.get("count")
-                        .is_some_and(|c| c.is_boolean() || c.is_i64() || c.is_u64())
-            }
-            _ => false,
-        };
-        let mut wrong_key = (valid && kind != "CONNECTED").then(|| old["wrong_key"].clone());
+        let mut wrong_key = old
+            .wrong_key
+            .clone()
+            .filter(|w| this_boot(&w.boot_id) && kind != "CONNECTED");
         if error == Some("handshake_failed") {
             let count = match &wrong_key {
-                Some(w) if py::eq(w.get("network_id"), Some(&json!(network))) => {
-                    y2p_core::py::number(w.get("count")).unwrap_or(0.0) as i64 + 1
-                }
+                Some(w) if w.network_id == network => w.count + 1,
                 _ => 1,
             };
-            wrong_key = Some(value_of(
-                Object::new()
-                    .with("network_id", json!(network))
-                    .with("count", count)
-                    .with("boot_id", json!(boot)),
-            ));
+            wrong_key = Some(WrongKey {
+                network_id: network,
+                count,
+                boot_id: boot.clone(),
+            });
             if count >= WRONG_KEY_REPEAT {
                 error = Some("wrong_credentials");
             }
         }
-        let failures = match old.get("failures") {
-            None => 0,
-            Some(Value::Bool(b)) => i64::from(*b),
-            Some(v) => v.as_i64().unwrap_or(0),
+        let mut record = FailureRecord {
+            error: error.map(str::to_owned),
+            epoch: root.read("/run/y2/wifi-epoch"),
+            failures: old.failures + u64::from(error.is_some()),
+            wrong_key,
+            ..FailureRecord::default()
         };
-        let mut record = Object::new()
-            .with("error", json!(error))
-            .with("epoch", json!(root.read("/run/y2/wifi-epoch")))
-            .with("failures", failures + i64::from(error.is_some()));
-        if let Some(w) = wrong_key {
-            record.set("wrong_key", w);
-        }
         // wpa_supplicant's own code (reason=CONN_FAILED, status_code=15): it separates a password
         // from a timeout or SAE (F31). Never a name.
         if error.is_some() {
             let class = |c: char| c.is_ascii_alphanumeric() || c == '_';
-            if let Some(detail) = search_value(text, &["reason", "status_code"], class, 32) {
-                record.set("reason", detail);
-            }
+            record.reason =
+                search_value(text, &["reason", "status_code"], class, 32).map(str::to_owned);
         }
         // A connect ends a failure run: keep what the last failure showed (F13's scan evidence was
         // gone by the time a report was saved).
-        let last = if old.get("error").is_some_and(truthy) {
-            Some(Value::Object(old.clone()))
+        let last = if old.error.as_deref().is_some_and(|e| !e.is_empty()) {
+            Some(old.last())
         } else {
-            old.get("last_failure").cloned()
+            old.last_failure.clone()
         };
-        if let Some(Value::Object(last)) = last {
-            if last.get("error").is_some_and(truthy) {
-                let mut kept = Object::new();
-                for key in LAST_FAILURE_KEYS {
-                    if let Some(value) = last.get(key) {
-                        kept.set(key, value.clone());
-                    }
-                }
-                record.set("last_failure", value_of(kept));
-            }
-        }
+        record.last_failure = last.filter(|l| l.error.as_deref().is_some_and(|e| !e.is_empty()));
         // Y2Reborn #20: a wrong password stays reported until a connect. The "network not found"
         // that follows (the network is disabled for a while after each failure) never replaces it;
         // it names the network it was.
         if error.is_some_and(|e| CREDENTIAL_ERRORS.contains(&e)) {
-            let reason = record.get("reason").cloned().unwrap_or(Value::Null);
-            record.set(
-                "credential",
-                value_of(
-                    Object::new()
-                        .with("error", json!(error))
-                        .with("reason", reason)
-                        .with("boot_id", json!(boot))
-                        .with("network_id", json!(network))
-                        .with("monotonic_s", root.clock().monotonic()),
-                ),
-            );
+            record.credential = Some(Credential {
+                error: error.map(str::to_owned),
+                reason: record.reason.clone(),
+                boot_id: boot.clone(),
+                network_id: network,
+                monotonic_s: Some(root.clock().monotonic()),
+            });
         } else if error.is_some() {
-            if let Some(Value::Object(credential)) = old.get("credential") {
-                if root.is_this_boot(credential.get("boot_id")) {
-                    record.set("credential", Value::Object(credential.clone()));
-                }
-            }
+            record.credential = old.credential.clone().filter(|c| this_boot(&c.boot_id));
         }
         if error == Some("ap_unavailable") {
             // wpa_supplicant reports this after every scan: look at most every 30 s.
-            let last = clock_value(old.get("scan_monotonic_s"));
-            let cached = root.is_this_boot(old.get("boot_id"))
-                && last.is_some_and(|at| {
+            let cached = this_boot(&old.boot_id)
+                && old.scan_monotonic_s.is_some_and(|at| {
                     (0.0..Self::SCAN_EVIDENCE_S).contains(&(root.clock().monotonic() - at))
                 })
-                && matches!(old.get("scan"), Some(Value::Object(_)));
+                && old.scan.is_some();
             if cached {
-                record
-                    .set("scan", old["scan"].clone())
-                    .set("scan_monotonic_s", old["scan_monotonic_s"].clone());
+                record.scan = old.scan.clone();
+                record.scan_monotonic_s = old.scan_monotonic_s;
             } else {
-                record
-                    .set("scan", value_of(scan_evidence(root)))
-                    .set("scan_monotonic_s", root.clock().monotonic());
+                record.scan = Some(scan_evidence(root));
+                record.scan_monotonic_s = Some(root.clock().monotonic());
             }
         }
         publish(root, "wifi-failure", &record).map(drop)

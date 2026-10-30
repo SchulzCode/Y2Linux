@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use crate::commands::connectivity::direct;
 use crate::commands::connectivity::direct::{Link, Route};
+use crate::commands::connectivity::wifi::failure::FailureRecord;
 use crate::commands::observation::util::{fields, key_values, name, number, read, record_fields};
 use crate::reply::Failure;
 use serde::{Deserialize, Serialize};
@@ -16,29 +17,6 @@ use y2p_core::{
 /// A confirmed lease is re-probed every 300 s (network.DnsProbeSchedule); this keeps Online across
 /// one slow or skipped re-check.
 pub(crate) const DNS_FRESH_S: f64 = 420.0;
-
-/// `/run/y2/wifi-failure.json` (connectivity): the last join failure, and a saved network's password
-/// failure (kept until the next connect).
-#[derive(Deserialize, Default)]
-#[serde(default)]
-struct JoinFailure {
-    boot_id: BootId,
-    #[serde(deserialize_with = "lenient::number")]
-    monotonic_s: Option<f64>,
-    #[serde(deserialize_with = "lenient::text")]
-    error: Option<String>,
-    credential: Option<CredentialFailure>,
-}
-
-#[derive(Deserialize, Default)]
-#[serde(default)]
-struct CredentialFailure {
-    boot_id: BootId,
-    #[serde(deserialize_with = "lenient::text")]
-    error: Option<String>,
-    /// wpa_supplicant's id of the saved network (shown as it was recorded).
-    network_id: Value,
-}
 
 /// `/run/y2/dns.json`: the last DNS probe of a lease.
 #[derive(Deserialize, Default)]
@@ -187,16 +165,16 @@ pub fn observe(
     let mut properties = key_values(wpa.as_ref().and_then(|w| w.output.as_deref()), "=");
     let boot = root.boot_id();
     let boot = boot.as_deref();
-    let failure: JoinFailure = record_fields(root, "/run/y2/wifi-failure.json");
-    if failure.boot_id.is(boot) && fresh(root, failure.monotonic_s, 120.0) {
+    let failure = FailureRecord::read(root);
+    if failure.boot_id.as_deref() == boot && fresh(root, failure.monotonic_s, 120.0) {
         if let Some(error) = failure.error.filter(|e| !e.is_empty()) {
             properties.insert("failure_reason".into(), error);
         }
     }
-    let mut failed_network = Value::Null;
+    let mut failed_network = None;
     if let Some(credential) = failure.credential {
         if let (true, Some(error)) = (
-            credential.boot_id.is(boot),
+            credential.boot_id.as_deref() == boot,
             credential.error.filter(|e| !e.is_empty()),
         ) {
             properties.insert("credential_failure".into(), error);
@@ -295,7 +273,7 @@ pub fn observe(
         failed_network_id: if state == "Failed" && reason.as_ref() == credential {
             failed_network
         } else {
-            Value::Null
+            None
         },
         state,
         reason,
@@ -330,7 +308,7 @@ pub struct Wifi {
     pub reason: Option<String>,
     radio_present: bool,
     /// The saved network whose password failed (wpa_supplicant's id).
-    failed_network_id: Value,
+    failed_network_id: Option<i64>,
     /// A missed control query does not prove a radio disconnect: the query's own result and
     /// latency, apart from the event counters.
     supplicant_observation: SupplicantObservation,

@@ -1,33 +1,64 @@
 //! What the last scan saw of the saved networks (F13), never a network name or address.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::wpa::{digits, flags, int, rows, signed, wpa};
-use serde_json::{json, Value};
-use y2p_core::{
-    json::{Object, ObjectExt},
-    Root,
-};
+use serde::{Deserialize, Serialize};
+use y2p_core::Root;
 
-fn channel(frequency: i64) -> Value {
+fn channel(frequency: i64) -> Option<i64> {
     if (2412..=2472).contains(&frequency) {
-        json!((frequency - 2407).div_euclid(5))
+        Some((frequency - 2407).div_euclid(5))
     } else if frequency == 2484 {
-        json!(14)
+        Some(14)
     } else if (5000..=5900).contains(&frequency) {
-        json!((frequency - 5000).div_euclid(5))
+        Some((frequency - 5000).div_euclid(5))
     } else {
-        Value::Null
+        None
     }
+}
+
+/// The scan evidence: absent fields were not observed (no scan, no saved network seen).
+#[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
+#[serde(default)]
+pub struct ScanEvidence {
+    pub available: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub networks: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub saved_networks: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub band_2ghz: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub band_5ghz: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub saved_seen: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub saved_signal_dbm: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub saved_frequency_mhz: Option<i64>,
+    /// The channel of that frequency (null where the frequency is none of the bands').
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub saved_channel: Option<Option<i64>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub saved_access_points: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub saved_flags: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub saved_age_s: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub saved_key_mgmt: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub country: Option<String>,
 }
 
 /// Why the saved network was "not found" (F13: Wi-Fi did not come back after a wake on one player,
 /// cause unproven): how many networks the last scan saw, whether a saved one was among them, its best
 /// signal and channel, and the regulatory country (country=00 scans channels 12/13 passively). Never a
 /// network name or address.
-pub fn scan_evidence(root: &Root) -> Object {
+pub fn scan_evidence(root: &Root) -> ScanEvidence {
     let scan = wpa(root, &["scan_results"]);
     let saved = wpa(root, &["list_networks"]);
     if !scan.ok || !saved.ok {
-        return Object::new().with("available", false);
+        return ScanEvidence::default();
     }
     let saved_rows = rows(saved.output.as_deref());
     let mut names: Vec<&str> = Vec::new();
@@ -40,23 +71,19 @@ pub fn scan_evidence(root: &Root) -> Object {
         .into_iter()
         .filter(|row| row.len() >= 3 && digits(&row[1]) && signed(&row[2]))
         .collect();
-    let mut result = Object::new()
-        .with("available", true)
-        .with("networks", found.len())
-        .with("saved_networks", names.len())
-        .with(
-            "band_2ghz",
-            found.iter().filter(|r| int(&r[1]) < 3000).count(),
-        )
-        .with(
-            "band_5ghz",
-            found.iter().filter(|r| int(&r[1]) >= 5000).count(),
-        );
+    let mut result = ScanEvidence {
+        available: true,
+        networks: Some(found.len()),
+        saved_networks: Some(names.len()),
+        band_2ghz: Some(found.iter().filter(|r| int(&r[1]) < 3000).count()),
+        band_5ghz: Some(found.iter().filter(|r| int(&r[1]) >= 5000).count()),
+        ..ScanEvidence::default()
+    };
     let hits: Vec<&Vec<String>> = found
         .iter()
         .filter(|row| row.len() >= 5 && names.contains(&row[4].as_str()))
         .collect();
-    result.set("saved_seen", !hits.is_empty());
+    result.saved_seen = Some(!hits.is_empty());
     if !hits.is_empty() {
         // The strongest; of equal signals the first listed.
         let mut best = hits[0];
@@ -66,15 +93,14 @@ pub fn scan_evidence(root: &Root) -> Object {
             }
         }
         let frequency = int(&best[1]);
-        result
-            .set("saved_signal_dbm", int(&best[2]))
-            .set("saved_frequency_mhz", frequency)
-            .set("saved_channel", channel(frequency))
-            .set("saved_access_points", hits.len());
+        result.saved_signal_dbm = Some(int(&best[2]));
+        result.saved_frequency_mhz = Some(frequency);
+        result.saved_channel = Some(channel(frequency));
+        result.saved_access_points = Some(hits.len());
         // F13 (cb904ffb): "not found" with the saved network listed at -66 dBm. scan_results is the
         // BSS table (entries up to 180 s old): how old the entry is, and whether its security matches
         // the saved network's.
-        result.set("saved_flags", flags(&best[3]));
+        result.saved_flags = Some(flags(&best[3]));
         let bss = wpa(root, &["bss", &best[0]]);
         if bss.ok {
             // re.search(r'(?m)^age=(\d+)$', output)
@@ -86,7 +112,7 @@ pub fn scan_evidence(root: &Root) -> Object {
                 .find_map(|line| line.strip_prefix("age=").filter(|d| digits(d)))
                 .and_then(|d| d.parse::<u64>().ok())
             {
-                result.set("saved_age_s", age);
+                result.saved_age_s = Some(age);
             }
         }
         let ids: Vec<&String> = saved_rows
@@ -109,7 +135,7 @@ pub fn scan_evidence(root: &Root) -> Object {
             }
         }
         managements.sort();
-        result.set("saved_key_mgmt", json!(managements));
+        result.saved_key_mgmt = Some(managements);
     }
     let country = wpa(root, &["get", "country"]);
     let value = y2p_core::root::python_strip(country.output.as_deref().unwrap_or_default());
@@ -119,7 +145,7 @@ pub fn scan_evidence(root: &Root) -> Object {
             .bytes()
             .all(|b| b.is_ascii_digit() || b.is_ascii_uppercase())
     {
-        result.set("country", value);
+        result.country = Some(value.to_owned());
     }
     result
 }

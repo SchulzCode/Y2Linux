@@ -4,12 +4,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use crate::commands::observation::snapshot::wifi::{observe, Odd};
 use serde_json::Value;
-use y2p_core::{json::Object, py::number, Root};
-
-/// A clock reading of a record: any number (a bool reads as 0 or 1).
-pub fn clock_value(value: Option<&Value>) -> Option<f64> {
-    number(value)
-}
+use y2p_core::{json::Object, Root};
 
 /// What Wi-Fi looks like now (`status wifi`'s observation; network.json and the DNS probe's
 /// before/after look). An odd record reads as empty: the daemons that call this keep running.

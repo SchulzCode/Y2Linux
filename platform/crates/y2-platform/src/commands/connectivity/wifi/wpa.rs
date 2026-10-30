@@ -1,11 +1,6 @@
 //! wpa_cli and its tab-separated answers, and the `KEY=value` searches over supplicant event text.
 // SPDX-License-Identifier: GPL-2.0-only
-use serde_json::Value;
-use y2p_core::{command, json::Object, Root};
-
-pub(super) fn value_of(ordered: Object) -> Value {
-    Value::Object(y2p_core::json::sorted_object(&ordered))
-}
+use y2p_core::{command, Root};
 
 /// A word character (a Unicode letter, digit or `_`): the searches below match whole words only.
 fn word(c: Option<char>) -> bool {

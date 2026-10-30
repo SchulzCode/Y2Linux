@@ -4,6 +4,7 @@
 //! the connectivity daemon writes the journal (F53).
 // SPDX-License-Identifier: GPL-2.0-only
 mod dns;
+pub mod failure;
 mod journal;
 mod monitor;
 mod recovery;
