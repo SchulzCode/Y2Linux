@@ -44,7 +44,7 @@ pub(super) fn automatic_check(root: &Root, io: &dyn Io) -> Result<Value> {
     if !Published::read(root).online() {
         return Ok(skipped("offline"));
     }
-    if !io.time_status(root).get("tls_ready").is_some_and(truthy) {
+    if !io.time_status(root).tls_ready {
         return Ok(skipped("clock_not_ready"));
     }
     // Only a check that reached the server starts the next day; a failed one is tried again with the

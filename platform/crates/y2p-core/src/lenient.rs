@@ -124,6 +124,11 @@ pub fn integer<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Option<i64>
     Ok(Value::deserialize(deserializer)?.as_i64())
 }
 
+/// Python's truthiness of the value (a non-empty text, list or object, a non-zero number, `true`).
+pub fn truthy<'de, D: Deserializer<'de>>(deserializer: D) -> Result<bool, D::Error> {
+    Ok(crate::py::truthy(&Value::deserialize(deserializer)?))
+}
+
 /// A flag that is set only by JSON `true`; anything else, a missing field too, false.
 pub fn is_true<'de, D: Deserializer<'de>>(deserializer: D) -> Result<bool, D::Error> {
     Ok(Value::deserialize(deserializer)? == Value::Bool(true))

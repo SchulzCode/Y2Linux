@@ -2,7 +2,7 @@
 //! (`Io`, the channel, the streams and their copy with its live progress).
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{
-    clock, download, free, json, py, record, Duration, File, Map, Net, OpenOptions, Ordering, Path,
+    clock, download, free, json, py, record, Duration, File, Net, OpenOptions, Ordering, Path,
     PathBuf, Raise, Read, Response, Result, Root, Sha256, Value, VecDeque, CANCELLED, CHANNEL,
     NETWORK_WAIT_S, PROGRESS, RETRY_PAUSE,
 };
@@ -53,7 +53,7 @@ pub(super) struct Space {
 /// the waits for Wi-Fi. [`Player`] is the player's own; unit tests give theirs (update_tests.rs).
 pub(super) trait Io {
     /// `y2-platform time`'s record (`tls_ready`, `entropy_ready`).
-    fn time_status(&self, root: &Root) -> Map<String, Value> {
+    fn time_status(&self, root: &Root) -> crate::commands::time::Status {
         crate::commands::service::time_status(root)
     }
 

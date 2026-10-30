@@ -241,14 +241,10 @@ fn usb_diagnostics(root: &Root, udcs: &[Udc], link: Counted) -> Result<UsbDiagno
     })
 }
 
-/// The time section: `y2-platform time`'s record.
-fn time_status(root: &Root) -> Result<Value, Failure> {
-    Ok(Value::Object(super::super::time::record(root)))
-}
-
 /// The `system` section.
 pub fn system(root: &Root) -> Result<System, Failure> {
-    let clock = time_status(root)?;
+    let clock = crate::commands::time::record(root);
+    let crng = clock.entropy_ready;
     // The SSH supervisor's record while it is renewed (every few seconds) this boot.
     let mut ssh = root.json_object("/run/y2/ssh.json");
     let published = ssh::Published::of(&ssh);
@@ -341,7 +337,6 @@ pub fn system(root: &Root) -> Result<System, Failure> {
         .iter()
         .map(|p| name(p))
         .collect();
-    let crng = clock.get("entropy_ready").cloned().unwrap_or(Value::Null);
     Ok(System {
         uptime_seconds: uptime,
         versions: root.json("/etc/y2linux/versions.json"),
@@ -389,10 +384,10 @@ pub struct System {
     watchdogs: Vec<Watchdog>,
     pstore_files: Vec<String>,
     pub rtc: Vec<Rtc>,
-    time: Value,
+    time: crate::commands::time::Status,
     ssh: Object,
     entropy_available_bits: Option<i64>,
-    crng_ready: Value,
+    crng_ready: Option<bool>,
     pub usb: Usb,
     pub update: crate::commands::service::update::Status,
     radio_firmware: crate::commands::service::radiofw::Status,

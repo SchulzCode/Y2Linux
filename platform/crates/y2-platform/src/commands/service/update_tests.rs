@@ -26,7 +26,7 @@ type Remote = Box<dyn FnMut(&str) -> Result<Stream>>;
 /// test sets (the player's own for the rest).
 #[derive(Default)]
 struct Fake {
-    time: Option<Map<String, Value>>,
+    time: Option<crate::commands::time::Status>,
     now: Cell<Option<f64>>,
     /// The bytes available (writable, no inode limit).
     space: Option<Box<dyn Fn() -> i128>>,
@@ -36,8 +36,7 @@ struct Fake {
 impl Fake {
     /// `patch('y2_platform.timekeeping.status', return_value=…)`.
     fn clock(&mut self, tls: bool, entropy: bool) {
-        let value = json!({"tls_ready": tls, "entropy_ready": entropy});
-        self.time = value.as_object().cloned();
+        self.time = Some(crate::commands::time::Status::ready(tls, entropy));
     }
 
     fn available(&mut self, available: impl Fn() -> i128 + 'static) {
@@ -50,7 +49,7 @@ impl Fake {
 }
 
 impl Io for Fake {
-    fn time_status(&self, root: &Root) -> Map<String, Value> {
+    fn time_status(&self, root: &Root) -> crate::commands::time::Status {
         self.time
             .clone()
             .unwrap_or_else(|| Player.time_status(root))

@@ -3,7 +3,7 @@
 //! drift, build floor) these share.
 // SPDX-License-Identifier: GPL-2.0-only
 use crate::{
-    commands::time::{floor, plausible, rtc_write, same_boot, status_at, wall},
+    commands::time::{floor, plausible, rtc_write, status_at, wall, Recorded, ANCHOR, LAST},
     reply::{atomic_json, lock, private_directory, write_text, Failure, Outcome, Reply},
 };
 use serde::Serialize;
@@ -11,7 +11,6 @@ use serde_json::{json, Value};
 use y2p_core::{
     command,
     json::{Object, ObjectExt},
-    py::number,
     Root,
 };
 
@@ -80,10 +79,8 @@ fn set_manual_inner(root: &Root, epoch: i64) -> Result<Anchor, Failure> {
     // Network time this boot: the clock is right, and the running time server would keep a hand-set
     // time for minutes while its periodic callback calls it network time (8.22 test build: 2 h off,
     // "ntp").
-    let anchor = root.json_object("/run/y2/time.json");
-    if anchor.get("source").and_then(Value::as_str) == Some("ntp")
-        && same_boot(&anchor, &root.boot_id())
-    {
+    let anchor = Recorded::read(root, ANCHOR);
+    if anchor.source.as_deref() == Some("ntp") && anchor.this_boot(root) {
         return Err(Failure::value("network_time_active"));
     }
     let set = format!("@{epoch}");
@@ -123,16 +120,15 @@ pub fn bootstrap(root: &Root) -> Outcome {
     let floor = floor(root);
     let runtime = root.path("/run/y2");
     private_directory(&runtime)?;
-    let previous = root.json_object("/data/system/platform/time-last.json");
-    let retained = previous.get("epoch");
-    let retained_number = number(retained);
+    let previous = Recorded::read(root, LAST);
+    let retained_number = previous.epoch();
     let plausible_retained = retained_number.is_some_and(|r| plausible(r, floor));
     let rtc_date = root
         .read("/sys/class/rtc/rtc0/date")
         .is_some_and(|d| !d.is_empty());
     // The owner's own date and time (#53) carries over a restart as itself: a lower bound like the
     // build date, never TLS readiness.
-    let manual = previous.get("source").and_then(Value::as_str) == Some("manual");
+    let manual = previous.source.as_deref() == Some("manual");
     let now_f = now.as_f64().unwrap_or_default();
     // Kernel hctosys supplied wall time. Only a plausible RTC following an earlier network clock
     // establishes retained-clock readiness; a build date alone is merely a lower bound and cannot
@@ -151,8 +147,8 @@ pub fn bootstrap(root: &Root) -> Outcome {
         let mut source = "build_floor";
         // The later of the build floor and a plausible retained time (the floor on a tie).
         let first = floor.unwrap_or(0);
-        let (second, second_f) = match (plausible_retained, retained, retained_number) {
-            (true, Some(value), Some(r)) => (value.clone(), r),
+        let (second, second_f) = match (plausible_retained, previous.epoch, retained_number) {
+            (true, Some(value), Some(r)) => (Value::Number(value), r),
             _ => (json!(0), 0.0),
         };
         let (target, target_f) = if second_f > first as f64 {

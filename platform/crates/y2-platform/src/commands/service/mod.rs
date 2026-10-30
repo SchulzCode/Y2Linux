@@ -10,7 +10,6 @@ pub mod update;
 mod usb;
 
 use super::Command;
-use serde_json::{Map, Value};
 use y2p_core::Root;
 
 const UPDATE_ACTIONS: [&str; 10] = [
@@ -27,7 +26,7 @@ const UPDATE_ACTIONS: [&str; 10] = [
 ];
 
 /// The `time` command's record (clock and TLS readiness), as its fields.
-fn time_status(root: &Root) -> Map<String, Value> {
+fn time_status(root: &Root) -> super::time::Status {
     super::time::record(root)
 }
 
