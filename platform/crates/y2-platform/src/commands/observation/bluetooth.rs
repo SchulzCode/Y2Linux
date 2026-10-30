@@ -2,11 +2,8 @@
 //! encoder (y2-bt-observe), next to the codec settings; observations only, never codec requests.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::snapshot::readiness::Readiness;
-use super::util::{fields, present, record_fields};
-use crate::{
-    commands::codec::{inventory_codec, requested, validate},
-    reply::Failure,
-};
+use super::util::fields;
+use crate::{commands::codec, reply::Failure};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
 use y2p_core::{
@@ -14,45 +11,6 @@ use y2p_core::{
     lenient::{self, BootId},
     Root,
 };
-
-/// Why `normalize` stopped.
-enum Stop {
-    /// The observation cannot be read (a codec receipt's arguments that are no list): the section
-    /// reports no observation.
-    Unobserved,
-    /// A broken installed record (the codec inventory): the snapshot is refused.
-    Refused(Failure),
-}
-
-/// Why `codec_settings` has no answer.
-enum Settings {
-    /// The owner's codec policy is refused (its reason): the settings are shown as Failed.
-    Invalid(String),
-    Stop(Stop),
-}
-
-/// The codec inventory's entry for `name`; an inventory whose codecs are no object refuses.
-fn inventory_entry<'a>(
-    inventory: &'a Map<String, Value>,
-    name: &str,
-) -> Result<Option<&'a Map<String, Value>>, Settings> {
-    inventory_codec(inventory, name).map_err(|refusal| Settings::Stop(Stop::Refused(refusal)))
-}
-
-/// The installed codec inventory (what this build compiled and qualified).
-const INVENTORY: &str = "/etc/y2linux/bluetooth-codecs.json";
-
-/// `/run/y2/codec-runtime.json`: the codec arguments BlueALSA was last started with and the
-/// settings they carry (connectivity group).
-#[derive(Deserialize, Default)]
-#[serde(default)]
-struct AppliedCodecs {
-    /// Missing (no arguments) differs from anything but a list of texts (unobserved).
-    #[serde(deserialize_with = "present")]
-    arguments: Option<Value>,
-    boot_id: BootId,
-    settings: Value,
-}
 
 /// When `/run/y2/bt-reconnect.json` was written (y2-bt-reconnect, every few seconds).
 #[derive(Deserialize, Default)]
@@ -63,73 +21,47 @@ struct ReconnectStamp {
     monotonic_us: Option<i64>,
 }
 
-/// The codec settings: the owner's policy, what BlueALSA was started with this boot (its effective
-/// settings) and which qualities this build supports.
-fn codec_settings(root: &Root, inventory: &Map<String, Value>) -> Result<Value, Settings> {
-    let policy = requested(root)
-        .and_then(validate)
-        .map_err(|error| Settings::Invalid(error.message()))?;
-    let applied: AppliedCodecs = record_fields(root, "/run/y2/codec-runtime.json");
-    let boot = root.boot_id();
-    // This receipt records startup arguments, never endpoint/negotiation success.
-    let pid = root.integer("/run/y2/bluealsa.pid");
-    let command = match pid {
-        Some(pid) if pid > 1 => root.read_limited(&format!("/proc/{pid}/cmdline"), 8192),
-        _ => None,
-    };
-    let argv: Vec<&str> = match command.as_deref().filter(|c| !c.is_empty()) {
-        Some(c) => c.split('\0').collect(),
-        None => Vec::new(),
-    };
-    let live = argv
-        .first()
-        .is_some_and(|a| a.rsplit('/').next() == Some("bluealsad"))
-        && {
-            let arguments: Vec<&str> = match &applied.arguments {
-                None => Vec::new(),
-                Some(Value::Array(items)) => items
-                    .iter()
-                    .map(Value::as_str)
-                    .collect::<Option<_>>()
-                    .ok_or(Settings::Stop(Stop::Unobserved))?,
-                Some(_) => return Err(Settings::Stop(Stop::Unobserved)),
-            };
-            arguments.iter().all(|a| argv.contains(a))
-        };
-    let effective = if live
-        && applied.boot_id.is(boot.as_deref())
-        && boot.as_deref().is_some_and(|b| !b.is_empty())
-    {
-        applied.settings
-    } else {
-        Value::Null
-    };
-    let policy = Value::Object(policy);
-    let aac = inventory_entry(inventory, "AAC")?;
-    let ldac = inventory_entry(inventory, "LDAC")?;
-    let compiled = |codec: Option<&Map<String, Value>>| {
-        codec.and_then(|c| c.get("compiled_locally")) == Some(&Value::Bool(true))
-    };
-    let qualities = |codec: Option<&Map<String, Value>>, list: Value| {
-        if compiled(codec) {
-            list
-        } else {
-            json!([])
+/// The codec settings the section shows: `codec-settings`' record, or why there is none (a refused
+/// policy or inventory).
+#[derive(Serialize)]
+#[serde(untagged)]
+pub enum CodecSettings {
+    Settings(Box<codec::Settings>),
+    Failed {
+        schema: &'static str,
+        state: &'static str,
+        reason: String,
+        /// Null: no policy was read.
+        requested: (),
+        effective: (),
+        pending_restart: bool,
+        supported: std::collections::BTreeMap<String, bool>,
+    },
+}
+
+impl CodecSettings {
+    fn read(root: &Root) -> CodecSettings {
+        match codec::settings(root) {
+            Ok(settings) => CodecSettings::Settings(Box::new(settings)),
+            Err(refusal) => CodecSettings::Failed {
+                schema: codec::SETTINGS_SCHEMA,
+                state: "Failed",
+                reason: refusal.message(),
+                requested: (),
+                effective: (),
+                pending_restart: false,
+                supported: Default::default(),
+            },
         }
-    };
-    Ok(json!({
-        "schema": y2p_contract::schema::CODEC_SETTINGS, "requested": policy.clone(),
-        "effective": effective.clone(), "effective_scope": "daemon_start_arguments",
-        "pending_restart": effective != policy,
-        "apply_action": "restart_player",
-        "supported": {
-            "sbc_quality": ["high", "xq", "xq+"], "sbc_abr": true,
-            "aac_quality": qualities(aac, json!(["standard", "high"])),
-            "aac_abr": compiled(aac),
-            "ldac_quality": qualities(ldac, json!(["mobile", "standard", "high"])),
-            "ldac_abr": compiled(ldac),
-        },
-    }))
+    }
+
+    /// The owner's policy (none where the settings were refused).
+    fn requested(&self) -> Option<&codec::Policy> {
+        match self {
+            CodecSettings::Settings(settings) => Some(&settings.requested),
+            CodecSettings::Failed { .. } => None,
+        }
+    }
 }
 
 /// The encoder as observed, kept apart from the peer's configuration and the preference: BlueALSA's
@@ -149,7 +81,7 @@ struct Encoder {
     aac_abr_enabled: Option<bool>,
     aac_abr_level: Option<i64>,
     aac_abr_adjustments: Option<i64>,
-    preference: Value,
+    preference: Option<codec::Policy>,
     encoder_observed: bool,
     bitrate_scope: &'static str,
     ldac_abr_adaptation_observed: bool,
@@ -158,7 +90,7 @@ struct Encoder {
     sbc_negotiated_bitpool_range: Option<[i64; 2]>,
 }
 
-fn quality(codec: Option<&str>, pcm: &PcmProperties, settings: &Value) -> Encoder {
+fn quality(codec: Option<&str>, pcm: &PcmProperties, settings: Option<&CodecSettings>) -> Encoder {
     let config: Vec<i64> = pcm
         .codec_configuration
         .iter()
@@ -179,7 +111,7 @@ fn quality(codec: Option<&str>, pcm: &PcmProperties, settings: &Value) -> Encode
     const MAX: i64 = (1 << 31) - 1;
     let flag = |enabled: Option<i64>| enabled.map(|e| e != 0);
     let mut encoder = Encoder {
-        preference: settings.get("requested").cloned().unwrap_or(Value::Null),
+        preference: settings.and_then(CodecSettings::requested).cloned(),
         encoder_observed: live,
         bitrate_scope: "encoder_payload_nominal_not_radio_throughput",
         encoder_errors: observed("Errors", 0, MAX),
@@ -260,7 +192,7 @@ pub struct Section {
     reconnect_owner: &'static str,
     reconnect: Option<Value>,
     codec_inventory: Option<Value>,
-    codec_settings: Value,
+    codec_settings: Option<CodecSettings>,
     #[serde(skip_serializing_if = "Option::is_none")]
     devices: Option<Vec<Device>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -313,7 +245,7 @@ struct Transport {
 }
 
 impl Section {
-    fn new(root: &Root, settings: Value, inventory: Option<Value>) -> Section {
+    fn new(root: &Root, settings: Option<CodecSettings>, inventory: Option<Value>) -> Section {
         Section {
             state: Readiness::Unavailable,
             reason: "dbus_observation_unavailable",
@@ -464,31 +396,18 @@ fn objects<T: serde::de::DeserializeOwned>(map: &Map<String, Value>) -> Vec<(&St
 }
 
 /// The section from y2-bt-observe's answer (`raw`).
-fn normalize(root: &Root, raw: &Observed) -> Result<Section, Stop> {
-    let mut section = settled_base(root)?;
+fn normalize(root: &Root, raw: &Observed) -> Section {
+    let mut section = settled_base(root);
     observed(root, raw, &mut section);
-    Ok(section)
+    section
 }
 
 /// The section before y2-bt-observe's answer: the codec settings, inventory and the reconnect
 /// helper's record (shown only while fresh: written this boot within the last 10 s).
-fn settled_base(root: &Root) -> Result<Section, Stop> {
-    // Read once: the settings check it and the section shows it.
-    let inventory = root.json(INVENTORY);
-    let none = Map::new();
-    let entries = match &inventory {
-        Some(Value::Object(map)) => map,
-        _ => &none,
-    };
-    let settings = match codec_settings(root, entries) {
-        Ok(settings) => settings,
-        Err(Settings::Invalid(reason)) => {
-            json!({"schema": y2p_contract::schema::CODEC_SETTINGS, "state": "Failed",
-                   "reason": reason, "requested": null, "effective": null,
-                   "pending_restart": false, "supported": {}})
-        }
-        Err(Settings::Stop(stop)) => return Err(stop),
-    };
+fn settled_base(root: &Root) -> Section {
+    // The installed inventory is shown as installed.
+    let inventory = root.json(codec::INVENTORY);
+    let settings = Some(CodecSettings::read(root));
     let mut section = Section::new(root, settings, inventory);
     let fresh = match &section.reconnect {
         Some(Value::Object(record)) => {
@@ -505,7 +424,7 @@ fn settled_base(root: &Root) -> Result<Section, Stop> {
         section.reconnect =
             Some(json!({"state": "Unavailable", "reason": "reconnect_record_stale_or_absent"}));
     }
-    Ok(section)
+    section
 }
 
 /// What y2-bt-observe saw, added step by step: the adapter, the runtime (bluealsa and its codecs),
@@ -681,7 +600,7 @@ fn transport(
         channels,
     });
     let codec = pcm.codec.clone();
-    let encoder = quality(codec.as_deref(), pcm, &section.codec_settings);
+    let encoder = quality(codec.as_deref(), pcm, section.codec_settings.as_ref());
     section.negotiated_codec = codec;
     section.actual_bitrate_bps = encoder.bitrate_bps;
     section.encoder = Some(encoder);
@@ -706,14 +625,8 @@ fn transport(
 pub fn bluetooth(root: &Root) -> Result<Section, Failure> {
     let answer = command::run_with(root, &["/usr/sbin/y2-bt-observe"], 3.0, 262_144, false);
     let output = answer.output.unwrap_or_default();
-    if let Ok(observed) = serde_json::from_str::<Observed>(&output) {
-        if observed.schema == Some(1) {
-            match normalize(root, &observed) {
-                Ok(value) => return Ok(value),
-                Err(Stop::Refused(error)) => return Err(error),
-                Err(Stop::Unobserved) => {}
-            }
-        }
+    match serde_json::from_str::<Observed>(&output) {
+        Ok(observed) if observed.schema == Some(1) => Ok(normalize(root, &observed)),
+        _ => Ok(Section::new(root, None, None)),
     }
-    Ok(Section::new(root, Value::Null, None))
 }

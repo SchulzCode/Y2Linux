@@ -5,7 +5,7 @@ use crate::reply::{Failure, Outcome, Reply};
 use serde_json::{json, Map, Value};
 use y2p_core::{
     json::{Object, ObjectExt},
-    py::{eq_int, is_true},
+    py::is_true,
     Root,
 };
 
@@ -68,7 +68,7 @@ pub fn run(root: &Root) -> Outcome {
             }
         }
     }
-    let inventory = root.json_object("/etc/y2linux/bluetooth-codecs.json");
+    let inventory = codec::Inventory::read(root)?;
     let policy = codec::requested(root)?;
     if let Some(caps) = caps.as_mut() {
         for (key, name) in [
@@ -85,33 +85,22 @@ pub fn run(root: &Root) -> Outcome {
             {
                 continue;
             }
-            let actual = codec::inventory_codec(&inventory, name)?;
+            let actual = inventory.codec(name);
             let Some(cap) = entry(caps, &format!("bluetooth_{key}"))? else {
                 continue;
             };
-            let flag = |k: &str| is_true(actual.and_then(|a| a.get(k)));
-            let implemented = flag("compiled_locally");
-            let enabled = implemented
-                && (name == "SBC"
-                    || (flag("distribution_approved") && flag("platform_qualified"))
-                    || (eq_int(policy.get("schema"), 1)
-                        && is_true(policy.get("experimental"))
-                        && flag("owner_private_experiment")));
+            let implemented = actual.compiled_locally;
+            let enabled = implemented && (name == "SBC" || inventory.eligible(name, &policy));
             cap.insert("implemented".into(), json!(implemented));
             cap.insert("enabled".into(), json!(enabled));
-            cap.insert("qualified".into(), json!(flag("platform_qualified")));
+            cap.insert("qualified".into(), json!(actual.platform_qualified));
             cap.insert(
                 "enablement_scope".into(),
                 json!("daemon policy; active PCM reported separately"),
             );
         }
         if let Some(cap) = entry(caps, "bluetooth_sbc_xq")? {
-            let xq = eq_int(policy.get("schema"), 1)
-                && is_true(policy.get("experimental"))
-                && matches!(
-                    policy.get("sbc_quality").and_then(Value::as_str),
-                    Some("xq" | "xq+")
-                );
+            let xq = policy.experimental && matches!(policy.sbc_quality.as_str(), "xq" | "xq+");
             cap.insert("enabled".into(), json!(xq));
         }
         if let Some(cap) = entry(caps, "wifi_power_save")? {

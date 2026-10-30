@@ -7,7 +7,7 @@
  "calls": [],
  "exit": 1,
  "stdout": {
-  "failure": "aac_encoder_not_compiled",
+  "failure": "invalid_codec_inventory",
   "schema": "org.y2linux.codec-settings/v1"
  },
  "tree": {

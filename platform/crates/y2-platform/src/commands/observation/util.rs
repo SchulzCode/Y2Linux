@@ -120,12 +120,6 @@ pub fn record_fields<T: DeserializeOwned + Default>(root: &Root, name: &str) -> 
     fields(&root.json_object(name))
 }
 
-/// For a `fields` field that tells a missing key (None) from a null one (`Some(Null)`):
-/// `#[serde(default, deserialize_with = "present")]`.
-pub fn present<'de, D: serde::Deserializer<'de>>(value: D) -> Result<Option<Value>, D::Error> {
-    serde::Deserialize::deserialize(value).map(Some)
-}
-
 /// `d.get(key) == other` where a missing key is None.
 pub fn get_eq(map: &Map<String, Value>, key: &str, other: &Value) -> bool {
     map.get(key).unwrap_or(&Value::Null) == other
@@ -211,6 +205,7 @@ pub type Readings = BTreeMap<String, Option<String>>;
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[allow(unused_imports)]
     use serde_json::json;
 
     #[test]
@@ -256,22 +251,5 @@ mod tests {
         );
         assert_eq!(realpath(&dir.join("absent/z")), real.join("absent/z"));
         std::fs::remove_dir_all(&dir).unwrap();
-    }
-
-    #[test]
-    fn record_fields_read_missing_as_null_and_take_any_type() {
-        #[derive(serde::Deserialize, Default)]
-        #[serde(default)]
-        struct Record {
-            state: Value,
-            #[serde(deserialize_with = "present")]
-            arguments: Option<Value>,
-        }
-        let read = |value: Value| -> Record { fields(value.as_object().unwrap()) };
-        let full = read(json!({"state": ["odd"], "arguments": null, "other": 1}));
-        assert_eq!(full.state, json!(["odd"]));
-        assert_eq!(full.arguments, Some(Value::Null));
-        let empty = read(json!({}));
-        assert!(empty.state.is_null() && empty.arguments.is_none());
     }
 }

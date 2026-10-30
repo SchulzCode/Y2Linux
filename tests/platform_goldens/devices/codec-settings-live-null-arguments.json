@@ -3,10 +3,42 @@
   "codec-settings"
  ],
  "calls": [],
- "exit": 1,
+ "exit": 0,
  "stdout": {
-  "failure": "invalid_codec_runtime_record",
-  "schema": "org.y2linux.codec-settings/v1"
+  "apply_action": "restart_player",
+  "effective": null,
+  "effective_scope": "daemon_start_arguments",
+  "pending_restart": true,
+  "requested": {
+   "aac_abr": true,
+   "aac_quality": "high",
+   "experimental": false,
+   "ldac_abr": true,
+   "ldac_quality": "standard",
+   "sbc_abr": true,
+   "sbc_quality": "high",
+   "schema": 1
+  },
+  "schema": "org.y2linux.codec-settings/v1",
+  "supported": {
+   "aac_abr": true,
+   "aac_quality": [
+    "standard",
+    "high"
+   ],
+   "ldac_abr": true,
+   "ldac_quality": [
+    "mobile",
+    "standard",
+    "high"
+   ],
+   "sbc_abr": true,
+   "sbc_quality": [
+    "high",
+    "xq",
+    "xq+"
+   ]
+  }
  },
  "tree": {
   "added": {},

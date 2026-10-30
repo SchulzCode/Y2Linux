@@ -33,11 +33,7 @@
     },
     "codec_settings": {
       "apply_action": "restart_player",
-      "effective": {
-        "experimental": false,
-        "sbc_quality": "xq",
-        "schema": 1
-      },
+      "effective": null,
       "effective_scope": "daemon_start_arguments",
       "pending_restart": true,
       "requested": {
