@@ -26,42 +26,6 @@
     "UUID",
     "-o",
     "value",
-    "/dev/mmcblk0p8"
-   ],
-   "timeout": 1.0
-  },
-  {
-   "argv": [
-    "blkid",
-    "-p",
-    "-s",
-    "UUID",
-    "-o",
-    "value",
-    "/dev/mmcblk0p9"
-   ],
-   "timeout": 1.0
-  },
-  {
-   "argv": [
-    "blkid",
-    "-p",
-    "-s",
-    "UUID",
-    "-o",
-    "value",
-    "/dev/mmcblk0p8"
-   ],
-   "timeout": 1.0
-  },
-  {
-   "argv": [
-    "blkid",
-    "-p",
-    "-s",
-    "UUID",
-    "-o",
-    "value",
     "/dev/mmcblk0p9"
    ],
    "timeout": 1.0
