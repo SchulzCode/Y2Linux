@@ -76,7 +76,7 @@ pub(super) fn execute(
     let lock_path = platform.join(".maintenance.lock");
     let _lock = y2p_core::lock::try_exclusive(&lock_path)
         .map_err(|e| os(e, &lock_path))?
-        .ok_or_else(|| Failure::from(std::io::Error::from_raw_os_error(libc::EAGAIN)))?;
+        .ok_or_else(Failure::busy)?;
     let value = json_dict(root, "/data/system/platform/reset-plan.json");
     let required = || Failure::value("exact_reset_confirmation_required");
     // `not confirmation or value.get('confirmation') != confirmation or not re.fullmatch(...,

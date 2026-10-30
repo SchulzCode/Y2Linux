@@ -154,10 +154,7 @@ impl Coordinator {
             return Ok(intent.clone());
         }
         let now = self.clock();
-        let id = py::uuid4().map_err(|e| {
-            let (text, class) = py::os_error(&e, None);
-            Failure::Os { text, class }
-        })?;
+        let id = py::uuid4()?;
         let intent = self.intent.insert(
             Object::new()
                 .with("schema", 1i64)

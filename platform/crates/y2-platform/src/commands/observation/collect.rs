@@ -163,8 +163,7 @@ pub fn run(root: &Root, options: &Options) -> Outcome {
             return Err(Failure::value("collection_output_limit_64MiB"));
         }
         if let Err(error) = out.write_all(line.as_bytes()).and_then(|()| out.flush()) {
-            let (text, class) = y2p_core::py::os_error(&error, None);
-            return Err(Failure::Os { text, class });
+            return Err(Failure::from(error));
         }
         previous = Some(value);
         let remaining = deadline.min(sample_start + interval as f64) - clock::monotonic();

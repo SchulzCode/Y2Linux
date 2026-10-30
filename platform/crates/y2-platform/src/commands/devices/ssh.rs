@@ -291,16 +291,12 @@ pub fn serve(root: &Root) -> Outcome {
     let path = runtime.join("ssh.lock");
     let lock = y2p_core::lock::try_exclusive(&path)
         .at(&path)?
-        .ok_or_else(|| Failure::Os {
-            text: "[Errno 11] Resource temporarily unavailable".into(),
-            class: "BlockingIOError",
-        })?;
+        .ok_or_else(Failure::busy)?;
     RUNNING.store(true, Ordering::SeqCst);
     let mut pipe = [-1; 2];
     // SAFETY: a two-element array for the new descriptors.
     if unsafe { libc::pipe2(pipe.as_mut_ptr(), libc::O_NONBLOCK | libc::O_CLOEXEC) } != 0 {
-        let (text, class) = py::os_error(&io::Error::last_os_error(), None);
-        return Err(Failure::Os { text, class });
+        return Err(Failure::from(io::Error::last_os_error()));
     }
     // SAFETY: both descriptors were just created and are owned here.
     let (wake_read, wake_write) =

@@ -211,8 +211,7 @@ pub fn try_lock(path: &Path) -> Result<Option<File>, Failure> {
 }
 
 fn busy() -> Failure {
-    let (text, class) = y2p_core::py::os_error(&io::Error::from_raw_os_error(libc::EAGAIN), None);
-    Failure::Os { text, class }
+    Failure::busy()
 }
 
 /// `try_lock` with a busy lock an error (`[Errno 11] Resource temporarily unavailable`).

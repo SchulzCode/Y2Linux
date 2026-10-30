@@ -79,10 +79,7 @@ fn configure_inner(root: &Root, changes: Changes) -> Result<Status, Failure> {
     let path = root.path("/run/y2/codec-settings.lock");
     let _lock = y2p_core::lock::try_exclusive(&path)
         .at(&path)?
-        .ok_or_else(|| Failure::Os {
-            text: "[Errno 11] Resource temporarily unavailable".into(),
-            class: "BlockingIOError",
-        })?;
+        .ok_or_else(Failure::busy)?;
     let mut merged = requested(root)?;
     for (key, value) in &changes {
         merged.insert((*key).into(), value.clone());

@@ -81,6 +81,12 @@ impl<T> At<T> for io::Result<T> {
 }
 
 impl Failure {
+    /// `BlockingIOError: [Errno 11] Resource temporarily unavailable`: a lock another holder has (a
+    /// daemon or command that is already running).
+    pub fn busy() -> Failure {
+        Failure::from(io::Error::from_raw_os_error(libc::EAGAIN))
+    }
+
     pub fn value(error: impl ToString) -> Failure {
         Failure::Value(error.to_string())
     }

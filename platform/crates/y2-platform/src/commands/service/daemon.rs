@@ -281,7 +281,7 @@ pub fn serve(root: &Root) -> Outcome {
     let path = runtime.join("service.lock");
     let lock = y2p_core::lock::try_exclusive(&path)
         .at(&path)?
-        .ok_or_else(|| Failure::from(io::Error::from_raw_os_error(libc::EWOULDBLOCK)))?;
+        .ok_or_else(Failure::busy)?;
     let ticks = if root.is_real() {
         None
     } else {

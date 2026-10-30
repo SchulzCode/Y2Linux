@@ -232,15 +232,9 @@ pub fn serve(root: &Root) -> Outcome {
     let runtime = root.path("/run/y2");
     private_directory(&runtime)?;
     let lock_path = runtime.join("power.lock");
-    let _lock = match y2p_core::lock::try_exclusive(&lock_path) {
-        Ok(Some(lock)) => lock,
-        Ok(None) => {
-            return Err(Failure::from(std::io::Error::from_raw_os_error(
-                libc::EAGAIN,
-            )))
-        }
-        Err(error) => return Err(Failure::os(error, &lock_path)),
-    };
+    let _lock = y2p_core::lock::try_exclusive(&lock_path)
+        .at(&lock_path)?
+        .ok_or_else(Failure::busy)?;
     let address = root.path(SOCKET);
     if address.exists() {
         let meta = std::fs::symlink_metadata(&address).at(&address)?;
