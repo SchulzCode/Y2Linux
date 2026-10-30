@@ -2,17 +2,13 @@
 //! lookup: `status wifi`'s observation (observation/snapshot/wifi.rs), read leniently, and the record
 //! helpers the connectivity group shares.
 // SPDX-License-Identifier: GPL-2.0-only
-use crate::commands::observation::snapshot::wifi::{observe, Odd};
-use serde_json::Value;
-use y2p_core::{json::Object, Root};
+use crate::commands::observation::snapshot::wifi::{observe, Wifi};
+use y2p_core::Root;
 
 /// What Wi-Fi looks like now (`status wifi`'s observation; network.json and the DNS probe's
-/// before/after look). An odd record reads as empty: the daemons that call this keep running.
-pub fn wifi(root: &Root, signal_cache: Option<&Object>) -> Object {
-    match observe(root, signal_cache, Odd::Empty).map(serde_json::to_value) {
-        Ok(Ok(Value::Object(map))) => map,
-        _ => Object::new(),
-    }
+/// before/after look), with the signal reading of `signal_cache` while it is fresh.
+pub fn wifi(root: &Root, signal_cache: Option<&Wifi>) -> Wifi {
+    observe(root, signal_cache)
 }
 
 #[cfg(test)]
@@ -21,9 +17,9 @@ mod observe_wifi_tests;
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::commands::observation::snapshot::wifi::wifi_state;
     use serde_json::json;
+    use serde_json::Value;
     use std::collections::BTreeMap;
     use y2p_core::py;
 

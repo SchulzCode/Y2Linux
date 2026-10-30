@@ -29,7 +29,7 @@ use serde_json::{json, Map, Value};
 use std::{env, sync::atomic::Ordering};
 use y2p_core::{
     command,
-    json::{Object, ObjectExt},
+    json::ObjectExt,
     py::{self, is_true, truthy},
     root::read,
     Root,
@@ -165,12 +165,11 @@ impl Service {
             self.monitor.poll();
             self.usb.tick()?;
             let mut value = wifi(root, None);
-            if value.get("state").and_then(Value::as_str) == Some("Associating") {
+            if value.state == "Associating" {
                 let since = *associating_since.get_or_insert(before);
                 if before - since > 30.0 {
-                    value
-                        .set("state", "Failed")
-                        .set("reason", "authentication_timeout");
+                    value.state = "Failed".into();
+                    value.reason = Some("authentication_timeout".into());
                 }
             } else {
                 associating_since = None;
@@ -183,11 +182,8 @@ impl Service {
                 }
                 value = wifi(root, Some(&value));
             }
-            let observation_failed = match value.get("supplicant_observation") {
-                Some(Value::Object(o)) => matches!(o.get("ok"), Some(Value::Bool(false))),
-                _ => false,
-            };
-            if value.get("radio_present") == Some(&Value::Bool(true)) && observation_failed {
+            let observation_failed = value.supplicant_observation.ok == Some(false);
+            if value.radio_present && observation_failed {
                 query_failures = query_failures.saturating_add(1);
             }
             self.recovery.observe(&value, before, Some(&self.monitor));
@@ -201,7 +197,7 @@ impl Service {
             };
             atomic_json(&runtime.join("network.json"), &record, false)?;
             let activity = coexistence.observe(root, &value, before)?;
-            if value.get("association").and_then(Value::as_str) == Some("COMPLETED")
+            if value.association.as_deref() == Some("COMPLETED")
                 && radio_policy_timer.due(before, 30.0)
             {
                 wifi_policy(root, Some(&activity))?;
@@ -213,10 +209,7 @@ impl Service {
             )?;
             reconcile = media_reconcile(root, reconcile, before);
             verify = media_verify(root, verify, before);
-            if value.get("state").and_then(Value::as_str) == Some("Online")
-                && ntp_timer.due(before, 60.0)
-                && !ntp_running(root)
-            {
+            if value.state == "Online" && ntp_timer.due(before, 60.0) && !ntp_running(root) {
                 command::run(root, &["/etc/init.d/S43y2-time", "start"], 1.0);
             }
             let due = maintenance_timer.due(before, maintenance);
@@ -251,8 +244,8 @@ impl Service {
                 drawn_recorded = application_drawn(root);
             }
             if matches!(
-                value.get("state").and_then(Value::as_str),
-                Some("Scanning" | "Associating" | "AcquiringIP")
+                value.state.as_str(),
+                "Scanning" | "Associating" | "AcquiringIP"
             ) {
                 interval = interval.min(1.0);
             }

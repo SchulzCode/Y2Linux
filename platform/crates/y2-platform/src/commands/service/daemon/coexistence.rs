@@ -1,6 +1,6 @@
 //! `/run/y2/coexistence.json`: the Wi-Fi transfer rate and the Bluetooth link for the radio policy.
 // SPDX-License-Identifier: GPL-2.0-only
-use super::{atomic_json, json, py, Failure, Map, Object, Root, Value};
+use super::{atomic_json, json, Failure, Map, Root, Value};
 
 /// The Wi-Fi transfer rate and the Bluetooth link for the radio policy (`/run/y2/coexistence.json`);
 /// provisional, no codec override.
@@ -15,17 +15,15 @@ impl Coexistence {
     pub(super) fn observe(
         &mut self,
         root: &Root,
-        wifi: &Object,
+        wifi: &crate::commands::observation::snapshot::Wifi,
         now: f64,
     ) -> Result<Map<String, Value>, Failure> {
-        // Counters that are not numbers (the Wi-Fi observation never gives any) count as none.
-        let total: f64 = match wifi.get("traffic_counters") {
-            Some(Value::Object(stats)) => ["rx_bytes", "tx_bytes"]
-                .iter()
-                .filter_map(|key| py::number(stats.get(*key)))
-                .sum(),
-            _ => 0.0,
-        };
+        // A counter that did not read counts as none.
+        let total: f64 = ["rx_bytes", "tx_bytes"]
+            .iter()
+            .filter_map(|key| wifi.traffic_counters.get(*key).copied().flatten())
+            .map(|bytes| bytes as f64)
+            .sum();
         let mut rate = None;
         if let Some((previous_time, previous_bytes)) = self.previous {
             if now > previous_time && total >= previous_bytes {
@@ -38,10 +36,7 @@ impl Coexistence {
         let boot_id = self.boot_id.get_or_insert_with(|| root.boot_id());
         value.insert("boot_id".into(), json!(boot_id));
         value.insert("monotonic_s".into(), json!(now));
-        value.insert(
-            "wifi_active".into(),
-            json!(wifi.get("state").and_then(Value::as_str) == Some("Online")),
-        );
+        value.insert("wifi_active".into(), json!(wifi.state == "Online"));
         value.insert("wifi_bytes_per_second".into(), json!(rate));
         value.insert(
             "wifi_heavy_transfer".into(),

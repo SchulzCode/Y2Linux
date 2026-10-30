@@ -36,7 +36,8 @@ impl Service {
 
     fn tick(&mut self, run: Option<Reports>, now: f64, network: &str) -> Reports {
         let before = run.as_ref().and_then(|r| r.send_after);
-        let state = Object::new().with("state", network);
+        let state: crate::commands::observation::snapshot::Wifi =
+            serde_json::from_value(serde_json::json!({ "state": network })).unwrap();
         let run = error_reports(self.root(), &state, run, now).unwrap();
         if run.send_after != before && run.send_after == Some(now + REPORT_SEND_GAP_S) {
             self.started += 1;

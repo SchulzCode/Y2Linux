@@ -5,6 +5,7 @@
 //! have been that long ago.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::*;
+use crate::commands::observation::snapshot::Wifi;
 use crate::testing::Fixture;
 use y2p_core::clock;
 
@@ -13,10 +14,12 @@ fn heavy_transfer_is_observed_without_a_codec_override() {
     let fixture = Fixture::new();
     fixture.mkdir("/run/y2");
     let mut observe = Coexistence::default();
-    let online = Object::new().with("state", "Online");
+    let online: Wifi = serde_json::from_value(json!({"state": "Online"})).unwrap();
     let first = observe.observe(&fixture.root, &online, 1.0).unwrap();
     assert!(first["wifi_bytes_per_second"].is_null());
-    let busy = online.with("traffic_counters", json!({"rx_bytes": 3000000}));
+    let mut busy = online.clone();
+    busy.traffic_counters
+        .insert("rx_bytes".into(), Some(3_000_000));
     let value = observe.observe(&fixture.root, &busy, 2.0).unwrap();
     assert_eq!(value["wifi_heavy_transfer"], true);
     assert!(value["codec_bitrate_override"].is_null());
@@ -117,13 +120,14 @@ fn counters_that_are_no_numbers_count_as_none() {
     let fixture = Fixture::new();
     fixture.mkdir("/run/y2");
     let mut observe = Coexistence::default();
+    // A counter that did not read counts as none.
     for (now, counters) in [
-        (1.0, json!("busy")),
-        (2.0, json!({"rx_bytes": "lots", "tx_bytes": 5})),
+        (1.0, json!({})),
+        (2.0, json!({"rx_bytes": null, "tx_bytes": 5})),
     ] {
-        let wifi = Object::new()
-            .with("state", "Online")
-            .with("traffic_counters", counters);
+        let wifi: Wifi =
+            serde_json::from_value(json!({"state": "Online", "traffic_counters": counters}))
+                .unwrap();
         assert!(observe.observe(&fixture.root, &wifi, now).is_ok());
     }
     assert_eq!(

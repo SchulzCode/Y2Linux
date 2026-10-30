@@ -17,7 +17,7 @@ use y2p_core::{
 #[derive(Serialize)]
 pub struct Record<'a> {
     #[serde(flatten)]
-    pub observation: &'a Object,
+    pub observation: &'a crate::commands::observation::snapshot::Wifi,
     /// How many supplicant queries failed this boot while the radio was present.
     pub status_query_failures: u64,
     pub schema: u8,

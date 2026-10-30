@@ -3,10 +3,11 @@
 use crate::commands::connectivity::direct;
 use crate::commands::connectivity::direct::{Link, Route};
 use crate::commands::connectivity::wifi::failure::FailureRecord;
-use crate::commands::observation::util::{fields, key_values, name, number, read, record_fields};
+use crate::commands::observation::util::{int, Counted};
+use crate::commands::observation::util::{key_values, name, read, record_fields};
 use crate::reply::Failure;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Map, Value};
+use serde_json::Value;
 use std::collections::BTreeMap;
 use y2p_core::{
     command,
@@ -46,24 +47,31 @@ struct DhcpAnswer {
     error: Option<String>,
 }
 
-/// The parts of `/run/y2/network.json` (the last status the connectivity daemon published) a new
+/// The parts of `/run/y2/network.json` (the last status the service daemon published) a new
 /// observation reuses: the signal reading while it is fresh.
 #[derive(Deserialize, Default)]
 #[serde(default)]
 struct Published {
-    signal_observation: Value,
-    rssi_dbm: Value,
+    #[serde(deserialize_with = "lenient::or_none")]
+    signal_observation: Option<SignalObservation>,
+    #[serde(deserialize_with = "lenient::or_none")]
+    rssi_dbm: Option<i64>,
 }
 
-/// When and for which access point a signal was polled.
-#[derive(Deserialize, Default)]
+/// When, for which access point and with what outcome the signal was last polled.
+#[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
 #[serde(default)]
-struct SignalStamp {
-    boot_id: BootId,
+pub struct SignalObservation {
     #[serde(deserialize_with = "lenient::text")]
-    bssid: Option<String>,
-    #[serde(deserialize_with = "lenient::number")]
-    monotonic_s: Option<f64>,
+    pub boot_id: Option<String>,
+    #[serde(deserialize_with = "lenient::text")]
+    pub bssid: Option<String>,
+    #[serde(deserialize_with = "lenient::or_none")]
+    pub monotonic_s: Option<f64>,
+    #[serde(deserialize_with = "lenient::or_default")]
+    pub ok: bool,
+    #[serde(deserialize_with = "lenient::text")]
+    pub reason: Option<String>,
 }
 
 /// `0 <= now - stamp < window` (seconds on the monotonic clock).
@@ -133,28 +141,15 @@ fn global_addresses(links: &[Link]) -> Vec<String> {
         .collect()
 }
 
-/// How an odd record (an `ip -j` entry or a network.json signal stamp of the wrong shape) is read:
-/// `status` refuses it; the connectivity and service daemons, which must keep running, read it as
-/// empty.
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub enum Odd {
-    Refuse,
-    Empty,
-}
-
 /// The `wifi` section of `status`.
 pub fn wifi(root: &Root) -> Result<Wifi, Failure> {
-    observe(root, None, Odd::Refuse)
+    Ok(observe(root, None))
 }
 
 /// What Wi-Fi looks like now: readiness above wpa_supplicant, the lease, DNS and the signal. The last
 /// RSSI poll (reused for 30 s on the same peer) is `signal_cache` (the daemon's previous look), else
 /// the one network.json published.
-pub fn observe(
-    root: &Root,
-    signal_cache: Option<&Map<String, Value>>,
-    odd: Odd,
-) -> Result<Wifi, Failure> {
+pub fn observe(root: &Root, signal_cache: Option<&Wifi>) -> Wifi {
     let radio = root.path("/sys/class/net/wlan0").exists();
     let started = root.clock().monotonic_ns();
     // Station statistics can hold the control loop for about 2.1 s on this firmware. Bound the
@@ -219,7 +214,7 @@ pub fn observe(
         dns_ready,
         dhcp_error.as_deref(),
     );
-    let mut stats = Map::new();
+    let mut stats = Counted::new();
     match root
         .is_real()
         .then(|| direct::link_statistics("wlan0", 3.0))
@@ -227,55 +222,54 @@ pub fn observe(
     {
         Some(counters) => {
             for (counter, value) in counters {
-                stats.insert(
-                    counter.into(),
-                    i64::try_from(value).map_or(Value::Null, Value::from),
-                );
+                stats.insert(counter.into(), i64::try_from(value).ok());
             }
         }
         None => {
             for path in root.glob("/sys/class/net/wlan0/statistics/*") {
-                stats.insert(name(&path), number(read(&path).as_deref()));
+                stats.insert(name(&path), read(&path).as_deref().and_then(int));
             }
         }
     }
-    let previous: Published = match signal_cache {
-        Some(cache) => fields(cache),
+    let previous = match signal_cache {
+        Some(cache) => Published {
+            signal_observation: cache.signal_observation.clone(),
+            rssi_dbm: cache.rssi_dbm,
+        },
         None => record_fields(root, "/run/y2/network.json"),
     };
-    let stamp: SignalStamp = match &previous.signal_observation {
-        Value::Object(map) => fields(map),
-        Value::Null => SignalStamp::default(),
-        _ if odd == Odd::Refuse => return Err(Failure::value("invalid_network_record")),
-        _ => SignalStamp::default(),
-    };
-    let fresh_signal =
-        stamp.boot_id.is(boot) && stamp.bssid == bssid && fresh(root, stamp.monotonic_s, 30.0);
-    let (mut signal, mut rssi) = match previous.signal_observation {
-        observed @ Value::Object(_) if fresh_signal => (observed, previous.rssi_dbm),
-        observed @ Value::Object(_) => (observed, Value::Null),
-        _ => (json!({}), Value::Null),
-    };
+    let fresh_signal = previous.signal_observation.as_ref().is_some_and(|stamp| {
+        stamp.boot_id.as_deref() == boot
+            && stamp.bssid == bssid
+            && fresh(root, stamp.monotonic_s, 30.0)
+    });
+    let mut signal = previous.signal_observation;
+    let mut rssi = previous.rssi_dbm.filter(|_| fresh_signal);
     let association = properties.get("wpa_state").cloned();
     let completed = association.as_deref() == Some("COMPLETED");
     if completed && !fresh_signal {
         let poll = direct::wpa_cli(root, "signal_poll", 3.0);
         let values = key_values(poll.output.as_deref(), "=");
-        rssi = number(values.get("RSSI").map(String::as_str));
-        signal = json!({"boot_id": boot, "bssid": bssid, "monotonic_s": root.clock().monotonic(),
-                        "ok": poll.ok, "reason": poll.reason});
+        rssi = values.get("RSSI").and_then(|v| int(v));
+        signal = Some(SignalObservation {
+            boot_id: boot.map(str::to_owned),
+            bssid: bssid.clone(),
+            monotonic_s: Some(root.clock().monotonic()),
+            ok: poll.ok,
+            reason: poll.reason,
+        });
     } else if !completed {
-        rssi = Value::Null;
-        signal = Value::Null;
+        rssi = None;
+        signal = None;
     }
     let credential = properties.get("credential_failure");
-    Ok(Wifi {
+    Wifi {
         failed_network_id: if state == "Failed" && reason.as_ref() == credential {
             failed_network
         } else {
             None
         },
-        state,
+        state: state.into(),
         reason,
         radio_present: radio,
         supplicant_observation: SupplicantObservation {
@@ -295,40 +289,42 @@ pub fn observe(
         signal_observation: signal,
         traffic_counters: stats,
         events: root.json("/run/y2/wifi-events.json"),
-        reconnect_owner: "wpa_supplicant",
+        reconnect_owner: "wpa_supplicant".into(),
         power_save: root.json("/run/y2/wifi-power.json"),
         coexistence: root.json("/run/y2/coexistence.json"),
-    })
+    }
 }
 
 /// The `wifi` section and the daemons' look (network.json `observation`), in this key order.
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
+#[serde(default)]
 pub struct Wifi {
-    pub state: &'static str,
+    pub state: String,
     pub reason: Option<String>,
-    radio_present: bool,
+    pub radio_present: bool,
     /// The saved network whose password failed (wpa_supplicant's id).
     failed_network_id: Option<i64>,
     /// A missed control query does not prove a radio disconnect: the query's own result and
     /// latency, apart from the event counters.
-    supplicant_observation: SupplicantObservation,
-    association: Option<String>,
-    association_id: Option<String>,
+    pub supplicant_observation: SupplicantObservation,
+    pub association: Option<String>,
+    pub association_id: Option<String>,
     pub ip_addresses: Vec<String>,
     pub default_route: Vec<Route>,
     dns_ready: bool,
-    rssi_dbm: Value,
-    signal_observation: Value,
-    traffic_counters: Map<String, Value>,
+    pub rssi_dbm: Option<i64>,
+    pub signal_observation: Option<SignalObservation>,
+    pub traffic_counters: Counted,
     events: Option<Value>,
-    reconnect_owner: &'static str,
+    reconnect_owner: String,
     power_save: Option<Value>,
     coexistence: Option<Value>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
+#[serde(default)]
 pub struct SupplicantObservation {
-    ok: Option<bool>,
+    pub ok: Option<bool>,
     reason: Option<String>,
     duration_ns: Option<u64>,
 }

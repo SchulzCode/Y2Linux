@@ -13,11 +13,7 @@ use std::{
     sync::Arc,
     time::{Duration, Instant},
 };
-use y2p_core::{
-    clock::Manual,
-    command::Outcome,
-    json::{sorted_object, Object, ObjectExt},
-};
+use y2p_core::{clock::Manual, command::Outcome, json::ObjectExt};
 
 type Answer = (Vec<String>, Outcome);
 
@@ -27,8 +23,9 @@ fn wpa_answer(args: &[&str], output: &str) -> Answer {
     ok(&argv, output)
 }
 
-fn ordered(value: Value) -> Object {
-    sorted_object(value.as_object().expect("object"))
+/// A Wi-Fi look from its JSON (the fields not given read as their defaults).
+fn look(value: Value) -> crate::commands::observation::snapshot::Wifi {
+    serde_json::from_value(value).expect("a Wi-Fi look")
 }
 
 fn player() -> Fixture {
@@ -54,7 +51,7 @@ fn probe_rejects_peer_disappearance_and_reports_auth_reason_without_ssid() {
     let fixture = steps.attach(player());
     wifi_event(&fixture.root, "CONNECTED").unwrap();
     fixture.mkdir("/sys/class/net/wlan0");
-    let before = ordered(
+    let before = look(
         json!({"ip_addresses": ["192.0.2.2"], "default_route": [{"flags": []}],
                                 "association_id": "peer-one"}),
     );
@@ -150,10 +147,15 @@ fn network_not_found_records_what_the_scan_saw_without_names() {
     assert!(scan.get("saved_channel").is_none());
 }
 
-fn link(association: Option<&str>, id: &str, addresses: &[&str], route: bool) -> Object {
+fn link(
+    association: Option<&str>,
+    id: &str,
+    addresses: &[&str],
+    route: bool,
+) -> crate::commands::observation::snapshot::Wifi {
     let route = if route { json!([{}]) } else { json!([]) };
-    ordered(json!({"association": association, "association_id": id,
-                   "ip_addresses": addresses, "default_route": route}))
+    look(json!({"association": association, "association_id": id,
+                "ip_addresses": addresses, "default_route": route}))
 }
 
 #[test]
@@ -536,7 +538,7 @@ impl Recovery {
     }
 
     fn observe(&mut self, value: &Value, now: f64, monitor: bool) -> Option<&'static str> {
-        let (value, answers) = (ordered(value.clone()), self.answers());
+        let (value, answers) = (look(value.clone()), self.answers());
         let monitor = monitor.then_some(&self.monitor);
         let recovery = &mut self.recovery;
         let (action, calls) = self

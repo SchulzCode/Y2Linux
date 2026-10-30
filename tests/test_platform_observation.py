@@ -36,6 +36,8 @@ class ObservationGoldens(unittest.TestCase):
         for name in observation.UNREADABLE_POWER:
             self.assertEqual((results[name]['exit'], results[name]['stdout']['power']['low_battery']['state']),
                              (0, 'Unavailable'), name)
+        for name in observation.UNREADABLE_SIGNAL:
+            self.assertEqual((results[name]['exit'], results[name]['stdout']['wifi']['rssi_dbm']), (0, -55), name)
         for name in observation.UNREADABLE_IP:
             self.assertEqual((results[name]['exit'], results[name]['stdout']['wifi']['ip_addresses']), (0, []), name)
         for name in observation.UNREADABLE_EVIDENCE:

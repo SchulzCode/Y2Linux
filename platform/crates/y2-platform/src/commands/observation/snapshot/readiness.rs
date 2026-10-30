@@ -65,7 +65,7 @@ pub(super) fn readiness(status: &Snapshot) -> Result<Section, Failure> {
         .find(|v| v.state != VolumeState::Ready)
         .map_or(Value::Null, |v| json!(v.reason));
     let wifi = &status.wifi;
-    let wifi_state = match Some(wifi.state) {
+    let wifi_state = match Some(wifi.state.as_str()) {
         Some("Online") => Readiness::Ready,
         Some("Off") => Readiness::Unavailable,
         Some("Failed") => Readiness::Failed,

@@ -44,11 +44,6 @@ pub fn isdigit(text: &str) -> bool {
     !text.is_empty() && text.bytes().all(|b| b.is_ascii_digit())
 }
 
-/// A decimal text as a JSON int, or null.
-pub fn number(text: Option<&str>) -> Value {
-    text.and_then(int).map_or(Value::Null, Value::from)
-}
-
 /// JSON of an optional str.
 pub fn text(value: Option<String>) -> Value {
     value.map_or(Value::Null, Value::String)

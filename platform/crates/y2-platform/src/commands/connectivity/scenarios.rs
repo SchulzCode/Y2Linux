@@ -5,11 +5,7 @@ use super::crosscheck::{answer, check, player, refused, run};
 use super::{daemon::Supervisor, observe_wifi, radio_policy, wifi};
 use serde_json::{json, Value};
 use std::fs;
-use y2p_core::{
-    clock,
-    json::{Object, ObjectExt},
-    Root,
-};
+use y2p_core::{clock, json::ObjectExt, Root};
 
 const SCAN: &[&str] = &["wpa_cli", "-i", "wlan0", "scan_results"];
 const LIST: &[&str] = &["wpa_cli", "-i", "wlan0", "list_networks"];
@@ -165,10 +161,10 @@ fn the_self_heal_reselects_and_rescans_as_python_does() {
             let result: Vec<Value> = plan
                 .iter()
                 .map(|(at, state, reason)| {
-                    let value = Object::new()
-                        .with("association", *state)
-                        .with("radio_present", true)
-                        .with("reason", json!(reason));
+                    let value: crate::commands::observation::snapshot::Wifi =
+                        serde_json::from_value(json!({"association": state, "radio_present": true,
+                                                      "reason": reason}))
+                        .unwrap();
                     json!(recovery.observe(&value, 1000.0 + at, Some(&monitor)))
                 })
                 .collect();
@@ -320,7 +316,7 @@ fn the_dns_probe_confirms_a_lease_as_python_does() {
                     Err(error) => json!(error.message()),
                 };
                 s.confirmed(100.0);
-                let value = |o: Object| Value::Object(y2p_core::json::sorted_object(&o));
+                let value = |o: crate::commands::observation::snapshot::Wifi| json!(o);
                 let again = s.due(&v, epoch.as_deref(), 101.0);
                 let after = observe_wifi::wifi(root, Some(&v));
                 json!([

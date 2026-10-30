@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{
     command, inventory, media, process, py, radiofw, reports, time, truthy, update, Child, Failure,
-    Object, Root, Start, Value, PLATFORM, RECONCILE_BACKOFF_S, RECONCILE_LIMIT_S, REPORT_CHECK_S,
+    Root, Start, Value, PLATFORM, RECONCILE_BACKOFF_S, RECONCILE_LIMIT_S, REPORT_CHECK_S,
     REPORT_FIRST_S, REPORT_LIMIT_S, REPORT_SEND_GAP_S, VERIFY_RETRY_S,
 };
 
@@ -155,7 +155,7 @@ pub(super) fn health_settled(answer: &command::Outcome) -> bool {
 /// child, if any.
 pub(super) fn daily_update_check(
     root: &Root,
-    network: &Object,
+    network: &crate::commands::observation::snapshot::Wifi,
     child: Option<Child>,
 ) -> Option<Child> {
     if let Some(mut child) = child {
@@ -163,7 +163,7 @@ pub(super) fn daily_update_check(
             return Some(child);
         }
     }
-    if network.get("state").and_then(Value::as_str) != Some("Online") {
+    if network.state != "Online" {
         return None;
     }
     let last = update::LastCheck::read(root);
@@ -214,7 +214,7 @@ pub(super) struct Reports {
 /// report may be sent and Wi-Fi is online.
 pub(super) fn error_reports(
     root: &Root,
-    network: &Object,
+    network: &crate::commands::observation::snapshot::Wifi,
     run: Option<Reports>,
     now: f64,
 ) -> Result<Reports, Failure> {
@@ -234,7 +234,7 @@ pub(super) fn error_reports(
         return Ok(run);
     };
     let check = now >= run.next_check;
-    let online = network.get("state").and_then(Value::as_str) == Some("Online");
+    let online = network.state == "Online";
     let send = match due {
         Due::None => false,
         _ if !online || now < run.send_after.unwrap_or(0.0) => false,

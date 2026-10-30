@@ -3,16 +3,12 @@
 use super::super::observe_wifi::wifi;
 use super::wpa::digits;
 use crate::commands::network::publish;
+use crate::commands::observation::snapshot::Wifi;
 use crate::reply::Failure;
 use serde::Serialize;
 use serde_json::Value;
 use std::{ffi::CString, sync::mpsc, time::Duration};
-use y2p_core::{
-    command,
-    json::{Object, ObjectExt},
-    py::{self, truthy},
-    Root,
-};
+use y2p_core::{command, json::Object, Root};
 
 /// How long a DNS probe waits for its answer.
 const LOOKUP_S: f64 = 3.0;
@@ -71,9 +67,8 @@ fn getaddrinfo(host: &str) -> Option<usize> {
 
 /// Resolve the probe host on the lease `observed` saw: the published `dns.json`, or None when the
 /// lease changed meanwhile (its answer would prove nothing about the new one).
-pub fn probe_dns(root: &Root, observed: &Object) -> Result<Option<Object>, Failure> {
-    let empty = |key: &str| !observed.get(key).is_some_and(truthy);
-    if empty("ip_addresses") || empty("default_route") {
+pub fn probe_dns(root: &Root, observed: &Wifi) -> Result<Option<Object>, Failure> {
+    if observed.ip_addresses.is_empty() || observed.default_route.is_empty() {
         return Ok(None);
     }
     let config = root.json_object("/etc/y2linux/network-policy.json");
@@ -97,9 +92,9 @@ pub fn probe_dns(root: &Root, observed: &Object) -> Result<Option<Object>, Failu
     };
     let after = wifi(root, Some(observed));
     if root.read("/run/y2/wifi-epoch") != epoch
-        || !py::eq(after.get("association_id"), observed.get("association_id"))
-        || !py::eq(after.get("ip_addresses"), observed.get("ip_addresses"))
-        || !py::eq(after.get("default_route"), observed.get("default_route"))
+        || after.association_id != observed.association_id
+        || after.ip_addresses != observed.ip_addresses
+        || after.default_route != observed.default_route
     {
         return Ok(None);
     }
@@ -108,13 +103,8 @@ pub fn probe_dns(root: &Root, observed: &Object) -> Result<Option<Object>, Failu
     let value = Dns {
         epoch,
         ok,
-        address: observed
-            .get("ip_addresses")
-            .and_then(Value::as_array)
-            .and_then(|a| a.first())
-            .cloned()
-            .unwrap_or(Value::Null),
-        bssid: observed.value("association_id"),
+        address: observed.ip_addresses.first().cloned(),
+        bssid: observed.association_id.clone(),
         probe_host: hostname,
         reason: (!ok).then_some("dns_unavailable"),
     };
@@ -127,8 +117,8 @@ struct Dns {
     epoch: Option<String>,
     ok: bool,
     /// The lease's first address and the access point it was probed through.
-    address: Value,
-    bssid: Value,
+    address: Option<String>,
+    bssid: Option<String>,
     probe_host: String,
     reason: Option<&'static str>,
 }
@@ -140,7 +130,7 @@ struct Dns {
 /// across one late re-check.
 #[derive(Default)]
 pub struct DnsProbeSchedule {
-    key: Option<(String, Value, Value)>,
+    key: Option<(String, Option<String>, Vec<String>)>,
     deadline: f64,
 }
 
@@ -156,28 +146,21 @@ impl DnsProbeSchedule {
         self.deadline = now + Self::CONFIRMED_S;
     }
 
-    pub fn due(&mut self, observed: &Object, epoch: Option<&str>, now: f64) -> bool {
+    pub fn due(&mut self, observed: &Wifi, epoch: Option<&str>, now: f64) -> bool {
         let epoch = epoch.unwrap_or_default();
-        if observed.get("association").and_then(Value::as_str) != Some("COMPLETED")
+        if observed.association.as_deref() != Some("COMPLETED")
             || epoch.is_empty()
-            || !observed.get("ip_addresses").is_some_and(truthy)
-            || !observed.get("default_route").is_some_and(truthy)
+            || observed.ip_addresses.is_empty()
+            || observed.default_route.is_empty()
         {
             return false;
         }
         let key = (
             epoch.to_owned(),
-            observed
-                .get("association_id")
-                .cloned()
-                .unwrap_or(Value::Null),
-            observed.get("ip_addresses").cloned().unwrap_or(Value::Null),
+            observed.association_id.clone(),
+            observed.ip_addresses.clone(),
         );
-        let same = self.key.as_ref().is_some_and(|old| {
-            old.0 == key.0
-                && py::eq(Some(&old.1), Some(&key.1))
-                && py::eq(Some(&old.2), Some(&key.2))
-        });
+        let same = self.key.as_ref() == Some(&key);
         if !same {
             self.key = Some(key);
             self.deadline = 0.0;

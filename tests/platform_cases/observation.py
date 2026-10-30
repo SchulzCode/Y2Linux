@@ -614,8 +614,6 @@ REFUSALS = {
     'status-power-sleep-list-key': 'invalid_sleep_receipt',
     'status-system-update-unhashable': 'invalid_update_journal',
     'status-system-update-dict-state': 'invalid_update_journal',
-    'status-wifi-signal-list': 'invalid_network_record',
-    'status-wifi-signal-text': 'invalid_network_record',
 }
 # A broken previous-boot evidence record leaves the snapshot readable: only its section says why.
 UNREADABLE_EVIDENCE = ['status-system-evidence-bad-logs', 'status-system-evidence-text-logs',
@@ -623,10 +621,12 @@ UNREADABLE_EVIDENCE = ['status-system-evidence-bad-logs', 'status-system-evidenc
 # Odd `ip -j` output reads as no address (the snapshot stays readable).
 UNREADABLE_IP = ['status-wifi-ip-text', 'status-wifi-ip-number-link', 'status-wifi-ip-info-dict',
                  'status-wifi-ip-object']
+# A network.json signal reading of another shape is not reused (the signal is polled again).
+UNREADABLE_SIGNAL = ['status-wifi-signal-list', 'status-wifi-signal-text']
 # A power.json of another shape is not shown (the low-battery policy reads as unavailable).
 UNREADABLE_POWER = ['status-power-battery-list', 'status-power-battery-null']
 EXTRA_CASES = [case for case in CASES if case[0] in REFUSALS or case[0] in UNREADABLE_EVIDENCE
-               or case[0] in UNREADABLE_IP or case[0] in UNREADABLE_POWER or (
+               or case[0] in UNREADABLE_IP or case[0] in UNREADABLE_POWER or case[0] in UNREADABLE_SIGNAL or (
     case[1] == ['boot-evidence'] and case[0] not in ('boot-evidence-again', 'boot-evidence-missed-boundary',
                                                      'boot-evidence-no-data', 'boot-evidence-wrong-mount',
                                                      'boot-evidence-no-boot-id'))]

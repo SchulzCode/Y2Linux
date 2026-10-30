@@ -4,9 +4,9 @@ use super::journal::{journal, round1};
 use super::monitor::{EventMonitor, CREDENTIAL_ERRORS};
 use super::wpa::{digits, int, rows, signed, wpa};
 use crate::commands::network::wlan_switched_off;
+use crate::commands::observation::snapshot::Wifi;
 use serde::Serialize;
-use serde_json::Value;
-use y2p_core::{command, json::Object, py::truthy, Root};
+use y2p_core::{command, json::Object, Root};
 
 /// F52: after a start or a wake the supplicant sat DISCONNECTED for up to 17 min with no failure
 /// event while the saved network was in range; a Join (SELECT_NETWORK) connected in 3-4 s. Once that
@@ -37,14 +37,14 @@ impl WifiRecovery {
 
     pub fn observe(
         &mut self,
-        value: &Object,
+        value: &Wifi,
         now: f64,
         monitor: Option<&EventMonitor>,
     ) -> Option<&'static str> {
         let root = &self.root;
-        let state = value.get("association").cloned().unwrap_or(Value::Null);
-        let completed = state.as_str() == Some("COMPLETED");
-        if completed || !value.get("radio_present").is_some_and(truthy) || wlan_switched_off(root) {
+        let state = value.association.as_deref();
+        let completed = state == Some("COMPLETED");
+        if completed || !value.radio_present || wlan_switched_off(root) {
             if self.tries > 0 && completed {
                 let seconds = round1(now - self.first_try.unwrap_or(now));
                 journal(
@@ -65,10 +65,10 @@ impl WifiRecovery {
         // The supplicant is trying (scan, association), a password verdict stands or the owner
         // disconnected: never interfere.
         let credential = value
-            .get("reason")
-            .and_then(Value::as_str)
+            .reason
+            .as_deref()
             .is_some_and(|r| CREDENTIAL_ERRORS.contains(&r));
-        if !matches!(state.as_str(), Some("DISCONNECTED" | "INACTIVE"))
+        if !matches!(state, Some("DISCONNECTED" | "INACTIVE"))
             || credential
             || monitor.is_some_and(|m| m.held)
         {
@@ -182,8 +182,8 @@ struct Recovered {
 
 /// The journal row of one self-heal try (`wifi_reselect` or `wifi_rescan`).
 #[derive(Serialize)]
-struct Attempt {
-    state: Value,
+struct Attempt<'a> {
+    state: Option<&'a str>,
     idle_s: f64,
     tries: u64,
     saved: usize,
