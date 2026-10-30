@@ -7,10 +7,9 @@
  ],
  "calls": [],
  "exit": 0,
- "stdout": [
-  1,
-  2
- ],
+ "stdout": {
+  "state": "Unavailable"
+ },
  "tree": {
   "added": {},
   "changed": {},

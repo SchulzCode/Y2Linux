@@ -315,11 +315,11 @@
  "record": {
   "boot_id": "boot-a",
   "build_id": "fixture-build",
-  "collection_duration_ns": 19294938,
+  "collection_duration_ns": 18546969,
   "evidence_level": "IMPLEMENTED",
   "failure": null,
   "kernel": "6.18.0-fixture",
-  "monotonic_ns": 107383782979561,
+  "monotonic_ns": 107730036670893,
   "parameters": {},
   "reborn_commit": "reborn",
   "result": "observed",
@@ -327,7 +327,7 @@
   "units": {
    "collection_duration": "ns"
   },
-  "wall_timestamp": "2026-10-30T15:05:27.683998+00:00",
+  "wall_timestamp": "2026-10-30T15:11:13.937689+00:00",
   "workload": "observation",
   "y2linux_commit": "linux-commit"
  },
@@ -497,7 +497,7 @@
    "build_epoch": 1788000000,
    "clock_sane": true,
    "entropy_ready": null,
-   "epoch": 1793372727.6843297,
+   "epoch": 1793373073.9380193,
    "ntp_authenticated": false,
    "reason": "clock_not_established",
    "rtc_retention_qualified": false,

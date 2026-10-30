@@ -10,7 +10,7 @@ use fd::{
     available, check, flock, fstat, fsync, linkat, open_absolute_directory, open_directory, openat,
     read_chunk, unlinkat, write_some,
 };
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::{
     os::{
@@ -21,13 +21,8 @@ use std::{
     time::{Duration, Instant},
 };
 use workload::workload;
-use y2p_core::{
-    devices_support::record,
-    digest::Sha256,
-    json::{Object, ObjectExt},
-    py::{self, eq_int, exact_int},
-    Root,
-};
+use y2p_contract::ObservationRecord;
+use y2p_core::{digest::Sha256, lenient, py, Root};
 
 const MAX_BYTES: i64 = 512 * 1024 * 1024;
 const RESERVE: u64 = 96 * 1024 * 1024;
@@ -44,24 +39,25 @@ pub struct Request {
 }
 
 pub fn run(root: &Root, action: &str, request: Request) -> Outcome {
-    let value = match action {
-        "begin" => begin(
+    if action == "begin" {
+        let manifest = begin(
             root,
             request.name.as_deref(),
             request.bytes,
             request.sha256.as_deref().unwrap_or_default(),
-        )?,
-        other => {
-            // No id is an invalid one.
-            let token = request.id.unwrap_or_default();
-            match other {
-                "commit" => workload(root, "NetworkTransfer", || commit(root, &token))?,
-                "status" => inspect(root, &token)?,
-                _ => discard(root, &token)?,
-            }
-        }
-    };
-    Reply::sorted(&value, 0)
+        )?;
+        return Reply::sorted(&manifest, 0);
+    }
+    // No id is an invalid one.
+    let token = request.id.unwrap_or_default();
+    match action {
+        "commit" => Reply::sorted(
+            &workload(root, "NetworkTransfer", || commit(root, &token))?,
+            0,
+        ),
+        "status" => Reply::sorted(&inspect(root, &token)?, 0),
+        _ => Reply::sorted(&discard(root, &token)?, 0),
+    }
 }
 
 // ---- checks ---------------------------------------------------------------------------------------
@@ -108,12 +104,19 @@ fn media_volume(root: &Root) -> Result<Volume, Failure> {
         .ok_or_else(|| Failure::value("verified_internal_media_unavailable"))
 }
 
-/// Any parsed JSON document; `None` when unreadable or not JSON.
-fn json_read(path: &Path) -> Option<Value> {
-    serde_json::from_str(
-        &y2p_core::root::read(path, y2p_core::root::READ_LIMIT).unwrap_or_default(),
-    )
-    .ok()
+/// The manifest at `path`: none when it is missing or unreadable, Err when it is JSON of another
+/// shape than a manifest (no object).
+fn manifest_at(path: &Path) -> Result<Option<Manifest>, Failure> {
+    let Some(text) = y2p_core::root::read(path, y2p_core::root::READ_LIMIT) else {
+        return Ok(None);
+    };
+    match serde_json::from_str::<Value>(&text) {
+        Err(_) => Ok(None),
+        Ok(object @ Value::Object(_)) => serde_json::from_value(object)
+            .map(Some)
+            .map_err(|_| Failure::value("invalid_transfer_manifest")),
+        Ok(_) => Err(Failure::value("invalid_transfer_manifest")),
+    }
 }
 
 // ---- the actions ----------------------------------------------------------------------------------
@@ -123,7 +126,7 @@ fn begin(
     name: Option<&str>,
     size: Option<i64>,
     sha256: &str,
-) -> Result<Value, Failure> {
+) -> Result<Manifest, Failure> {
     filename(name)?;
     let name = name.unwrap_or_default();
     let size = size
@@ -154,37 +157,73 @@ fn begin(
         .mode(0o700)
         .create(&directory)
         .at(&directory)?;
-    let mut manifest = NewManifest {
-        schema: 1,
-        id: &token,
-        name,
-        bytes: size,
-        sha256,
+    let mut parameters = serde_json::Map::new();
+    parameters.insert("name".into(), json!(name));
+    parameters.insert("bytes".into(), json!(size));
+    let mut manifest = Manifest {
+        schema: Some(1),
+        id: Some(token.clone()),
+        name: Some(name.to_owned()),
+        bytes: Some(size),
+        sha256: Some(sha256.to_owned()),
         data_generation: volume.generation,
-        state: "Staging",
-        record: record(root, "usb-transfer", json!({"name": name, "bytes": size})),
+        state: Some("Staging".into()),
+        record: Some(crate::commands::observation::util::record(
+            root,
+            "usb-transfer",
+            parameters,
+        )),
         upload_path: None,
     };
     atomic_json(&directory.join("manifest.json"), &manifest, true)?;
     manifest.upload_path = Some(format!("/data/transfer-staging/{token}/payload.part"));
-    serde_json::to_value(manifest).map_err(Failure::value)
+    Ok(manifest)
 }
 
-/// manifest.json as `begin` writes it (sorted); it prints it with the path to upload to.
-#[derive(Serialize)]
-struct NewManifest<'a> {
-    schema: u8,
-    id: &'a str,
-    name: &'a str,
-    bytes: i64,
-    sha256: &'a str,
+/// manifest.json: what `begin` admitted (name, size, hash, the /data volume) and where the transfer
+/// stands; `begin` prints it with the path to upload to. Each field reads leniently (another shape
+/// reads as absent and is refused where it is checked).
+#[derive(Serialize, Deserialize, Default, Debug)]
+#[serde(default)]
+struct Manifest {
+    #[serde(deserialize_with = "lenient::or_none")]
+    schema: Option<i64>,
+    #[serde(deserialize_with = "lenient::text")]
+    id: Option<String>,
+    #[serde(deserialize_with = "lenient::text")]
+    name: Option<String>,
+    #[serde(deserialize_with = "lenient::or_none")]
+    bytes: Option<i64>,
+    #[serde(deserialize_with = "lenient::text")]
+    sha256: Option<String>,
     /// The /data volume the upload was admitted on; commit refuses another one.
+    #[serde(deserialize_with = "lenient::text")]
     data_generation: Option<String>,
-    state: &'static str,
-    /// The evidence record (`devices_support::record`) commit completes with its result.
-    record: Object,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(deserialize_with = "lenient::text")]
+    state: Option<String>,
+    /// The evidence record commit completes with its result.
+    #[serde(deserialize_with = "lenient::or_none")]
+    record: Option<ObservationRecord>,
+    #[serde(
+        deserialize_with = "lenient::text",
+        skip_serializing_if = "Option::is_none"
+    )]
     upload_path: Option<String>,
+}
+
+/// What `transfer status` shows of a stage without a manifest.
+#[derive(Serialize)]
+#[serde(untagged)]
+enum Inspected {
+    Manifest(Box<Manifest>),
+    Unavailable { state: &'static str },
+}
+
+/// `transfer discard`'s answer.
+#[derive(Serialize)]
+struct Discarded {
+    state: &'static str,
+    id: String,
 }
 
 /// What commit takes from a Staging manifest, each field checked (in this order: the name, the
@@ -196,19 +235,16 @@ struct Staged {
     sha256: String,
 }
 
-fn staged(manifest: &Object, volume: &Volume) -> Result<Staged, Failure> {
-    let parts = filename(manifest.get("name").and_then(Value::as_str))?;
-    if manifest.value("data_generation") != json!(volume.generation) {
+fn staged(manifest: &Manifest, volume: &Volume) -> Result<Staged, Failure> {
+    let parts = filename(manifest.name.as_deref())?;
+    if manifest.data_generation != volume.generation {
         return Err(Failure::value("data_generation_changed"));
     }
-    let size = exact_int(manifest.get("bytes")).filter(|s| (1..=MAX_BYTES).contains(s));
-    let sha256 = manifest
-        .get("sha256")
-        .and_then(Value::as_str)
-        .filter(|s| hex_of(s, 64));
-    // The evidence record is completed once the upload is published: one that is not an object
+    let size = manifest.bytes.filter(|s| (1..=MAX_BYTES).contains(s));
+    let sha256 = manifest.sha256.as_deref().filter(|s| hex_of(s, 64));
+    // The evidence record is completed once the upload is published: one that does not read
     // refuses before anything is copied.
-    let record = manifest.get("record").is_some_and(Value::is_object);
+    let record = manifest.record.is_some();
     let (Some(size), Some(sha256), true) = (size, sha256, record) else {
         return Err(Failure::value("invalid_transfer_manifest"));
     };
@@ -219,7 +255,7 @@ fn staged(manifest: &Object, volume: &Volume) -> Result<Staged, Failure> {
     })
 }
 
-fn commit(root: &Root, token: &str) -> Result<Value, Failure> {
+fn commit(root: &Root, token: &str) -> Result<Manifest, Failure> {
     stage_path(root, token)?; // validate before any path access
     let volume = data_volume(root)?;
     let data = open_absolute_directory(&root.path("/data"))?;
@@ -236,23 +272,16 @@ fn commit(root: &Root, token: &str) -> Result<Value, Failure> {
     // the stage cannot be swapped for another directory between the checks and the rewrite.
     let anchored = PathBuf::from(format!("/proc/self/fd/{}", stage.as_raw_fd()));
     // A missing or unreadable manifest has no state; JSON that is not an object is no manifest.
-    let Value::Object(mut value) =
-        json_read(&anchored.join("manifest.json")).unwrap_or_else(|| json!({}))
-    else {
-        return Err(Failure::value("invalid_transfer_manifest"));
-    };
-    let state = value
-        .get("state")
-        .and_then(Value::as_str)
-        .map(str::to_owned);
-    if !eq_int(value.get("schema"), 1)
-        || value.get("id").and_then(Value::as_str) != Some(token)
+    let mut value = manifest_at(&anchored.join("manifest.json"))?.unwrap_or_default();
+    let state = value.state.clone();
+    if value.schema != Some(1)
+        || value.id.as_deref() != Some(token)
         || !matches!(state.as_deref(), Some("Staging" | "Committed"))
     {
         return Err(Failure::value("invalid_transfer_state"));
     }
     if state.as_deref() == Some("Committed") {
-        return Ok(Value::Object(value));
+        return Ok(value);
     }
     let Staged {
         parts,
@@ -267,17 +296,17 @@ fn commit(root: &Root, token: &str) -> Result<Value, Failure> {
         return Err(Failure::value("data_generation_changed"));
     }
     publish(root, data.as_fd(), stage.as_fd(), &parts, size, &expected)?;
-    value.insert("state".into(), json!("Committed"));
-    // `staged` refused a manifest whose record is not an object.
-    if let Some(record) = value.get_mut("record").and_then(Value::as_object_mut) {
-        record.insert("result".into(), json!("OK"));
-        record.insert("failure".into(), Value::Null);
+    value.state = Some("Committed".into());
+    // `staged` refused a manifest without a record.
+    if let Some(record) = value.record.as_mut() {
+        record.result = json!("OK");
+        record.failure = Value::Null;
     }
     atomic_json(&anchored.join("manifest.json"), &value, true)?;
     unlinkat(stage.as_fd(), "sealed.part", 0, false)?;
     unlinkat(stage.as_fd(), "payload.part", 0, false)?;
     fsync(stage.as_fd())?;
-    Ok(Value::Object(value))
+    Ok(value)
 }
 
 /// Copy the upload to an exclusive `sealed.part` while hashing it, within the deadline and the
@@ -434,7 +463,7 @@ fn publish_copy(
     result
 }
 
-fn inspect(root: &Root, token: &str) -> Result<Value, Failure> {
+fn inspect(root: &Root, token: &str) -> Result<Inspected, Failure> {
     let path = stage_path(root, token)?;
     let symlink = |p: &Path| {
         p.symlink_metadata()
@@ -443,11 +472,19 @@ fn inspect(root: &Root, token: &str) -> Result<Value, Failure> {
     if symlink(&path) || path.parent().is_some_and(symlink) {
         return Err(Failure::value("staging_symlink_refused"));
     }
-    Ok(json_read(&path.join("manifest.json")).unwrap_or_else(|| json!({"state": "Unavailable"})))
+    // A manifest of another shape shows as none.
+    Ok(
+        match manifest_at(&path.join("manifest.json")).ok().flatten() {
+            Some(manifest) => Inspected::Manifest(Box::new(manifest)),
+            None => Inspected::Unavailable {
+                state: "Unavailable",
+            },
+        },
+    )
 }
 
 /// Explicit owner abort removes only a known stage; never follows a symlink.
-fn discard(root: &Root, token: &str) -> Result<Value, Failure> {
+fn discard(root: &Root, token: &str) -> Result<Discarded, Failure> {
     data_volume(root)?;
     stage_path(root, token)?;
     let staging = open_absolute_directory(&root.path("/data/transfer-staging"))?;
@@ -464,7 +501,10 @@ fn discard(root: &Root, token: &str) -> Result<Value, Failure> {
     }
     unlinkat(staging.as_fd(), token, libc::AT_REMOVEDIR, false)?;
     fsync(staging.as_fd())?;
-    Ok(json!({"state": "Discarded", "id": token}))
+    Ok(Discarded {
+        state: "Discarded",
+        id: token.to_owned(),
+    })
 }
 
 #[cfg(test)]

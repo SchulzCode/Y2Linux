@@ -13,9 +13,20 @@
   "id": "0123456789abcdef0123456789abcdef",
   "name": "Album/song.flac",
   "record": {
+   "boot_id": null,
+   "build_id": null,
+   "evidence_level": "",
    "failure": null,
+   "kernel": null,
+   "monotonic_ns": "<volatile>",
+   "parameters": {},
+   "reborn_commit": null,
    "result": null,
-   "workload": "usb-transfer"
+   "rootfs_release": null,
+   "units": {},
+   "wall_timestamp": "<volatile>",
+   "workload": "usb-transfer",
+   "y2linux_commit": null
   },
   "schema": 1,
   "sha256": "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824",

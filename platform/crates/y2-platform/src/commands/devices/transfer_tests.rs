@@ -3,6 +3,24 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use super::*;
 use crate::testing::{ok, Fixture, Outcome};
+
+/// The actions as JSON (the tests read their answers by key).
+fn begin(
+    root: &Root,
+    name: Option<&str>,
+    size: Option<i64>,
+    sha256: &str,
+) -> Result<serde_json::Value, Failure> {
+    super::begin(root, name, size, sha256).map(|m| serde_json::json!(m))
+}
+
+fn commit(root: &Root, token: &str) -> Result<serde_json::Value, Failure> {
+    super::commit(root, token).map(|m| serde_json::json!(m))
+}
+
+fn discard(root: &Root, token: &str) -> Result<serde_json::Value, Failure> {
+    super::discard(root, token).map(|d| serde_json::json!(d))
+}
 use std::{fs, io::Write, os::unix::fs::MetadataExt, thread};
 
 const DATA: &str = "22 1 179:2 / / ro - ext4 /dev/mmcblk0p2 ro\n\

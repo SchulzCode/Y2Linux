@@ -12,7 +12,7 @@ pub(crate) mod health;
 mod network_check;
 pub(crate) mod snapshot;
 mod system;
-mod util;
+pub(crate) mod util;
 
 use super::Command;
 use crate::reply::{Outcome, Reply};
