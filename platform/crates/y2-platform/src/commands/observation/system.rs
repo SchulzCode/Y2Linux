@@ -318,18 +318,36 @@ fn usb_diagnostics(
         "address".into(),
         text(read(&root.path("/sys/class/net/usb0/address"))),
     );
-    let answer = command::run(
-        root,
-        &["/sbin/ip", "-4", "-o", "addr", "show", "dev", "usb0"],
-        0.5,
-    );
-    if answer.ok {
-        network.insert(
-            "ipv4".into(),
-            regex!(r"inet (\S+)")
-                .captures(answer.output.as_deref().unwrap_or_default())
-                .map_or(Value::Null, |c| json!(&c[1])),
+    // `ip -4 -o addr show dev usb0`'s first `inet <address>/<prefix>`; on the player read from
+    // rtnetlink (connectivity::direct), below a fixture root the recorded command as before.
+    if root.is_real() {
+        let answer = crate::commands::connectivity::direct::ipv4_addresses(root, "usb0", 0.5);
+        if answer.ok {
+            let parsed: Value =
+                serde_json::from_str(answer.output.as_deref().unwrap_or("[]")).unwrap_or_default();
+            let first = parsed[0]["addr_info"][0].clone();
+            network.insert(
+                "ipv4".into(),
+                match (first["local"].as_str(), first["prefixlen"].as_u64()) {
+                    (Some(local), Some(prefix)) => json!(format!("{local}/{prefix}")),
+                    _ => Value::Null,
+                },
+            );
+        }
+    } else {
+        let answer = command::run(
+            root,
+            &["/sbin/ip", "-4", "-o", "addr", "show", "dev", "usb0"],
+            0.5,
         );
+        if answer.ok {
+            network.insert(
+                "ipv4".into(),
+                regex!(r"inet (\S+)")
+                    .captures(answer.output.as_deref().unwrap_or_default())
+                    .map_or(Value::Null, |c| json!(&c[1])),
+            );
+        }
     }
     let charging_state = root
         .read(&format!("{base}BAT0/charging_state"))
