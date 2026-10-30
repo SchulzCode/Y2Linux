@@ -6,6 +6,7 @@
 //! signature) and always writes, because an event is given. Every failure is counted and dropped:
 //! a journal failure must never delay or disable battery protection.
 // SPDX-License-Identifier: GPL-2.0-only
+use super::receipt::{Product, Receipt, Summary};
 use super::{diagnostics, E};
 use serde::Serialize;
 use serde_json::Value;
@@ -40,19 +41,6 @@ pub fn suspend(root: &Root, battery: &Value, event: &str) -> Result<bool, E> {
     }
 }
 
-/// The receipt's fields a journal row keeps, so that a later refusal replacing suspend-last.json
-/// does not lose the completed intervals.
-const SUMMARY: [&str; 8] = [
-    "mode",
-    "stage",
-    "first_entry",
-    "resume",
-    "cycles",
-    "suspended_seconds",
-    "maintenance_wakes",
-    "error",
-];
-
 /// One `power-journal.jsonl` row of a suspend stage (compact JSON in this order; the power
 /// daemon's rows have the same fields).
 #[derive(Serialize)]
@@ -74,8 +62,8 @@ struct Row<'a> {
     radios: Object,
     idle_policy: Value,
     idle_counters: Value,
-    sleep: Value,
-    suspend: Object,
+    sleep: Product,
+    suspend: Summary,
     kernel_pm: Option<String>,
 }
 
@@ -84,7 +72,8 @@ fn row(root: &Root, battery: &Value, event: &str, now: f64) -> Result<bool, E> {
     if !y2p_core::mounts::data_ready(root) {
         return Ok(false);
     }
-    let receipt = root.json_object(super::receipt::RECEIPT);
+    // A receipt that does not read drops the row (counted, as an OS error is).
+    let receipt = Receipt::read(root).map_err(|error| E::value(error.text()))?;
     let boot_id = root.boot_id();
     let crate::commands::power::journal::Devices {
         usb,
@@ -96,27 +85,7 @@ fn row(root: &Root, battery: &Value, event: &str, now: f64) -> Result<bool, E> {
         .json("/run/y2/cpu-idle-policy.json")
         .unwrap_or(Value::Null);
     let idle_counters = Value::Object(crate::commands::power::journal::idle_counters(root));
-    let sleep = super::super::sleep::product(
-        &root.json_object(super::receipt::RECEIPT),
-        boot_id.as_deref(),
-    )
-    .map_err(super::receipt::raised)?;
-    let mut suspend: Object = SUMMARY
-        .iter()
-        .map(|k| {
-            (
-                (*k).to_owned(),
-                plain(receipt.get(*k).cloned().unwrap_or(Value::Null)),
-            )
-        })
-        .collect();
-    // POWER-FINAL-18: 17 lost why two requests were refused.
-    let reason = match receipt.get("product") {
-        Some(Value::Object(product)) => product.get("reason").cloned().unwrap_or(Value::Null),
-        Some(Value::Null) | None => Value::Null,
-        Some(_) => return Err(E::Invalid("invalid_sleep_product".to_owned())),
-    };
-    suspend.insert("reason".into(), plain(reason));
+    let sleep = super::super::sleep::product(&receipt, boot_id.as_deref());
     let row = Row {
         schema: 1,
         event,
@@ -138,8 +107,8 @@ fn row(root: &Root, battery: &Value, event: &str, now: f64) -> Result<bool, E> {
         radios,
         idle_policy: plain(idle_policy),
         idle_counters,
-        sleep: plain(Value::Object(sleep)),
-        suspend,
+        sleep,
+        suspend: receipt.summary(),
         kernel_pm: root.read_limited("/sys/firmware/y2_pm/state", 8192),
     };
     let encoded = dumps(&row).map_err(|e| E::value(e.to_string()))? + "\n";

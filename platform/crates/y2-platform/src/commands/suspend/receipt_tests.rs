@@ -4,7 +4,7 @@
 use super::{record, Stage};
 use crate::commands::{
     observation::snapshot::timer_runtime,
-    sleep::{product, status},
+    sleep::status,
     suspend::{
         request,
         test_support::{answer, Reborn},
@@ -43,9 +43,18 @@ fn reborn(fixture: &Fixture, ok: bool) -> Reborn {
 }
 
 fn stage(fixture: &Fixture, stage: &str, result: i64) -> Map<String, Value> {
-    record(&fixture.root, Stage::new(stage, Some(result)))
-        .unwrap()
-        .0
+    object(json!(record(
+        &fixture.root,
+        Stage::new(stage, Some(result))
+    )
+    .unwrap()))
+}
+
+/// `sleep::product` of a receipt given as JSON, as JSON.
+fn product(value: &Map<String, Value>, boot_id: Option<&str>) -> Result<Value, String> {
+    let receipt: super::Receipt =
+        serde_json::from_value(Value::Object(value.clone())).map_err(|e| e.to_string())?;
+    Ok(json!(crate::commands::sleep::product(&receipt, boot_id)))
 }
 
 fn sleep_request(fixture: &Fixture) -> Value {
@@ -269,13 +278,7 @@ fn older_or_malformed_receipt_is_idle_without_resume_claim() {
 #[test]
 fn a_product_that_is_no_object_is_a_refusal_record() {
     let fixture = player();
-    for (product, failure) in [
-        ("5", "'int' object is not iterable"),
-        (
-            "[[1, \"a\"], [\"state\", \"requested\"]]",
-            "'<' not supported between instances of 'int' and 'str'",
-        ),
-    ] {
+    for product in ["5", "[[1, \"a\"], [\"state\", \"requested\"]]"] {
         fixture.put(
             "/data/system/platform/suspend-last.json",
             &format!("{{\"product\": {product}}}"),
@@ -284,7 +287,7 @@ fn a_product_that_is_no_object_is_a_refusal_record() {
         assert_eq!(reply.code, 1);
         assert_eq!(
             reply.stdout,
-            format!("{{\"failure\":\"{failure}\",\"state\":\"Failed\"}}")
+            "{\"failure\":\"suspend_receipt_unreadable\",\"state\":\"Failed\"}"
         );
     }
 }
@@ -350,7 +353,7 @@ fn preparation_has_a_distinct_state_and_requires_acknowledgement() {
         Box::new(|_, _| answer(json!({"sleep_ready": true, "screen_off": true}))),
     );
     assert_eq!(
-        request::prepare_owned(&fixture.root).unwrap()["state"],
+        json!(request::prepare_owned(&fixture.root).unwrap())["state"],
         "preparing"
     );
     let value = stage(&fixture, "quiescing_radios", 0);

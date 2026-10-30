@@ -6,7 +6,7 @@
  "calls": [],
  "exit": 1,
  "stdout": {
-  "failure": "cannot convert dictionary update sequence element #0 to a sequence",
+  "failure": "suspend_receipt_unreadable",
   "state": "Failed"
  },
  "tree": {

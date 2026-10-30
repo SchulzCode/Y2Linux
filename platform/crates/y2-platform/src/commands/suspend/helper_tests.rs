@@ -617,10 +617,7 @@ fn an_unreadable_receipt_after_the_return_is_a_failure_that_still_restores() {
     assert_eq!(p.run_sleep(), 1);
     let receipt = p.receipt();
     assert_eq!(receipt["product"]["state"], "restore_failed");
-    assert_eq!(
-        receipt["product"]["reason"],
-        "unsupported operand type(s) for +"
-    );
+    assert_eq!(receipt["product"]["reason"], "suspend_receipt_unreadable");
     assert_eq!(stages(&receipt).last().unwrap(), "complete_result_1");
     assert_eq!(p.rpc(), ["sleep_prepare", "sleep_restore"]);
     let on = ["/usr/sbin/y2-radio", "wifi", "on-runtime"].map(String::from);
@@ -630,7 +627,7 @@ fn an_unreadable_receipt_after_the_return_is_a_failure_that_still_restores() {
 
 #[test]
 fn reborn_is_restored_when_its_preparation_cannot_be_recorded() {
-    // Reborn quiesced, then the receipt could not take the row: the helper still restores it.
+    // Reborn quiesced, then the receipt could not be read: the helper still restores it.
     let p = Player::new();
     let receipt = p.fixture.path(RECEIPT);
     p.reborn.handle(Box::new(move |op, dark| {
@@ -640,11 +637,11 @@ fn reborn_is_restored_when_its_preparation_cannot_be_recorded() {
         ready(op, dark)
     }));
     p.never_enter("slept without a recorded preparation");
-    let result = p.try_sleep();
-    assert!(
-        matches!(&result, Err(E::Invalid(text)) if text.contains("append")),
-        "{result:?}"
-    );
+    // The unreadable receipt fails the sleep; the failure is recorded in a new receipt.
+    assert_eq!(p.try_sleep(), Ok(1));
+    let receipt = p.receipt();
+    assert_eq!(receipt["product"]["state"], "restore_failed");
+    assert_eq!(receipt["product"]["reason"], "suspend_receipt_unreadable");
     assert_eq!(p.rpc(), ["sleep_prepare", "sleep_restore"]);
     assert!(p.commands().is_empty()); // the radios were never quiesced
     assert_eq!(p.guard()["pending"], false);
@@ -1369,13 +1366,13 @@ fn early_screen_restore_is_reused_and_a_failed_one_retried() {
     };
     let value = record(root, complete(ack)).unwrap();
     assert!(reborn.ops().is_empty());
-    assert_eq!(value["reborn_restore"], true);
+    assert_eq!(value.reborn_restore, Some(true));
     for stage in ["quiescing_radios", "kernel_suspend"] {
         record(root, Stage::new(stage, Some(0))).unwrap();
     }
     let value = record(root, complete(None)).unwrap();
     assert_eq!(reborn.ops().len(), 1);
-    assert_eq!(value["reborn_restore"], true);
+    assert_eq!(value.reborn_restore, Some(true));
 }
 
 // ---- tests/test_pm_control_write.py ------------------------------------------------------------

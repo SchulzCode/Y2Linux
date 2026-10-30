@@ -12,7 +12,8 @@
   "request_boot_id": "boot-old",
   "same_boot": false,
   "schema": "org.y2linux.sleep/v1",
-  "state": "restore_failed"
+  "state": "restore_failed",
+  "wake_reason": null
  },
  "tree": {
   "added": {},

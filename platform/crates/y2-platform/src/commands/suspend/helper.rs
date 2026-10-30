@@ -29,9 +29,8 @@ use serde_json::{Map, Value};
 use std::os::fd::{AsFd, BorrowedFd};
 use std::{fs::File, io, os::unix::fs::MetadataExt, path::Path, sync::atomic::Ordering};
 use y2p_core::lock;
-use y2p_core::py::PyValue;
 use y2p_core::sys::{set_signal, Disposition, Handler};
-use y2p_core::{command, py::is_true, root::parse_int, suspend_text::is_decimal, Root};
+use y2p_core::{command, root::parse_int, suspend_text::is_decimal, Root};
 
 const OPERATION_LOCKS: [(&str, &str); 3] = [
     ("activity_operation", "/run/y2/activity.lock"),
@@ -354,7 +353,7 @@ impl Run {
             match record(root, stage) {
                 Ok(value) => {
                     if let Some(result) = value.failed_result() {
-                        self.result = result.as_i64().unwrap_or(1);
+                        self.result = result;
                     }
                     if self.result == 0 {
                         keep(&mut first, marker(root, pm, "COMPLETE"));
@@ -467,7 +466,7 @@ fn quiesce_radio(root: &Root, pm: &mut dyn Pm, radio: &str) -> Result<u32, E> {
 fn wait_for_application(
     root: &Root,
     pm: &mut dyn Pm,
-    previous_irqs: &Map<String, Value>,
+    previous_irqs: &receipt::WakeIrqs,
 ) -> Result<(), E> {
     if !application_starting(root) {
         return Ok(());
@@ -518,23 +517,21 @@ fn marker(root: &Root, pm: &mut dyn Pm, stage: &str) -> Result<(), E> {
     pm.control(root, "/sys/firmware/y2_pm/stage", &format!("{stage}\n"))
 }
 
+/// A return only the SPM maintenance timer woke: proven on this boot, the Power and RTC counts
+/// unchanged.
 fn timer_only(value: &Receipt, spm: &Map<String, Value>) -> bool {
-    let empty = Map::new();
-    let p = value.product().unwrap_or(&empty);
-    let before = value
-        .get("wake_irqs_before")
-        .and_then(Value::as_object)
-        .unwrap_or(&empty);
-    let after = value
-        .get("wake_irqs_after")
-        .and_then(Value::as_object)
-        .unwrap_or(&empty);
-    is_true(p.get("kernel_completed"))
-        && is_true(p.get("same_boot"))
+    let (before, after) = (
+        value.wake_irqs_before.clone().unwrap_or_default(),
+        value.wake_irqs_after(),
+    );
+    value
+        .product()
+        .is_some_and(|p| p.kernel_completed && p.same_boot == Some(true))
         && spm.get("timer_wake").and_then(Value::as_str) == Some("1")
-        && ["power", "rtc"].iter().all(|name| match before.get(*name) {
-            Some(b) => after.get(*name).is_some_and(|a| a.py_eq(b)),
-            None => false,
+        && ["power", "rtc"].iter().all(|name| {
+            before
+                .get(*name)
+                .is_some_and(|b| after.get(*name) == Some(b))
         })
 }
 

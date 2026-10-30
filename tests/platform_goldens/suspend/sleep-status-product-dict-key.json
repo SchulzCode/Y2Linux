@@ -6,7 +6,7 @@
  "calls": [],
  "exit": 1,
  "stdout": {
-  "failure": "cannot use 'dict' as a dict key (unhashable type: 'dict')",
+  "failure": "suspend_receipt_unreadable",
   "state": "Failed"
  },
  "tree": {

@@ -8,7 +8,7 @@ use super::{
     E,
 };
 use crate::reply::{Failure, Outcome, Reply};
-use serde_json::{Map, Value};
+use receipt::Product;
 use std::{
     fs::File,
     os::{
@@ -37,7 +37,7 @@ fn failure(error: E) -> Failure {
 
 /// `sleep.prepare`: Reborn must acknowledge the screen is off and it is ready to sleep; then the
 /// receipt records it.
-pub fn prepare_owned(root: &Root) -> Result<Map<String, Value>, E> {
+pub fn prepare_owned(root: &Root) -> Result<Product, E> {
     acknowledge_prepare(root)?;
     record_prepared(root)
 }
@@ -63,7 +63,7 @@ pub fn acknowledge_prepare(root: &Root) -> Result<receipt::SleepAck, E> {
 }
 
 /// The receipt row of an acknowledged preparation: the product state after it.
-pub fn record_prepared(root: &Root) -> Result<Map<String, Value>, E> {
+pub fn record_prepared(root: &Root) -> Result<Product, E> {
     let prepared = Stage {
         reborn_ack: Some(true),
         ..Stage::new("reborn_prepared", Some(0))
@@ -96,16 +96,14 @@ pub fn request_with(root: &Root, launcher: Launcher) -> Outcome {
     match lock::try_fd(lock.as_fd(), lock::Kind::Exclusive) {
         Ok(true) => {}
         Ok(false) => {
-            let current = super::super::sleep::product(
-                &root.json_object(receipt::RECEIPT),
-                root.boot_id().as_deref(),
-            );
-            let mut busy = match current {
-                Ok(current) => current,
-                Err(failure) => return super::refused(failure),
+            let mut busy = match receipt::Receipt::read(root) {
+                Ok(current) => super::super::sleep::product(&current, root.boot_id().as_deref()),
+                Err(error) => return super::refusal(error.text()),
             };
-            busy.insert("state".into(), "refused".into());
-            busy.insert("reason".into(), "sleep_operation_in_progress".into());
+            busy.set(
+                receipt::ProductState::Refused,
+                Some("sleep_operation_in_progress".into()),
+            );
             return Reply::sorted(&busy, 0);
         }
         Err(error) => return cli(Err(E::from(error))),
@@ -114,7 +112,7 @@ pub fn request_with(root: &Root, launcher: Launcher) -> Outcome {
         .and_then(|p| Reply::sorted(&p, 0).map_err(|_| E::value("json"))))
 }
 
-fn admit(root: &Root, lock: &File, launcher: Launcher) -> Result<Map<String, Value>, E> {
+fn admit(root: &Root, lock: &File, launcher: Launcher) -> Result<Product, E> {
     let attempt = (|| {
         admission(root)?;
         battery_and_cable(root)?;

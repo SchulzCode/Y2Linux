@@ -109,11 +109,13 @@
      "shutdown": null,
      "sleep": {
       "boot_id": "boot-a",
+      "kernel_completed": false,
       "reason": "usb",
       "request_boot_id": "boot-a",
       "same_boot": true,
       "schema": "org.y2linux.sleep/v1",
-      "state": "refused"
+      "state": "refused",
+      "wake_reason": null
      },
      "state": "Normal",
      "suspend": {

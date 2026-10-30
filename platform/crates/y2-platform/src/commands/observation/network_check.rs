@@ -122,7 +122,6 @@ pub fn run(root: &Root, peer: &str, seconds: i64, throughput: bool, interface: &
     parameters.insert("throughput_requested".into(), json!(throughput));
     let record = util::record(root, "network-qualification", parameters);
     let before = snapshot(root, &[], false, 0.0)?;
-    before.printable()?;
     let mut check = Check {
         schema: "org.y2linux.benchmark/v1",
         record,
@@ -195,7 +194,6 @@ pub fn run(root: &Root, peer: &str, seconds: i64, throughput: bool, interface: &
         json!("network_test_failed_see_measurements")
     };
     let after = snapshot(root, &[], false, 0.0)?;
-    after.printable()?;
     check.after = Some(after);
     Reply::sorted(&check, u8::from(!ok))
 }

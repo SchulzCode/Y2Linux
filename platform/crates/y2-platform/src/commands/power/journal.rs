@@ -22,6 +22,7 @@ pub use diagnostics::{usb_net, Diagnostics};
 
 use super::battery::BatteryStatus;
 use super::coordinator::Intent;
+use crate::commands::suspend::receipt::{Product, Summary};
 use crate::commands::time::wall;
 use serde::Serialize;
 use serde_json::Value;
@@ -102,10 +103,10 @@ struct Row<'a, B: BatteryRow> {
     radios: Object,
     idle_policy: Value,
     idle_counters: Object,
-    sleep: Object,
+    sleep: Product,
     // Preserve completed intervals when a later refusal replaces
     // suspend-last.json. This shares the existing event cadence.
-    suspend: Object,
+    suspend: Summary,
     kernel_pm: Option<String>,
 }
 
@@ -239,10 +240,6 @@ impl PowerJournal {
         if !data_ready(root) {
             return Ok(None);
         }
-        let receipt = match root.json("/data/system/platform/suspend-last.json") {
-            Some(Value::Object(o)) => o,
-            _ => Object::new(),
-        };
         let Devices {
             usb,
             backlight,
@@ -251,28 +248,8 @@ impl PowerJournal {
         let usb_net = usb_net(root)?;
         let boot_id = root.boot_id();
         let idle = idle_counters(root);
-        let sleep = sleep_status(&receipt, boot_id.as_deref())?;
-        let mut suspend = Object::new();
-        for key in [
-            "mode",
-            "stage",
-            "first_entry",
-            "resume",
-            "cycles",
-            "suspended_seconds",
-            "maintenance_wakes",
-            "error",
-        ] {
-            suspend.set(key, receipt.value(key));
-        }
-        // POWER-FINAL-18: 17 lost why two requests were refused.
-        suspend.set(
-            "reason",
-            match receipt.value("product") {
-                Value::Object(p) => p.value("reason"),
-                _ => Value::Null, // a falsy product (`or {}`); a truthy non-dict was dropped above
-            },
-        );
+        let (receipt, sleep) = sleep_status(root, boot_id.as_deref())?;
+        let suspend = receipt.summary();
         Ok(Some(Row {
             schema: 1,
             event: event.filter(|e| !e.is_empty()).unwrap_or(if safety {

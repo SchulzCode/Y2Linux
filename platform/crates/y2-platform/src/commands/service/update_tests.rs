@@ -958,9 +958,4 @@ fn records_that_cannot_be_read_are_refused() {
             r#"{"state":"Failed","failure":"update_health_record_unreadable"}"#
         )
     );
-    // What another group's helper cannot read.
-    assert_eq!(
-        Raise::from(Failure::crash("KeyError", "'x'")).text(),
-        "record_unreadable: 'x'"
-    );
 }

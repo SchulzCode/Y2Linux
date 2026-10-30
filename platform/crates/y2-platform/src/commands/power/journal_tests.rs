@@ -173,8 +173,8 @@ fn completed_sleep_endpoints_survive_a_later_refusal() {
     journal.observe_at(&fixture.root, "Normal", &empty, None, None, 0.);
     let completed = json!({"mode": "product", "stage": "complete_result_0", "cycles": 4,
         "suspended_seconds": 1840.5, "maintenance_wakes": 3,
-        "first_entry": {"boottime_s": 100, "voltage_uv": 4000000},
-        "resume": {"boottime_s": 1950, "voltage_uv": 3980000}});
+        "first_entry": {"boottime_s": 100.0, "voltage_uv": 4000000},
+        "resume": {"boottime_s": 1950.0, "voltage_uv": 3980000}});
     fixture.put_json(RECEIPT, &completed);
     journal.observe_at(
         &fixture.root,

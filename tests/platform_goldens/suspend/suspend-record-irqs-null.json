@@ -5,11 +5,265 @@
   "0"
  ],
  "calls": [],
- "exit": 1,
+ "exit": 0,
  "stdout": [],
  "tree": {
-  "added": {},
-  "changed": {},
+  "added": {
+   "/data/system/platform/.power-journal.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/data/system/platform/.sleep-diagnostics.lock": {
+    "content": [],
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/data/system/platform/power-journal.jsonl": {
+    "content": {
+     "backlight": {},
+     "battery": {
+      "confidence": "hardware",
+      "filtered_voltage_uv": 3900000,
+      "percent": 60,
+      "status": "Discharging"
+     },
+     "boot_id": "boot-a",
+     "boottime_s": "<volatile>",
+     "build": {
+      "build_git_commit": "linux-commit",
+      "feature_contract_version": 2,
+      "kernel_version": "6.18.0-fixture",
+      "platform_api_version": 1,
+      "reborn_source_commit": "reborn",
+      "release_version": "1.0.0-fixture",
+      "rootfs_version": "v1.0"
+     },
+     "charger": null,
+     "event": "suspend_kernel_resumed",
+     "idle_counters": {
+      "clock_blockers": {},
+      "collector_cpu_seconds": "<volatile>",
+      "counter_reset_rule": "decreasing per-core counters are unknown, not negative rates",
+      "cpuidle": {
+       "0": {
+        "DORMANT": {
+         "disable": 1,
+         "rejected": null,
+         "time": "<volatile>",
+         "usage": null
+        }
+       }
+      },
+      "frequency_khz": null,
+      "frequency_ticks": null,
+      "idle_rejections": {},
+      "online": null,
+      "runtime_pm": {},
+      "scheduler": {}
+     },
+     "idle_policy": null,
+     "kernel_pm": "valid=1 stage=EXIT error=0 reset_resume_entry=0x59325253 pcm_length=596 wake=0x4 failed_stage=NONE",
+     "monotonic_s": "<volatile>",
+     "radios": {
+      "rfkill0": {
+       "blocked": "0",
+       "type": "wlan"
+      }
+     },
+     "schema": 1,
+     "shutdown": null,
+     "sleep": {
+      "boot_id": "boot-a",
+      "kernel_completed": true,
+      "reason": null,
+      "request_boot_id": "boot-a",
+      "same_boot": true,
+      "schema": "org.y2linux.sleep/v1",
+      "state": "waking",
+      "wake_reason": "unknown"
+     },
+     "state": "Suspend",
+     "suspend": {
+      "cycles": 1,
+      "error": null,
+      "first_entry": null,
+      "maintenance_wakes": null,
+      "mode": null,
+      "reason": null,
+      "resume": {
+       "battery": {
+        "confidence": "hardware",
+        "filtered_voltage_uv": 3900000,
+        "percent": 60,
+        "status": "Discharging"
+       },
+       "boottime_s": "<volatile>",
+       "monotonic_s": "<volatile>",
+       "spm": {
+        "broken": "0",
+        "system_sleep_abi": "1",
+        "ticks32k": "98304",
+        "timer_wake": "0"
+       },
+       "voltage_uv": 4149316
+      },
+      "stage": "kernel_resumed",
+      "suspended_seconds": 3.0
+     },
+     "usb": {},
+     "usb_net": {
+      "controller": {},
+      "gadget_udc": null,
+      "out_path": {},
+      "processes": {
+       "dropbear": false,
+       "umtprd": false
+      },
+      "transfer": null,
+      "udc": {},
+      "usb0": {
+       "carrier": null,
+       "flags": null,
+       "ipv4": [],
+       "operstate": null,
+       "statistics": {
+        "rx_bytes": null,
+        "rx_dropped": null,
+        "rx_errors": null,
+        "rx_packets": null,
+        "tx_bytes": null,
+        "tx_dropped": null,
+        "tx_errors": null,
+        "tx_packets": null
+       }
+      }
+     },
+     "wall_time": "<volatile>"
+    },
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/data/system/platform/sleep-diagnostics.jsonl": {
+    "content": {
+     "boot_id": "boot-a",
+     "boottime_s": "<volatile>",
+     "build_id": null,
+     "features": {
+      "deep_audio_entries": null,
+      "deep_idle_audio": "N",
+      "golden": null,
+      "infra": null,
+      "lp_sel": null,
+      "panel_power_down": "N",
+      "panel_stock_suspend": "N",
+      "phy_savecurrent": {},
+      "pmic_golden": null,
+      "pmic_sleep_state": null,
+      "spm": null,
+      "vgp2_idle_off": null,
+      "vproc_sleep": null,
+      "vproc_sleep_state": null,
+      "wheel_sleep": {}
+     },
+     "kernel_pm": "valid=1 stage=EXIT error=0 reset_resume_entry=0x59325253 pcm_length=596 wake=0x4 failed_stage=NONE",
+     "kernel_tail": null,
+     "monotonic_s": "<volatile>",
+     "schema": 1,
+     "stage": "kernel_resumed",
+     "usb_net": {
+      "controller": {},
+      "gadget_udc": null,
+      "out_path": {},
+      "processes": {
+       "dropbear": false,
+       "umtprd": false
+      },
+      "transfer": null,
+      "udc": {},
+      "usb0": {
+       "carrier": null,
+       "flags": null,
+       "ipv4": [],
+       "operstate": null,
+       "statistics": {
+        "rx_bytes": null,
+        "rx_dropped": null,
+        "rx_errors": null,
+        "rx_packets": null,
+        "tx_bytes": null,
+        "tx_dropped": null,
+        "tx_errors": null,
+        "tx_packets": null
+       }
+      }
+     },
+     "usb_reason": null,
+     "wall_time": "<volatile>"
+    },
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
+  "changed": {
+   "/data/system/platform/suspend-last.json": {
+    "content": {
+     "current_boot_id": "boot-a",
+     "cycles": 1,
+     "persistent_kernel": "valid=1 stage=EXIT error=0 reset_resume_entry=0x59325253 pcm_length=596 wake=0x4 failed_stage=NONE",
+     "pm_test": "none",
+     "product": {
+      "boot_id": "boot-a",
+      "kernel_completed": true,
+      "reason": null,
+      "request_boot_id": "boot-a",
+      "same_boot": true,
+      "schema": "org.y2linux.sleep/v1",
+      "state": "waking",
+      "wake_reason": "unknown"
+     },
+     "radio_restore": null,
+     "result": 0,
+     "resume": {
+      "battery": {
+       "confidence": "hardware",
+       "filtered_voltage_uv": 3900000,
+       "percent": 60,
+       "status": "Discharging"
+      },
+      "boottime_s": "<volatile>",
+      "monotonic_s": "<volatile>",
+      "spm": {
+       "broken": "0",
+       "system_sleep_abi": "1",
+       "ticks32k": "98304",
+       "timer_wake": "0"
+      },
+      "voltage_uv": 4149316
+     },
+     "stage": "kernel_resumed",
+     "stages": [
+      {
+       "result": 0,
+       "stage": "kernel_resumed",
+       "time": "<volatile>"
+      }
+     ],
+     "suspended_seconds": 3.0,
+     "updated": "<volatile>",
+     "usb_restore": {
+      "controllers": {},
+      "udcs": {}
+     },
+     "wake_irqs_after": {
+      "power": 4,
+      "rtc": 12
+     }
+    },
+    "mode": "0o600",
+    "type": "file"
+   }
+  },
   "removed": []
  }
 }

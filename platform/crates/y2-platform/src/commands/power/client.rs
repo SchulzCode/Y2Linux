@@ -108,7 +108,6 @@ mod tests {
         for answer in ["[1]\n", "{\"ok\": true}\n", "5\n"] {
             let failure = answered(answer).unwrap_err();
             assert_eq!(failure.message(), "invalid_power_response", "{answer}");
-            assert!(failure.caught(), "a JSON failure record, exit 1");
         }
         let refused = answered("{\"ok\": false, \"error\": \"invalid_grace\"}\n").unwrap_err();
         assert_eq!(refused.message(), "invalid_grace");

@@ -16,7 +16,7 @@ pub use cpu::{cpu, utilization, Cpu};
 #[cfg(test)]
 pub(crate) use cpu::timer_runtime;
 pub use memory::{memory, Memory};
-pub use power::{power, printable, Power};
+pub use power::{power, Power};
 pub use storage::{storage, storage_mode, volume_at, Storage, Volume};
 pub use thermal::{thermal, Thermal};
 pub use wifi::{wifi, Wifi};
@@ -71,11 +71,6 @@ impl Snapshot {
             Value::Object(map) => Ok(map),
             _ => Err(Failure::value("status_snapshot_unserializable")),
         }
-    }
-
-    /// Whether the snapshot can be printed (`printable`): only the power section holds sleep products.
-    pub fn printable(&self) -> Result<(), Failure> {
-        power::printable_section(&self.power)
     }
 }
 

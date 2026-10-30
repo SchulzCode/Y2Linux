@@ -133,9 +133,6 @@ impl From<Failure> for Raise {
         match failure {
             Failure::Value(text) => Raise::Value(text),
             Failure::Os { text, .. } => Raise::Os(text),
-            // A record another group's helper cannot read: refused like the others, naming what it
-            // found.
-            other => Raise::Value(format!("record_unreadable: {}", other.message())),
         }
     }
 }

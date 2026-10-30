@@ -6,7 +6,7 @@
  "calls": [],
  "exit": 1,
  "stdout": {
-  "failure": "cannot use 'list' as a set element (unhashable type: 'list')",
+  "failure": "suspend_receipt_unreadable",
   "state": "Failed"
  },
  "tree": {

@@ -75,7 +75,8 @@
       "request_boot_id": "boot-a",
       "same_boot": true,
       "schema": "org.y2linux.sleep/v1",
-      "state": "restored"
+      "state": "restored",
+      "wake_reason": null
      },
      "state": "Suspend",
      "suspend": {
@@ -205,7 +206,8 @@
       "request_boot_id": "boot-a",
       "same_boot": true,
       "schema": "org.y2linux.sleep/v1",
-      "state": "restored"
+      "state": "restored",
+      "wake_reason": null
      },
      "radio_restore": null,
      "reborn_restore": true,

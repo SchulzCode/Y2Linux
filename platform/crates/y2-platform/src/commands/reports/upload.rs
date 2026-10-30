@@ -435,7 +435,7 @@ pub fn upload_now(
 ) -> UploadRun {
     upload(root, progress, first).unwrap_or_else(|error| {
         UploadRun::not_run(match &error {
-            Failure::Os { class, .. } | Failure::Crash { class, .. } => class,
+            Failure::Os { class, .. } => class,
             Failure::Value(text) => text,
         })
     })

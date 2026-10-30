@@ -267,7 +267,6 @@ fn status(root: &Root, options: &StatusOptions) -> Outcome {
         reduced.insert(section.clone(), part.unwrap_or(Value::Null));
         result = reduced;
     }
-    snapshot::printable(&result)?;
     Reply::sorted(&result, 0)
 }
 

@@ -4,10 +4,16 @@
   "status"
  ],
  "calls": [],
- "exit": 1,
+ "exit": 0,
  "stdout": {
-  "failure": "cannot use 'dict' as a set element (unhashable type: 'dict')",
-  "state": "Failed"
+  "boot_id": "boot-a",
+  "kernel_completed": false,
+  "reason": null,
+  "request_boot_id": null,
+  "same_boot": null,
+  "schema": "org.y2linux.sleep/v1",
+  "state": "idle",
+  "wake_reason": "unknown"
  },
  "tree": {
   "added": {},

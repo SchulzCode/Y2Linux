@@ -145,7 +145,6 @@ pub fn run(root: &Root, options: &Options) -> Outcome {
                 .iter()
                 .any(|item| item.state == Readiness::Failed),
         );
-        value.printable()?;
         let line = dumps_sorted(&value).map_err(Failure::value)? + "\n";
         bytes += line.len();
         if bytes > 64 * 1024 * 1024 {

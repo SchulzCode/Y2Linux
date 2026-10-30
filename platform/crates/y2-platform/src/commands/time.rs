@@ -193,8 +193,6 @@ pub fn remember(root: &Root) -> Outcome {
     match remember_inner(root) {
         Ok(Some(value)) => Reply::unsorted(&value, 0),
         Ok(None) => Reply::unsorted(&Object::new().with("state", "Unchanged"), 0),
-        // `except (OSError, ValueError)`: anything else leaves the command.
-        Err(error) if !error.caught() => Err(error),
         Err(error) => Reply::unsorted(
             &Object::new()
                 .with("state", "Failed")

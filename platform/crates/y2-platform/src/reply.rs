@@ -52,13 +52,6 @@ pub enum Failure {
     /// An `OSError`: Python's `str(error)` and its class name; also any other exception main.py catches
     /// that is not a plain `ValueError` (`AddressValueError`, `UnicodeEncodeError`, `RuntimeError`).
     Os { text: String, class: &'static str },
-    /// An exception main.py does not catch (`TypeError`, `AttributeError`, `KeyError`, `IndexError`):
-    /// nothing more on stdout, Python's traceback on stderr, exit 1. What the command had already
-    /// changed stays changed, as in Python.
-    Crash {
-        class: &'static str,
-        message: String,
-    },
 }
 
 /// An `OSError` from a call that names no file (`os.fstat`, a socket, a read on a descriptor).
@@ -119,25 +112,6 @@ impl Failure {
         Failure::Value(format!("invalid literal for int() with base 10: {shown}"))
     }
 
-    /// An uncaught exception of class `class` with `str(error)` `message`.
-    pub fn crash(class: &'static str, message: impl Into<String>) -> Failure {
-        Failure::Crash {
-            class,
-            message: message.into(),
-        }
-    }
-
-    /// `TypeError(message)`, uncaught.
-    pub fn type_error(message: impl Into<String>) -> Failure {
-        Failure::crash("TypeError", message)
-    }
-
-    /// Whether this is an exception that `except (OSError, ValueError, RuntimeError)` (main.py's
-    /// clause, and most commands' own) catches: not a crash, not a fallback.
-    pub fn caught(&self) -> bool {
-        matches!(self, Failure::Value(_) | Failure::Os { .. })
-    }
-
     /// An OSError raised with a plain message (`raise OSError('dormant budget readback')`).
     pub fn os_message(text: &str) -> Failure {
         Failure::Os {
@@ -150,7 +124,6 @@ impl Failure {
     pub fn message(&self) -> String {
         match self {
             Failure::Value(text) | Failure::Os { text, .. } => text.clone(),
-            Failure::Crash { message, .. } => message.clone(),
         }
     }
 
@@ -169,7 +142,7 @@ impl Failure {
     /// main.py's record for an error no command caught (exit 1).
     pub fn record(&self) -> Object {
         let kind = match self {
-            Failure::Os { class, .. } | Failure::Crash { class, .. } => class,
+            Failure::Os { class, .. } => class,
             _ => "ValueError",
         };
         Object::new()

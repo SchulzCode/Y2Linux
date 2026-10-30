@@ -6,7 +6,7 @@
  "calls": [],
  "exit": 1,
  "stdout": {
-  "failure": "'float' object is not iterable",
+  "failure": "suspend_receipt_unreadable",
   "state": "Failed"
  },
  "tree": {

@@ -6,7 +6,7 @@
  "calls": [],
  "exit": 1,
  "stdout": {
-  "failure": "'<' not supported between instances of 'int' and 'str'",
+  "failure": "suspend_receipt_unreadable",
   "state": "Failed"
  },
  "tree": {

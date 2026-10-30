@@ -109,7 +109,6 @@ fn an_inventory_whose_codecs_are_no_objects_is_refused() {
         fixture.put_json(INVENTORY, &json!({"schema": 1, "codecs": codecs}));
         let refused = runtime(&fixture.root, true).err().expect("refused");
         assert_eq!(refused.message(), "invalid_codec_inventory", "{codecs}");
-        assert!(refused.caught(), "a refusal record, not a traceback");
         assert!(!fixture.exists("/run/y2/codec-runtime.json"));
     }
 }

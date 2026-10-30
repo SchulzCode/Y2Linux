@@ -145,7 +145,7 @@ fn report(root: &Root, action: &str, to: Option<&str>, topic: Option<&str>) -> O
 fn reason(error: &Failure) -> &str {
     match error {
         Failure::Value(text) if UNREADABLE.contains(&text.as_str()) => text,
-        Failure::Os { class, .. } | Failure::Crash { class, .. } => class,
+        Failure::Os { class, .. } => class,
         Failure::Value(_) => "ValueError",
     }
 }

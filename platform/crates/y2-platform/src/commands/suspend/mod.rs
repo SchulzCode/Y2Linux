@@ -265,15 +265,6 @@ pub fn refusal(text: &str) -> Outcome {
     Reply::sorted(&record, 1)
 }
 
-/// A failure the subcommand reports as its refusal record (a record it could not read); any other
-/// stays the `org.y2linux.error/v1` record every subcommand prints.
-pub fn refused(failure: Failure) -> Outcome {
-    match failure {
-        Failure::Crash { message, .. } => refusal(&message),
-        other => Err(other),
-    }
-}
-
 /// End a hidden programme that failed: one line on stderr, nothing on stdout, exit 1.
 pub fn fail(programme: &str, error: &E) -> ! {
     let _ = writeln!(io::stderr(), "{programme}: {}", error.text());
@@ -299,13 +290,6 @@ pub fn platform(root: &Root, args: &[&str]) -> ! {
                     .and_then(|()| out.flush());
                 exit(i32::from(reply.code))
             }
-            Err(Failure::Crash { message, .. }) => match refusal(&message) {
-                Ok(reply) => {
-                    println!("{}", reply.stdout);
-                    exit(1)
-                }
-                Err(_) => exit(1),
-            },
             Err(error) => {
                 let text = y2p_core::json::dumps(&error.record());
                 if let Ok(text) = text {
@@ -356,21 +340,6 @@ pub fn py_gt(a: &Value, b: &Value) -> Result<bool, E> {
                 (Value::String(x), Value::String(y)) => Ok(x > y),
                 _ => Err(E::TypeError("'>' not supported between instances".into())),
             },
-        },
-    }
-}
-
-/// `value.get(key, 0) + n` for a counter kept in a record (`None`: the key is missing).
-pub fn py_add(current: Option<&Value>, n: f64, integer: bool) -> Result<Value, E> {
-    let zero = Value::from(0);
-    let current = current.unwrap_or(&zero);
-    match (exact(current), integer) {
-        (Some(x), true) => Ok(Value::from((x + n as i128) as i64)),
-        _ => match py::python_number(Some(current)) {
-            Some(x) => Ok(serde_json::Number::from_f64(x + n)
-                .map(Value::Number)
-                .unwrap_or(Value::Null)),
-            None => Err(E::TypeError("unsupported operand type(s) for +".into())),
         },
     }
 }
@@ -493,10 +462,5 @@ pub(crate) mod tests {
         assert!(py_gt(&json!(3), &json!(2)).unwrap());
         assert!(py_gt(&json!("b"), &json!("a")).unwrap());
         assert!(py_gt(&json!("b"), &json!(1)).is_err());
-        assert_eq!(py_add(None, 1.0, true).unwrap(), json!(1));
-        assert!(py_add(Some(&json!(null)), 1.0, true).is_err());
-        assert_eq!(py_add(Some(&json!(2)), 1.0, true).unwrap(), json!(3));
-        assert_eq!(py_add(Some(&json!(true)), 1.0, true).unwrap(), json!(2));
-        assert_eq!(py_add(Some(&json!(0.5)), 1.0, true).unwrap(), json!(1.5));
     }
 }

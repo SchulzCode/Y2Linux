@@ -14,7 +14,7 @@
  ],
  "exit": 1,
  "stdout": {
-  "reason": "dictionary update sequence element #1 has length 3; 2 is required",
+  "reason": "invalid_sleep_receipt",
   "schema": "org.y2linux.error/v1",
   "state": "Failed",
   "type": "ValueError"
