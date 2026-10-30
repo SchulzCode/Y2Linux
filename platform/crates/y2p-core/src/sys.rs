@@ -444,6 +444,100 @@ pub fn connect_unix(
     })
 }
 
+/// `bind(2)` of a socket to an AF_UNIX address (from [`unix_address`]).
+pub fn bind_unix(
+    fd: BorrowedFd<'_>,
+    (address, length): &(libc::sockaddr_un, libc::socklen_t),
+) -> io::Result<()> {
+    // SAFETY: `address` is an initialised sockaddr_un of `length` bytes.
+    check(unsafe {
+        libc::bind(
+            fd.as_raw_fd(),
+            (address as *const libc::sockaddr_un).cast(),
+            *length,
+        )
+    })
+}
+
+/// `listen(2)` with `backlog`.
+pub fn listen(fd: BorrowedFd<'_>, backlog: libc::c_int) -> io::Result<()> {
+    // SAFETY: listen(2) on a descriptor; a wrong one is an error, not undefined behaviour.
+    check(unsafe { libc::listen(fd.as_raw_fd(), backlog) })
+}
+
+/// `SO_PEERCRED` of a connected AF_UNIX socket: the peer's (pid, uid).
+pub fn peer_credentials(fd: BorrowedFd<'_>) -> io::Result<(libc::pid_t, libc::uid_t)> {
+    let mut credentials = libc::ucred {
+        pid: 0,
+        uid: 0,
+        gid: 0,
+    };
+    let mut length = std::mem::size_of::<libc::ucred>() as libc::socklen_t;
+    // SAFETY: the buffer and its length describe `credentials`.
+    check(unsafe {
+        libc::getsockopt(
+            fd.as_raw_fd(),
+            libc::SOL_SOCKET,
+            libc::SO_PEERCRED,
+            (&mut credentials as *mut libc::ucred).cast(),
+            &mut length,
+        )
+    })?;
+    Ok((credentials.pid, credentials.uid))
+}
+
+/// One `nanosleep(2)` of `duration`: an interrupted sleep is the EINTR error (not slept on, unlike
+/// `std::thread::sleep`), so a signal can end the wait.
+pub fn nanosleep(duration: std::time::Duration) -> io::Result<()> {
+    let request = libc::timespec {
+        tv_sec: duration.as_secs() as libc::time_t,
+        tv_nsec: duration.subsec_nanos() as libc::c_long,
+    };
+    // SAFETY: a valid timespec; the remainder is not asked for.
+    check(unsafe { libc::nanosleep(&request, std::ptr::null_mut()) })
+}
+
+// glibc's interval timers (not in the libc crate for every target).
+unsafe extern "C" {
+    fn getitimer(which: libc::c_int, value: *mut libc::itimerval) -> libc::c_int;
+    fn setitimer(
+        which: libc::c_int,
+        value: *const libc::itimerval,
+        old: *mut libc::itimerval,
+    ) -> libc::c_int;
+}
+
+/// Whether ITIMER_REAL (the SIGALRM timer) is counting down.
+pub fn real_timer_running() -> bool {
+    let zero = libc::timeval {
+        tv_sec: 0,
+        tv_usec: 0,
+    };
+    let mut running = libc::itimerval {
+        it_interval: zero,
+        it_value: zero,
+    };
+    // SAFETY: getitimer into a valid itimerval.
+    unsafe { getitimer(libc::ITIMER_REAL, &mut running) };
+    running.it_value.tv_sec != 0 || running.it_value.tv_usec != 0
+}
+
+/// Arm ITIMER_REAL to raise SIGALRM once after `seconds` (0 disarms it).
+pub fn set_real_timer(seconds: libc::time_t) {
+    let value = libc::itimerval {
+        it_interval: libc::timeval {
+            tv_sec: 0,
+            tv_usec: 0,
+        },
+        it_value: libc::timeval {
+            tv_sec: seconds,
+            tv_usec: 0,
+        },
+    };
+    // SAFETY: a valid itimerval; the old value is not asked for.
+    unsafe { setitimer(libc::ITIMER_REAL, &value, std::ptr::null_mut()) };
+}
+
 /// `SO_ERROR`: how a non-blocking connect ended (`Ok` when it connected).
 pub fn socket_error(fd: BorrowedFd<'_>) -> io::Result<()> {
     let mut code: libc::c_int = 0;
@@ -586,6 +680,38 @@ mod tests {
     use super::*;
     use crate::root::tests::tempdir::Dir;
     use std::{fs::File, os::fd::AsFd};
+
+    #[test]
+    fn unix_listener_peer_and_timers() {
+        use std::os::unix::net::{UnixListener, UnixStream};
+        let dir = Dir::new();
+        let path = dir.path().join("s");
+        let fd = unix_stream(false).unwrap();
+        bind_unix(fd.as_fd(), &unix_address(&path).unwrap()).unwrap();
+        listen(fd.as_fd(), 4).unwrap();
+        let listener = UnixListener::from(fd);
+        let client = UnixStream::connect(&path).unwrap();
+        let (server, _) = listener.accept().unwrap();
+        let (pid, uid) = peer_credentials(server.as_fd()).unwrap();
+        // SAFETY: getuid has no preconditions.
+        assert_eq!(
+            (pid as u32, uid),
+            (std::process::id(), unsafe { libc::getuid() })
+        );
+        drop(client);
+        // A second bind to the same path is the kernel's error.
+        let again = unix_stream(false).unwrap();
+        assert_eq!(
+            bind_unix(again.as_fd(), &unix_address(&path).unwrap())
+                .unwrap_err()
+                .raw_os_error(),
+            Some(libc::EADDRINUSE)
+        );
+        let started = std::time::Instant::now();
+        nanosleep(std::time::Duration::from_millis(5)).unwrap();
+        assert!(started.elapsed() >= std::time::Duration::from_millis(5));
+        assert!(!real_timer_running());
+    }
 
     #[test]
     fn real_paths_are_realpaths() {

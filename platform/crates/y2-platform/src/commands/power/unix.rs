@@ -36,23 +36,9 @@ fn socket(flags: libc::c_int) -> Result<OwnedFd, Failure> {
 /// `bind(path)`, `chmod(path, 0o600)`, `listen(4)`; non-blocking for the timed accept.
 pub fn listen(path: &Path) -> Result<UnixListener, Failure> {
     let fd = socket(libc::SOCK_NONBLOCK)?;
-    let (address, length) = address(path)?;
-    // SAFETY: `address` is a valid sockaddr_un of `length` bytes.
-    if unsafe {
-        libc::bind(
-            fd.as_raw_fd(),
-            (&address as *const libc::sockaddr_un).cast(),
-            length,
-        )
-    } < 0
-    {
-        return Err(Failure::from(io::Error::last_os_error()));
-    }
+    y2p_core::sys::bind_unix(fd.as_fd(), &address(path)?)?;
     std::fs::set_permissions(path, std::os::unix::fs::PermissionsExt::from_mode(0o600)).at(path)?;
-    // SAFETY: listen(2) on the bound socket.
-    if unsafe { libc::listen(fd.as_raw_fd(), 4) } < 0 {
-        return Err(Failure::from(io::Error::last_os_error()));
-    }
+    y2p_core::sys::listen(fd.as_fd(), 4)?;
     Ok(UnixListener::from(fd))
 }
 
@@ -100,23 +86,8 @@ pub fn accept(listener: &UnixListener, wait: Duration) -> Result<Option<UnixStre
 
 /// `SO_PEERCRED`: (pid, uid).
 pub fn peer(stream: &UnixStream) -> Result<(i64, u32), Failure> {
-    // SAFETY: an all-zero ucred is valid; getsockopt fills it.
-    let mut credentials: libc::ucred = unsafe { std::mem::zeroed() };
-    let mut length = std::mem::size_of::<libc::ucred>() as libc::socklen_t;
-    // SAFETY: the buffer and its length describe `credentials`.
-    let result = unsafe {
-        libc::getsockopt(
-            stream.as_raw_fd(),
-            libc::SOL_SOCKET,
-            libc::SO_PEERCRED,
-            (&mut credentials as *mut libc::ucred).cast(),
-            &mut length,
-        )
-    };
-    if result < 0 {
-        return Err(Failure::from(io::Error::last_os_error()));
-    }
-    Ok((i64::from(credentials.pid), credentials.uid))
+    let (pid, uid) = y2p_core::sys::peer_credentials(stream.as_fd())?;
+    Ok((i64::from(pid), uid))
 }
 
 /// `client.settimeout(timeout); client.connect(path)`.

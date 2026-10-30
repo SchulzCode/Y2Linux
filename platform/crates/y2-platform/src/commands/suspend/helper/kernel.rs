@@ -6,24 +6,11 @@ use super::{check, install, E};
 use std::{
     fs::{File, OpenOptions},
     io::{self, Read},
-    os::{
-        fd::{AsRawFd, FromRawFd},
-        unix::fs::OpenOptionsExt,
-    },
+    os::{fd::AsFd, unix::fs::OpenOptionsExt},
     sync::atomic::{AtomicBool, Ordering},
     time::Duration,
 };
-use y2p_core::Root;
-
-// glibc's interval timers (not in the libc crate for every target).
-unsafe extern "C" {
-    fn getitimer(which: libc::c_int, value: *mut libc::itimerval) -> libc::c_int;
-    fn setitimer(
-        which: libc::c_int,
-        value: *const libc::itimerval,
-        old: *mut libc::itimerval,
-    ) -> libc::c_int;
-}
+use y2p_core::{sys, Root};
 
 static ALARM: AtomicBool = AtomicBool::new(false);
 
@@ -49,12 +36,7 @@ pub struct Kernel;
 
 /// One `write(2)` of `data` on the open file: the bytes written.
 pub fn write(file: &File, data: &[u8]) -> io::Result<usize> {
-    // SAFETY: one write of `data` to the open descriptor.
-    let written = unsafe { libc::write(file.as_raw_fd(), data.as_ptr().cast(), data.len()) };
-    if written < 0 {
-        return Err(io::Error::last_os_error());
-    }
-    Ok(written as usize)
+    sys::write(file.as_fd(), data)
 }
 
 impl Pm for Kernel {
@@ -73,12 +55,8 @@ impl Pm for Kernel {
             if left.is_zero() {
                 return check();
             }
-            let request = libc::timespec {
-                tv_sec: left.as_secs() as libc::time_t,
-                tv_nsec: left.subsec_nanos() as libc::c_long,
-            };
-            // SAFETY: a valid timespec; the remainder is not needed (the deadline is recomputed).
-            if unsafe { libc::nanosleep(&request, std::ptr::null_mut()) } != 0 {
+            // The remainder is not needed (the deadline is recomputed).
+            if sys::nanosleep(left).is_err() {
                 check()?;
             }
         }
@@ -154,31 +132,14 @@ pub(super) fn kernel_sleep(root: &Root, pm: &mut dyn Pm) -> Result<(), E> {
 /// true)`, so even O_NONBLOCK cannot bound an active wake source. Interrupt that read (SIGALRM)
 /// rather than leaving the product helper stuck before it reaches kernel PM.
 fn wakeup_count(root: &Root) -> Result<Option<String>, E> {
-    let mut running: libc::itimerval = unsafe { std::mem::zeroed() };
-    // SAFETY: getitimer into a zeroed itimerval.
-    unsafe { getitimer(libc::ITIMER_REAL, &mut running) };
-    if running.it_value.tv_sec != 0 || running.it_value.tv_usec != 0 {
+    if sys::real_timer_running() {
         return Err(E::refused("sleep_deadline_in_progress"));
     }
     ALARM.store(false, Ordering::SeqCst);
     let old = install(libc::SIGALRM, alarm);
-    let timer = |seconds: libc::time_t| {
-        let value = libc::itimerval {
-            it_interval: libc::timeval {
-                tv_sec: 0,
-                tv_usec: 0,
-            },
-            it_value: libc::timeval {
-                tv_sec: seconds,
-                tv_usec: 0,
-            },
-        };
-        // SAFETY: a valid itimerval.
-        unsafe { setitimer(libc::ITIMER_REAL, &value, std::ptr::null_mut()) };
-    };
-    timer(2);
+    sys::set_real_timer(2);
     let result = read_count(root);
-    timer(0);
+    sys::set_real_timer(0);
     if let Some(old) = old {
         old.restore(libc::SIGALRM);
     }
@@ -202,8 +163,7 @@ fn read_count(root: &Root) -> Result<Option<String>, E> {
     let cap = (limit + 1) * 4;
     let mut bytes = Vec::new();
     let mut block = [0u8; 8192];
-    // SAFETY: the descriptor stays owned by `file`; ManuallyDrop avoids a second close.
-    let mut reader = std::mem::ManuallyDrop::new(unsafe { File::from_raw_fd(file.as_raw_fd()) });
+    let mut reader = &file;
     while bytes.len() < cap {
         match reader.read(&mut block) {
             Ok(0) => break,
