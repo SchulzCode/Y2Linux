@@ -14,7 +14,7 @@ use serde::Serialize;
 use serde_json::{json, Value};
 use std::{
     os::{
-        fd::{AsFd, AsRawFd, RawFd},
+        fd::{AsFd, AsRawFd, BorrowedFd},
         unix::fs::DirBuilderExt,
     },
     path::{Path, PathBuf},
@@ -223,10 +223,10 @@ fn commit(root: &Root, token: &str) -> Result<Value, Failure> {
     stage_path(root, token)?; // validate before any path access
     let volume = data_volume(root)?;
     let data = open_absolute_directory(&root.path("/data"))?;
-    let stage_root = open_directory(data.as_raw_fd(), "transfer-staging", false)?;
-    let stage = open_directory(stage_root.as_raw_fd(), token, false)?;
+    let stage_root = open_directory(data.as_fd(), "transfer-staging", false)?;
+    let stage = open_directory(stage_root.as_fd(), token, false)?;
     let lock = openat(
-        stage.as_raw_fd(),
+        stage.as_fd(),
         "lock",
         libc::O_CREAT | libc::O_RDWR | libc::O_NOFOLLOW,
         0o600,
@@ -262,18 +262,11 @@ fn commit(root: &Root, token: &str) -> Result<Value, Failure> {
     if !storage::admitted(&volume, size as u64) {
         return Err(Failure::value("insufficient_space_for_seal_and_reserve"));
     }
-    seal(stage.as_raw_fd(), size, &expected)?;
+    seal(stage.as_fd(), size, &expected)?;
     if data_volume(root)?.generation != volume.generation {
         return Err(Failure::value("data_generation_changed"));
     }
-    publish(
-        root,
-        data.as_raw_fd(),
-        stage.as_raw_fd(),
-        &parts,
-        size,
-        &expected,
-    )?;
+    publish(root, data.as_fd(), stage.as_fd(), &parts, size, &expected)?;
     value.insert("state".into(), json!("Committed"));
     // `staged` refused a manifest whose record is not an object.
     if let Some(record) = value.get_mut("record").and_then(Value::as_object_mut) {
@@ -281,22 +274,22 @@ fn commit(root: &Root, token: &str) -> Result<Value, Failure> {
         record.insert("failure".into(), Value::Null);
     }
     atomic_json(&anchored.join("manifest.json"), &value, true)?;
-    unlinkat(stage.as_raw_fd(), "sealed.part", 0, false)?;
-    unlinkat(stage.as_raw_fd(), "payload.part", 0, false)?;
-    fsync(stage.as_raw_fd())?;
+    unlinkat(stage.as_fd(), "sealed.part", 0, false)?;
+    unlinkat(stage.as_fd(), "payload.part", 0, false)?;
+    fsync(stage.as_fd())?;
     Ok(Value::Object(value))
 }
 
 /// Copy the upload to an exclusive `sealed.part` while hashing it, within the deadline and the
 /// storage reserve; the copy must have the manifest's size and hash.
-fn seal(stage: RawFd, size: i64, expected: &str) -> Result<(), Failure> {
+fn seal(stage: BorrowedFd<'_>, size: i64, expected: &str) -> Result<(), Failure> {
     let source = openat(
         stage,
         "payload.part",
         libc::O_RDONLY | libc::O_NOFOLLOW | libc::O_NONBLOCK,
         0o777,
     )?;
-    let original = fstat(source.as_raw_fd())?;
+    let original = fstat(source.as_fd())?;
     if original.mode & libc::S_IFMT != libc::S_IFREG || original.nlink != 1 || original.size != size
     {
         return Err(Failure::value("incomplete_or_invalid_upload"));
@@ -316,16 +309,16 @@ fn seal(stage: RawFd, size: i64, expected: &str) -> Result<(), Failure> {
         if Instant::now() >= deadline {
             return Err(Failure::value("transfer_seal_deadline"));
         }
-        let chunk = read_chunk(source.as_raw_fd(), CHUNK.min(remaining))?;
+        let chunk = read_chunk(source.as_fd(), CHUNK.min(remaining))?;
         if chunk.is_empty() {
             return Err(Failure::value("upload_disappeared_or_truncated"));
         }
-        if (available(sealed.as_raw_fd())? as i128) - (chunk.len() as i128) < RESERVE as i128 {
+        if (available(sealed.as_fd())? as i128) - (chunk.len() as i128) < RESERVE as i128 {
             return Err(Failure::value("transfer_storage_reserve"));
         }
         let mut view = &chunk[..];
         while !view.is_empty() {
-            let count = write_some(sealed.as_raw_fd(), view)?;
+            let count = write_some(sealed.as_fd(), view)?;
             if count == 0 {
                 return Err(Failure::os_message("short_transfer_write"));
             }
@@ -334,20 +327,20 @@ fn seal(stage: RawFd, size: i64, expected: &str) -> Result<(), Failure> {
         digest.update(&chunk);
         remaining -= chunk.len();
     }
-    if digest.hexdigest() != expected || fstat(source.as_raw_fd())?.size != size {
+    if digest.hexdigest() != expected || fstat(source.as_fd())?.size != size {
         return Err(Failure::value("upload_hash_or_size_mismatch"));
     }
     // SAFETY: plain syscall on an open descriptor.
     check(unsafe { libc::fchmod(sealed.as_raw_fd(), 0o644) })?;
-    fsync(sealed.as_raw_fd())?;
+    fsync(sealed.as_fd())?;
     Ok(())
 }
 
 /// Publish the sealed upload as `music/<parts>` on its music volume without replacing anything.
 fn publish(
     root: &Root,
-    data: RawFd,
-    stage: RawFd,
+    data: BorrowedFd<'_>,
+    stage: BorrowedFd<'_>,
     parts: &[String],
     size: i64,
     expected: &str,
@@ -359,28 +352,28 @@ fn publish(
         destination = Some(media_volume(root)?);
         media = Some(open_absolute_directory(&root.path(INTERNAL))?);
     }
-    let base = media.as_ref().map_or(data, AsRawFd::as_raw_fd);
+    let base = media.as_ref().map_or(data, AsFd::as_fd);
     let mut target = open_directory(base, "music", true)?;
     let (leaf, directories) = parts
         .split_last()
         .ok_or_else(|| Failure::value("invalid_media_name"))?;
     for part in directories {
-        target = open_directory(target.as_raw_fd(), part, true)?;
+        target = open_directory(target.as_fd(), part, true)?;
     }
     if let Some(destination) = destination {
         if media_volume(root)?.generation != destination.generation {
             return Err(Failure::value("media_generation_changed"));
         }
-        if fstat(stage)?.dev == fstat(target.as_raw_fd())?.dev {
-            linkat(stage, "sealed.part", target.as_raw_fd(), leaf)?;
+        if fstat(stage)?.dev == fstat(target.as_fd())?.dev {
+            linkat(stage, "sealed.part", target.as_fd(), leaf)?;
         } else {
-            publish_copy(stage, leaf, target.as_raw_fd(), size as u64, expected)?;
+            publish_copy(stage, leaf, target.as_fd(), size as u64, expected)?;
         }
     } else {
         // linkat is atomic and fails on an existing name; never overwrite music.
-        linkat(stage, "sealed.part", target.as_raw_fd(), leaf)?;
+        linkat(stage, "sealed.part", target.as_fd(), leaf)?;
     }
-    fsync(target.as_raw_fd())?;
+    fsync(target.as_fd())?;
     Ok(())
 }
 
@@ -389,9 +382,9 @@ fn publish(
 /// an exclusive temporary name beside its destination and then linked: the final name appears
 /// atomically and never replaces an existing file.
 fn publish_copy(
-    stage: RawFd,
+    stage: BorrowedFd<'_>,
     name: &str,
-    target: RawFd,
+    target: BorrowedFd<'_>,
     size: u64,
     expected: &str,
 ) -> Result<(), Failure> {
@@ -411,26 +404,26 @@ fn publish_copy(
     let result = (|| {
         let mut digest = Sha256::new();
         let mut remaining = size as usize;
-        if (available(out.as_raw_fd())? as i128) - (size as i128) < RESERVE as i128 {
+        if (available(out.as_fd())? as i128) - (size as i128) < RESERVE as i128 {
             return Err(Failure::value("transfer_storage_reserve"));
         }
         while remaining > 0 {
-            let chunk = read_chunk(source.as_raw_fd(), CHUNK.min(remaining))?;
+            let chunk = read_chunk(source.as_fd(), CHUNK.min(remaining))?;
             if chunk.is_empty() {
                 return Err(Failure::value("sealed_upload_truncated"));
             }
             let mut view = &chunk[..];
             while !view.is_empty() {
-                let count = write_some(out.as_raw_fd(), view)?;
+                let count = write_some(out.as_fd(), view)?;
                 view = &view[count..];
             }
             digest.update(&chunk);
             remaining -= chunk.len();
         }
-        if digest.hexdigest() != expected || fstat(out.as_raw_fd())?.size as u64 != size {
+        if digest.hexdigest() != expected || fstat(out.as_fd())?.size as u64 != size {
             return Err(Failure::value("published_copy_hash_or_size_mismatch"));
         }
-        fsync(out.as_raw_fd())?;
+        fsync(out.as_fd())?;
         // Atomic and fails on an existing name: never overwrite music.
         linkat(target, &temporary, target, name)
     })();
@@ -458,19 +451,19 @@ fn discard(root: &Root, token: &str) -> Result<Value, Failure> {
     data_volume(root)?;
     stage_path(root, token)?;
     let staging = open_absolute_directory(&root.path("/data/transfer-staging"))?;
-    let fd = open_directory(staging.as_raw_fd(), token, false)?;
+    let fd = open_directory(staging.as_fd(), token, false)?;
     let lock = openat(
-        fd.as_raw_fd(),
+        fd.as_fd(),
         "lock",
         libc::O_CREAT | libc::O_RDWR | libc::O_NOFOLLOW,
         0o600,
     )?;
     flock(lock.as_fd())?;
     for name in ["manifest.json", "payload.part", "sealed.part", "lock"] {
-        unlinkat(fd.as_raw_fd(), name, 0, true)?;
+        unlinkat(fd.as_fd(), name, 0, true)?;
     }
-    unlinkat(staging.as_raw_fd(), token, libc::AT_REMOVEDIR, false)?;
-    fsync(staging.as_raw_fd())?;
+    unlinkat(staging.as_fd(), token, libc::AT_REMOVEDIR, false)?;
+    fsync(staging.as_fd())?;
     Ok(json!({"state": "Discarded", "id": token}))
 }
 

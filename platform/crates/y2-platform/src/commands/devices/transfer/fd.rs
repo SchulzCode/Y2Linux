@@ -8,7 +8,7 @@ use std::{
     ffi::CString,
     io,
     os::{
-        fd::{AsRawFd, BorrowedFd, FromRawFd, OwnedFd, RawFd},
+        fd::{AsFd, AsRawFd, BorrowedFd, FromRawFd, OwnedFd},
         unix::ffi::OsStrExt,
     },
     path::Path,
@@ -26,10 +26,13 @@ fn c_name(name: &str) -> Result<CString, Failure> {
 }
 
 /// Open `name` relative to the directory `dir` (always close-on-exec).
-pub(super) fn openat(dir: RawFd, name: &str, flags: i32, mode: u32) -> Result<OwnedFd, Failure> {
+pub(super) fn openat(
+    dir: BorrowedFd<'_>,
+    name: &str,
+    flags: i32,
+    mode: u32,
+) -> Result<OwnedFd, Failure> {
     let c = c_name(name)?;
-    // SAFETY: the caller's directory descriptor is open for this call.
-    let dir = unsafe { BorrowedFd::borrow_raw(dir) };
     y2p_core::sys::openat(Some(dir), &c, flags | libc::O_CLOEXEC, mode as libc::mode_t)
         .at(Path::new(name))
 }
@@ -52,15 +55,13 @@ pub(super) fn open_absolute_directory(path: &Path) -> Result<OwnedFd, Failure> {
     Ok(unsafe { OwnedFd::from_raw_fd(fd) })
 }
 
-pub(super) fn fstat(fd: RawFd) -> Result<y2p_core::sys::Stat, Failure> {
-    // SAFETY: callers pass a descriptor they hold open for this call.
-    y2p_core::sys::fstat(unsafe { BorrowedFd::borrow_raw(fd) }).map_err(Failure::from)
+pub(super) fn fstat(fd: BorrowedFd<'_>) -> Result<y2p_core::sys::Stat, Failure> {
+    y2p_core::sys::fstat(fd).map_err(Failure::from)
 }
 
 /// The bytes available to unprivileged writers on the filesystem holding `fd`.
-pub(super) fn available(fd: RawFd) -> Result<u64, Failure> {
-    // SAFETY: callers pass a descriptor they hold open for this call.
-    let space = y2p_core::sys::fstatvfs(unsafe { BorrowedFd::borrow_raw(fd) })?;
+pub(super) fn available(fd: BorrowedFd<'_>) -> Result<u64, Failure> {
+    let space = y2p_core::sys::fstatvfs(fd)?;
     Ok(space.available())
 }
 
@@ -72,9 +73,8 @@ pub(super) fn check(result: libc::c_int) -> Result<(), Failure> {
     Ok(())
 }
 
-pub(super) fn fsync(fd: RawFd) -> Result<(), Failure> {
-    // SAFETY: plain syscall on an open descriptor.
-    check(unsafe { libc::fsync(fd) })
+pub(super) fn fsync(fd: BorrowedFd<'_>) -> Result<(), Failure> {
+    Ok(y2p_core::sys::fsync(fd)?)
 }
 
 /// An exclusive lock without waiting: busy is `[Errno 11] Resource temporarily unavailable`.
@@ -89,14 +89,14 @@ pub(super) fn flock(fd: BorrowedFd<'_>) -> Result<(), Failure> {
 /// Remove `name` from the directory `dir` (a directory with AT_REMOVEDIR); with `missing_ok` a name
 /// that is already gone is fine.
 pub(super) fn unlinkat(
-    dir: RawFd,
+    dir: BorrowedFd<'_>,
     name: &str,
     flags: libc::c_int,
     missing_ok: bool,
 ) -> Result<(), Failure> {
     let c = c_name(name)?;
     // SAFETY: a NUL-terminated name relative to an open directory.
-    if unsafe { libc::unlinkat(dir, c.as_ptr(), flags) } != 0 {
+    if unsafe { libc::unlinkat(dir.as_raw_fd(), c.as_ptr(), flags) } != 0 {
         let error = io::Error::last_os_error();
         if missing_ok && error.raw_os_error() == Some(libc::ENOENT) {
             return Ok(());
@@ -108,10 +108,23 @@ pub(super) fn unlinkat(
 
 /// A hard link without following symlinks: atomic, and fails on an existing name (`[Errno 17] File
 /// exists: 'sealed.part' -> 'name'`), so it never replaces music.
-pub(super) fn linkat(from_dir: RawFd, from: &str, to_dir: RawFd, to: &str) -> Result<(), Failure> {
+pub(super) fn linkat(
+    from_dir: BorrowedFd<'_>,
+    from: &str,
+    to_dir: BorrowedFd<'_>,
+    to: &str,
+) -> Result<(), Failure> {
     let (source, target) = (c_name(from)?, c_name(to)?);
     // SAFETY: NUL-terminated names relative to open directories.
-    let result = unsafe { libc::linkat(from_dir, source.as_ptr(), to_dir, target.as_ptr(), 0) };
+    let result = unsafe {
+        libc::linkat(
+            from_dir.as_raw_fd(),
+            source.as_ptr(),
+            to_dir.as_raw_fd(),
+            target.as_ptr(),
+            0,
+        )
+    };
     if result != 0 {
         let error = io::Error::last_os_error();
         let (text, class) = py::os_error(&error, None);
@@ -124,10 +137,10 @@ pub(super) fn linkat(from_dir: RawFd, from: &str, to_dir: RawFd, to: &str) -> Re
 }
 
 /// One read of at most `limit` bytes (empty at the end of the file).
-pub(super) fn read_chunk(fd: RawFd, limit: usize) -> Result<Vec<u8>, Failure> {
+pub(super) fn read_chunk(fd: BorrowedFd<'_>, limit: usize) -> Result<Vec<u8>, Failure> {
     let mut buffer = vec![0u8; limit];
     // SAFETY: the buffer is writable for `limit` bytes.
-    let count = unsafe { libc::read(fd, buffer.as_mut_ptr().cast(), limit) };
+    let count = unsafe { libc::read(fd.as_raw_fd(), buffer.as_mut_ptr().cast(), limit) };
     if count < 0 {
         return Err(Failure::from(io::Error::last_os_error()));
     }
@@ -136,9 +149,9 @@ pub(super) fn read_chunk(fd: RawFd, limit: usize) -> Result<Vec<u8>, Failure> {
 }
 
 /// One write; how many bytes it took.
-pub(super) fn write_some(fd: RawFd, data: &[u8]) -> Result<usize, Failure> {
+pub(super) fn write_some(fd: BorrowedFd<'_>, data: &[u8]) -> Result<usize, Failure> {
     // SAFETY: the slice is readable for its length.
-    let count = unsafe { libc::write(fd, data.as_ptr().cast(), data.len()) };
+    let count = unsafe { libc::write(fd.as_raw_fd(), data.as_ptr().cast(), data.len()) };
     if count < 0 {
         return Err(Failure::from(io::Error::last_os_error()));
     }
@@ -148,14 +161,14 @@ pub(super) fn write_some(fd: RawFd, data: &[u8]) -> Result<usize, Failure> {
 /// One directory component below `parent` (made 0755 first with `create`): never through a symlink,
 /// never onto another filesystem.
 pub(super) fn open_directory(
-    parent: RawFd,
+    parent: BorrowedFd<'_>,
     component: &str,
     create: bool,
 ) -> Result<OwnedFd, Failure> {
     if create {
         let c = c_name(component)?;
         // SAFETY: a NUL-terminated name relative to an open directory.
-        if unsafe { libc::mkdirat(parent, c.as_ptr(), 0o755) } == 0 {
+        if unsafe { libc::mkdirat(parent.as_raw_fd(), c.as_ptr(), 0o755) } == 0 {
             fsync(parent)?;
         } else {
             let error = io::Error::last_os_error();
@@ -170,7 +183,7 @@ pub(super) fn open_directory(
         libc::O_RDONLY | libc::O_DIRECTORY | libc::O_NOFOLLOW,
         0o777,
     )?;
-    if fstat(fd.as_raw_fd())?.dev != fstat(parent)?.dev {
+    if fstat(fd.as_fd())?.dev != fstat(parent)?.dev {
         return Err(Failure::value("transfer_submount_refused"));
     }
     Ok(fd)
