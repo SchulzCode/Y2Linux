@@ -8,6 +8,7 @@ pub mod command;
 pub mod devices_support;
 pub mod digest;
 pub mod json;
+pub mod lenient;
 pub mod lock;
 pub mod mounts;
 pub mod observation_support;

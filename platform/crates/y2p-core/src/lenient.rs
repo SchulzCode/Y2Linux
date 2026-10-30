@@ -1,10 +1,10 @@
-//! Fields of the runtime records this group reads back (`/run/y2/dhcp.json`), read
+//! Fields of runtime records read back by another component (`/run/y2/dhcp.json`, `ssh.json`, …), read
 //! leniently: a record another build or a crash left behind may hold any JSON there, and such a field
 //! reads as absent instead of failing the whole record.
 // SPDX-License-Identifier: GPL-2.0-only
+use crate::json::Object;
 use serde::{de::DeserializeOwned, Deserialize, Deserializer};
 use serde_json::Value;
-use y2p_core::json::Object;
 
 /// A text field: a JSON string, anything else (null, a number, missing) none.
 pub fn text<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Option<String>, D::Error> {

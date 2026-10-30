@@ -4,7 +4,6 @@
 use crate::reply::At;
 mod ipv4;
 
-use super::connectivity::record;
 use crate::reply::{
     atomic_json, lock, private_directory, unlink_missing_ok, write_text, Failure, Outcome, Reply,
 };
@@ -12,6 +11,7 @@ use ipv4::{dotted, interface, ipv4, network};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::{env, fs, os::unix::fs::PermissionsExt, path::Path};
+use y2p_core::lenient as record;
 use y2p_core::{
     command,
     json::{sorted_object, Object, ObjectExt},

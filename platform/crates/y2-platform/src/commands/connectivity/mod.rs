@@ -13,7 +13,6 @@ pub mod daemon;
 pub mod direct;
 pub mod observe_wifi;
 pub mod radio_policy;
-pub(crate) mod record;
 #[cfg(test)]
 mod scenarios;
 #[cfg(test)]
