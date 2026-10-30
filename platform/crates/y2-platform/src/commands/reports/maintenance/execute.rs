@@ -64,21 +64,27 @@ fn target(
     Ok((path, expected, source))
 }
 
-/// `reset execute|resume`: move a confirmed plan's targets (resume: those of an interrupted reset,
-/// after a restart).
-pub(super) fn execute(
+/// A plan that passed every check before anything changes.
+struct Admitted<'a> {
+    /// The confirmation the person gave (the plan's own).
+    confirmation: &'a str,
+    id: String,
+    scope: String,
+    /// The data volume the plan was made for.
+    volume: y2p_core::volume::Volume,
+}
+
+/// The checks before anything changes, in this order: the exact confirmation and plan id, the plan
+/// unchanged since it was confirmed, its scope and boot (a resume may cross a restart), the erase
+/// confirmation for a full reset, its expiry (not on resume), no consumer still running, the same
+/// data volume, no update in progress.
+fn admit<'a>(
     root: &Root,
-    confirm: Option<&str>,
+    value: &Py,
+    confirm: Option<&'a str>,
     erase: bool,
     resume: bool,
-) -> Result<Py, Failure> {
-    let platform = root.path("/data/system/platform");
-    private_directory(&platform)?;
-    let lock_path = platform.join(".maintenance.lock");
-    let _lock = y2p_core::lock::try_exclusive(&lock_path)
-        .map_err(|e| os(e, &lock_path))?
-        .ok_or_else(Failure::busy)?;
-    let value = json_dict(root, "/data/system/platform/reset-plan.json");
+) -> Result<Admitted<'a>, Failure> {
     let required = || Failure::value("exact_reset_confirmation_required");
     // `not confirmation or value.get('confirmation') != confirmation or not re.fullmatch(...,
     // value.get('id', ''))`: an id that is no str is refused once the confirmation matched.
@@ -124,7 +130,7 @@ pub(super) fn execute(
     }
     if !resume {
         // `time.monotonic() > value['expires_monotonic_s']`.
-        let (now, expires) = pyops::index(&value, "expires_monotonic_s")
+        let (now, expires) = pyops::index(value, "expires_monotonic_s")
             .and_then(|expires| pyops::ordered(&Py::Float(root.clock().monotonic()), expires))
             .or_refuse(PLAN_UNREADABLE)?;
         if now > expires {
@@ -139,7 +145,7 @@ pub(super) fn execute(
         let uuid = value.get("data_uuid").filter(|u| u.truthy());
         uuid.is_none_or(|u| !u.py_eq(&volume.uuid.clone().into()))
     } else {
-        !pyops::index(&value, "data_generation")
+        !pyops::index(value, "data_generation")
             .or_refuse(PLAN_UNREADABLE)?
             .py_eq(&volume.generation.clone().into())
     };
@@ -149,6 +155,210 @@ pub(super) fn execute(
     if !JournalState::named(Some(&volume::update_state(root)?)).terminal() {
         return Err(Failure::value("update_in_progress"));
     }
+    Ok(Admitted {
+        confirmation: confirmation_given,
+        id,
+        scope,
+        volume,
+    })
+}
+
+/// What became of one target.
+enum Moved {
+    /// Moved (or its settings reset) now: recorded as completed.
+    Now,
+    /// A resume found it done before the interruption: completed, nothing written.
+    Before,
+}
+
+/// One plan target in quarantine order.
+struct Target<'a> {
+    relative: String,
+    expected: Py,
+    /// What is at the path now (None: nothing).
+    source: Option<Py>,
+    /// The quarantine entry's name (`000`, `001`, …) and what is already there.
+    saved: &'a str,
+    old: Option<Py>,
+}
+
+impl Target<'_> {
+    fn same_source(&self) -> bool {
+        self.source
+            .as_ref()
+            .is_some_and(|s| s.py_eq(&self.expected))
+    }
+
+    fn planned(&self, key: &str) -> Result<&Py, Failure> {
+        pyops::index(&self.expected, key).or_refuse(PLAN_UNREADABLE)
+    }
+}
+
+fn field(value: &Py, key: &str) -> Py {
+    value.get(key).cloned().unwrap_or(Py::None)
+}
+
+/// The settings scope's session file: a copy kept in quarantine, then its settings replaced by
+/// Reborn's defaults (the rest of the session kept as read); a resume whose result is already in
+/// place is done before.
+fn reset_settings(
+    root: &Root,
+    data: &OwnedFd,
+    quarantine: &OwnedFd,
+    location: &Path,
+    id: &str,
+    target: &Target,
+    resume: bool,
+) -> Result<Moved, Failure> {
+    let relative = &target.relative;
+    // `source != expected and not (resume and old and old['inode'] == expected['inode'])`.
+    let old_same_inode = || -> Result<bool, Failure> {
+        Ok(match &target.old {
+            Some(o) if resume => field(o, "inode").py_eq(target.planned("inode")?),
+            _ => false,
+        })
+    };
+    if !target.same_source() && !old_same_inode()? {
+        // Settings backup is a copy, handled by completed hash below.
+        let record = super::super::json_at(
+            root,
+            &format!("/data/reset-quarantine/{id}/settings-result.json"),
+        )
+        .filter(|_| location.join("settings-result.json").exists())
+        .unwrap_or(Py::dict());
+        let sha = record.get("sha256").cloned();
+        if resume {
+            let current = sha256_hex(&regular_bytes(data, relative, 8 << 20)?);
+            if sha.is_some_and(|s| s.py_eq(&Py::Str(current))) {
+                return Ok(Moved::Before);
+            }
+        }
+        return Err(Failure::value("reset_settings_changed"));
+    }
+    let raw = regular_bytes(data, relative, 8 << 20)?;
+    let mut model = pyops::loads(&raw)?;
+    // `'schema' in model`, then `model.get('schema')`: a session that is no object (a
+    // number, or a list or text holding "schema") is refused.
+    let invalid = || Failure::value("invalid_saved_session");
+    let wrapped = pyops::contains(&model, "schema").map_err(|_| invalid())?;
+    if wrapped && !model.is_dict() {
+        return Err(invalid());
+    }
+    // Schema 3 (Reborn Beta 8.33) stores the queue by reference; only the settings change
+    // here, the rest is kept as read.
+    if wrapped
+        && !model
+            .get("schema")
+            .is_some_and(|s| s.py_eq(&Py::int(2)) || s.py_eq(&Py::int(3)))
+    {
+        return Err(Failure::value("unsupported_session_schema"));
+    }
+    let body_ok = {
+        let body = if wrapped {
+            model.get("model")
+        } else {
+            Some(&model)
+        };
+        body.is_some_and(|b| b.is_dict() && b.get("settings").is_some())
+    };
+    if !body_ok {
+        return Err(invalid());
+    }
+    let reply = command::run(root, &["/usr/bin/reborn", "--default-settings"], 2.0);
+    let defaults = if reply.ok {
+        pyops::loads(reply.output.clone().unwrap_or_default().as_bytes())?
+    } else {
+        Py::dict()
+    };
+    // Defaults that are no object (or of another schema) are none.
+    let schema_ok = defaults
+        .get("session_schema")
+        .is_some_and(|s| s.py_eq(&Py::int(2)) || s.py_eq(&Py::int(3)));
+    let Some(settings @ Py::Dict(_)) = defaults.get("settings").cloned().filter(|_| schema_ok)
+    else {
+        return Err(Failure::value("application_defaults_unavailable"));
+    };
+    if target.old.is_none() {
+        free(quarantine, raw.len() as u64 * 2)?;
+        let fd = open_at(
+            Some(quarantine),
+            target.saved,
+            libc::O_WRONLY | libc::O_CREAT | libc::O_EXCL | libc::O_NOFOLLOW | libc::O_CLOEXEC,
+            0o600,
+        )
+        .map_err(|e| os_name(e, target.saved))?;
+        let mut backup = std::fs::File::from(fd);
+        backup.write_all(&raw).and_then(|()| backup.sync_all())?;
+        fsync(quarantine)?;
+    }
+    let body = if wrapped {
+        model.get_mut("model")
+    } else {
+        Some(&mut model)
+    };
+    if let Some(body) = body {
+        body.set("settings", settings); // an object with settings (body_ok)
+    }
+    // atomic_json's exact canonical encoding, including its newline.
+    let result = pyjson::dumps_strict(&model, Style::Compact).map_err(Failure::Value)? + "\n";
+    atomic_json(
+        &location.join("settings-result.json"),
+        &Py::dict().with("sha256", Py::Str(sha256_hex(result.as_bytes()))),
+        true,
+    )?;
+    atomic_json(&root.path(&format!("/data/{relative}")), &model, true)?;
+    Ok(Moved::Now)
+}
+
+/// Any other target: renamed into the quarantine (durably: both directories synced). A resume
+/// whose rename was done before the interruption finds it there and nothing at the path.
+fn quarantine_target(data: &OwnedFd, quarantine: &OwnedFd, target: &Target) -> Result<(), Failure> {
+    // `old and source is None and old['device'] == expected['device'] and old['inode'] ==
+    // expected['inode']`.
+    let renamed_before = match (&target.old, &target.source) {
+        (Some(o), None) => {
+            field(o, "device").py_eq(target.planned("device")?)
+                && field(o, "inode").py_eq(target.planned("inode")?)
+        }
+        _ => false,
+    };
+    if renamed_before {
+        // Durable rename completed before an interrupted journal update.
+        return Ok(());
+    }
+    if target.old.is_some() || !target.same_source() {
+        return Err(Failure::value(format!(
+            "reset_target_changed:{}",
+            target.relative
+        )));
+    }
+    let (parent, name) = parent_fd(data, &target.relative)?;
+    rename_between(&parent, &name, quarantine, target.saved).map_err(|e| os_name(e, &name))?;
+    fsync(&parent)?;
+    fsync(quarantine)
+}
+
+/// `reset execute|resume`: move a confirmed plan's targets (resume: those of an interrupted reset,
+/// after a restart).
+pub(super) fn execute(
+    root: &Root,
+    confirm: Option<&str>,
+    erase: bool,
+    resume: bool,
+) -> Result<Py, Failure> {
+    let platform = root.path("/data/system/platform");
+    private_directory(&platform)?;
+    let lock_path = platform.join(".maintenance.lock");
+    let _lock = y2p_core::lock::try_exclusive(&lock_path)
+        .map_err(|e| os(e, &lock_path))?
+        .ok_or_else(Failure::busy)?;
+    let value = json_dict(root, "/data/system/platform/reset-plan.json");
+    let Admitted {
+        confirmation: confirmation_given,
+        id,
+        scope,
+        volume,
+    } = admit(root, &value, confirm, erase, resume)?;
     let data = open_data(root)?;
     let finished = json_dict(root, "/data/system/platform/maintenance-state.json");
     if finished
@@ -212,136 +422,23 @@ pub(super) fn execute(
             Err(e) if e.raw_os_error() == Some(libc::ENOENT) => None,
             Err(e) => return Err(os_name(e, &saved)),
         };
-        let field = |v: &Py, k: &str| v.get(k).cloned().unwrap_or(Py::None);
-        let planned = |k: &str| pyops::index(&expected, k).or_refuse(PLAN_UNREADABLE);
-        let same_source = source.as_ref().is_some_and(|s| s.py_eq(&expected));
-        if scope == "settings" && relative == SETTINGS {
-            // `source != expected and not (resume and old and old['inode'] == expected['inode'])`.
-            let old_same_inode = || -> Result<bool, Failure> {
-                Ok(match &old {
-                    Some(o) if resume => field(o, "inode").py_eq(planned("inode")?),
-                    _ => false,
-                })
-            };
-            if !same_source && !old_same_inode()? {
-                // Settings backup is a copy, handled by completed hash below.
-                let record = super::super::json_at(
-                    root,
-                    &format!("/data/reset-quarantine/{id}/settings-result.json"),
-                )
-                .filter(|_| location.join("settings-result.json").exists())
-                .unwrap_or(Py::dict());
-                let sha = record.get("sha256").cloned();
-                if resume {
-                    let current = sha256_hex(&regular_bytes(&data, &relative, 8 << 20)?);
-                    if sha.is_some_and(|s| s.py_eq(&Py::Str(current))) {
-                        completed.push(Py::Str(relative.clone()));
-                        continue;
-                    }
-                }
-                return Err(Failure::value("reset_settings_changed"));
+        let target = Target {
+            relative,
+            expected,
+            source,
+            saved: &saved,
+            old,
+        };
+        if scope == "settings" && target.relative == SETTINGS {
+            let moved = reset_settings(root, &data, &quarantine, &location, &id, &target, resume)?;
+            if let Moved::Before = moved {
+                completed.push(Py::Str(target.relative));
+                continue;
             }
-            let raw = regular_bytes(&data, &relative, 8 << 20)?;
-            let mut model = pyops::loads(&raw)?;
-            // `'schema' in model`, then `model.get('schema')`: a session that is no object (a
-            // number, or a list or text holding "schema") is refused.
-            let invalid = || Failure::value("invalid_saved_session");
-            let wrapped = pyops::contains(&model, "schema").map_err(|_| invalid())?;
-            if wrapped && !model.is_dict() {
-                return Err(invalid());
-            }
-            // Schema 3 (Reborn Beta 8.33) stores the queue by reference; only the settings change
-            // here, the rest is kept as read.
-            if wrapped
-                && !model
-                    .get("schema")
-                    .is_some_and(|s| s.py_eq(&Py::int(2)) || s.py_eq(&Py::int(3)))
-            {
-                return Err(Failure::value("unsupported_session_schema"));
-            }
-            let body_ok = {
-                let body = if wrapped {
-                    model.get("model")
-                } else {
-                    Some(&model)
-                };
-                body.is_some_and(|b| b.is_dict() && b.get("settings").is_some())
-            };
-            if !body_ok {
-                return Err(invalid());
-            }
-            let reply = command::run(root, &["/usr/bin/reborn", "--default-settings"], 2.0);
-            let defaults = if reply.ok {
-                pyops::loads(reply.output.clone().unwrap_or_default().as_bytes())?
-            } else {
-                Py::dict()
-            };
-            // Defaults that are no object (or of another schema) are none.
-            let schema_ok = defaults
-                .get("session_schema")
-                .is_some_and(|s| s.py_eq(&Py::int(2)) || s.py_eq(&Py::int(3)));
-            let Some(settings @ Py::Dict(_)) =
-                defaults.get("settings").cloned().filter(|_| schema_ok)
-            else {
-                return Err(Failure::value("application_defaults_unavailable"));
-            };
-            if old.is_none() {
-                free(&quarantine, raw.len() as u64 * 2)?;
-                let fd = open_at(
-                    Some(&quarantine),
-                    &saved,
-                    libc::O_WRONLY
-                        | libc::O_CREAT
-                        | libc::O_EXCL
-                        | libc::O_NOFOLLOW
-                        | libc::O_CLOEXEC,
-                    0o600,
-                )
-                .map_err(|e| os_name(e, &saved))?;
-                let mut backup = std::fs::File::from(fd);
-                backup.write_all(&raw).and_then(|()| backup.sync_all())?;
-                fsync(&quarantine)?;
-            }
-            let body = if wrapped {
-                model.get_mut("model")
-            } else {
-                Some(&mut model)
-            };
-            if let Some(body) = body {
-                body.set("settings", settings); // an object with settings (body_ok)
-            }
-            // atomic_json's exact canonical encoding, including its newline.
-            let result =
-                pyjson::dumps_strict(&model, Style::Compact).map_err(Failure::Value)? + "\n";
-            atomic_json(
-                &location.join("settings-result.json"),
-                &Py::dict().with("sha256", Py::Str(sha256_hex(result.as_bytes()))),
-                true,
-            )?;
-            atomic_json(&root.path(&format!("/data/{relative}")), &model, true)?;
         } else {
-            // `old and source is None and old['device'] == expected['device'] and old['inode'] ==
-            // expected['inode']`.
-            let renamed_before = match (&old, &source) {
-                (Some(o), None) => {
-                    field(o, "device").py_eq(planned("device")?)
-                        && field(o, "inode").py_eq(planned("inode")?)
-                }
-                _ => false,
-            };
-            if renamed_before {
-                // Durable rename completed before an interrupted journal update.
-            } else if old.is_some() || !same_source {
-                return Err(Failure::value(format!("reset_target_changed:{relative}")));
-            } else {
-                let (parent, name) = parent_fd(&data, &relative)?;
-                rename_between(&parent, &name, &quarantine, &saved)
-                    .map_err(|e| os_name(e, &name))?;
-                fsync(&parent)?;
-                fsync(&quarantine)?;
-            }
+            quarantine_target(&data, &quarantine, &target)?;
         }
-        completed.push(Py::Str(relative));
+        completed.push(Py::Str(target.relative));
         atomic_json(
             &location.join("record.json"),
             &progress(&completed, "Applying"),
