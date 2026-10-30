@@ -1,6 +1,8 @@
 # Platform Rust refactor: from ported Python to idiomatic Rust
 
-Status: **done 2026-10-29: test build 171 (sequence 11160) is on the owner's player, Acknowledged.** Both waves are
+Status (2026-10-30 early morning): the follow-up work is tracked in PLATFORM-RUST-NEXT-AGENT-HANDOFF.md (§0 has the
+state: A/B done, C–F partly, test build 176 applied with its USB network silent afterwards). Earlier status:
+**done 2026-10-29: test build 171 (sequence 11160) is on the owner's player, Acknowledged.** Both waves are
 merged on `main`; the resume-point and progress notes below are history. Owed: the owner's hardware checks on 171
 (170 is the comparison point); open owner questions: Python wording left in some refusal texts, whether the
 remaining radios are restored after a failed Wi-Fi restore after sleep, whether service-daemon should skip odd

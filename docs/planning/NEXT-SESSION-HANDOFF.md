@@ -1,6 +1,16 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.4 candidate (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-30, night): TEST BUILD 175 (REFACTOR NEXT PASS P1–P9) ON THE OWNER'S PLAYER, NOT PUBLISHED.**
+> **START HERE (2026-10-30, early morning): TEST BUILD 176 (NEXT-AGENT HANDOFF A–F) APPLIED ON THE OWNER'S PLAYER — ITS USB NETWORK DID NOT COME BACK; NOT PUBLISHED.**
+> One overnight agent: §4 A (typed shared records) and B (state enums) done, C–F partly (see the handoff's §0),
+> 34 commits on local `main` from 2e68d63e, every step byte-identical (platform-gate.sh), host suite 576 OK.
+> 176 (seq 11210) staged and applied 03:48; the player enumerated (MTP + ECM) and MTP answers from the PC, but usb0
+> carried no packet (SSH unreachable), so update state and the device check are unknown; the agent stopped as
+> asked (no 177, no idle measurement). After 176, committed and gated but not built: cheaper SD inventory/USB
+> signature (eMMC entries skipped after one readlink) and the power daemon's pread of BAT0. **First:** look at the
+> player, replug USB, check `ip addr show usb0` and `update status`. Next free label 177, sequence above 11210.
+> Details: [PLATFORM-RUST-NEXT-AGENT-HANDOFF.md](PLATFORM-RUST-NEXT-AGENT-HANDOFF.md) §0.
+>
+> Previous entry: **START HERE (2026-10-30, night): TEST BUILD 175 (REFACTOR NEXT PASS P1–P9) ON THE OWNER'S PLAYER, NOT PUBLISHED.**
 > 174 + 175 on top of 173 (refactor plan "Next pass"): BAT0 reads only what the estimate uses, power.json every
 > 2 s, ~25 duplicate merges (low-battery policy, SD write window, /proc/locks, SHA-256, regex …), From<io::Error>
 > errors, y2p_core::sys wrappers (unsafe 200 → 173, purge fd leak fixed), one-volume probes, space policy in the

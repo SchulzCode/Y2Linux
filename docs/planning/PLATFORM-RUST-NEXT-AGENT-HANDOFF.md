@@ -46,13 +46,37 @@ cheap timer (no Reborn change).
   stable peer_cred), suspend/helper/kernel.rs.
 - **H kept as is** (decision 5: reports `Py` stays; the A readers replaced the record-level py_eq/truthy;
   `python_int` → `parse` would change odd sysfs input the goldens pin).
+- **Test build 176** (seq 11210, commit 6fd3e065: A–F above) built, host suite OK, staged (Queued) and applied
+  2026-10-30 03:48:30 by staged OTA. **The player's USB network did not come back**: the gadget enumerated (MTP
+  + ECM, 03:49:23) and MTP answers from the PC (Internal Storage, SD Card), but usb0 carries nothing (host rx 0,
+  ARP failed, SSH "No route to host" through 04:00). Acknowledgement and the device check could not be read. As
+  the owner asked for this case: written down, device work stopped — **no 177, no idle measurement**.
+- **After 176, committed but not built** (gate OK, host suite OK on db11884f): I-groundwork from strace on 175
+  (a dark service pass ≈550 syscalls, mostly the SD inventory): `storage::sys::emmc_entry` skips the 11 eMMC
+  class entries after one readlink in the inventory and the candidates scan, and the USB tick's change
+  signature reads only non-eMMC entries; J1: the power daemon reads BAT0 voltage_now/present/status/
+  charging_state by pread from kept descriptors (`y2p_core::root::Attribute`; strace on 175: ≈46 calls/sample).
+- **G not done**: needs the player over SSH (the probes and the comparisons against wpa_cli/ip/date); stopped.
+- **I not done** beyond the groundwork above. Facts read on 175 before the install: kernel 6.18.56, UDC
+  `musb-hdrc.4.auto` (state `configured`), backlight `y2-backlight` (bl_power, no notify expected from the
+  backlight core for bl_power), strace available on the player. USB plug, SD insert/remove and the dark/lit
+  change need the owner's hands, so those sources stay polled (owner's rule); the gain must then come from a
+  cheaper pass (the inventory/signature work above) rather than a longer interval.
+- **J**: J1 committed (not built); J2 (Reborn wifi/avrcp threads) and J3 (boot-stage profiling) not done
+  (device needed).
+- **Owed (owner)**: see what 176 shows on the screen; replug the USB cable and check `ip addr show usb0`,
+  `y2-platform update status` and `tools/development/platform-device-check.sh`; then the 176 device check and
+  the idle measurement; the hands-on event-source checks for I (USB plug/unplug, SD insert/remove, screen
+  dark/lit with a uevent/POLLPRI probe); §7 below.
+
 
 ## 1. Where it stands
 
 - The platform is Rust only: `platform/` (crates `y2p-core`, `y2p-contract`, `y2-platform`), about 49,600
   non-test lines, built into `/usr/sbin/y2-platform` (32-bit ARM, armv7). No Python runs on the player.
-- On the owner's player: **test build 175** (sequence 11200), installed by staged OTA and Acknowledged. All
-  work is on local `main`; nothing is pushed. Next free label **176**, sequence **above 11200**.
+- On the owner's player: **test build 176** (sequence 11210) applied 2026-10-30 03:48 by staged OTA; its USB
+  network stayed silent afterwards (see §0). Before it: 175 (sequence 11200), Acknowledged. All work is on local
+  `main`; nothing is pushed. Next free label **177**, sequence **above 11210**.
 - Done so far (details in the refactor plan and `roadmap-gap-audit.md`): the port (170), the refactor plan's
   waves 1–2 (171), quick wins (172), the duplication pass and idle gains (173), the "next pass" P1–P9 (174/175):
   shared helpers in `y2p_core` (paths, digest, text, clock, json, lock, sys, record, power_journal, regex!),
