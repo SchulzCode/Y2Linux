@@ -28,6 +28,31 @@ pub fn texts<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Option<Vec<St
     })
 }
 
+/// The texts of a JSON list, its other items left out (anything but a list: none).
+pub fn some_texts<'de, D: Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Option<Vec<String>>, D::Error> {
+    Ok(match Value::deserialize(deserializer)? {
+        Value::Array(items) => Some(
+            items
+                .into_iter()
+                .filter_map(|item| match item {
+                    Value::String(text) => Some(text),
+                    _ => None,
+                })
+                .collect(),
+        ),
+        _ => None,
+    })
+}
+
+/// A part of the record as `T`, none where it has another shape (the rest of the record still reads).
+pub fn or_none<'de, D: Deserializer<'de>, T: DeserializeOwned>(
+    deserializer: D,
+) -> Result<Option<T>, D::Error> {
+    Ok(T::deserialize(Value::deserialize(deserializer)?).ok())
+}
+
 /// A count: a JSON integer from 0 up, anything else (a bool, a float) none.
 pub fn count<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Option<u64>, D::Error> {
     Ok(Value::deserialize(deserializer)?.as_u64())

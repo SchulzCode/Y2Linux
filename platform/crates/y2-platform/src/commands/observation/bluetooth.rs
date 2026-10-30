@@ -158,28 +158,22 @@ struct Encoder {
     sbc_negotiated_bitpool_range: Option<[i64; 2]>,
 }
 
-fn quality(codec: Option<&str>, pcm: &Map<String, Value>, settings: &Value) -> Encoder {
-    let config: Vec<i64> = match pcm.get("CodecConfiguration") {
-        Some(Value::Array(items)) => items
-            .iter()
-            .map(|v| v.as_i64().filter(|n| (0..=255).contains(n)))
-            .collect::<Option<Vec<i64>>>()
-            .unwrap_or_default(),
-        _ => Vec::new(),
-    };
-    let stats = match pcm.get("EncoderStats") {
-        Some(Value::Object(map)) => Some(map),
-        _ => None,
-    };
-    let live = pcm.get("Running") == Some(&Value::Bool(true))
-        && stats.is_some_and(|s| s.get("Active").and_then(Value::as_i64) == Some(1));
+fn quality(codec: Option<&str>, pcm: &PcmProperties, settings: &Value) -> Encoder {
+    let config: Vec<i64> = pcm
+        .codec_configuration
+        .iter()
+        .flatten()
+        .map(|v| Some(*v).filter(|n| (0..=255).contains(n)))
+        .collect::<Option<Vec<i64>>>()
+        .unwrap_or_default();
+    let stats = pcm.encoder_stats.as_ref();
+    let live = pcm.running == Some(true) && stats.is_some_and(|s| s.get("Active") == Some(&1));
     let observed = |key: &str, minimum: i64, maximum: i64| -> Option<i64> {
         if !live {
             return None;
         }
         stats
-            .and_then(|s| s.get(key))
-            .and_then(Value::as_i64)
+            .and_then(|s| s.get(key).copied())
             .filter(|v| (minimum..=maximum).contains(v))
     };
     const MAX: i64 = (1 << 31) - 1;
@@ -215,7 +209,7 @@ fn quality(codec: Option<&str>, pcm: &Map<String, Value>, settings: &Value) -> E
             encoder.sbc_abr_adjustments = observed("AbrAdjustments", 0, MAX);
         }
         Some("LDAC") => {
-            encoder.ldac_nominal_choices_kbps = match pcm.get("Rate").and_then(Value::as_i64) {
+            encoder.ldac_nominal_choices_kbps = match pcm.rate {
                 Some(44100 | 88200) => Some([303, 606, 909]),
                 Some(48000 | 96000) => Some([330, 660, 990]),
                 _ => None,
@@ -351,20 +345,126 @@ impl Section {
     }
 }
 
-fn flag(map: &Map<String, Value>, key: &str) -> Option<bool> {
-    map.get(key).and_then(Value::as_bool)
+/// y2-bt-observe's answer (schema 1): the bus owners and BlueZ's and BlueALSA's objects, each by
+/// object path (in the helper's order) with the properties of the interfaces read here.
+#[derive(Deserialize, Default)]
+#[serde(default)]
+struct Observed {
+    schema: Option<i64>,
+    stable_owners: bool,
+    #[serde(deserialize_with = "lenient::text")]
+    bluez_owner: Option<String>,
+    #[serde(deserialize_with = "lenient::text")]
+    bluealsa_owner: Option<String>,
+    #[serde(deserialize_with = "lenient::or_none")]
+    bluez: Option<Map<String, Value>>,
+    #[serde(deserialize_with = "lenient::or_none")]
+    bluealsa: Option<Map<String, Value>>,
+    #[serde(deserialize_with = "lenient::or_none")]
+    manager: Option<Manager>,
+    #[serde(deserialize_with = "lenient::text")]
+    codec_pcm: Option<String>,
+    /// The codecs both ends offer, by codec (BlueALSA's capabilities, shown as they are).
+    #[serde(deserialize_with = "lenient::or_none")]
+    mutually_available_codecs: Option<Map<String, Value>>,
 }
 
-fn text(map: &Map<String, Value>, key: &str) -> Option<String> {
-    map.get(key).and_then(Value::as_str).map(str::to_owned)
+/// BlueALSA's manager object.
+#[derive(Deserialize, Default)]
+#[serde(default, rename_all = "PascalCase")]
+struct Manager {
+    #[serde(deserialize_with = "lenient::some_texts")]
+    codecs: Option<Vec<String>>,
+    #[serde(deserialize_with = "lenient::text")]
+    version: Option<String>,
 }
 
-fn integer(map: &Map<String, Value>, key: &str) -> Option<i64> {
-    map.get(key).and_then(Value::as_i64)
+/// A BlueZ object's interfaces read here.
+#[derive(Deserialize, Default)]
+#[serde(default)]
+struct BluezObject {
+    #[serde(rename = "org.bluez.Adapter1")]
+    adapter: Option<AdapterProperties>,
+    #[serde(rename = "org.bluez.Device1")]
+    device: Option<DeviceProperties>,
+}
+
+#[derive(Deserialize, Default)]
+#[serde(default, rename_all = "PascalCase")]
+struct AdapterProperties {
+    #[serde(deserialize_with = "lenient::or_none")]
+    powered: Option<bool>,
+    #[serde(deserialize_with = "lenient::or_none")]
+    discovering: Option<bool>,
+    #[serde(deserialize_with = "lenient::or_none")]
+    pairable: Option<bool>,
+    #[serde(deserialize_with = "lenient::or_none")]
+    discoverable: Option<bool>,
+}
+
+#[derive(Deserialize, Default)]
+#[serde(default, rename_all = "PascalCase")]
+struct DeviceProperties {
+    #[serde(deserialize_with = "lenient::or_none")]
+    address: Option<String>,
+    #[serde(deserialize_with = "lenient::or_none")]
+    paired: Option<bool>,
+    #[serde(deserialize_with = "lenient::or_none")]
+    bonded: Option<bool>,
+    #[serde(deserialize_with = "lenient::or_none")]
+    trusted: Option<bool>,
+    #[serde(deserialize_with = "lenient::or_none")]
+    connected: Option<bool>,
+    #[serde(deserialize_with = "lenient::or_none")]
+    services_resolved: Option<bool>,
+}
+
+/// A BlueALSA object's PCM interface.
+#[derive(Deserialize, Default)]
+#[serde(default)]
+struct BluealsaObject {
+    #[serde(rename = "org.bluealsa.PCM1")]
+    pcm: Option<PcmProperties>,
+}
+
+#[derive(Deserialize, Default)]
+#[serde(default, rename_all = "PascalCase")]
+struct PcmProperties {
+    #[serde(deserialize_with = "lenient::or_none")]
+    device: Option<String>,
+    #[serde(deserialize_with = "lenient::or_none")]
+    transport: Option<String>,
+    #[serde(deserialize_with = "lenient::or_none")]
+    mode: Option<String>,
+    #[serde(deserialize_with = "lenient::or_none")]
+    codec: Option<String>,
+    #[serde(deserialize_with = "lenient::or_none")]
+    format: Option<i64>,
+    #[serde(deserialize_with = "lenient::or_none")]
+    rate: Option<i64>,
+    #[serde(deserialize_with = "lenient::or_none")]
+    channels: Option<i64>,
+    #[serde(deserialize_with = "lenient::or_none")]
+    sequence: Option<i64>,
+    #[serde(deserialize_with = "lenient::or_none")]
+    running: Option<bool>,
+    #[serde(deserialize_with = "lenient::or_none")]
+    codec_configuration: Option<Vec<i64>>,
+    /// The encoder's counters (BlueALSA patches 0002/0003), by name.
+    #[serde(deserialize_with = "lenient::or_none")]
+    encoder_stats: Option<std::collections::BTreeMap<String, i64>>,
+}
+
+/// The objects of `map` whose interfaces read as `T`, in the helper's order (an object whose
+/// properties have other types is left out).
+fn objects<T: serde::de::DeserializeOwned>(map: &Map<String, Value>) -> Vec<(&String, T)> {
+    map.iter()
+        .filter_map(|(path, value)| Some((path, T::deserialize(value).ok()?)))
+        .collect()
 }
 
 /// The section from y2-bt-observe's answer (`raw`).
-fn normalize(root: &Root, raw: &Map<String, Value>) -> Result<Section, Stop> {
+fn normalize(root: &Root, raw: &Observed) -> Result<Section, Stop> {
     let mut section = settled_base(root)?;
     observed(root, raw, &mut section);
     Ok(section)
@@ -411,52 +511,38 @@ fn settled_base(root: &Root) -> Result<Section, Stop> {
 /// What y2-bt-observe saw, added step by step: the adapter, the runtime (bluealsa and its codecs),
 /// the devices and the selected peer's transport. A step that cannot go on has left its state or
 /// reason and ends the section there (None).
-fn observed(root: &Root, raw: &Map<String, Value>, section: &mut Section) -> Option<()> {
-    if raw.get("schema").and_then(Value::as_i64) != Some(1)
-        || raw.get("stable_owners") != Some(&Value::Bool(true))
-    {
+fn observed(root: &Root, raw: &Observed, section: &mut Section) -> Option<()> {
+    if raw.schema != Some(1) || !raw.stable_owners {
         return None;
     }
-    let Some(Value::Object(bluez)) = raw.get("bluez") else {
-        return None;
-    };
-    adapter(raw, bluez, section)?;
+    let bluez: Vec<(&String, BluezObject)> = objects(raw.bluez.as_ref()?);
+    adapter(raw, &bluez, section)?;
     let bluealsa = runtime(raw, section)?;
-    let devices = devices(bluez);
+    let devices = devices(&bluez);
     section.devices = Some(devices.iter().take(128).cloned().collect());
     let device = selected_peer(root, &devices, section)?;
-    transport(raw, bluealsa, &device, section)
+    transport(raw, &bluealsa, &device, section)
 }
 
 /// The one adapter and whether it is powered.
-fn adapter(
-    raw: &Map<String, Value>,
-    bluez: &Map<String, Value>,
-    section: &mut Section,
-) -> Option<()> {
-    let adapters: Vec<(&String, &Map<String, Value>)> = bluez
+fn adapter(raw: &Observed, bluez: &[(&String, BluezObject)], section: &mut Section) -> Option<()> {
+    let adapters: Vec<(&String, &AdapterProperties)> = bluez
         .iter()
-        .filter_map(|(path, interfaces)| {
-            interfaces
-                .get("org.bluez.Adapter1")
-                .and_then(Value::as_object)
-                .map(|a| (path, a))
-        })
+        .filter_map(|(path, object)| Some((*path, object.adapter.as_ref()?)))
         .collect();
     let [(path, adapter)] = adapters[..] else {
         section.reason = "no_unique_adapter";
         return None;
     };
-    let powered = flag(adapter, "Powered");
     section.adapter = Some(Adapter {
         path: path.clone(),
-        powered,
-        discovering: flag(adapter, "Discovering"),
-        pairable: flag(adapter, "Pairable"),
-        discoverable: flag(adapter, "Discoverable"),
-        bluez_owner: text(raw, "bluez_owner"),
+        powered: adapter.powered,
+        discovering: adapter.discovering,
+        pairable: adapter.pairable,
+        discoverable: adapter.discoverable,
+        bluez_owner: raw.bluez_owner.clone(),
     });
-    if powered != Some(true) {
+    if adapter.powered != Some(true) {
         section.reason = "radio_off";
         return None;
     }
@@ -466,32 +552,25 @@ fn adapter(
 /// bluealsa and its manager: Ready with SBC enabled and the runtime version 5.0.0, else Degraded
 /// (Starting while bluealsa is not up). bluealsa's objects for the transport step.
 fn runtime<'a>(
-    raw: &'a Map<String, Value>,
+    raw: &'a Observed,
     section: &mut Section,
-) -> Option<&'a Map<String, Value>> {
-    let object = |key: &str| match raw.get(key) {
-        Some(Value::Object(map)) => Some(map),
-        _ => None,
-    };
-    let owner = text(raw, "bluealsa_owner").filter(|owner| !owner.is_empty());
-    let (Some(bluealsa), Some(manager), Some(_)) = (object("bluealsa"), object("manager"), owner)
-    else {
+) -> Option<Vec<(&'a String, BluealsaObject)>> {
+    let owner = raw
+        .bluealsa_owner
+        .as_deref()
+        .filter(|owner| !owner.is_empty());
+    let (Some(bluealsa), Some(manager), Some(_)) = (&raw.bluealsa, &raw.manager, owner) else {
         (section.state, section.reason) = (Readiness::Starting, "bluealsa_not_ready");
         return None;
     };
     (section.state, section.reason) = (Readiness::Ready, "controller_bluez_bluealsa_observed");
-    let enabled: Option<Vec<String>> =
-        manager
-            .get("Codecs")
-            .and_then(Value::as_array)
-            .map(|codes| {
-                codes
-                    .iter()
-                    .filter_map(Value::as_str)
-                    .filter(|c| c.to_lowercase().starts_with("a2dp-source:"))
-                    .map(|c| c.split_once(':').map_or("", |(_, r)| r).to_owned())
-                    .collect()
-            });
+    let enabled: Option<Vec<String>> = manager.codecs.as_ref().map(|codecs| {
+        codecs
+            .iter()
+            .filter(|c| c.to_lowercase().starts_with("a2dp-source:"))
+            .map(|c| c.split_once(':').map_or("", |(_, r)| r).to_owned())
+            .collect()
+    });
     if !enabled
         .as_ref()
         .is_some_and(|e| e.iter().any(|c| c == "SBC"))
@@ -500,27 +579,31 @@ fn runtime<'a>(
     }
     section.runtime_enabled = enabled;
     // The runtime version: `v5.0.0` or `5.0.0` (no version at all reads as none).
-    let version = text(manager, "Version");
-    if version.as_deref().map(|v| v.trim_start_matches('v')) != Some("5.0.0") {
+    if manager
+        .version
+        .as_deref()
+        .map(|v| v.trim_start_matches('v'))
+        != Some("5.0.0")
+    {
         section.degraded("bluealsa_runtime_version_mismatch");
     }
-    Some(bluealsa)
+    Some(objects(bluealsa))
 }
 
 /// BlueZ's devices in y2-bt-observe's order (the object's keys as the output gives them).
-fn devices(bluez: &Map<String, Value>) -> Vec<Device> {
+fn devices(bluez: &[(&String, BluezObject)]) -> Vec<Device> {
     bluez
         .iter()
-        .filter_map(|(path, interfaces)| {
-            let device = interfaces.get("org.bluez.Device1")?.as_object()?;
+        .filter_map(|(path, object)| {
+            let device = object.device.as_ref()?;
             Some(Device {
-                path: path.clone(),
-                address: text(device, "Address"),
-                paired: flag(device, "Paired"),
-                bonded: flag(device, "Bonded"),
-                trusted: flag(device, "Trusted"),
-                connected: flag(device, "Connected"),
-                services_resolved: flag(device, "ServicesResolved"),
+                path: (*path).clone(),
+                address: device.address.clone(),
+                paired: device.paired,
+                bonded: device.bonded,
+                trusted: device.trusted,
+                connected: device.connected,
+                services_resolved: device.services_resolved,
             })
         })
         .collect()
@@ -562,33 +645,33 @@ fn selected_peer(root: &Root, devices: &[Device], section: &mut Section) -> Opti
 /// The selected peer's one playback PCM: its format, codec, encoder and transport, Degraded when
 /// the PCM is not one the player plays.
 fn transport(
-    raw: &Map<String, Value>,
-    bluealsa: &Map<String, Value>,
+    raw: &Observed,
+    bluealsa: &[(&String, BluealsaObject)],
     device: &Device,
     section: &mut Section,
 ) -> Option<()> {
-    let pcms: Vec<(&String, &Map<String, Value>)> = bluealsa
+    let pcms: Vec<(&String, &PcmProperties)> = bluealsa
         .iter()
-        .filter_map(|(path, interfaces)| {
-            let pcm = interfaces.get("org.bluealsa.PCM1")?.as_object()?;
-            (pcm.get("Device").and_then(Value::as_str) == Some(device.path.as_str())
-                && pcm.get("Transport").and_then(Value::as_str) == Some("A2DP-source")
-                && pcm.get("Mode").and_then(Value::as_str) == Some("sink"))
-            .then_some((path, pcm))
+        .filter_map(|(path, object)| {
+            let pcm = object.pcm.as_ref()?;
+            (pcm.device.as_deref() == Some(device.path.as_str())
+                && pcm.transport.as_deref() == Some("A2DP-source")
+                && pcm.mode.as_deref() == Some("sink"))
+            .then_some((*path, pcm))
         })
         .collect();
     let [(path, pcm)] = pcms[..] else {
         section.transport_reason = Some("no_unique_playback_pcm");
         return None;
     };
-    let format_code = integer(pcm, "Format");
+    let format_code = pcm.format;
     let format = match format_code {
         Some(0x8210) => Some(("S16_LE", 16, 16)),
         Some(0x8418) => Some(("S24_LE", 24, 32)),
         Some(0x8420) => Some(("S32_LE", 32, 32)),
         _ => None,
     };
-    let (rate, channels) = (integer(pcm, "Rate"), integer(pcm, "Channels"));
+    let (rate, channels) = (pcm.rate, pcm.channels);
     section.pcm = Some(Pcm {
         format_code,
         format: format.map(|f| f.0),
@@ -597,26 +680,24 @@ fn transport(
         rate_hz: rate,
         channels,
     });
-    let codec = text(pcm, "Codec");
+    let codec = pcm.codec.clone();
     let encoder = quality(codec.as_deref(), pcm, &section.codec_settings);
     section.negotiated_codec = codec;
     section.actual_bitrate_bps = encoder.bitrate_bps;
     section.encoder = Some(encoder);
     section.transport = Some(Transport {
         object: path.clone(),
-        bluealsa_owner: text(raw, "bluealsa_owner"),
-        connection_sequence: integer(pcm, "Sequence"),
-        running: flag(pcm, "Running"),
+        bluealsa_owner: raw.bluealsa_owner.clone(),
+        connection_sequence: pcm.sequence,
+        running: pcm.running,
         lifetime_note: "snapshot; use ObjectManager removal signals for per-open lifetime",
     });
     let rate_ok = rate.is_some_and(|r| (8000..=192_000).contains(&r));
     if format.is_none() || !rate_ok || channels != Some(2) {
         section.degraded("unsupported_or_incomplete_pcm");
     }
-    if raw.get("codec_pcm").and_then(Value::as_str) == Some(path.as_str()) {
-        if let Some(Value::Object(mutual)) = raw.get("mutually_available_codecs") {
-            section.mutually_usable = Some(mutual.clone());
-        }
+    if raw.codec_pcm.as_deref() == Some(path.as_str()) {
+        section.mutually_usable = raw.mutually_available_codecs.clone();
     }
     Some(())
 }
@@ -625,8 +706,8 @@ fn transport(
 pub fn bluetooth(root: &Root) -> Result<Section, Failure> {
     let answer = command::run_with(root, &["/usr/sbin/y2-bt-observe"], 3.0, 262_144, false);
     let output = answer.output.unwrap_or_default();
-    if let Ok(Value::Object(observed)) = serde_json::from_str::<Value>(&output) {
-        if observed.get("schema").and_then(Value::as_i64) == Some(1) {
+    if let Ok(observed) = serde_json::from_str::<Observed>(&output) {
+        if observed.schema == Some(1) {
             match normalize(root, &observed) {
                 Ok(value) => return Ok(value),
                 Err(Stop::Refused(error)) => return Err(error),
