@@ -17,10 +17,97 @@ use y2p_core::{
     Root,
 };
 
+/// A shutdown intent's state (`state` of shutdown.json and the socket's answers).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum IntentState {
+    /// Requested; its grace or Reborn's acknowledgement ends the wait.
+    ShutdownPending,
+    /// Its steps run (a daemon restart resumes it as pending, with its deadline).
+    Executing,
+    /// Init refused the transition.
+    Failed,
+}
+
+/// What a shutdown does (`action`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ShutdownAction {
+    Poweroff,
+    Reboot,
+}
+
+/// Who asked for a shutdown (`reason`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ShutdownReason {
+    User,
+    LowBattery,
+    Update,
+    Service,
+}
+
+impl IntentState {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            IntentState::ShutdownPending => "ShutdownPending",
+            IntentState::Executing => "Executing",
+            IntentState::Failed => "Failed",
+        }
+    }
+
+    /// The state a record's value names (only these exact texts).
+    pub fn of(value: &Value) -> Option<IntentState> {
+        Some(match value.as_str()? {
+            "ShutdownPending" => IntentState::ShutdownPending,
+            "Executing" => IntentState::Executing,
+            "Failed" => IntentState::Failed,
+            _ => return None,
+        })
+    }
+}
+
+impl ShutdownAction {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            ShutdownAction::Poweroff => "poweroff",
+            ShutdownAction::Reboot => "reboot",
+        }
+    }
+
+    /// The action a request's or record's value names (only these exact texts).
+    pub fn of(value: &Value) -> Option<ShutdownAction> {
+        Some(match value.as_str()? {
+            "poweroff" => ShutdownAction::Poweroff,
+            "reboot" => ShutdownAction::Reboot,
+            _ => return None,
+        })
+    }
+}
+
+impl ShutdownReason {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            ShutdownReason::User => "user",
+            ShutdownReason::LowBattery => "low_battery",
+            ShutdownReason::Update => "update",
+            ShutdownReason::Service => "service",
+        }
+    }
+
+    /// The reason a request's value names (only these exact texts).
+    pub fn of(value: &Value) -> Option<ShutdownReason> {
+        Some(match value.as_str()? {
+            "user" => ShutdownReason::User,
+            "low_battery" => ShutdownReason::LowBattery,
+            "update" => ShutdownReason::Update,
+            "service" => ShutdownReason::Service,
+            _ => return None,
+        })
+    }
+}
+
 /// What the coordinator reads of an intent: one it built, or one resumed from shutdown.json after a
 /// daemon restart (which may hold anything a file can).
 pub trait IntentFields {
-    fn state(&self) -> Option<&str>;
+    fn state(&self) -> Option<IntentState>;
     /// The deadline in CLOCK_MONOTONIC ns (0 when it is not an int).
     fn deadline_ns(&self) -> i128;
     /// Whether Reborn acknowledged with `Ready`. Anything but a dict with that outcome (null, or what
@@ -30,13 +117,13 @@ pub trait IntentFields {
     fn acknowledgement_odd(&self) -> bool;
 
     fn pending(&self) -> bool {
-        self.state() == Some("ShutdownPending")
+        self.state() == Some(IntentState::ShutdownPending)
     }
 }
 
 impl IntentFields for Object {
-    fn state(&self) -> Option<&str> {
-        self.get("state").and_then(Value::as_str)
+    fn state(&self) -> Option<IntentState> {
+        self.get("state").and_then(IntentState::of)
     }
 
     fn deadline_ns(&self) -> i128 {
@@ -77,14 +164,11 @@ impl Coordinator {
         };
         let boot = Value::from(boot_id.clone());
         let valid = previous.value("boot_id").py_eq(&boot)
-            && matches!(
-                previous.state(),
-                Some("ShutdownPending" | "Executing" | "Failed")
-            )
-            && matches!(
-                previous.get("action").and_then(Value::as_str),
-                Some("poweroff" | "reboot")
-            )
+            && previous.state().is_some()
+            && previous
+                .get("action")
+                .and_then(ShutdownAction::of)
+                .is_some()
             && previous
                 .get("deadline_monotonic_ns")
                 .and_then(Value::exact_int)
@@ -104,10 +188,10 @@ impl Coordinator {
                     intent.value("acknowledgement")
                 );
             }
-            if intent.state() == Some("Executing") {
+            if intent.state() == Some(IntentState::Executing) {
                 // Continue the already requested transition after a daemon crash,
                 // retaining its original deadline. No new boot is auto-rebooted.
-                intent.set("state", "ShutdownPending");
+                intent.set("state", IntentState::ShutdownPending.as_str());
             }
         }
         Coordinator {
@@ -137,18 +221,15 @@ impl Coordinator {
         reason: &Value,
         grace: i64,
     ) -> Result<Object, Failure> {
-        let valid = ["poweroff", "reboot"].iter().any(|a| action.is_str(a))
-            && ["user", "low_battery", "update", "service"]
-                .iter()
-                .any(|r| reason.is_str(r));
-        if !valid {
+        let (Some(action), Some(reason)) = (ShutdownAction::of(action), ShutdownReason::of(reason))
+        else {
             return Err(Failure::value("invalid_shutdown_request"));
-        }
+        };
         if !(3..=30).contains(&grace) {
             return Err(Failure::value("invalid_grace"));
         }
         if let Some(intent) = &self.intent {
-            if !intent.value("action").py_eq(action) {
+            if intent.get("action").and_then(ShutdownAction::of) != Some(action) {
                 return Err(Failure::value("different_shutdown_already_pending"));
             }
             return Ok(intent.clone());
@@ -160,9 +241,9 @@ impl Coordinator {
                 .with("schema", 1i64)
                 .with("id", id)
                 .with("boot_id", self.boot_id.clone())
-                .with("state", "ShutdownPending")
-                .with("action", action.clone())
-                .with("reason", reason.clone())
+                .with("state", IntentState::ShutdownPending.as_str())
+                .with("action", action.as_str())
+                .with("reason", reason.as_str())
                 .with("requested_monotonic_ns", now as i64)
                 .with(
                     "deadline_monotonic_ns",

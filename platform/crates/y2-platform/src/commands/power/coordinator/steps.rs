@@ -4,7 +4,7 @@
 //! Below a fixture root nothing here signals a process or starts a power command: the steps' commands
 //! get the fixture answers (`y2p_core::command`) and the kill step runs only on the real root.
 // SPDX-License-Identifier: GPL-2.0-only
-use super::{Coordinator, IntentFields};
+use super::{Coordinator, IntentFields, IntentState, ShutdownAction};
 use serde_json::Value;
 use std::{fs::OpenOptions, io::Write, os::unix::fs::OpenOptionsExt, time::Duration};
 use y2p_core::{
@@ -113,7 +113,7 @@ impl Coordinator {
         let Some(intent) = self.intent.as_mut() else {
             return Step::of(false, Some("no_shutdown_intent"));
         };
-        intent.set("state", "Executing");
+        intent.set("state", IntentState::Executing.as_str());
         let (action, reason) = (intent.value("action"), intent.value("reason"));
         self.publish_noted();
         shutdown_trail(
@@ -122,7 +122,8 @@ impl Coordinator {
             None,
         );
         let mut results: Vec<(String, Step)> = Vec::new();
-        let watchdog = self.arm_watchdog(action.is_str("poweroff"));
+        let watchdog =
+            self.arm_watchdog(ShutdownAction::of(&action) == Some(ShutdownAction::Poweroff));
         shutdown_trail(&self.root, "watchdog", Some(&watchdog));
         results.push(("watchdog".into(), watchdog));
         let long_press = self.long_press_reset_off();
@@ -220,7 +221,7 @@ impl Coordinator {
         if !result.ok {
             self.set_intent(|intent| {
                 intent
-                    .set("state", "Failed")
+                    .set("state", IntentState::Failed.as_str())
                     .set("failure", "init_shutdown_request_failed");
             });
         }
