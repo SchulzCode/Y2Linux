@@ -39,7 +39,7 @@ pub fn section<'a>(status: &'a Snapshot, name: &str) -> &'a Value {
 /// One gendisk lifetime of a block device (`block:<dev_t>:diskseq:<n>`), or None: a card removed and
 /// inserted again (or another card) has another disk sequence number under the same dev_t.
 pub fn device_instance(root: &Root, device_id: &str) -> Option<String> {
-    let path = std::fs::canonicalize(root.path(&format!("/sys/dev/block/{device_id}"))).ok()?;
+    let path = y2p_core::sys::real_path(&root.path(&format!("/sys/dev/block/{device_id}"))).ok()?;
     let disk = if path.join("partition").is_file() {
         path.parent()?.to_path_buf()
     } else {

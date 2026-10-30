@@ -82,7 +82,7 @@ pub fn emmc_entry(entry: &Path) -> bool {
 /// The path with its symlinks followed as far as they exist, the rest kept as written (a removed
 /// device's sysfs path still names its controller).
 pub fn resolve(path: &Path) -> PathBuf {
-    if let Ok(real) = fs::canonicalize(path) {
+    if let Ok(real) = y2p_core::sys::real_path(path) {
         return real;
     }
     let mut pending: Vec<PathBuf> = Vec::new();
@@ -166,7 +166,7 @@ pub fn mkdir_io(path: &Path, mode: u32) -> io::Result<()> {
 /// including the same CID. Missing diskseq fails closed rather than falling
 /// back to an inode/ctime that can change without a media change.
 pub fn device_instance(root: &Root, device_id: &str) -> Option<String> {
-    let path = fs::canonicalize(root.path(&format!("/sys/dev/block/{device_id}"))).ok()?;
+    let path = y2p_core::sys::real_path(&root.path(&format!("/sys/dev/block/{device_id}"))).ok()?;
     let disk = if path.join("partition").is_file() {
         path.parent().map(Path::to_path_buf).unwrap_or_default()
     } else {

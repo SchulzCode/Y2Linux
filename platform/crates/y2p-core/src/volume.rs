@@ -121,13 +121,13 @@ pub fn space_state(available: u64, total: u64, readonly: bool, error: bool) -> S
 
 /// `Path.resolve()` (strict=False): symlinks resolved as far as the path exists.
 fn resolve(path: &Path) -> PathBuf {
-    if let Ok(real) = path.canonicalize() {
+    if let Ok(real) = crate::sys::real_path(path) {
         return real;
     }
     let mut missing = Vec::new();
     let mut existing = path.to_path_buf();
     while !existing.as_os_str().is_empty() {
-        if let Ok(mut real) = existing.canonicalize() {
+        if let Ok(mut real) = crate::sys::real_path(&existing) {
             for part in missing.iter().rev() {
                 real.push(part);
             }

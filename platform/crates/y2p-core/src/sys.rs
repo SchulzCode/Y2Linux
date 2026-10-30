@@ -1,6 +1,6 @@
 //! Safe wrappers for the libc calls the platform repeats: filesystem space (`statvfs64`,
 //! `fstatvfs64`), file status (`fstat64`, `fstatat64`), positioned I/O (`pread64`, `pwrite64`) and
-//! signal dispositions (`sigaction`), rtnetlink sockets and pidfds. The 64-bit calls are used throughout: the plain ones fail with
+//! signal dispositions (`sigaction`), rtnetlink sockets, pidfds and `realpath` from the kernel. The 64-bit calls are used throughout: the plain ones fail with
 //! EOVERFLOW above 2 GiB on the player's 32-bit ARM, whose fields are also narrower; each figure is
 //! widened here once.
 // SPDX-License-Identifier: GPL-2.0-only
@@ -12,8 +12,24 @@ use std::{
         fd::{AsRawFd, BorrowedFd, FromRawFd, OwnedFd},
         unix::ffi::OsStrExt,
     },
-    path::Path,
+    path::{Path, PathBuf},
 };
+
+/// `realpath(path)` (`fs::canonicalize`) as the kernel resolved it: the path of an `O_PATH`
+/// descriptor (`/proc/self/fd/N`), three system calls instead of one readlink per component (a
+/// sysfs block path has ~13). The same answer, and a missing path or a dangling link fails the
+/// open as it fails realpath; without `/proc` it is `fs::canonicalize`.
+pub fn real_path(path: &Path) -> io::Result<PathBuf> {
+    use std::os::unix::fs::OpenOptionsExt;
+    let file = std::fs::OpenOptions::new()
+        .read(true)
+        .custom_flags(libc::O_PATH)
+        .open(path)?;
+    match std::fs::read_link(format!("/proc/self/fd/{}", file.as_raw_fd())) {
+        Ok(real) if real.is_absolute() => Ok(real),
+        _ => std::fs::canonicalize(path),
+    }
+}
 
 /// `os.statvfs()` figures (`f_frsize`, `f_blocks`, …), widened to 64 bits.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -519,6 +535,40 @@ mod tests {
     use super::*;
     use crate::root::tests::tempdir::Dir;
     use std::{fs::File, os::fd::AsFd};
+
+    #[test]
+    fn real_paths_are_realpaths() {
+        use std::os::unix::fs::symlink;
+        let dir = Dir::new();
+        let base = dir.path();
+        std::fs::create_dir_all(base.join("devices/platform/mmc/block/disk/part")).unwrap();
+        std::fs::create_dir_all(base.join("class/block")).unwrap();
+        symlink(
+            "../../devices/platform/mmc/block/disk/part",
+            base.join("class/block/part"),
+        )
+        .unwrap();
+        symlink("class", base.join("link")).unwrap();
+        symlink("missing", base.join("dangling")).unwrap();
+        for path in [
+            base.join("class/block/part"),
+            base.join("link/block/part"),
+            base.join("link/block/part/.."),
+            base.join("link/./block"),
+            base.to_path_buf(),
+        ] {
+            assert_eq!(
+                real_path(&path).unwrap(),
+                std::fs::canonicalize(&path).unwrap()
+            );
+        }
+        for path in [base.join("dangling"), base.join("absent/x")] {
+            assert_eq!(
+                real_path(&path).unwrap_err().kind(),
+                std::fs::canonicalize(&path).unwrap_err().kind()
+            );
+        }
+    }
 
     #[test]
     fn space_status_and_positioned_io() {
