@@ -28,7 +28,6 @@ mod test_support;
 use super::Command;
 use crate::reply::{Failure, Outcome, Reply};
 use serde::{ser::SerializeMap, Serialize, Serializer};
-use serde_json::Value;
 use std::{
     ffi::OsString,
     io::{self, Write},
@@ -312,38 +311,6 @@ fn unrouted(args: &[&str]) -> ! {
     exit(127)
 }
 
-// ---- comparisons and counters on parsed records (their JSON types may be anything) ----------------
-
-fn exact(value: &Value) -> Option<i128> {
-    match value {
-        Value::Bool(b) => Some(i128::from(*b)),
-        Value::Number(n) => n
-            .as_i64()
-            .map(i128::from)
-            .or_else(|| n.as_u64().map(i128::from)),
-        _ => None,
-    }
-}
-
-/// `value.get(key)` compared with a text.
-pub fn is_text(value: Option<&Value>, text: &str) -> bool {
-    value.and_then(Value::as_str) == Some(text)
-}
-
-/// `a > b` for the numbers (or texts) a record holds; any other pair does not compare.
-pub fn py_gt(a: &Value, b: &Value) -> Result<bool, E> {
-    match (exact(a), exact(b)) {
-        (Some(x), Some(y)) => Ok(x > y),
-        _ => match (py::python_number(Some(a)), py::python_number(Some(b))) {
-            (Some(x), Some(y)) => Ok(x > y),
-            _ => match (a, b) {
-                (Value::String(x), Value::String(y)) => Ok(x > y),
-                _ => Err(E::TypeError("'>' not supported between instances".into())),
-            },
-        },
-    }
-}
-
 /// Pairs in their order as one JSON object (a later pair with the same key replaced the earlier
 /// one when the list was built).
 pub fn as_map<K: Serialize, V: Serialize, S: Serializer>(
@@ -399,15 +366,9 @@ fn clock(id: libc::clockid_t) -> f64 {
     now.tv_sec as f64 + now.tv_nsec as f64 * 1e-9
 }
 
-/// The value as JSON: `None` is `null`.
-pub fn text_value(text: Option<String>) -> Value {
-    text.map_or(Value::Null, Value::String)
-}
-
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
-    use serde_json::json;
     use std::sync::atomic::{AtomicU32, Ordering};
 
     /// A self-cleaning directory (no tempfile crate in the vendored set).
@@ -455,12 +416,5 @@ pub(crate) mod tests {
         );
         assert_eq!(program("y2-platform", &[]), None);
         assert_eq!(program("python3", &[]), None);
-    }
-
-    #[test]
-    fn values_compare_as_python_does() {
-        assert!(py_gt(&json!(3), &json!(2)).unwrap());
-        assert!(py_gt(&json!("b"), &json!("a")).unwrap());
-        assert!(py_gt(&json!("b"), &json!(1)).is_err());
     }
 }

@@ -3,14 +3,14 @@
 //! kernel-refusal retry gate. The low-battery thresholds are the power daemon's own
 //! (`power::policy::load_policy`).
 // SPDX-License-Identifier: GPL-2.0-only
-use super::{is_text, pattern, py_gt, text_value, wall, E};
+use super::receipt::{ProductState, Receipt};
+use super::{pattern, wall, E};
 use crate::commands::power::published::PowerState;
-use serde::Serialize;
-use serde_json::{json, Map, Value};
+use serde::{Deserialize, Serialize};
+use serde_json::{Map, Value};
 use std::{path::Path, sync::OnceLock};
-use y2p_core::py::PyValue;
 use y2p_core::{
-    py::{is_true, truthy},
+    lenient::{self, BootId},
     root::read,
     suspend_text::{field, fields, split, splitlines, Regex},
     Root,
@@ -47,20 +47,27 @@ pub fn spm_state(root: &Root) -> Map<String, Value> {
     fields(read(&paths[0], y2p_core::root::READ_LIMIT).as_deref())
 }
 
-pub fn identity(root: &Root) -> Value {
-    let versions = root.json_object("/etc/y2linux/versions.json");
-    let mut value = Map::new();
-    for key in ["build_id", "build_git_commit", "reborn_source_commit"] {
-        value.insert(
-            key.into(),
-            versions.get(key).cloned().unwrap_or(Value::Null),
-        );
+/// The image a sleep attempt ran on (`identity` of the guard): the build, Reborn's source and the
+/// kernel.
+#[derive(Serialize, Deserialize, Default, Clone, Debug, PartialEq)]
+#[serde(default)]
+pub struct Identity {
+    #[serde(deserialize_with = "lenient::text")]
+    build_id: Option<String>,
+    #[serde(deserialize_with = "lenient::text")]
+    build_git_commit: Option<String>,
+    #[serde(deserialize_with = "lenient::text")]
+    reborn_source_commit: Option<String>,
+    #[serde(deserialize_with = "lenient::text")]
+    kernel: Option<String>,
+}
+
+pub fn identity(root: &Root) -> Identity {
+    let versions: Identity = lenient::read(root.json_object("/etc/y2linux/versions.json"));
+    Identity {
+        kernel: root.read("/proc/sys/kernel/osrelease"),
+        ..versions
     }
-    value.insert(
-        "kernel".into(),
-        text_value(root.read("/proc/sys/kernel/osrelease")),
-    );
-    Value::Object(value)
 }
 
 fn kernel_trusted(root: &Root) -> bool {
@@ -68,16 +75,39 @@ fn kernel_trusted(root: &Root) -> bool {
         .is_some_and(|taint| taint & !TAINT_WARN == 0)
 }
 
-/// `type(value) is int and boottime_ns < value`.
-fn before(value: Option<&Value>, now: u64) -> bool {
-    match value {
-        Some(Value::Number(n)) if n.is_i64() || n.is_u64() => n
-            .as_i64()
-            .map(|v| i128::from(now) < i128::from(v))
-            .or_else(|| n.as_u64().map(|v| now < v))
-            .unwrap_or(false),
-        _ => false,
-    }
+/// product-sleep-retry.json as read back.
+#[derive(Deserialize, Default)]
+#[serde(default)]
+struct RetryRead {
+    boot_id: BootId,
+    #[serde(deserialize_with = "lenient::count")]
+    not_before_ns: Option<u64>,
+}
+
+/// product-sleep-guard.json as read back.
+#[derive(Deserialize, Default)]
+#[serde(default)]
+struct GuardRead {
+    identity: Identity,
+    #[serde(deserialize_with = "lenient::truthy")]
+    pending: bool,
+    /// Missing in a record of 12, which counts as one that reached the kernel.
+    #[serde(deserialize_with = "flag")]
+    kernel_entry: Option<bool>,
+    #[serde(deserialize_with = "lenient::number")]
+    updated: Option<f64>,
+}
+
+fn flag<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Result<Option<bool>, D::Error> {
+    lenient::truthy(deserializer).map(Some)
+}
+
+/// A record's `state` alone (shutdown.json).
+#[derive(Deserialize, Default)]
+#[serde(default)]
+struct StateRead {
+    #[serde(deserialize_with = "lenient::text")]
+    state: Option<String>,
 }
 
 pub fn admission(root: &Root) -> Result<(), E> {
@@ -108,54 +138,31 @@ pub fn admission(root: &Root) -> Result<(), E> {
     if field(&backstop, "armed_s") != Some("0") || field(&backstop, "running") != Some("0") {
         return Err(refused("pm_test_in_progress"));
     }
-    let retry = root.json_object(RETRY);
-    if retry
-        .get("boot_id")
-        .unwrap_or(&Value::Null)
-        .py_eq(&Value::from(root.boot_id()))
-        && before(retry.get("not_before_ns"), root.clock().boottime_ns())
+    let retry: RetryRead = lenient::read(root.json_object(RETRY));
+    if retry.boot_id.is(root.boot_id().as_deref())
+        && retry
+            .not_before_ns
+            .is_some_and(|until| root.clock().boottime_ns() < until)
     {
         return Err(refused("kernel_prepare_retry_wait"));
     }
-    let prior = root.json_object(GUARD);
+    let prior: GuardRead = lenient::read(root.json_object(GUARD));
     // Only an attempt that reached the kernel can leave an unproven sleep. A pending record written
     // before kernel entry (radio quiesce, Reborn) is a helper failure, not a kernel quarantine; 12
     // kept those across reboots.
-    if prior
-        .get("identity")
-        .unwrap_or(&Value::Null)
-        .py_eq(&identity(root))
-        && prior.get("pending").is_some_and(truthy)
-        && prior.get("kernel_entry").is_none_or(truthy)
-    {
-        // A clean, explicit owner trial on this image can recover a quarantine.
-        let receipt = root.json_object(super::receipt::RECEIPT);
-        let empty = Map::new();
-        let p = match receipt.get("product") {
-            Some(Value::Object(p)) => p,
-            Some(other) if truthy(other) => {
-                return Err(E::Invalid("'product' object has no attribute 'get'".into()))
-            }
-            _ => &empty,
-        };
-        let zero = json!(0);
-        let recovered = !receipt
-            .get("mode")
-            .unwrap_or(&Value::Null)
-            .py_eq(&json!("product"))
-            && p.get("state")
-                .unwrap_or(&Value::Null)
-                .py_eq(&json!("restored"))
-            && is_true(p.get("kernel_completed"))
-            && is_true(p.get("same_boot"))
-            && receipt
-                .get("current_boot_id")
-                .unwrap_or(&Value::Null)
-                .py_eq(&Value::from(root.boot_id()))
-            && py_gt(
-                receipt.get("updated").unwrap_or(&zero),
-                prior.get("updated").unwrap_or(&zero),
-            )?;
+    if prior.identity == identity(root) && prior.pending && prior.kernel_entry.unwrap_or(true) {
+        // A clean, explicit owner trial on this image can recover a quarantine (a receipt that
+        // does not read recovers nothing).
+        let recovered = Receipt::read(root).is_ok_and(|receipt| {
+            receipt.mode.as_deref() != Some("product")
+                && receipt.product().is_some_and(|p| {
+                    p.state_is(ProductState::Restored)
+                        && p.kernel_completed
+                        && p.same_boot == Some(true)
+                })
+                && receipt.current_boot_id == root.boot_id()
+                && receipt.updated.unwrap_or(0.0) > prior.updated.unwrap_or(0.0)
+        });
         if !recovered {
             return Err(refused("sleep_recovery_required"));
         }
@@ -229,10 +236,11 @@ pub fn battery_and_cable(root: &Root) -> Result<(), E> {
     if reserve {
         return Err(refused("battery_reserve"));
     }
-    if ["ShutdownPending", "Executing", "Failed"]
-        .iter()
-        .any(|s| is_text(root.json_object("/run/y2/shutdown.json").get("state"), s))
-    {
+    let shutdown: StateRead = lenient::read(root.json_object("/run/y2/shutdown.json"));
+    if matches!(
+        shutdown.state.as_deref(),
+        Some("ShutdownPending" | "Executing" | "Failed")
+    ) {
         return Err(refused("shutdown_in_progress"));
     }
     Ok(())
@@ -275,7 +283,7 @@ pub fn operation_state(root: &Root, workloads: bool) -> Result<(), E> {
 /// 12, counts as one that reached the kernel).
 #[derive(Serialize)]
 struct Guard {
-    identity: Value,
+    identity: Identity,
     pending: bool,
     kernel_entry: bool,
     boot_id: Option<String>,
@@ -358,14 +366,19 @@ pub fn retry_later(root: &Root) -> Result<(), E> {
 /// True only while this boot's journal says the UI has not reached `application_ready` yet; unknown
 /// or another boot is not "starting".
 pub fn application_starting(root: &Root) -> bool {
-    let journal = root.json_object("/data/system/platform/boot.json");
-    journal
-        .get("boot_id")
-        .unwrap_or(&Value::Null)
-        .py_eq(&Value::from(root.boot_id()))
-        && ["platform_start", "services_started"]
-            .iter()
-            .any(|s| is_text(journal.get("last_stage"), s))
+    #[derive(Deserialize, Default)]
+    #[serde(default)]
+    struct Journal {
+        boot_id: BootId,
+        #[serde(deserialize_with = "lenient::text")]
+        last_stage: Option<String>,
+    }
+    let journal: Journal = lenient::read(root.json_object("/data/system/platform/boot.json"));
+    journal.boot_id.is(root.boot_id().as_deref())
+        && matches!(
+            journal.last_stage.as_deref(),
+            Some("platform_start" | "services_started")
+        )
 }
 
 #[cfg(test)]
