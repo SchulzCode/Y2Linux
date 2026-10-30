@@ -3,8 +3,15 @@
 # cargo fmt, clippy (no warning), the armv7 type check, cargo test (no failure) and the byte comparison of
 # every golden case's stdout and files against a baseline (tools/development/platform-raw-goldens.py).
 #
-#   tools/development/platform-gate.sh <baseline dir>          # gate a change
-#   tools/development/platform-gate.sh --baseline <new dir>    # record the baseline from the current tree
+#   tools/development/platform-gate.sh                         # gate a change (semantic, the default)
+#   tools/development/platform-gate.sh <baseline dir>          # gate a change byte for byte (critical code)
+#   tools/development/platform-gate.sh --baseline <new dir>    # record the byte baseline from the current tree
+#
+# The default (PLATFORM-RUST-IDIOMATIC-PLAN.md §2): the golden suite (parsed JSON; text exactly), the /data
+# record compatibility check against the last release (tools/development/record-compat.py) and Reborn's
+# contract test (tools/development/reborn-contract.py, then `cargo test` in ../Y2Reborn) replace the byte
+# comparison. A deliberate output change re-records its goldens (Y2_RECORD_GOLDENS=1) and is reviewed with
+# tools/development/golden-diff.py before the commit.
 #
 # Record the baseline once from the commit you start from (outputs of HEAD), then gate every change against
 # it. A deliberate change of recorded calls or files (re-recorded with Y2_RECORD_GOLDENS=1) moves the
@@ -21,8 +28,8 @@ if [ "${1:-}" = "--baseline" ]; then
     echo "baseline recorded in $2 from $(git rev-parse --short HEAD)"
     exit 0
 fi
-baseline=${1:?usage: $0 <baseline dir> | --baseline <new dir>}
-[ -d "$baseline" ] || { echo "no baseline at $baseline" >&2; exit 2; }
+baseline=${1:-}
+[ -z "$baseline" ] || [ -d "$baseline" ] || { echo "no baseline at $baseline" >&2; exit 2; }
 cd platform || exit 1
 cargo fmt
 out=$(cargo clippy --offline --locked --all-targets -q 2>&1 | grep -E '^(warning|error)' -A6)
@@ -36,6 +43,30 @@ if echo "$log" | grep -qE 'FAILED|^error'; then
     exit 1
 fi
 cargo build --offline --locked -q || exit 1
+if [ -z "$baseline" ]; then
+    cd "$project" || exit 1
+    log=$(Y2_PLATFORM_RUST="$project/platform/target/debug/y2-platform" PYTHONPATH=.:tests python3 -m unittest \
+        tests.test_platform_differential tests.test_platform_devices tests.test_platform_reports \
+        tests.test_platform_observation tests.test_platform_suspend tests.test_platform_power_rpc 2>&1)
+    if ! echo "$log" | tail -1 | grep -q '^OK'; then
+        echo "$log" | grep -E '^(FAIL|ERROR)' | head -20
+        echo "GATE FAIL goldens"
+        exit 1
+    fi
+    python3 tools/development/record-compat.py || { echo "GATE FAIL /data records"; exit 1; }
+    reborn="$project/../Y2Reborn"
+    if [ -d "$reborn" ]; then
+        python3 tools/development/reborn-contract.py "$reborn" >/dev/null || exit 1
+        out=$(cd "$reborn" && cargo test --offline -q -p reborn-platform reborn_reads_the_platform 2>&1)
+        if ! echo "$out" | grep -q 'test result: ok. 1 passed'; then
+            echo "$out" | grep -A40 'differences:' | head -60
+            echo "GATE FAIL Reborn contract"
+            exit 1
+        fi
+    fi
+    echo "GATE OK"
+    exit 0
+fi
 now="$baseline.now"
 rm -rf "$now"
 python3 "$project/tools/development/platform-raw-goldens.py" target/debug/y2-platform "$now" >/dev/null 2>&1 || {
