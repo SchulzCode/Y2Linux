@@ -131,7 +131,7 @@ pub fn check_from(root: &Root, status: &Snapshot, full: bool) -> Result<Health, 
             Readiness::Failed => CheckState::Failed,
             Readiness::Unavailable => CheckState::Unavailable,
         };
-        add(name, state, item.reason.clone(), None);
+        add(name, state, json!(item.reason), None);
     }
     let timer = &status.cpu.timer;
     for (name, active) in [

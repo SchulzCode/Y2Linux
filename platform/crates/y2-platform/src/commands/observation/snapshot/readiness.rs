@@ -1,10 +1,9 @@
 //! The `readiness` section: what each subsystem's state means for the product.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::Snapshot;
-use crate::commands::observation::util;
 use crate::{regex, reply::Failure};
 use serde::Serialize;
-use serde_json::{json, Value};
+use serde_json::Value;
 use y2p_core::volume::{SpaceState, VolumeState};
 
 /// What a subsystem's state means for the product.
@@ -22,7 +21,7 @@ pub enum Readiness {
 #[derive(Serialize, Default)]
 pub struct Item {
     pub state: Readiness,
-    pub reason: Value,
+    pub reason: Option<String>,
 }
 
 /// The `readiness` section (in this key order); Bluetooth's state is its section's own.
@@ -48,8 +47,27 @@ impl Section {
     }
 }
 
+/// The audio qualification profile's fields the readiness reads (each lenient).
+#[derive(serde::Deserialize, Default)]
+#[serde(default)]
+struct QualifiedProfile {
+    #[serde(deserialize_with = "y2p_core::lenient::text")]
+    schema: Option<String>,
+    #[serde(deserialize_with = "y2p_core::lenient::text")]
+    card: Option<String>,
+    #[serde(deserialize_with = "y2p_core::lenient::or_none")]
+    channels: Option<i64>,
+    #[serde(deserialize_with = "y2p_core::lenient::or_default")]
+    qualified_formats: Vec<String>,
+    #[serde(deserialize_with = "y2p_core::lenient::or_default")]
+    qualified_rates: Vec<i64>,
+}
+
 pub(super) fn readiness(status: &Snapshot) -> Result<Section, Failure> {
-    let item = |state: Readiness, reason: Value| Item { state, reason };
+    let item = |state: Readiness, reason: Option<&str>| Item {
+        state,
+        reason: reason.map(str::to_owned),
+    };
     let first = status.storage.volumes.iter().take(2);
     let storage_state = if first.clone().all(|v| v.state == VolumeState::Ready) {
         if first.clone().all(|v| v.space_state == SpaceState::Normal) {
@@ -63,7 +81,7 @@ pub(super) fn readiness(status: &Snapshot) -> Result<Section, Failure> {
     let storage_reason = first
         .clone()
         .find(|v| v.state != VolumeState::Ready)
-        .map_or(Value::Null, |v| json!(v.reason));
+        .and_then(|v| v.reason);
     let wifi = &status.wifi;
     let wifi_state = match Some(wifi.state.as_str()) {
         Some("Online") => Readiness::Ready,
@@ -72,21 +90,18 @@ pub(super) fn readiness(status: &Snapshot) -> Result<Section, Failure> {
         Some("Authenticated") => Readiness::Degraded,
         _ => Readiness::Starting,
     };
-    let profile = status.audio.qualified_profile.as_ref();
-    let valid = profile.and_then(Value::as_object).is_some_and(|p| {
-        p.get("schema").and_then(Value::as_str) == Some("org.y2linux.audio-qualification/v1")
-            && p.get("card").and_then(Value::as_str) == Some("Y2Audio")
-            && p.get("channels").and_then(Value::as_i64) == Some(2)
-            && p.get("qualified_formats")
-                .and_then(Value::as_array)
-                .is_some_and(|f| util::contains(f, &json!("S16_LE")))
-            && p.get("qualified_rates")
-                .and_then(Value::as_array)
-                .is_some_and(|r| {
-                    r.iter()
-                        .any(|v| y2p_core::py::exact_int(Some(v)) == Some(44100))
-                })
-    });
+    // The installed qualification profile (shown as installed; read here for what it qualifies).
+    let profile: QualifiedProfile = status
+        .audio
+        .qualified_profile
+        .clone()
+        .and_then(|p| serde_json::from_value(p).ok())
+        .unwrap_or_default();
+    let valid = profile.schema.as_deref() == Some("org.y2linux.audio-qualification/v1")
+        && profile.card.as_deref() == Some("Y2Audio")
+        && profile.channels == Some(2)
+        && profile.qualified_formats.iter().any(|f| f == "S16_LE")
+        && profile.qualified_rates.contains(&44100);
     let cards = status.audio.cards.as_deref().unwrap_or_default();
     let audio = regex!(r"(?m)^\s*\d+\s+\[Y2Audio\s*\]").is_match(cards) && valid;
     let update = &status.system.update;
@@ -106,20 +121,17 @@ pub(super) fn readiness(status: &Snapshot) -> Result<Section, Failure> {
     let bluetooth = &status.bluetooth;
     let section = Section {
         storage: item(storage_state, storage_reason),
-        wifi: item(wifi_state, json!(wifi.reason)),
-        bluetooth: item(bluetooth.state, json!(bluetooth.reason)),
+        wifi: item(wifi_state, wifi.reason.as_deref()),
+        bluetooth: item(bluetooth.state, Some(bluetooth.reason)),
         audio: item(
             if audio {
                 Readiness::Ready
             } else {
                 Readiness::Unavailable
             },
-            json!("profile_does_not_imply_current_physical_acceptance"),
+            Some("profile_does_not_imply_current_physical_acceptance"),
         ),
-        update: item(
-            update_state,
-            update.get("failure").cloned().unwrap_or(Value::Null),
-        ),
+        update: item(update_state, update.get("failure").and_then(Value::as_str)),
     };
     Ok(section)
 }

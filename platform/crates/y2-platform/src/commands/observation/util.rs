@@ -115,11 +115,6 @@ pub fn record_fields<T: DeserializeOwned + Default>(root: &Root, name: &str) -> 
     fields(&root.json_object(name))
 }
 
-/// `value in sequence` for a list.
-pub fn contains(list: &[Value], value: &Value) -> bool {
-    list.contains(value)
-}
-
 /// `isinstance(value, int)`: an int or a bool, as an exact integer.
 pub fn is_int(value: Option<&Value>) -> Option<i128> {
     value.and_then(as_i128)
