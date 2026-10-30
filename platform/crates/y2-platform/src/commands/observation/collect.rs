@@ -94,8 +94,9 @@ pub fn run(root: &Root, options: &Options) -> Outcome {
         }
         // A refused snapshot ends the stream with its refusal record after the lines so far.
         let mut value = snapshot(root, &pids, options.pss, 0.0)?;
-        value.record.insert("workload".into(), json!(label));
-        if let Some(Value::Object(parameters)) = value.record.get_mut("parameters") {
+        value.record.workload = label.to_string();
+        {
+            let parameters = &mut value.record.parameters;
             parameters.insert("interval_seconds".into(), json!(interval));
             parameters.insert("duration_seconds".into(), json!(seconds));
             parameters.insert("pss".into(), json!(options.pss));
@@ -103,7 +104,7 @@ pub fn run(root: &Root, options: &Options) -> Outcome {
         }
         // Utilisation since the previous sample of the same boot.
         if let Some(previous) = &previous {
-            if previous.boot_id() == value.boot_id() {
+            if previous.record.boot_id == value.record.boot_id {
                 value.cpu.utilization_percent =
                     utilization(previous.cpu.ticks.as_ref(), value.cpu.ticks.as_ref());
             }
@@ -113,10 +114,11 @@ pub fn run(root: &Root, options: &Options) -> Outcome {
         }
         let age = clock::monotonic() - start;
         if age >= warmup as f64 {
-            let boot = match value.boot_id() {
-                Value::String(s) => s.clone(),
-                _ => "None".into(),
-            };
+            let boot = value
+                .record
+                .boot_id
+                .clone()
+                .unwrap_or_else(|| "None".into());
             for process in &value.memory.processes {
                 let Some(start_ticks) = process.start_ticks else {
                     continue;
@@ -160,8 +162,8 @@ pub fn run(root: &Root, options: &Options) -> Outcome {
     parameters.insert("duration_seconds".into(), json!(seconds));
     parameters.insert("interval_seconds".into(), json!(interval));
     let mut record = util::record(root, label, parameters);
-    record.insert("result".into(), json!("completed"));
-    record.insert("failure".into(), Value::Null);
+    record.result = json!("completed");
+    record.failure = Value::Null;
     let growth: Map<String, Value> = growth
         .iter()
         .map(|(key, series)| (key.clone(), series.result()))

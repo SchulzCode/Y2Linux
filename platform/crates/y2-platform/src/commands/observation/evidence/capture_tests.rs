@@ -5,7 +5,7 @@
 use super::*;
 use crate::commands::{boot::mark, observation::system::evidence_status};
 use crate::testing::Fixture;
-use serde_json::json;
+use serde_json::{json, Value};
 
 const EVIDENCE: &str = "/data/system/platform/previous-boot-evidence.json";
 

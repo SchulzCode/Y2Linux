@@ -125,7 +125,7 @@ fn unknown_sensors_are_null_not_zero_and_die_temperature_is_separate() {
         json!(result.power)["supplies"][0]["constant_charge_current"],
         "450000"
     );
-    assert_eq!(result.record["evidence_level"], "IMPLEMENTED");
+    assert_eq!(result.record.evidence_level, "IMPLEMENTED");
     // json.dumps(allow_nan=False): every number is finite.
     y2p_core::json::dumps_sorted(&result).unwrap();
 }

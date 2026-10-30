@@ -104,10 +104,8 @@ fn storage_benchmark_with(
     parameters.insert("cold_read".into(), json!("not_guaranteed"));
     parameters.insert("seed".into(), json!(6582));
     let mut record = util::record(root, "storage", parameters);
-    record.insert(
-        "units".into(),
-        json!({"latency": "ms", "throughput": "MB/s (decimal)", "rate": "operations/s"}),
-    );
+    record.units =
+        util::map(json!({"latency": "ms", "throughput": "MB/s (decimal)", "rate": "operations/s"}));
     let mut rng = PyRandom::new(6582);
     // A repeatable nonzero 1-MiB pattern prepared outside timed I/O.
     let block = rng.randbytes(1024 * 1024);
@@ -149,18 +147,16 @@ fn storage_benchmark_with(
     }
     match outcome {
         Ok(()) => {
-            record.insert("result".into(), json!("OK"));
+            record.result = json!("OK");
         }
         Err(error) => {
-            record.insert("result".into(), json!("FAILED"));
-            record.insert(
-                "failure".into(),
-                json!({"type": error.class, "reason": error.text, "errno": error.errno}),
-            );
+            record.result = json!("FAILED");
+            record.failure =
+                json!({"type": error.class, "reason": error.text, "errno": error.errno});
         }
     }
-    let failed = record["result"] == "FAILED";
-    result.insert("record".into(), Value::Object(record));
+    let failed = record.result == "FAILED";
+    result.insert("record".into(), json!(record));
     Reply::sorted(&result, u8::from(failed))
 }
 
@@ -171,10 +167,7 @@ pub fn library_benchmark(root: &Root, volume: &str, tracks: i64, scan: bool) -> 
     parameters.insert("tracks".into(), json!(tracks));
     parameters.insert("scan".into(), json!(scan));
     let mut record = util::record(root, "reborn-library", parameters);
-    record.insert(
-        "units".into(),
-        json!({"latency": "ms", "memory": "KiB", "size": "bytes"}),
-    );
+    record.units = util::map(json!({"latency": "ms", "memory": "KiB", "size": "bytes"}));
     let mut measurements = Value::Null;
     let outcome = (|| -> Result<Value> {
         let mut scratch = Scratch::new(root, volume, (tracks as u64) * 8192 + 32 * 1024 * 1024)?;
@@ -210,14 +203,14 @@ pub fn library_benchmark(root: &Root, volume: &str, tracks: i64, scan: bool) -> 
     match outcome {
         Ok(value) => {
             measurements = value;
-            record.insert("result".into(), json!("OK"));
+            record.result = json!("OK");
         }
         Err(error) => {
-            record.insert("result".into(), json!("FAILED"));
-            record.insert("failure".into(), json!(error.text));
+            record.result = json!("FAILED");
+            record.failure = json!(error.text);
         }
     }
-    let failed = record["result"] == "FAILED";
+    let failed = record.result == "FAILED";
     let result = json!({"schema": "org.y2linux.benchmark/v1", "record": record, "measurements": measurements});
     Reply::sorted(&result, u8::from(failed))
 }

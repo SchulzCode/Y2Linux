@@ -10,6 +10,7 @@ use std::{
     collections::BTreeMap,
     path::{Path, PathBuf},
 };
+pub use y2p_contract::ObservationRecord;
 pub use y2p_core::paths::realpath;
 pub use y2p_core::paths::{name, parent_name};
 pub use y2p_core::text::{split as split_ws, splitlines};
@@ -160,8 +161,26 @@ pub fn glob_dir(directory: &Path, pattern: &str) -> Vec<PathBuf> {
 
 /// The record a measurement carries: when (wall clock, monotonic), which boot and build, the
 /// workload and its parameters; the caller fills in `result` and `failure`.
-pub fn record(root: &Root, workload: &str, parameters: Map<String, Value>) -> Map<String, Value> {
-    y2p_core::devices_support::record(root, workload, Value::Object(parameters))
+pub fn record(root: &Root, workload: &str, parameters: Map<String, Value>) -> ObservationRecord {
+    let versions = root.json_object("/etc/y2linux/versions.json");
+    let version = |key: &str| versions.get(key).and_then(Value::as_str).map(str::to_owned);
+    ObservationRecord {
+        wall_timestamp: y2p_core::devices_support::utc_isoformat_now(),
+        monotonic_ns: root.clock().monotonic_ns(),
+        boot_id: root.boot_id(),
+        y2linux_commit: version("build_git_commit"),
+        reborn_commit: version("reborn_source_commit"),
+        kernel: root.read("/proc/sys/kernel/osrelease"),
+        rootfs_release: version("rootfs_version"),
+        build_id: root.read("/etc/y2linux/build-id"),
+        workload: workload.into(),
+        parameters,
+        units: Map::new(),
+        result: Value::Null,
+        failure: Value::Null,
+        evidence_level: "IMPLEMENTED".into(),
+        extra: Map::new(),
+    }
 }
 
 /// Each file matching `pattern` by its name (or its directory's), with its text.
@@ -176,6 +195,14 @@ pub fn reads_by_name(root: &Root, pattern: &str, parent: bool) -> Readings {
         map.insert(key, read(&path));
     }
     map
+}
+
+/// A JSON object's entries (none for another value).
+pub fn map(value: Value) -> Map<String, Value> {
+    match value {
+        Value::Object(map) => map,
+        _ => Map::new(),
+    }
 }
 
 /// Kernel attribute texts by file (or parent directory) name; null where a file did not read.

@@ -16,7 +16,7 @@ use crate::{
 };
 use archive::{code_points, Archive};
 use serde::{Deserialize, Serialize};
-use serde_json::{Map, Value};
+use serde_json::Map;
 use std::{
     ffi::{CString, OsStr, OsString},
     fs::{self, File},
@@ -455,7 +455,7 @@ pub struct Evidence {
     pub kernel_panic_retention_guaranteed: bool,
     pub logs_are_private: bool,
     pub reset_status_raw: Option<String>,
-    pub record: Map<String, Value>,
+    pub record: util::ObservationRecord,
     pub loader: Loader,
     pub pmic: Pmic,
     pub retained: Retained,

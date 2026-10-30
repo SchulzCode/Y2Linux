@@ -68,9 +68,9 @@ pub fn run(root: &Root, peer: &str, seconds: i64, throughput: bool, interface: &
     let mut result = Map::new();
     result.insert("schema".into(), json!("org.y2linux.benchmark/v1"));
     if interface == "wlan0" && before.wifi.state != "Online" {
-        record.insert("result".into(), json!("FAILED"));
-        record.insert("failure".into(), json!("wifi_not_online"));
-        result.insert("record".into(), Value::Object(record));
+        record.result = json!("FAILED");
+        record.failure = json!("wifi_not_online");
+        result.insert("record".into(), json!(record));
         before.printable()?;
         result.insert("before".into(), Value::Object(before.into_map()?));
         return Reply::sorted(&result, 1);
@@ -119,16 +119,13 @@ pub fn run(root: &Root, peer: &str, seconds: i64, throughput: bool, interface: &
     } else {
         ping.ok
     };
-    record.insert("result".into(), json!(if ok { "OK" } else { "FAILED" }));
-    record.insert(
-        "failure".into(),
-        if ok {
-            Value::Null
-        } else {
-            json!("network_test_failed_see_measurements")
-        },
-    );
-    result.insert("record".into(), Value::Object(record));
+    record.result = json!(if ok { "OK" } else { "FAILED" });
+    record.failure = if ok {
+        Value::Null
+    } else {
+        json!("network_test_failed_see_measurements")
+    };
+    result.insert("record".into(), json!(record));
     let after = snapshot(root, &[], false, 0.0)?;
     after.printable()?;
     result.insert("after".into(), Value::Object(after.into_map()?));

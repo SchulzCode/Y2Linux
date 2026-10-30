@@ -183,21 +183,18 @@ pub fn check_from(
     let mut parameters = Map::new();
     parameters.insert("mode".into(), json!(if full { "full" } else { "quick" }));
     let mut record = util::record(root, "health", parameters);
-    record.insert("result".into(), json!(state));
-    record.insert(
-        "failure".into(),
-        Value::Array(
-            checks
-                .iter()
-                .zip(&states)
-                .filter(|(_, s)| **s == CheckState::Failed)
-                .map(|(c, _)| c["name"].clone())
-                .collect(),
-        ),
+    record.result = json!(state);
+    record.failure = Value::Array(
+        checks
+            .iter()
+            .zip(&states)
+            .filter(|(_, s)| **s == CheckState::Failed)
+            .map(|(c, _)| c["name"].clone())
+            .collect(),
     );
     let mut result = Map::new();
     result.insert("schema".into(), json!(y2p_contract::schema::HEALTH));
-    result.insert("record".into(), Value::Object(record));
+    result.insert("record".into(), json!(record));
     result.insert("state".into(), json!(state));
     result.insert(
         "checks".into(),

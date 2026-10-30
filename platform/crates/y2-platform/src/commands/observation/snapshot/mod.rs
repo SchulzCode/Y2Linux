@@ -35,7 +35,7 @@ use y2p_core::Root;
 #[derive(Serialize)]
 pub struct Snapshot {
     pub schema: &'static str,
-    pub record: Map<String, Value>,
+    pub record: util::ObservationRecord,
     pub cpu: Cpu,
     pub memory: Memory,
     pub thermal: Thermal,
@@ -76,11 +76,6 @@ impl Snapshot {
     /// Whether the snapshot can be printed (`printable`): only the power section holds sleep products.
     pub fn printable(&self) -> Result<(), Failure> {
         power::printable_section(&self.power)
-    }
-
-    /// The boot this snapshot was taken in (null when unobserved).
-    pub fn boot_id(&self) -> &Value {
-        self.record.get("boot_id").unwrap_or(&Value::Null)
     }
 }
 
@@ -146,11 +141,12 @@ pub fn snapshot(root: &Root, pids: &[i64], pss: bool, interval: f64) -> Result<S
         reborn_metrics: None,
     };
     result.readiness = readiness::readiness(&result)?;
-    result.record.insert("result".into(), json!("observed"));
+    result.record.result = json!("observed");
     result
         .record
-        .insert("units".into(), json!({"collection_duration": "ns"}));
-    result.record.insert(
+        .units
+        .insert("collection_duration".into(), json!("ns"));
+    result.record.extra.insert(
         "collection_duration_ns".into(),
         json!(root.clock().monotonic_ns() - start),
     );
