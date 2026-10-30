@@ -243,36 +243,135 @@ fn quality(codec: Option<&str>, pcm: &Map<String, Value>, settings: &Value) -> E
     encoder
 }
 
-fn base(root: &Root, settings: Value, inventory: Option<Value>) -> Map<String, Value> {
-    let value = json!({
-        "state": "Unavailable", "reason": "dbus_observation_unavailable",
-        "adapter": null, "selected_peer": null, "transport": null,
-        "negotiated_codec": null, "pcm": null,
-        "remote_advertised": null, "remote_advertised_reason": "API_exposes_mutual_subset_only",
-        "runtime_enabled": null, "mutually_usable": null,
-        "preferred_codec": null, "requested_codec": null,
-        "actual_bitrate_bps": null, "packet_loss": null,
-        "reconnect_owner": "y2-bt-reconnect",
-        "reconnect": root.json("/run/y2/bt-reconnect.json"),
-        "codec_inventory": inventory,
-        "codec_settings": settings,
-    });
-    let Value::Object(map) = value else {
-        return Map::new(); // an object literal
-    };
-    map
+/// The `bluetooth` section (null where not observed; `devices`, `encoder` and `transport_reason`
+/// only once the observation got that far).
+#[derive(Serialize)]
+struct Section {
+    state: &'static str,
+    reason: &'static str,
+    adapter: Option<Adapter>,
+    selected_peer: Option<Device>,
+    transport: Option<Transport>,
+    negotiated_codec: Option<String>,
+    pcm: Option<Pcm>,
+    remote_advertised: Option<Value>,
+    remote_advertised_reason: &'static str,
+    runtime_enabled: Option<Vec<String>>,
+    mutually_usable: Option<Map<String, Value>>,
+    preferred_codec: Option<String>,
+    requested_codec: Option<String>,
+    actual_bitrate_bps: Option<i64>,
+    packet_loss: Option<Value>,
+    reconnect_owner: &'static str,
+    reconnect: Option<Value>,
+    codec_inventory: Option<Value>,
+    codec_settings: Value,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    devices: Option<Vec<Device>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    encoder: Option<Encoder>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    transport_reason: Option<&'static str>,
+}
+
+/// The adapter as BlueZ shows it (D-Bus booleans; null where BlueZ gave another type).
+#[derive(Serialize)]
+struct Adapter {
+    path: String,
+    powered: Option<bool>,
+    discovering: Option<bool>,
+    pairable: Option<bool>,
+    discoverable: Option<bool>,
+    bluez_owner: Option<String>,
+}
+
+/// One BlueZ device.
+#[derive(Serialize, Clone)]
+struct Device {
+    path: String,
+    address: Option<String>,
+    paired: Option<bool>,
+    bonded: Option<bool>,
+    trusted: Option<bool>,
+    connected: Option<bool>,
+    services_resolved: Option<bool>,
+}
+
+/// The playback PCM's sample format.
+#[derive(Serialize)]
+struct Pcm {
+    format_code: Option<i64>,
+    format: Option<&'static str>,
+    valid_bits: Option<u8>,
+    physical_bits: Option<u8>,
+    rate_hz: Option<i64>,
+    channels: Option<i64>,
+}
+
+#[derive(Serialize)]
+struct Transport {
+    object: String,
+    bluealsa_owner: Option<String>,
+    connection_sequence: Option<i64>,
+    running: Option<bool>,
+    lifetime_note: &'static str,
+}
+
+impl Section {
+    fn new(root: &Root, settings: Value, inventory: Option<Value>) -> Section {
+        Section {
+            state: "Unavailable",
+            reason: "dbus_observation_unavailable",
+            adapter: None,
+            selected_peer: None,
+            transport: None,
+            negotiated_codec: None,
+            pcm: None,
+            remote_advertised: None,
+            remote_advertised_reason: "API_exposes_mutual_subset_only",
+            runtime_enabled: None,
+            mutually_usable: None,
+            preferred_codec: None,
+            requested_codec: None,
+            actual_bitrate_bps: None,
+            packet_loss: None,
+            reconnect_owner: "y2-bt-reconnect",
+            reconnect: root.json("/run/y2/bt-reconnect.json"),
+            codec_inventory: inventory,
+            codec_settings: settings,
+            devices: None,
+            encoder: None,
+            transport_reason: None,
+        }
+    }
+
+    fn degraded(&mut self, reason: &'static str) {
+        (self.state, self.reason) = ("Degraded", reason);
+    }
+}
+
+fn flag(map: &Map<String, Value>, key: &str) -> Option<bool> {
+    map.get(key).and_then(Value::as_bool)
+}
+
+fn text(map: &Map<String, Value>, key: &str) -> Option<String> {
+    map.get(key).and_then(Value::as_str).map(str::to_owned)
+}
+
+fn integer(map: &Map<String, Value>, key: &str) -> Option<i64> {
+    map.get(key).and_then(Value::as_i64)
 }
 
 /// The section from y2-bt-observe's answer (`raw`).
 fn normalize(root: &Root, raw: &Map<String, Value>) -> Result<Value, Stop> {
-    let mut result = settled_base(root)?;
-    observed(root, raw, &mut result);
-    Ok(Value::Object(result))
+    let mut section = settled_base(root)?;
+    observed(root, raw, &mut section);
+    serde_json::to_value(section).map_err(|_| Stop::Unobserved)
 }
 
 /// The section before y2-bt-observe's answer: the codec settings, inventory and the reconnect
 /// helper's record (shown only while fresh: written this boot within the last 10 s).
-fn settled_base(root: &Root) -> Result<Map<String, Value>, Stop> {
+fn settled_base(root: &Root) -> Result<Section, Stop> {
     // Read once: the settings check it and the section shows it.
     let inventory = root.json(INVENTORY);
     let none = Map::new();
@@ -289,35 +388,29 @@ fn settled_base(root: &Root) -> Result<Map<String, Value>, Stop> {
         }
         Err(Settings::Stop(stop)) => return Err(stop),
     };
-    let mut result = base(root, settings, inventory);
-    let stale = match result.get("reconnect") {
+    let mut section = Section::new(root, settings, inventory);
+    let fresh = match &section.reconnect {
         Some(Value::Object(record)) => {
             let stamp: ReconnectStamp = fields(record);
-            !stamp.boot_id.is(root.boot_id().as_deref())
-                || !stamp.monotonic_us.is_some_and(|us| {
+            stamp.boot_id.is(root.boot_id().as_deref())
+                && stamp.monotonic_us.is_some_and(|us| {
                     let age = root.clock().monotonic() * 1e6 - us as f64;
                     (0.0..10_000_000.0).contains(&age)
                 })
         }
-        _ => true,
+        _ => false,
     };
-    if stale {
-        result.insert(
-            "reconnect".into(),
-            json!({"state": "Unavailable", "reason": "reconnect_record_stale_or_absent"}),
-        );
+    if !fresh {
+        section.reconnect =
+            Some(json!({"state": "Unavailable", "reason": "reconnect_record_stale_or_absent"}));
     }
-    Ok(result)
+    Ok(section)
 }
 
-fn field(map: &Map<String, Value>, key: &str) -> Value {
-    map.get(key).cloned().unwrap_or(Value::Null)
-}
-
-/// What y2-bt-observe saw, added to `result` step by step: the adapter, the runtime (bluealsa and
-/// its codecs), the devices and the selected peer's transport. A step that cannot go on has left its
-/// state or reason in `result` and ends the section there (None).
-fn observed(root: &Root, raw: &Map<String, Value>, result: &mut Map<String, Value>) -> Option<()> {
+/// What y2-bt-observe saw, added step by step: the adapter, the runtime (bluealsa and its codecs),
+/// the devices and the selected peer's transport. A step that cannot go on has left its state or
+/// reason and ends the section there (None).
+fn observed(root: &Root, raw: &Map<String, Value>, section: &mut Section) -> Option<()> {
     if raw.get("schema").and_then(Value::as_i64) != Some(1)
         || raw.get("stable_owners") != Some(&Value::Bool(true))
     {
@@ -326,22 +419,19 @@ fn observed(root: &Root, raw: &Map<String, Value>, result: &mut Map<String, Valu
     let Some(Value::Object(bluez)) = raw.get("bluez") else {
         return None;
     };
-    adapter(raw, bluez, result)?;
-    let bluealsa = runtime(raw, result)?;
+    adapter(raw, bluez, section)?;
+    let bluealsa = runtime(raw, section)?;
     let devices = devices(bluez);
-    result.insert(
-        "devices".into(),
-        Value::Array(devices.iter().take(128).cloned().collect()),
-    );
-    let device = selected_peer(root, &devices, result)?;
-    transport(raw, bluealsa, &device, result)
+    section.devices = Some(devices.iter().take(128).cloned().collect());
+    let device = selected_peer(root, &devices, section)?;
+    transport(raw, bluealsa, &device, section)
 }
 
 /// The one adapter and whether it is powered.
 fn adapter(
     raw: &Map<String, Value>,
     bluez: &Map<String, Value>,
-    result: &mut Map<String, Value>,
+    section: &mut Section,
 ) -> Option<()> {
     let adapters: Vec<(&String, &Map<String, Value>)> = bluez
         .iter()
@@ -353,17 +443,20 @@ fn adapter(
         })
         .collect();
     let [(path, adapter)] = adapters[..] else {
-        result.insert("reason".into(), json!("no_unique_adapter"));
+        section.reason = "no_unique_adapter";
         return None;
     };
-    result.insert(
-        "adapter".into(),
-        json!({"path": path, "powered": field(adapter, "Powered"),
-        "discovering": field(adapter, "Discovering"), "pairable": field(adapter, "Pairable"),
-        "discoverable": field(adapter, "Discoverable"), "bluez_owner": field(raw, "bluez_owner")}),
-    );
-    if adapter.get("Powered") != Some(&Value::Bool(true)) {
-        result.insert("reason".into(), json!("radio_off"));
+    let powered = flag(adapter, "Powered");
+    section.adapter = Some(Adapter {
+        path: path.clone(),
+        powered,
+        discovering: flag(adapter, "Discovering"),
+        pairable: flag(adapter, "Pairable"),
+        discoverable: flag(adapter, "Discoverable"),
+        bluez_owner: text(raw, "bluez_owner"),
+    });
+    if powered != Some(true) {
+        section.reason = "radio_off";
         return None;
     }
     Some(())
@@ -373,107 +466,93 @@ fn adapter(
 /// (Starting while bluealsa is not up). bluealsa's objects for the transport step.
 fn runtime<'a>(
     raw: &'a Map<String, Value>,
-    result: &mut Map<String, Value>,
+    section: &mut Section,
 ) -> Option<&'a Map<String, Value>> {
     let object = |key: &str| match raw.get(key) {
         Some(Value::Object(map)) => Some(map),
         _ => None,
     };
-    let (Some(bluealsa), Some(manager)) = (object("bluealsa"), object("manager")) else {
-        result.insert("state".into(), json!("Starting"));
-        result.insert("reason".into(), json!("bluealsa_not_ready"));
+    let owner = text(raw, "bluealsa_owner").filter(|owner| !owner.is_empty());
+    let (Some(bluealsa), Some(manager), Some(_)) = (object("bluealsa"), object("manager"), owner)
+    else {
+        (section.state, section.reason) = ("Starting", "bluealsa_not_ready");
         return None;
     };
-    if !raw
-        .get("bluealsa_owner")
-        .and_then(Value::as_str)
-        .is_some_and(|owner| !owner.is_empty())
-    {
-        result.insert("state".into(), json!("Starting"));
-        result.insert("reason".into(), json!("bluealsa_not_ready"));
-        return None;
-    }
-    result.insert("state".into(), json!("Ready"));
-    result.insert("reason".into(), json!("controller_bluez_bluealsa_observed"));
-    let enabled: Option<Vec<String>> = match manager.get("Codecs") {
-        Some(Value::Array(codes)) => Some(
-            codes
-                .iter()
-                .filter_map(Value::as_str)
-                .filter(|c| c.to_lowercase().starts_with("a2dp-source:"))
-                .map(|c| c.split_once(':').map_or("", |(_, r)| r).to_owned())
-                .collect(),
-        ),
-        _ => None,
-    };
-    result.insert("runtime_enabled".into(), json!(enabled));
+    (section.state, section.reason) = ("Ready", "controller_bluez_bluealsa_observed");
+    let enabled: Option<Vec<String>> =
+        manager
+            .get("Codecs")
+            .and_then(Value::as_array)
+            .map(|codes| {
+                codes
+                    .iter()
+                    .filter_map(Value::as_str)
+                    .filter(|c| c.to_lowercase().starts_with("a2dp-source:"))
+                    .map(|c| c.split_once(':').map_or("", |(_, r)| r).to_owned())
+                    .collect()
+            });
     if !enabled
         .as_ref()
-        .is_some_and(|e| !e.is_empty() && e.iter().any(|c| c == "SBC"))
+        .is_some_and(|e| e.iter().any(|c| c == "SBC"))
     {
-        result.insert("state".into(), json!("Degraded"));
-        result.insert("reason".into(), json!("a2dp_source_sbc_not_enabled"));
+        section.degraded("a2dp_source_sbc_not_enabled");
     }
-    // str(Version).lstrip('v') == '5.0.0': only a str can spell it.
-    let version = match manager.get("Version") {
-        None => Some(String::new()),
-        Some(Value::String(s)) => Some(s.trim_start_matches('v').to_owned()),
-        Some(_) => None,
-    };
-    if version.as_deref() != Some("5.0.0") {
-        result.insert("state".into(), json!("Degraded"));
-        result.insert("reason".into(), json!("bluealsa_runtime_version_mismatch"));
+    section.runtime_enabled = enabled;
+    // The runtime version: `v5.0.0` or `5.0.0` (no version at all reads as none).
+    let version = text(manager, "Version");
+    if version.as_deref().map(|v| v.trim_start_matches('v')) != Some("5.0.0") {
+        section.degraded("bluealsa_runtime_version_mismatch");
     }
     Some(bluealsa)
 }
 
 /// BlueZ's devices in y2-bt-observe's order (the object's keys as the output gives them).
-fn devices(bluez: &Map<String, Value>) -> Vec<Value> {
+fn devices(bluez: &Map<String, Value>) -> Vec<Device> {
     bluez
         .iter()
-        .filter_map(|(device_path, interfaces)| {
+        .filter_map(|(path, interfaces)| {
             let device = interfaces.get("org.bluez.Device1")?.as_object()?;
-            Some(
-                json!({"path": device_path, "address": field(device, "Address"),
-                "paired": field(device, "Paired"), "bonded": field(device, "Bonded"),
-                "trusted": field(device, "Trusted"), "connected": field(device, "Connected"),
-                "services_resolved": field(device, "ServicesResolved")}),
-            )
+            Some(Device {
+                path: path.clone(),
+                address: text(device, "Address"),
+                paired: flag(device, "Paired"),
+                bonded: flag(device, "Bonded"),
+                trusted: flag(device, "Trusted"),
+                connected: flag(device, "Connected"),
+                services_resolved: flag(device, "ServicesResolved"),
+            })
         })
         .collect()
 }
 
 /// The peer audio goes to: the preferred address when one is set, else the one connected device;
 /// it must be unique and connected.
-fn selected_peer(root: &Root, devices: &[Value], result: &mut Map<String, Value>) -> Option<Value> {
+fn selected_peer(root: &Root, devices: &[Device], section: &mut Section) -> Option<Device> {
     let preferred = root.read("/data/bluetooth/preferred-audio");
-    let selected: Vec<&Value> = match preferred
+    let selected: Vec<&Device> = match preferred
         .as_deref()
         .filter(|p| crate::regex!(r"\A(?:[A-Fa-f0-9]{2}:){5}[A-Fa-f0-9]{2}\z").is_match(p))
     {
         Some(p) => devices
             .iter()
             .filter(|d| {
-                d["address"]
-                    .as_str()
-                    .is_some_and(|a| a.to_lowercase() == p.to_lowercase())
+                d.address
+                    .as_deref()
+                    .is_some_and(|a| a.eq_ignore_ascii_case(p))
             })
             .collect(),
         None => devices
             .iter()
-            .filter(|d| d.get("connected") == Some(&Value::Bool(true)))
+            .filter(|d| d.connected == Some(true))
             .collect(),
     };
     let [device] = selected[..] else {
-        result.insert("transport_reason".into(), json!("no_unique_selected_peer"));
+        section.transport_reason = Some("no_unique_selected_peer");
         return None;
     };
-    result.insert("selected_peer".into(), device.clone());
-    if device.get("connected") != Some(&Value::Bool(true)) {
-        result.insert(
-            "transport_reason".into(),
-            json!("selected_peer_disconnected"),
-        );
+    section.selected_peer = Some(device.clone());
+    if device.connected != Some(true) {
+        section.transport_reason = Some("selected_peer_disconnected");
         return None;
     }
     Some(device.clone())
@@ -484,63 +563,58 @@ fn selected_peer(root: &Root, devices: &[Value], result: &mut Map<String, Value>
 fn transport(
     raw: &Map<String, Value>,
     bluealsa: &Map<String, Value>,
-    device: &Value,
-    result: &mut Map<String, Value>,
+    device: &Device,
+    section: &mut Section,
 ) -> Option<()> {
     let pcms: Vec<(&String, &Map<String, Value>)> = bluealsa
         .iter()
         .filter_map(|(path, interfaces)| {
             let pcm = interfaces.get("org.bluealsa.PCM1")?.as_object()?;
-            (pcm.get("Device") == Some(&device["path"])
+            (pcm.get("Device").and_then(Value::as_str) == Some(device.path.as_str())
                 && pcm.get("Transport").and_then(Value::as_str) == Some("A2DP-source")
                 && pcm.get("Mode").and_then(Value::as_str) == Some("sink"))
             .then_some((path, pcm))
         })
         .collect();
     let [(path, pcm)] = pcms[..] else {
-        result.insert("transport_reason".into(), json!("no_unique_playback_pcm"));
+        section.transport_reason = Some("no_unique_playback_pcm");
         return None;
     };
-    let format_code = field(pcm, "Format");
-    let format = match format_code.as_i64() {
+    let format_code = integer(pcm, "Format");
+    let format = match format_code {
         Some(0x8210) => Some(("S16_LE", 16, 16)),
         Some(0x8418) => Some(("S24_LE", 24, 32)),
         Some(0x8420) => Some(("S32_LE", 32, 32)),
         _ => None,
     };
-    let (rate, channels) = (field(pcm, "Rate"), field(pcm, "Channels"));
-    result.insert(
-        "pcm".into(),
-        json!({"format_code": format_code, "format": format.map(|f| f.0),
-        "valid_bits": format.map(|f| f.1), "physical_bits": format.map(|f| f.2),
-        "rate_hz": rate, "channels": channels}),
-    );
-    let codec = pcm.get("Codec").and_then(Value::as_str);
-    result.insert("negotiated_codec".into(), json!(codec));
-    let encoder = quality(
-        codec,
-        pcm,
-        result.get("codec_settings").unwrap_or(&Value::Null),
-    );
-    result.insert("actual_bitrate_bps".into(), json!(encoder.bitrate_bps));
-    result.insert(
-        "encoder".into(),
-        serde_json::to_value(encoder).unwrap_or(Value::Null),
-    );
-    result.insert(
-        "transport".into(),
-        json!({"object": path, "bluealsa_owner": field(raw, "bluealsa_owner"),
-        "connection_sequence": field(pcm, "Sequence"), "running": field(pcm, "Running"),
-        "lifetime_note": "snapshot; use ObjectManager removal signals for per-open lifetime"}),
-    );
-    let rate_ok = rate.as_i64().is_some_and(|r| (8000..=192_000).contains(&r));
-    if format.is_none() || !rate_ok || channels.as_i64() != Some(2) {
-        result.insert("state".into(), json!("Degraded"));
-        result.insert("reason".into(), json!("unsupported_or_incomplete_pcm"));
+    let (rate, channels) = (integer(pcm, "Rate"), integer(pcm, "Channels"));
+    section.pcm = Some(Pcm {
+        format_code,
+        format: format.map(|f| f.0),
+        valid_bits: format.map(|f| f.1),
+        physical_bits: format.map(|f| f.2),
+        rate_hz: rate,
+        channels,
+    });
+    let codec = text(pcm, "Codec");
+    let encoder = quality(codec.as_deref(), pcm, &section.codec_settings);
+    section.negotiated_codec = codec;
+    section.actual_bitrate_bps = encoder.bitrate_bps;
+    section.encoder = Some(encoder);
+    section.transport = Some(Transport {
+        object: path.clone(),
+        bluealsa_owner: text(raw, "bluealsa_owner"),
+        connection_sequence: integer(pcm, "Sequence"),
+        running: flag(pcm, "Running"),
+        lifetime_note: "snapshot; use ObjectManager removal signals for per-open lifetime",
+    });
+    let rate_ok = rate.is_some_and(|r| (8000..=192_000).contains(&r));
+    if format.is_none() || !rate_ok || channels != Some(2) {
+        section.degraded("unsupported_or_incomplete_pcm");
     }
     if raw.get("codec_pcm").and_then(Value::as_str) == Some(path.as_str()) {
         if let Some(Value::Object(mutual)) = raw.get("mutually_available_codecs") {
-            result.insert("mutually_usable".into(), Value::Object(mutual.clone()));
+            section.mutually_usable = Some(mutual.clone());
         }
     }
     Some(())

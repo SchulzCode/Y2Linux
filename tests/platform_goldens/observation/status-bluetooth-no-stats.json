@@ -154,7 +154,7 @@
    "negotiated_codec": "SBC",
    "packet_loss": null,
    "pcm": {
-    "channels": 1.0,
+    "channels": null,
     "format": null,
     "format_code": 7,
     "physical_bits": null,

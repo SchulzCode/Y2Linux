@@ -40,7 +40,7 @@
     "discovering": false,
     "pairable": true,
     "path": "/org/bluez/hci0",
-    "powered": 1
+    "powered": null
    },
    "codec_inventory": {
     "codecs": {
