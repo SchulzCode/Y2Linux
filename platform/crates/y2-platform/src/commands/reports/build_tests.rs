@@ -9,16 +9,17 @@ use crate::commands::reports::Value;
 use crate::testing::Fixture;
 
 fn built(root: &Root, trigger: &str, detail: &str, topic: Option<&str>) -> (Vec<u8>, Value) {
-    build(
+    let (data, index) = build(
         root,
         &[trigger.to_owned()],
         detail,
         topic,
-        Value::from("install-1"),
+        Some("install-1".into()),
         clock::Instant::now(root),
         &Progress::quiet(),
     )
-    .unwrap()
+    .unwrap();
+    (data, serde_json::json!(index))
 }
 
 #[test]
@@ -124,17 +125,19 @@ fn a_huge_log_is_cut_to_the_budget() {
         &["manual".to_owned()],
         "",
         None,
-        Value::from("i"),
+        Some("i".into()),
         clock::Instant::now(&fixture.root),
         &Progress::quiet(),
     )
     .unwrap();
     assert!(data.len() <= BUDGET);
     let section = index
-        .get("sections")
-        .and_then(|s| s.get("files/data/logs/system.log.0"))
+        .sections
+        .0
+        .iter()
+        .find(|(name, _)| name == "files/data/logs/system.log.0")
         .unwrap();
-    assert_eq!(section.get("cut"), Some(&Value::Bool(true)));
+    assert!(section.1.cut);
 }
 
 #[test]

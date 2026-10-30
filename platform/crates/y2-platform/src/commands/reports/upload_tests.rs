@@ -86,11 +86,7 @@ fn http(root: &Root, name: &str, code: i64, body: Value) -> (Vec<String>, comman
     let argv = request(root, name);
     let body = if code == 200 || code == 201 {
         let data = std::fs::read(root.path(QUEUE).join(name)).unwrap();
-        let id = queued_index(&data)
-            .unwrap()
-            .get("report_id")
-            .cloned()
-            .unwrap();
+        let id = Value::from(queued_index(&data).unwrap().report_id.unwrap());
         body.with("report_id", id)
     } else {
         body
@@ -722,7 +718,7 @@ fn the_receiver_accepts_exactly_the_players_triggers_and_schema() {
         &["manual".to_owned()],
         "",
         None,
-        Value::Null,
+        None,
         clock::Instant::now(&fixture.root),
         &build::Progress::quiet(),
     )

@@ -6,8 +6,8 @@
 //! screen follows the upload. Below a fixture root the call is a fixture command like any other (its
 //! argv carries the headers, so the golden cases compare them).
 // SPDX-License-Identifier: GPL-2.0-only
-use super::{build, command, or_dict, Bytes, Duration, Monotonic, Root, Value, ENDPOINT};
-use crate::commands::reports::{filled, loads_text, object, text_of};
+use super::{build, command, Bytes, Duration, Monotonic, ReportIndex, Root, Value, ENDPOINT};
+use crate::commands::reports::{loads_text, object};
 use std::io::Read;
 use std::io::Write;
 
@@ -125,20 +125,10 @@ pub(super) fn argv(headers: &[(&str, String)]) -> Vec<String> {
 }
 
 /// The request's headers, in urllib's order (the receiver reads them by name).
-pub fn headers(data: &[u8], index: &Value, key: &str) -> Vec<(&'static str, String)> {
-    let release = or_dict(index.get("release").cloned().unwrap_or(Value::Null));
-    let version = release
-        .get("release_version")
-        .filter(|v| filled(v))
-        .map(text_of);
-    let text = |name: &str| {
-        index
-            .get(name)
-            .filter(|v| filled(v))
-            .map(text_of)
-            .unwrap_or_default()
-    };
-    let schema = index.get("schema").map_or_else(|| "1".into(), text_of);
+pub fn headers(data: &[u8], index: &ReportIndex, key: &str) -> Vec<(&'static str, String)> {
+    let version = index.release_version().map(str::to_owned);
+    let text = |value: &Option<String>| value.clone().unwrap_or_default();
+    let schema = index.schema.to_string();
     let digest = super::super::sha256_hex(data);
     vec![
         ("Content-Type", "application/gzip".to_owned()),
@@ -151,10 +141,10 @@ pub fn headers(data: &[u8], index: &Value, key: &str) -> Vec<(&'static str, Stri
         ),
         ("X-Y2-Upload-Key", key.to_owned()),
         ("X-Y2-Schema", schema),
-        ("X-Y2-Install-Id", text("install_id")),
-        ("X-Y2-Report-Id", text("report_id")),
+        ("X-Y2-Install-Id", text(&index.install_id)),
+        ("X-Y2-Report-Id", text(&index.report_id)),
         ("X-Y2-Sha256", digest),
-        ("X-Y2-Trigger", text("trigger")),
+        ("X-Y2-Trigger", text(&index.trigger)),
         ("X-Y2-Release", version.unwrap_or_default()),
         ("Content-Length", data.len().to_string()),
     ]
@@ -164,7 +154,7 @@ pub fn headers(data: &[u8], index: &Value, key: &str) -> Vec<(&'static str, Stri
 pub(super) fn post(
     root: &Root,
     data: &[u8],
-    index: &Value,
+    index: &ReportIndex,
     key: &str,
     progress: Option<&build::Progress>,
 ) -> (Option<i64>, Result<Value, String>) {

@@ -97,18 +97,12 @@ fn lower_priority() {
     }
 }
 
-/// Refusals of a record of an unexpected shape: a queued report's report.json, Reborn's health
-/// answer, power.json's battery, Reborn's session.json (reports.json reads leniently).
-pub const QUEUED_UNREADABLE: &str = "queued_report_unreadable";
+/// Refusals of a record of an unexpected shape: Reborn's health answer, power.json's battery,
+/// Reborn's session.json (reports.json and a queued report's report.json read leniently).
 pub const HEALTH_UNREADABLE: &str = "reborn_health_unreadable";
 pub const POWER_UNREADABLE: &str = "power_record_unreadable";
 pub const SESSION_UNREADABLE: &str = "session_unreadable";
-const UNREADABLE: [&str; 4] = [
-    QUEUED_UNREADABLE,
-    HEALTH_UNREADABLE,
-    POWER_UNREADABLE,
-    SESSION_UNREADABLE,
-];
+const UNREADABLE: [&str; 3] = [HEALTH_UNREADABLE, POWER_UNREADABLE, SESSION_UNREADABLE];
 
 /// `report <action>`: every failure prints `report_failed` (exit 1) with a reason.
 fn report(root: &Root, action: &str, to: Option<&str>, topic: Option<&str>) -> Outcome {

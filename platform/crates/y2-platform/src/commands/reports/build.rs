@@ -7,8 +7,11 @@ use super::{
     scrub::{self, Scrubber, SECTION_MAX},
     secrets, sha256_hex, tarball,
 };
-use crate::commands::reports::{filled, loads_bytes, object, Value, ValueExt};
+use crate::commands::reports::{loads_bytes, Value};
 use crate::reply::Failure;
+use serde::{Deserialize, Serialize};
+use serde_json::Map;
+use std::collections::BTreeMap;
 use std::{
     cell::Cell,
     fs::File,
@@ -189,8 +192,97 @@ fn scrub_files(
     cleaned
 }
 
+/// report.json, the bundle's first member: who made the report, why, from which build, and its
+/// sections (in the order they were added). The receiver and the upload read it.
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
+#[serde(default)]
+pub struct ReportIndex {
+    pub schema: i64,
+    pub report_id: Option<String>,
+    pub install_id: Option<String>,
+    pub trigger: Option<String>,
+    pub triggers: Vec<String>,
+    pub detail: String,
+    pub topic: Option<String>,
+    pub created_utc: Option<String>,
+    pub utc_offset_minutes: i64,
+    pub uptime_seconds: String,
+    pub boot_id: Option<String>,
+    /// /etc/y2linux/release.json (versions.json where it is empty), as installed.
+    pub release: Map<String, Value>,
+    /// /etc/y2linux/versions.json as installed.
+    pub versions: Map<String, Value>,
+    pub build_id: Option<String>,
+    pub kernel: Option<String>,
+    pub sections: Sections,
+    /// Values the scrubber replaced, by kind.
+    pub scrubbed: BTreeMap<String, u64>,
+}
+
+/// One member's entry in the index: its size, where it came from and whether it was cut.
+#[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
+#[serde(default)]
+pub struct Section {
+    pub bytes: u64,
+    pub source: String,
+    pub cut: bool,
+}
+
+/// The sections by member name, in the order they were added (a JSON object).
+#[derive(Clone, Debug, Default)]
+pub struct Sections(pub Vec<(String, Section)>);
+
+impl Sections {
+    fn get_mut(&mut self, name: &str) -> Option<&mut Section> {
+        self.0
+            .iter_mut()
+            .find(|(n, _)| n == name)
+            .map(|(_, section)| section)
+    }
+}
+
+impl Serialize for Sections {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        use serde::ser::SerializeMap;
+        let mut map = serializer.serialize_map(Some(self.0.len()))?;
+        for (name, section) in &self.0 {
+            map.serialize_entry(name, section)?;
+        }
+        map.end()
+    }
+}
+
+impl<'de> Deserialize<'de> for Sections {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let map = Map::<String, Value>::deserialize(deserializer)?;
+        Ok(Sections(
+            map.into_iter()
+                .filter_map(|(name, value)| Some((name, Section::deserialize(value).ok()?)))
+                .collect(),
+        ))
+    }
+}
+
+/// A JSON object's entries (none for another value).
+fn object_of(value: Value) -> Map<String, Value> {
+    match value {
+        Value::Object(map) => map,
+        _ => Map::new(),
+    }
+}
+
+impl ReportIndex {
+    /// The release this report was made on (`release.release_version`).
+    pub fn release_version(&self) -> Option<&str> {
+        self.release
+            .get("release_version")
+            .and_then(Value::as_str)
+            .filter(|v| !v.is_empty())
+    }
+}
+
 /// The tar.gz within BUDGET: the largest optional sections are cut first.
-fn pack(root: &Root, index: &mut Value, members: &mut [(String, Vec<u8>)]) -> Vec<u8> {
+fn pack(root: &Root, index: &mut ReportIndex, members: &mut [(String, Vec<u8>)]) -> Vec<u8> {
     let mut optional: Vec<usize> = (0..members.len())
         .filter(|&i| members[i].0.starts_with("files/"))
         .collect();
@@ -216,12 +308,9 @@ fn pack(root: &Root, index: &mut Value, members: &mut [(String, Vec<u8>)]) -> Ve
         let (name, data) = &mut members[victim];
         let half = data.len() / 2;
         data.drain(..half);
-        if let Some(section) = index
-            .get_mut("sections")
-            .and_then(|s| s.get_mut(name.as_str()))
-        {
-            section.set("cut", Value::Bool(true));
-            section.set("bytes", Value::from(data.len()));
+        if let Some(section) = index.sections.get_mut(name) {
+            section.cut = true;
+            section.bytes = data.len() as u64;
         }
         optional.push(victim);
         optional.sort_by_key(|&i| std::cmp::Reverse(members[i].1.len()));
@@ -253,10 +342,10 @@ pub fn build(
     triggers: &[String],
     detail: &str,
     topic: Option<&str>,
-    install_id: Value,
+    install_id: Option<String>,
     now: clock::Instant,
     progress: &Progress,
-) -> Result<(Vec<u8>, Value), Failure> {
+) -> Result<(Vec<u8>, ReportIndex), Failure> {
     if triggers.is_empty() || !triggers.iter().all(|t| TRIGGERS.contains(&t.as_str())) {
         return Err(Failure::value("unknown_trigger"));
     }
@@ -274,53 +363,42 @@ pub fn build(
         .find(|s| !s.is_empty())
         .unwrap_or("0")
         .to_owned();
-    let mut index = object()
-        .with("schema", Value::from(1))
-        .with("report_id", Value::String(super::state::uuid4()?))
-        .with("install_id", install_id)
-        .with("trigger", Value::from(triggers[0].clone()))
-        .with(
-            "triggers",
-            Value::Array(triggers.iter().cloned().map(Value::String).collect()),
-        )
-        .with("detail", Value::String(scrubber.text(detail)))
-        .with("topic", Value::from(topic))
-        .with("created_utc", Value::String(clock::isoformat(now)))
-        .with(
-            "utc_offset_minutes",
-            Value::from(clock::utc_offset_minutes(clock::Instant::now(root))),
-        )
-        .with("uptime_seconds", Value::String(uptime))
-        .with("boot_id", Value::from(root.boot_id()))
-        .with(
-            "release",
-            if filled(&release) {
-                release
-            } else {
-                versions.clone()
-            },
-        )
-        .with("versions", versions)
-        .with("build_id", Value::from(root.read("/etc/y2linux/build-id")))
-        .with(
-            "kernel",
-            Value::from(root.read("/proc/sys/kernel/osrelease")),
-        )
-        .with("sections", object())
-        .with("scrubbed", object());
-    let mut members: Vec<(String, Vec<u8>)> = Vec::new();
-    let mut add = |index: &mut Value, name: &str, data: Vec<u8>, source: Value, cut: bool| {
-        if let Some(sections) = index.get_mut("sections") {
-            sections.set(
-                name,
-                object()
-                    .with("bytes", Value::from(data.len()))
-                    .with("source", source)
-                    .with("cut", Value::Bool(cut)),
-            );
-        }
-        members.push((name.to_owned(), data));
+    let mut index = ReportIndex {
+        schema: 1,
+        report_id: Some(super::state::uuid4()?),
+        install_id,
+        trigger: Some(triggers[0].clone()),
+        triggers: triggers.to_vec(),
+        detail: scrubber.text(detail),
+        topic: topic.map(str::to_owned),
+        created_utc: Some(clock::isoformat(now)),
+        utc_offset_minutes: clock::utc_offset_minutes(clock::Instant::now(root)),
+        uptime_seconds: uptime,
+        boot_id: root.boot_id(),
+        release: if release.as_object().is_some_and(|r| !r.is_empty()) {
+            object_of(release)
+        } else {
+            object_of(versions.clone())
+        },
+        versions: object_of(versions),
+        build_id: root.read("/etc/y2linux/build-id"),
+        kernel: root.read("/proc/sys/kernel/osrelease"),
+        sections: Sections::default(),
+        scrubbed: BTreeMap::new(),
     };
+    let mut members: Vec<(String, Vec<u8>)> = Vec::new();
+    let mut add =
+        |index: &mut ReportIndex, name: &str, data: Vec<u8>, source: String, cut: bool| {
+            index.sections.0.push((
+                name.to_owned(),
+                Section {
+                    bytes: data.len() as u64,
+                    source,
+                    cut,
+                },
+            ));
+            members.push((name.to_owned(), data));
+        };
     let hardware = scrubber.value(&hardware(root), None);
     add(
         &mut index,
@@ -328,7 +406,7 @@ pub fn build(
         serde_json::to_string_pretty(&hardware)
             .unwrap_or_default()
             .into_bytes(),
-        Value::from("sysfs"),
+        "sysfs".into(),
         false,
     );
     let session = session_projection(large_json(root, "/data/reborn/state/session.json"))?;
@@ -339,7 +417,7 @@ pub fn build(
         serde_json::to_string_pretty(&session)
             .unwrap_or_default()
             .into_bytes(),
-        Value::from("session.json (projected)"),
+        "session.json (projected)".into(),
         false,
     );
     add(
@@ -348,7 +426,7 @@ pub fn build(
         serde_json::to_string_pretty(&library_statistics(root))
             .unwrap_or_default()
             .into_bytes(),
-        Value::from("library.db (counts)"),
+        "library.db (counts)".into(),
         false,
     );
     // The live commands (≈4 s, mostly waiting) run while the files scrub.
@@ -422,7 +500,7 @@ pub fn build(
             &mut index,
             &format!("commands/{name}.txt"),
             clean,
-            Value::String(source),
+            source,
             cut,
         );
     }
@@ -436,16 +514,11 @@ pub fn build(
             &mut index,
             &format!("files{name}"),
             clean,
-            Value::from(relative.clone()),
+            relative.clone(),
             *cut,
         );
     }
-    let counts = scrubber
-        .counts
-        .iter()
-        .map(|(k, v)| (k.clone(), Value::from(*v)))
-        .collect();
-    index.set("scrubbed", Value::Object(counts));
+    index.scrubbed = scrubber.counts.clone();
     let packed = pack(root, &mut index, &mut members);
     progress.update("pack", 1.0, true, Bytes::NONE);
     Ok((packed, index))

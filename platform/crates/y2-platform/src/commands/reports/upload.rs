@@ -3,14 +3,13 @@
 //! `report send`. The request itself is `curl`'s (upload/curl.rs).
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{
-    build::{self, Bytes},
+    build::{self, Bytes, ReportIndex},
     clock, json_dict, or_dict,
     state::{self, Reports, Retry, QUEUE},
-    tarball, POWER_UNREADABLE, QUEUED_UNREADABLE,
+    tarball, POWER_UNREADABLE,
 };
-use crate::commands::reports::{filled, loads_bytes, object, text_of, Value, ValueExt};
+use crate::commands::reports::{filled, object, text_of, Value, ValueExt};
 use crate::reply::{mkdir_parents, Failure};
-use serde_json::json;
 use std::{
     io::Write,
     os::unix::fs::OpenOptionsExt,
@@ -70,15 +69,11 @@ pub fn queue(
             return Ok(not_queued("already_reported_this_boot"));
         }
     }
-    let install = json!(value.install_id);
+    let install = value.install_id.clone();
     let (data, index) = build::build(root, triggers, detail, topic, install, now, progress)?;
     let directory = root.path(QUEUE);
     mkdir_parents(&directory, 0o700)?;
-    let report_id = index
-        .get("report_id")
-        .and_then(Value::as_str)
-        .unwrap_or("")
-        .to_owned();
+    let report_id = index.report_id.clone().unwrap_or_default();
     let name = format!("{}-{report_id}.tar.gz", clock::queue_stamp(now));
     let temporary = directory.join(format!(".{name}"));
     let written = (|| -> std::io::Result<()> {
@@ -112,10 +107,7 @@ pub fn queue(
         report_id: Some(report_id.clone()),
         trigger: trigger.clone(),
         state: "queued".into(),
-        created_utc: index
-            .get("created_utc")
-            .and_then(Value::as_str)
-            .map(str::to_owned),
+        created_utc: index.created_utc.clone(),
         bytes: data.len() as u64,
         ..state::Last::default()
     });
@@ -193,14 +185,13 @@ fn upload_blocked(root: &Root) -> Result<Option<&'static str>, Failure> {
 
 /// `_queued_index(path)`: report.json of a queued report (the first member: only it is
 /// decompressed).
-fn queued_index(data: &[u8]) -> Option<Value> {
+fn queued_index(data: &[u8]) -> Option<ReportIndex> {
     let members = tarball::members(data, true, 1, |m| m.name == "report.json").ok()?;
     let (member, body) = members.into_iter().next()?;
     if member.name != "report.json" {
         return None;
     }
-    // Any JSON value: one that is no dict is an AttributeError at its first `.get`.
-    loads_bytes(&body?)
+    serde_json::from_slice(&body?).ok()
 }
 
 /// `report upload`: send every queued report that is due, oldest first.
@@ -277,11 +268,11 @@ impl Uploaded {
 /// (`reason`, `next_attempt` of an earlier try dropped).
 fn settle(
     value: &mut Reports,
-    index: &Value,
+    index: &ReportIndex,
     outcome: &str,
     change: impl FnOnce(&mut state::Last),
 ) {
-    let id = index.get("report_id").and_then(Value::as_str);
+    let id = index.report_id.as_deref();
     if let Some(last) = value
         .last
         .as_mut()
@@ -326,9 +317,6 @@ fn upload_queue(
         };
         let read = std::fs::read(path).ok();
         let index = read.as_deref().and_then(queued_index);
-        if index.as_ref().is_some_and(|i| !i.is_object()) {
-            return Err(Failure::value(QUEUED_UNREADABLE));
-        }
         let (Some(index), Some(data)) = (index, read) else {
             crate::reply::unlink_missing_ok(path)?;
             let reason = "unreadable".into();
@@ -336,8 +324,8 @@ fn upload_queue(
             continue;
         };
         let made = index
-            .get("created_utc")
-            .and_then(Value::as_str)
+            .created_utc
+            .as_deref()
             .and_then(clock::fromisoformat)
             .or_else(|| {
                 use std::os::unix::fs::MetadataExt;

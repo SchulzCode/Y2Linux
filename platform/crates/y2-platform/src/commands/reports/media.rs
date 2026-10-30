@@ -175,11 +175,7 @@ pub fn save_to(
     }
     let value = Reports::load(root);
     let now = clock::Instant::now(root);
-    let install = if value.enabled() {
-        serde_json::json!(value.install_id)
-    } else {
-        Value::Null
-    };
+    let install = value.install_id.clone().filter(|_| value.enabled());
     let (data, index) = build::build(
         root,
         &["manual".to_owned()],
@@ -222,18 +218,15 @@ pub fn save_to(
         Err(other) => return Err(other),
     };
     let file = format!("{}/{name}", build::FOLDER);
-    let report_id = index.get("report_id").cloned().unwrap_or(Value::Null);
+    let report_id = index.report_id.clone();
     let mut value = Reports::load(root);
     value.last = Some(state::Last {
-        report_id: report_id.as_str().map(str::to_owned),
+        report_id: report_id.clone(),
         trigger: "manual".into(),
         state: "saved".into(),
         destination: Some(destination.into()),
         file: Some(file.clone()),
-        created_utc: index
-            .get("created_utc")
-            .and_then(Value::as_str)
-            .map(str::to_owned),
+        created_utc: index.created_utc.clone(),
         bytes: data.len() as u64,
         ..state::Last::default()
     });
@@ -242,7 +235,7 @@ pub fn save_to(
         .with("saved", Value::Bool(true))
         .with("destination", Value::from(destination))
         .with("file", Value::from(file))
-        .with("report_id", report_id)
+        .with("report_id", Value::from(report_id))
         .with("bytes", Value::from(data.len())))
 }
 
