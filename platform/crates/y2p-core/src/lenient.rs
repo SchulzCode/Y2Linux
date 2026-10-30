@@ -58,28 +58,19 @@ pub fn read<T: DeserializeOwned + Default>(object: Object) -> T {
     serde_json::from_value(Value::Object(object)).unwrap_or_default()
 }
 
-/// A number as Python's `isinstance(value, (int, float))` takes it: a JSON number, or a bool as 0/1;
-/// anything else none.
+/// A JSON number as f64; anything else (a bool too) none.
 pub fn number<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Option<f64>, D::Error> {
-    Ok(crate::py::number(Some(&Value::deserialize(deserializer)?)))
+    Ok(Value::deserialize(deserializer)?.as_f64())
 }
 
-/// A flag as Python's truth test takes any value (`bool(value)`): a missing field is false.
-pub fn truthy<'de, D: Deserializer<'de>>(deserializer: D) -> Result<bool, D::Error> {
-    Ok(crate::py::truthy(&Value::deserialize(deserializer)?))
-}
-
-/// An integer as `isinstance(value, int)` and not a bool took it, within i64 (`py::exact_int`);
-/// anything else none.
+/// A JSON integer within i64; anything else (a bool, a float) none.
 pub fn integer<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Option<i64>, D::Error> {
-    Ok(crate::py::exact_int(Some(&Value::deserialize(
-        deserializer,
-    )?)))
+    Ok(Value::deserialize(deserializer)?.as_i64())
 }
 
-/// A flag that is set only by JSON `true` (`value is True`); anything else, a missing field too, false.
+/// A flag that is set only by JSON `true`; anything else, a missing field too, false.
 pub fn is_true<'de, D: Deserializer<'de>>(deserializer: D) -> Result<bool, D::Error> {
-    Ok(crate::py::is_true(Some(&Value::deserialize(deserializer)?)))
+    Ok(Value::deserialize(deserializer)? == Value::Bool(true))
 }
 
 /// A JSON number as it is (no bool); anything else none.

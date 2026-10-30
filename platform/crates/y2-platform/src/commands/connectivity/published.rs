@@ -4,12 +4,12 @@
 //! `status wifi` (the fresh signal reading), the update check and download (Online) and Reborn
 //! (stale after 15 s, an Online record after 45 s).
 // SPDX-License-Identifier: GPL-2.0-only
-use serde::{Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use y2p_core::{
     json::Object,
     lenient::{self, BootId},
-    py, Root,
+    Root,
 };
 
 /// The record as written: the observation's fields, then the stamp (sorted when written, so the field
@@ -18,48 +18,12 @@ use y2p_core::{
 pub struct Record<'a> {
     #[serde(flatten)]
     pub observation: &'a Object,
-    pub status_query_failures: QueryFailures,
+    /// How many supplicant queries failed this boot while the radio was present.
+    pub status_query_failures: u64,
     pub schema: u8,
     pub boot_id: Option<&'a str>,
     pub monotonic_s: f64,
     pub supplicant_events: Value,
-}
-
-/// How many supplicant queries failed this boot while the radio was present. A record of an older
-/// build may hold a bool there, which is kept as it is until the next failure counts it (owner
-/// decision 2026-10-30: keep that tolerance).
-#[derive(Serialize, Clone, Copy, Debug, PartialEq)]
-#[serde(untagged)]
-pub enum QueryFailures {
-    Flag(bool),
-    Count(i64),
-}
-
-impl Default for QueryFailures {
-    fn default() -> Self {
-        QueryFailures::Count(0)
-    }
-}
-
-impl QueryFailures {
-    /// One failure more (a bool counts as 0 or 1 first).
-    pub fn counted(self) -> QueryFailures {
-        QueryFailures::Count(match self {
-            QueryFailures::Flag(flag) => i64::from(flag) + 1,
-            QueryFailures::Count(count) => count.saturating_add(1),
-        })
-    }
-
-    /// A previous record's value: a bool as it is, an integer from 0 up; anything else none.
-    fn lenient<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Option<Self>, D::Error> {
-        let value = Value::deserialize(deserializer)?;
-        Ok(match value {
-            Value::Bool(flag) => Some(QueryFailures::Flag(flag)),
-            _ => py::exact_int(Some(&value))
-                .filter(|&count| count >= 0)
-                .map(QueryFailures::Count),
-        })
-    }
 }
 
 /// The fields readers of a published record use, read leniently (an odd field reads as absent).
@@ -73,10 +37,10 @@ pub struct Published {
     pub state: Option<String>,
     #[serde(deserialize_with = "lenient::text")]
     pub association: Option<String>,
-    #[serde(deserialize_with = "lenient::truthy")]
+    #[serde(deserialize_with = "lenient::is_true")]
     pub radio_present: bool,
-    #[serde(deserialize_with = "QueryFailures::lenient")]
-    pub status_query_failures: Option<QueryFailures>,
+    #[serde(deserialize_with = "lenient::count")]
+    pub status_query_failures: Option<u64>,
 }
 
 impl Published {
@@ -109,10 +73,10 @@ impl Published {
 
 #[cfg(test)]
 mod tests {
-    use super::{Published, QueryFailures};
+    use super::Published;
     use serde_json::json;
 
-    fn failures(value: serde_json::Value) -> Option<QueryFailures> {
+    fn failures(value: serde_json::Value) -> Option<u64> {
         Published::of(
             json!({ "status_query_failures": value })
                 .as_object()
@@ -123,24 +87,11 @@ mod tests {
     }
 
     #[test]
-    fn query_failures_keep_an_old_bool_and_refuse_odd_values() {
-        assert_eq!(failures(json!(true)), Some(QueryFailures::Flag(true)));
-        assert_eq!(failures(json!(4)), Some(QueryFailures::Count(4)));
+    fn query_failures_are_a_count_and_anything_else_none() {
+        assert_eq!(failures(json!(4)), Some(4));
+        assert_eq!(failures(json!(true)), None);
         assert_eq!(failures(json!(-1)), None);
         assert_eq!(failures(json!(2.0)), None);
         assert_eq!(failures(json!("3")), None);
-        assert_eq!(QueryFailures::Flag(true).counted(), QueryFailures::Count(2));
-        assert_eq!(
-            QueryFailures::Flag(false).counted(),
-            QueryFailures::Count(1)
-        );
-        assert_eq!(
-            serde_json::to_string(&QueryFailures::Flag(true)).unwrap(),
-            "true"
-        );
-        assert_eq!(
-            serde_json::to_string(&QueryFailures::Count(3)).unwrap(),
-            "3"
-        );
     }
 }

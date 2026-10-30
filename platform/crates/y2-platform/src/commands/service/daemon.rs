@@ -187,8 +187,8 @@ impl Service {
                 Some(Value::Object(o)) => matches!(o.get("ok"), Some(Value::Bool(false))),
                 _ => false,
             };
-            if value.get("radio_present").is_some_and(truthy) && observation_failed {
-                query_failures = query_failures.counted();
+            if value.get("radio_present") == Some(&Value::Bool(true)) && observation_failed {
+                query_failures = query_failures.saturating_add(1);
             }
             self.recovery.observe(&value, before, Some(&self.monitor));
             let record = Record {

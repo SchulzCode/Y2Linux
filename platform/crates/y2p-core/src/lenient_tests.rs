@@ -26,10 +26,10 @@ fn boot_id_compares_as_python_equality() {
 }
 
 #[test]
-fn number_takes_ints_floats_and_bools_only() {
+fn number_takes_ints_and_floats_only() {
     assert_eq!(stamp(json!({"monotonic_s": 3})).monotonic_s, Some(3.0));
     assert_eq!(stamp(json!({"monotonic_s": 2.5})).monotonic_s, Some(2.5));
-    assert_eq!(stamp(json!({"monotonic_s": true})).monotonic_s, Some(1.0));
+    assert_eq!(stamp(json!({"monotonic_s": true})).monotonic_s, None);
     assert_eq!(stamp(json!({"monotonic_s": "3"})).monotonic_s, None);
     assert_eq!(
         stamp(json!({"monotonic_s": 3, "boot_id": {}})).boot_id,
