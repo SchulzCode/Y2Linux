@@ -135,10 +135,6 @@ fn as_i128(value: &Value) -> Option<i128> {
     }
 }
 
-fn num(value: &Value) -> Option<f64> {
-    y2p_core::py::number(Some(value))
-}
-
 /// The named fields of a record as `T` (each field a `Value`; a missing one is null, as `dict.get`
 /// gives None), for the checks that read them; the record itself can still be shown whole. `T` takes
 /// any object, so nothing about the record's other fields or types is refused here.
@@ -172,16 +168,6 @@ pub fn contains(list: &[Value], value: &Value) -> bool {
 /// `isinstance(value, int)`: an int or a bool, as an exact integer.
 pub fn is_int(value: Option<&Value>) -> Option<i128> {
     value.and_then(as_i128)
-}
-
-/// `isinstance(value, (int, float))` as a float.
-pub fn is_number(value: Option<&Value>) -> Option<f64> {
-    value.and_then(num)
-}
-
-/// `0 <= now - stamp < window` for a monotonic seconds stamp read from JSON.
-pub fn fresh_seconds(root: &Root, stamp: Option<&Value>, window: f64) -> bool {
-    is_number(stamp).is_some_and(|t| (0.0..window).contains(&(root.clock().monotonic() - t)))
 }
 
 /// The entries of `directory` matching a one-component `pattern`, sorted (not capped, unlike

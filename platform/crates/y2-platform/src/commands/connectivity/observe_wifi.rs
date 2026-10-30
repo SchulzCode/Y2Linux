@@ -28,84 +28,57 @@ mod observe_wifi_tests;
 mod tests {
     use super::*;
     use crate::commands::observation::snapshot::wifi::wifi_state;
-    use serde_json::{json, Map};
+    use serde_json::json;
+    use std::collections::BTreeMap;
     use y2p_core::py;
 
     #[test]
-    fn states_follow_observe_wifi_state() {
-        let wpa = |pairs: &[(&str, &str)]| -> Map<String, Value> {
+    fn states_follow_the_supplicant_and_the_lease() {
+        let wpa = |pairs: &[(&str, &str)]| -> BTreeMap<String, String> {
             pairs
                 .iter()
-                .map(|(k, v)| (k.to_string(), json!(v)))
+                .map(|(k, v)| (k.to_string(), v.to_string()))
                 .collect()
         };
-        let s = |r: (Value, Value)| (r.0.as_str().unwrap().to_owned(), r.1);
+        let none = BTreeMap::new();
+        let reason = |text: &str| Some(text.to_owned());
         assert_eq!(
-            s(wifi_state(
-                false,
-                &Map::new(),
-                false,
-                false,
-                false,
-                &Value::Null
-            )),
-            ("Off".into(), json!("radio_off"))
+            wifi_state(false, &none, false, false, false, None),
+            ("Off", reason("radio_off"))
         );
         assert_eq!(
-            s(wifi_state(
-                true,
-                &Map::new(),
-                false,
-                false,
-                false,
-                &Value::Null
-            ))
-            .1,
-            json!("supplicant_unavailable")
+            wifi_state(true, &none, false, false, false, None).1,
+            reason("supplicant_unavailable")
         );
         let failed = wpa(&[
             ("wpa_state", "DISCONNECTED"),
             ("credential_failure", "wrong_credentials"),
         ]);
         assert_eq!(
-            s(wifi_state(true, &failed, false, false, false, &Value::Null)),
-            ("Failed".into(), json!("wrong_credentials"))
+            wifi_state(true, &failed, false, false, false, None),
+            ("Failed", reason("wrong_credentials"))
         );
+        let inactive = wpa(&[("wpa_state", "INACTIVE")]);
         assert_eq!(
-            s(wifi_state(
-                true,
-                &wpa(&[("wpa_state", "INACTIVE")]),
-                false,
-                false,
-                false,
-                &Value::Null
-            ))
-            .1,
-            json!("not_authenticated")
+            wifi_state(true, &inactive, false, false, false, None).1,
+            reason("not_authenticated")
         );
         let done = wpa(&[("wpa_state", "COMPLETED")]);
         assert_eq!(
-            s(wifi_state(
-                true,
-                &done,
-                false,
-                false,
-                false,
-                &json!("dhcp_nak")
-            )),
-            ("Failed".into(), json!("dhcp_nak"))
+            wifi_state(true, &done, false, false, false, Some("dhcp_nak")),
+            ("Failed", reason("dhcp_nak"))
         );
         assert_eq!(
-            s(wifi_state(true, &done, true, false, false, &Value::Null)).1,
-            json!("no_default_route")
+            wifi_state(true, &done, true, false, false, None).1,
+            reason("no_default_route")
         );
         assert_eq!(
-            s(wifi_state(true, &done, true, true, false, &Value::Null)).1,
-            json!("dns_unavailable")
+            wifi_state(true, &done, true, true, false, None).1,
+            reason("dns_unavailable")
         );
         assert_eq!(
-            s(wifi_state(true, &done, true, true, true, &Value::Null)),
-            ("Online".into(), Value::Null)
+            wifi_state(true, &done, true, true, true, None),
+            ("Online", None)
         );
     }
 

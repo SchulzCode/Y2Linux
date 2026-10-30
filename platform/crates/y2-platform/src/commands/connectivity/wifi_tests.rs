@@ -7,7 +7,7 @@ use super::*;
 use crate::commands::network::wifi_event;
 use crate::commands::observation::snapshot::wifi::{wifi_state, DNS_FRESH_S};
 use crate::testing::{ok, Fixture};
-use serde_json::{json, Map, Value};
+use serde_json::{json, Value};
 use std::{
     os::unix::net::UnixDatagram,
     sync::Arc,
@@ -364,11 +364,15 @@ fn a_wrong_password_stays_reported_until_a_connect() {
         json!(["wrong_credentials", 7])
     );
     assert!(!record.to_string().contains("home-net"));
-    let wpa = |state: &str, failure: &Value| -> Map<String, Value> {
-        json!({"wpa_state": state, "credential_failure": failure})
-            .as_object()
-            .cloned()
-            .unwrap()
+    let wpa = |state: &str, failure: &Value| -> std::collections::BTreeMap<String, String> {
+        [
+            ("wpa_state".to_owned(), state.to_owned()),
+            (
+                "credential_failure".to_owned(),
+                failure.as_str().unwrap_or_default().to_owned(),
+            ),
+        ]
+        .into()
     };
     for state in ["SCANNING", "4WAY_HANDSHAKE", "DISCONNECTED"] {
         assert_eq!(
@@ -378,9 +382,9 @@ fn a_wrong_password_stays_reported_until_a_connect() {
                 false,
                 false,
                 false,
-                &Value::Null
+                None
             ),
-            (json!("Failed"), json!("wrong_credentials"))
+            ("Failed", Some("wrong_credentials".to_owned()))
         );
     }
     assert_eq!(
@@ -390,9 +394,9 @@ fn a_wrong_password_stays_reported_until_a_connect() {
             true,
             true,
             true,
-            &Value::Null
+            None
         ),
-        (json!("Online"), Value::Null)
+        ("Online", None)
     );
     wifi.event(
         "<3>CTRL-EVENT-CONNECTED - Connection to aa:bb:cc:dd:ee:01 completed [id=7 id_str=]",
