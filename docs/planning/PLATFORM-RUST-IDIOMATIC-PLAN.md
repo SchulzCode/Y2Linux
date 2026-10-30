@@ -138,7 +138,17 @@ build, upload, scrub), the argument layer, the shared core.
 
 Sizes: S < 1 h, M ≈ half a day, L ≈ a day. Each phase ends with a test build and its device check.
 
-### P0. Ground (S–M)
+### P0. Ground (S–M) — done 2026-10-30
+
+Results: S43y2-time accepts both spellings (ebd849d1); `tools/development/golden-diff.py`; Reborn's contract
+test (Y2Reborn 4bed622, `tools/development/reborn-contract.py`; 491 cases, 596 typed results recorded from the
+Python-identical outputs); `rollback-read` became `tools/development/record-compat.py` (every /data record in the
+goldens, 83 kinds, keeps its fields and types against the last release commit: what an older build's readers need,
+checked without running an old binary); `platform-gate.sh` with no argument is the semantic gate (goldens +
+record-compat + Reborn contract), with a baseline it is the old byte gate (c7be0361). Plain-text outputs (e.g.
+`codec-runtime --record`) are compared exactly by the golden suite already, so nothing needs a byte pin. P0.4: the
+receiver (`tools/reports/worker`) checks method, size, gzip magic, schema and IDs and stores the tar.gz without
+parsing its members: the bundle's JSON formatting is free; member names and fields stay.
 
 1. `S43y2-time`: `grep -Eq '"state": ?"Online"'` (or drop the check: the service daemon starts S43 only while
    Online and ntpd is not running — verify, then remove the grep). Then network.json is no longer pinned.
