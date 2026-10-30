@@ -2,6 +2,7 @@
 //! entered, with what blocks C2 (the clocks' slow-idle blockers) and C3 (the SPM's dormant preflight:
 //! peripheral, infrastructure and display clocks, the UART sleep handshake) and the owner of each.
 // SPDX-License-Identifier: GPL-2.0-only
+use super::cpu::IdleState;
 use crate::commands::observation::util::{findall_map, reads_by_name, text};
 use crate::regex;
 use serde_json::{json, Map, Value};
@@ -96,27 +97,21 @@ fn runtime_status(root: &Root, node: &str) -> Value {
 }
 
 /// Counters come from cpuidle's returned state; absent is never a PASS.
-pub(super) fn idle_completion(root: &Root, states: &[Map<String, Value>]) -> Map<String, Value> {
+pub(super) fn idle_completion(root: &Root, states: &[IdleState]) -> Map<String, Value> {
     let mut result = Map::new();
     for (label, state) in [("C1", "WFI"), ("C2", "SLIDLE"), ("C3", "DORMANT")] {
-        let rows: Vec<&Map<String, Value>> = states
+        let rows: Vec<&IdleState> = states
             .iter()
-            .filter(|s| s.get("name").and_then(Value::as_str) == Some(state))
-            .filter(|s| label == "C1" || s.get("cpu").and_then(Value::as_str) == Some("cpu0"))
+            .filter(|s| s.name.as_deref() == Some(state))
+            .filter(|s| label == "C1" || s.cpu == "cpu0")
             .collect();
-        let total = |field: &str| -> Value {
-            let values: Vec<Option<i64>> = rows
-                .iter()
-                .map(|r| r.get(field).and_then(Value::as_i64))
-                .collect();
-            if values.is_empty() || values.iter().any(Option::is_none) {
-                Value::Null
-            } else {
-                json!(values
-                    .iter()
-                    .flatten()
-                    .map(|v| i128::from(*v))
-                    .sum::<i128>() as i64)
+        let total = |field: fn(&IdleState) -> Option<i64>| -> Value {
+            let values: Option<Vec<i64>> = rows.iter().map(|r| field(r)).collect();
+            match values {
+                Some(values) if !values.is_empty() => {
+                    json!(values.iter().map(|v| i128::from(*v)).sum::<i128>() as i64)
+                }
+                _ => Value::Null,
             }
         };
         let mut item = Map::new();
@@ -126,15 +121,15 @@ pub(super) fn idle_completion(root: &Root, states: &[Map<String, Value>]) -> Map
             if rows.is_empty() {
                 Value::Null
             } else {
-                json!(rows.iter().all(|r| r.get("disabled") == Some(&json!(0))))
+                json!(rows.iter().all(|r| r.disabled == Some(0)))
             },
         );
-        item.insert("entries".into(), total("usage"));
-        item.insert("residency_us".into(), total("time_us"));
-        item.insert("failures".into(), total("rejected"));
+        item.insert("entries".into(), total(|r| r.usage));
+        item.insert("residency_us".into(), total(|r| r.time_us));
+        item.insert("failures".into(), total(|r| r.rejected));
         item.insert(
             "per_cpu".into(),
-            Value::Array(rows.into_iter().cloned().map(Value::Object).collect()),
+            serde_json::to_value(&rows).unwrap_or(Value::Array(Vec::new())),
         );
         result.insert(label.into(), Value::Object(item));
     }

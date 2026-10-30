@@ -378,9 +378,18 @@ fn diagnostics_do_not_fabricate_absent_states_or_mask_owners() {
     ] {
         fixture.put(path, &value);
     }
-    let row = json!({"cpu": "cpu0", "name": "WFI", "disabled": 0, "usage": 10, "time_us": 1000,
-                     "rejected": 0});
-    let result = idle_completion(&unanswered(&fixture), &[row.as_object().unwrap().clone()]);
+    let row = cpu::IdleState {
+        cpu: "cpu0".into(),
+        state: "state0".into(),
+        name: Some("WFI".into()),
+        time_us: Some(1000),
+        usage: Some(10),
+        exit_latency_us: None,
+        target_residency_us: None,
+        rejected: Some(0),
+        disabled: Some(0),
+    };
+    let result = idle_completion(&unanswered(&fixture), &[row]);
     assert_eq!(result["C1"]["enabled"], true);
     assert_eq!(result["C1"]["residency_us"], 1000);
     let owners = |label: &str, key: &str| -> Vec<Value> {
