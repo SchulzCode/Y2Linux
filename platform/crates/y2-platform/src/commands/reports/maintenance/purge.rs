@@ -1,10 +1,10 @@
 //! `reset purge`: delete a completed reset's quarantine, bounded per call (the owner asks again).
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{
-    data_volume, fstat, fsync, open_data, open_directory, os_name, pyops, regular_bytes, stat_at,
-    text, CString, Failure, Lease, OwnedFd, Root, Value,
+    data_volume, fstat, fsync, open_data, open_directory, os_name, regular_bytes, stat_at, CString,
+    Failure, Lease, OwnedFd, ResetRecord, Root,
 };
-use crate::commands::reports::{object, ValueExt};
+use serde::Serialize;
 use std::os::fd::AsFd;
 
 /// The names in a directory, in readdir order (`os.scandir(fd)`).
@@ -22,7 +22,7 @@ fn three_digits(name: &str) -> bool {
 
 /// `reset purge`: delete a completed reset's quarantine (a Maintenance workload), at most 256
 /// entries or 8 s per call.
-pub(super) fn purge(root: &Root, token: &str, confirm: Option<&str>) -> Result<Value, Failure> {
+pub(super) fn purge(root: &Root, token: &str, confirm: Option<&str>) -> Result<Purged, Failure> {
     let id_ok = token.len() == 32
         && token
             .bytes()
@@ -36,18 +36,11 @@ pub(super) fn purge(root: &Root, token: &str, confirm: Option<&str>) -> Result<V
     let parent = open_directory(&data, "reset-quarantine")?;
     let top = open_directory(&parent, token)?;
     drop((parent, data));
-    // `json.loads(...)` (its JSONDecodeError is a Failed answer); a record that is no object is
-    // refused.
-    let record = pyops::loads(&regular_bytes(&top, "record.json", 16384)?)?;
-    if !record.is_object() {
-        return Err(Failure::value("reset_record_unreadable"));
-    }
-    if !record.get("id").is_some_and(|v| v.eq(&Value::from(token)))
-        || !record
-            .get("state")
-            .is_some_and(|v| v.eq(&Value::from("Complete")))
-        || !text(record.get("purge_confirmation"))
-            .eq(&confirm.map(Value::from).unwrap_or(Value::Null))
+    let record: ResetRecord = serde_json::from_slice(&regular_bytes(&top, "record.json", 16384)?)
+        .map_err(|_| Failure::value("reset_record_unreadable"))?;
+    if record.id != token
+        || record.state != "Complete"
+        || record.purge_confirmation.as_deref() != confirm
     {
         return Err(Failure::value("completed_reset_confirmation_required"));
     }
@@ -100,15 +93,21 @@ pub(super) fn purge(root: &Root, token: &str, confirm: Option<&str>) -> Result<V
         Ok(true)
     }
     let complete = walk(clock, &top, 0, device, deadline, &mut removed)?;
-    Ok(object()
-        .with(
-            "state",
-            Value::from(if complete {
-                "Complete"
-            } else {
-                "MoreRemaining"
-            }),
-        )
-        .with("removed", Value::from(removed))
-        .with("id", Value::from(token)))
+    Ok(Purged {
+        state: if complete {
+            "Complete"
+        } else {
+            "MoreRemaining"
+        },
+        removed,
+        id: token.to_owned(),
+    })
+}
+
+/// What `reset purge` answers.
+#[derive(Serialize)]
+pub(super) struct Purged {
+    state: &'static str,
+    removed: usize,
+    id: String,
 }

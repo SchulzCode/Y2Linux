@@ -4,12 +4,12 @@
 use super::{
     atomic_json, busy, command, confirmation, data_volume, free, fstat, fsync, fsync_path,
     identity, inspect, json_dict, open_at, open_data, os, os_name, parent_fd, private_directory,
-    pyops, regular_bytes, rename_between, sha256_hex, stat_at, text, volume, Failure, OwnedFd,
-    Path, Root, Value, DIRECTORY, SCOPES, SETTINGS,
+    regular_bytes, rename_between, sha256_hex, stat_at, volume, Failure, FileIdentity, OwnedFd,
+    Path, Plan, ResetRecord, Root, Value, DIRECTORY, SCOPES, SETTINGS,
 };
-use crate::commands::reports::pyops::OrRefuse;
-use crate::commands::reports::{filled, object, ValueExt};
+use crate::commands::reports::ValueExt;
 use crate::commands::service::update::JournalState;
+use serde::{Deserialize, Serialize};
 use std::io::Write;
 use std::os::unix::fs::DirBuilderExt;
 use std::os::unix::fs::OpenOptionsExt;
@@ -35,73 +35,32 @@ fn durable_flag(path: &Path) -> Result<(), Failure> {
     }
 }
 
-/// A plan target's path, identity and what is there now. Before the apply the path is inspected
-/// before the identity is read, in it the other way round, so an odd target is refused at the same
-/// step as before; a target without both, or whose path is no str, is refused.
-fn target(
-    data: &OwnedFd,
-    target: &Value,
-    identity_first: bool,
-) -> Result<(String, Value, Option<Value>), Failure> {
-    let field = |key| {
-        pyops::index(target, key)
-            .or_refuse(PLAN_UNREADABLE)
-            .cloned()
-    };
-    let path = field("path")?;
-    let expected = if identity_first {
-        Some(field("identity")?)
-    } else {
-        None
-    };
-    let Value::String(path) = path else {
-        return Err(Failure::value(PLAN_UNREADABLE));
-    };
-    let source = inspect(data, &path)?;
-    let expected = match expected {
-        Some(expected) => expected,
-        None => field("identity")?,
-    };
-    Ok((path, expected, source))
-}
-
 /// A plan that passed every check before anything changes.
 struct Admitted<'a> {
     /// The confirmation the person gave (the plan's own).
     confirmation: &'a str,
-    id: String,
-    scope: String,
+    plan: Plan,
     /// The data volume the plan was made for.
     volume: y2p_core::volume::Volume,
 }
 
 /// The checks before anything changes, in this order: the exact confirmation and plan id, the plan
-/// unchanged since it was confirmed, its scope and boot (a resume may cross a restart), the erase
-/// confirmation for a full reset, its expiry (not on resume), no consumer still running, the same
-/// data volume, no update in progress.
+/// unchanged since it was confirmed (the hash over the plan as read), the plan readable, its scope
+/// and boot (a resume may cross a restart), the erase confirmation for a full reset, its expiry (not
+/// on resume), no consumer still running, the same data volume, no update in progress.
 fn admit<'a>(
     root: &Root,
-    value: &Value,
+    stored: &Value,
     confirm: Option<&'a str>,
     erase: bool,
     resume: bool,
 ) -> Result<Admitted<'a>, Failure> {
     let required = || Failure::value("exact_reset_confirmation_required");
-    // `not confirmation or value.get('confirmation') != confirmation or not re.fullmatch(...,
-    // value.get('id', ''))`: an id that is no str is refused once the confirmation matched.
     let confirmation_given = confirm
         .filter(|c| !c.is_empty())
-        .filter(|c| {
-            value
-                .get("confirmation")
-                .is_some_and(|v| v.eq(&Value::from(*c)))
-        })
+        .filter(|c| stored.get("confirmation").and_then(Value::as_str) == Some(*c))
         .ok_or_else(required)?;
-    let id = match value.get("id") {
-        None => String::new(),
-        Some(Value::String(id)) => id.clone(),
-        Some(_) => return Err(Failure::value(PLAN_UNREADABLE)),
-    };
+    let id = stored.get("id").and_then(Value::as_str).unwrap_or_default();
     let id_ok = id.len() == 32
         && id
             .bytes()
@@ -109,46 +68,38 @@ fn admit<'a>(
     if !id_ok {
         return Err(required());
     }
-    let mut signed = value.clone();
-    signed.take_field("confirmation");
+    let mut signed = stored.clone();
+    if let Value::Object(map) = &mut signed {
+        map.shift_remove("confirmation");
+    }
     if confirmation(&signed) != confirmation_given {
         return Err(Failure::value("reset_plan_changed"));
     }
-    let scope = value
-        .get("scope")
-        .and_then(Value::as_str)
-        .unwrap_or("")
-        .to_owned();
-    if !SCOPES.contains(&scope.as_str())
-        || (!resume && !text(value.get("boot_id")).eq(&Value::from(root.boot_id())))
-    {
+    // A plan that matches its confirmation but does not read was written by hand.
+    let plan: Plan =
+        serde_json::from_value(stored.clone()).map_err(|_| Failure::value(PLAN_UNREADABLE))?;
+    if !SCOPES.contains(&plan.scope.as_str()) || (!resume && plan.boot_id != root.boot_id()) {
         return Err(Failure::value("stale_reset_plan"));
     }
-    if scope == "full-user" && !erase {
+    if plan.scope == "full-user" && !erase {
         return Err(Failure::value(
             "full_reset_requires_erase_user_music_confirmation",
         ));
     }
-    if !resume {
-        // `time.monotonic() > value['expires_monotonic_s']`.
-        let (now, expires) = pyops::index(value, "expires_monotonic_s")
-            .and_then(|expires| pyops::ordered(&Value::from(root.clock().monotonic()), expires))
-            .or_refuse(PLAN_UNREADABLE)?;
-        if now > expires {
-            return Err(Failure::value("reset_plan_expired"));
-        }
+    if !resume && root.clock().monotonic() > plan.expires_monotonic_s {
+        return Err(Failure::value("reset_plan_expired"));
     }
-    if !busy(root, &scope)?.is_empty() {
+    if !busy(root, &plan.scope)?.is_empty() {
         return Err(Failure::value("reset_consumers_still_running"));
     }
     let volume = data_volume(root)?;
     let changed = if resume {
-        let uuid = value.get("data_uuid").filter(|u| filled(u));
-        uuid.is_none_or(|u| !u.eq(&Value::from(volume.uuid.clone())))
+        plan.data_uuid
+            .as_deref()
+            .filter(|u| !u.is_empty())
+            .is_none_or(|u| volume.uuid.as_deref() != Some(u))
     } else {
-        !pyops::index(value, "data_generation")
-            .or_refuse(PLAN_UNREADABLE)?
-            .eq(&Value::from(volume.generation.clone()))
+        plan.data_generation != volume.generation
     };
     if changed {
         return Err(Failure::value("reset_data_generation_changed"));
@@ -158,8 +109,7 @@ fn admit<'a>(
     }
     Ok(Admitted {
         confirmation: confirmation_given,
-        id,
-        scope,
+        plan,
         volume,
     })
 }
@@ -174,27 +124,25 @@ enum Moved {
 
 /// One plan target in quarantine order.
 struct Target<'a> {
-    relative: String,
-    expected: Value,
+    relative: &'a str,
+    expected: FileIdentity,
     /// What is at the path now (None: nothing).
-    source: Option<Value>,
+    source: Option<FileIdentity>,
     /// The quarantine entry's name (`000`, `001`, …) and what is already there.
     saved: &'a str,
-    old: Option<Value>,
+    old: Option<FileIdentity>,
 }
 
 impl Target<'_> {
     fn same_source(&self) -> bool {
-        self.source.as_ref().is_some_and(|s| s.eq(&self.expected))
-    }
-
-    fn planned(&self, key: &str) -> Result<&Value, Failure> {
-        pyops::index(&self.expected, key).or_refuse(PLAN_UNREADABLE)
+        self.source == Some(self.expected)
     }
 }
 
-fn field(value: &Value, key: &str) -> Value {
-    value.get(key).cloned().unwrap_or(Value::Null)
+/// The settings result's record (settings-result.json in the quarantine).
+#[derive(Serialize, Deserialize)]
+struct SettingsResult {
+    sha256: String,
 }
 
 /// The settings scope's session file: a copy kept in quarantine, then its settings replaced by
@@ -205,44 +153,33 @@ fn reset_settings(
     data: &OwnedFd,
     quarantine: &OwnedFd,
     location: &Path,
-    id: &str,
     target: &Target,
     resume: bool,
 ) -> Result<Moved, Failure> {
-    let relative = &target.relative;
-    // `source != expected and not (resume and old and old['inode'] == expected['inode'])`.
-    let old_same_inode = || -> Result<bool, Failure> {
-        Ok(match &target.old {
-            Some(o) if resume => field(o, "inode").eq(target.planned("inode")?),
-            _ => false,
-        })
-    };
-    if !target.same_source() && !old_same_inode()? {
+    let relative = target.relative;
+    let old_same_inode = resume && target.old.is_some_and(|o| o.inode == target.expected.inode);
+    if !target.same_source() && !old_same_inode {
         // Settings backup is a copy, handled by completed hash below.
-        let record = super::super::json_at(
-            root,
-            &format!("/data/reset-quarantine/{id}/settings-result.json"),
-        )
-        .filter(|_| location.join("settings-result.json").exists())
-        .unwrap_or(object());
-        let sha = record.get("sha256").cloned();
         if resume {
+            let result = location.join("settings-result.json");
+            let recorded = std::fs::read(&result)
+                .ok()
+                .and_then(|text| serde_json::from_slice::<SettingsResult>(&text).ok());
             let current = sha256_hex(&regular_bytes(data, relative, 8 << 20)?);
-            if sha.is_some_and(|s| s.eq(&Value::String(current))) {
+            if recorded.is_some_and(|r| r.sha256 == current) {
                 return Ok(Moved::Before);
             }
         }
         return Err(Failure::value("reset_settings_changed"));
     }
     let raw = regular_bytes(data, relative, 8 << 20)?;
-    let mut model = pyops::loads(&raw)?;
-    // `'schema' in model`, then `model.get('schema')`: a session that is no object (a
-    // number, or a list or text holding "schema") is refused.
+    // Reborn's session, kept as it is apart from its settings: an object, or no session.
     let invalid = || Failure::value("invalid_saved_session");
-    let wrapped = pyops::contains(&model, "schema").map_err(|_| invalid())?;
-    if wrapped && !model.is_object() {
-        return Err(invalid());
-    }
+    let mut model = match serde_json::from_slice::<Value>(&raw) {
+        Ok(model @ Value::Object(_)) => model,
+        _ => return Err(invalid()),
+    };
+    let wrapped = model.get("schema").is_some();
     // Schema 3 (Reborn Beta 8.33) stores the queue by reference; only the settings change
     // here, the rest is kept as read.
     if wrapped
@@ -264,11 +201,11 @@ fn reset_settings(
         return Err(invalid());
     }
     let reply = command::run(root, &["/usr/bin/reborn", "--default-settings"], 2.0);
-    let defaults = if reply.ok {
-        pyops::loads(reply.output.clone().unwrap_or_default().as_bytes())?
-    } else {
-        object()
-    };
+    let defaults = reply
+        .output
+        .filter(|_| reply.ok)
+        .and_then(|output| serde_json::from_str::<Value>(&output).ok())
+        .unwrap_or(Value::Null);
     // Defaults that are no object (or of another schema) are none.
     let schema_ok = defaults
         .get("session_schema")
@@ -302,7 +239,9 @@ fn reset_settings(
     let result = y2p_core::record::encode(&model).map_err(Failure::value)?;
     atomic_json(
         &location.join("settings-result.json"),
-        &object().with("sha256", Value::String(sha256_hex(result.as_bytes()))),
+        &SettingsResult {
+            sha256: sha256_hex(result.as_bytes()),
+        },
         true,
     )?;
     atomic_json(&root.path(&format!("/data/{relative}")), &model, true)?;
@@ -312,13 +251,8 @@ fn reset_settings(
 /// Any other target: renamed into the quarantine (durably: both directories synced). A resume
 /// whose rename was done before the interruption finds it there and nothing at the path.
 fn quarantine_target(data: &OwnedFd, quarantine: &OwnedFd, target: &Target) -> Result<(), Failure> {
-    // `old and source is None and old['device'] == expected['device'] and old['inode'] ==
-    // expected['inode']`.
     let renamed_before = match (&target.old, &target.source) {
-        (Some(o), None) => {
-            field(o, "device").eq(target.planned("device")?)
-                && field(o, "inode").eq(target.planned("inode")?)
-        }
+        (Some(o), None) => o.device == target.expected.device && o.inode == target.expected.inode,
         _ => false,
     };
     if renamed_before {
@@ -331,7 +265,7 @@ fn quarantine_target(data: &OwnedFd, quarantine: &OwnedFd, target: &Target) -> R
             target.relative
         )));
     }
-    let (parent, name) = parent_fd(data, &target.relative)?;
+    let (parent, name) = parent_fd(data, target.relative)?;
     rename_between(&parent, &name, quarantine, target.saved).map_err(|e| os_name(e, &name))?;
     fsync(&parent)?;
     fsync(quarantine)
@@ -344,43 +278,30 @@ pub(super) fn execute(
     confirm: Option<&str>,
     erase: bool,
     resume: bool,
-) -> Result<Value, Failure> {
+) -> Result<ResetRecord, Failure> {
     let platform = root.path("/data/system/platform");
     private_directory(&platform)?;
     let lock_path = platform.join(".maintenance.lock");
     let _lock = y2p_core::lock::try_exclusive(&lock_path)
         .map_err(|e| os(e, &lock_path))?
         .ok_or_else(Failure::busy)?;
-    let value = json_dict(root, "/data/system/platform/reset-plan.json");
+    let stored = json_dict(root, "/data/system/platform/reset-plan.json");
     let Admitted {
         confirmation: confirmation_given,
-        id,
-        scope,
+        plan,
         volume,
-    } = admit(root, &value, confirm, erase, resume)?;
+    } = admit(root, &stored, confirm, erase, resume)?;
+    let id = plan.id.clone();
     let data = open_data(root)?;
-    let finished = json_dict(root, "/data/system/platform/maintenance-state.json");
-    if finished
-        .get("id")
-        .is_some_and(|f| f.eq(&Value::String(id.clone())))
-        && finished
-            .get("state")
-            .is_some_and(|s| s.eq(&Value::from("Complete")))
+    if let Some(finished) = ResetRecord::read(root, "/data/system/platform/maintenance-state.json")
+        .filter(|f| f.id == id && f.state == "Complete")
     {
         crate::reply::unlink_missing_ok(&platform.join("maintenance-pending"))?;
         return Ok(finished);
     }
-    // `value['targets']`, iterated (a resume reads it first in the loop below, after the pending flag
-    // and the record are written).
-    let targets = || {
-        pyops::index(&value, "targets")
-            .and_then(pyops::iterate)
-            .or_refuse(PLAN_UNREADABLE)
-    };
     if !resume {
-        for item in targets()? {
-            let (_, expected, now) = target(&data, &item, false)?;
-            if !now.unwrap_or(Value::Null).eq(&expected) {
+        for target in &plan.targets {
+            if inspect(&data, &target.path)? != Some(target.identity) {
                 return Err(Failure::value("reset_target_changed_before_apply"));
             }
         }
@@ -398,23 +319,20 @@ pub(super) fn execute(
     if fstat(&quarantine)?.dev != fstat(&data)?.dev {
         return Err(Failure::value("reset_quarantine_submount"));
     }
-    let mut completed: Vec<Value> = Vec::new();
-    let progress = |completed: &[Value], state: &str| {
-        object()
-            .with("schema", Value::from(1))
-            .with("id", Value::String(id.clone()))
-            .with("scope", Value::String(scope.clone()))
-            .with("state", Value::from(state))
-            .with("completed", Value::Array(completed.to_vec()))
+    let mut record = ResetRecord {
+        schema: 1,
+        id: id.clone(),
+        scope: plan.scope.clone(),
+        state: "Applying".into(),
+        completed: Vec::new(),
+        preserved: None,
+        quarantine: None,
+        purge_confirmation: None,
     };
     durable_flag(&platform.join("maintenance-pending"))?;
-    atomic_json(
-        &location.join("record.json"),
-        &progress(&completed, "Applying"),
-        true,
-    )?;
-    for (index, item) in targets()?.iter().enumerate() {
-        let (relative, expected, source) = target(&data, item, true)?;
+    atomic_json(&location.join("record.json"), &record, true)?;
+    for (index, planned) in plan.targets.iter().enumerate() {
+        let source = inspect(&data, &planned.path)?;
         let saved = format!("{index:03}");
         let old = match stat_at(&quarantine, &saved) {
             Ok(meta) => Some(identity(&meta)),
@@ -422,43 +340,31 @@ pub(super) fn execute(
             Err(e) => return Err(os_name(e, &saved)),
         };
         let target = Target {
-            relative,
-            expected,
+            relative: &planned.path,
+            expected: planned.identity,
             source,
             saved: &saved,
             old,
         };
-        if scope == "settings" && target.relative == SETTINGS {
-            let moved = reset_settings(root, &data, &quarantine, &location, &id, &target, resume)?;
+        if plan.scope == "settings" && target.relative == SETTINGS {
+            let moved = reset_settings(root, &data, &quarantine, &location, &target, resume)?;
             if let Moved::Before = moved {
-                completed.push(Value::String(target.relative));
+                record.completed.push(planned.path.clone());
                 continue;
             }
         } else {
             quarantine_target(&data, &quarantine, &target)?;
         }
-        completed.push(Value::String(target.relative));
-        atomic_json(
-            &location.join("record.json"),
-            &progress(&completed, "Applying"),
-            true,
-        )?;
+        record.completed.push(planned.path.clone());
+        atomic_json(&location.join("record.json"), &record, true)?;
     }
     if data_volume(root)?.generation != volume.generation {
         return Err(Failure::value("reset_data_generation_changed"));
     }
-    let record = progress(&completed, "Complete")
-        .with(
-            "preserved",
-            pyops::index(&value, "preserved")
-                .or_refuse(PLAN_UNREADABLE)?
-                .clone(),
-        )
-        .with(
-            "quarantine",
-            Value::String(format!("/data/reset-quarantine/{id}")),
-        )
-        .with("purge_confirmation", Value::from(confirmation_given));
+    record.state = "Complete".into();
+    record.preserved = Some(plan.requirements.preserved.clone());
+    record.quarantine = Some(format!("/data/reset-quarantine/{id}"));
+    record.purge_confirmation = Some(confirmation_given.into());
     atomic_json(&location.join("record.json"), &record, true)?;
     atomic_json(&platform.join("maintenance-state.json"), &record, true)?;
     let pending = platform.join("maintenance-pending");

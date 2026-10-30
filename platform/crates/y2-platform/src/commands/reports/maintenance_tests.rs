@@ -8,6 +8,24 @@ use serde_json::{json, Value};
 use std::fs;
 use std::os::unix::fs::PermissionsExt;
 
+/// The commands' answers as JSON.
+fn plan(root: &Root, scope: Option<&str>) -> Result<Value, Failure> {
+    super::plan(root, scope).map(|p| json!(p))
+}
+
+fn execute(
+    root: &Root,
+    confirm: Option<&str>,
+    erase: bool,
+    resume: bool,
+) -> Result<Value, Failure> {
+    super::execute(root, confirm, erase, resume).map(|r| json!(r))
+}
+
+fn purge(root: &Root, token: &str, confirm: Option<&str>) -> Result<Value, Failure> {
+    super::purge(root, token, confirm).map(|p| json!(p))
+}
+
 const MOUNTS: &str = "22 1 179:2 / / ro - ext4 /dev/mmcblk0p2 ro\n\
     30 22 ../../devices/platform/11230000.mmc/mmcblk0p9 / /data rw,noatime - ext4 /dev/mmcblk0p9 rw\n";
 

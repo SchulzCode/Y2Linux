@@ -213,8 +213,7 @@ fn export_into(
                     }
                 }
                 let after = inspect(data, relative)?;
-                let key = |v: &Value| (v.get("device").cloned(), v.get("inode").cloned());
-                if after.as_ref().is_none_or(|a| key(a) != key(&before)) {
+                if after.is_none_or(|a| (a.device, a.inode) != (before.device, before.inode)) {
                     return Err(Failure::value("database_source_replaced"));
                 }
                 std::fs::set_permissions(&target, std::fs::Permissions::from_mode(0o600))

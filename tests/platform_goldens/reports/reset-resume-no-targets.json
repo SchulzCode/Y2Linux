@@ -5,20 +5,7 @@
   "--confirm",
   "5d6708ab5e9b5ff0bbcaff839905a8f7456fa2662e312ed9f24ee6edc95ffeaa"
  ],
- "calls": [
-  {
-   "argv": [
-    "blkid",
-    "-p",
-    "-s",
-    "UUID",
-    "-o",
-    "value",
-    "/dev/mmcblk0p9"
-   ],
-   "timeout": 1.0
-  }
- ],
+ "calls": [],
  "exit": 1,
  "stdout": {
   "failure": "reset_plan_unreadable",
@@ -26,34 +13,8 @@
  },
  "tree": {
   "added": {
-   "/data/reset-quarantine": {
-    "mode": "0o700",
-    "type": "dir"
-   },
-   "/data/reset-quarantine/1234567890abcdef1234567890abcdef": {
-    "mode": "0o700",
-    "type": "dir"
-   },
-   "/data/reset-quarantine/1234567890abcdef1234567890abcdef/record.json": {
-    "content": {
-     "completed": [],
-     "id": "<hex32>",
-     "schema": 1,
-     "scope": "caches",
-     "state": "Applying"
-    },
-    "mode": "0o600",
-    "type": "file"
-   },
    "/data/system/platform/.maintenance.lock": {
     "content": [],
-    "mode": "0o600",
-    "type": "file"
-   },
-   "/data/system/platform/maintenance-pending": {
-    "content": [
-     "Owner maintenance pending; keep mutable consumers stopped"
-    ],
     "mode": "0o600",
     "type": "file"
    }

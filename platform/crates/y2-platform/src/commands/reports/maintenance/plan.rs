@@ -3,18 +3,18 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{
     atomic_json, data_volume, inspect, open_data, os, private_directory, sha256_hex, uuid4, volume,
-    Failure, Root, Value, LASTFM, SCOPES, SETTINGS,
+    Failure, Plan, PlanTarget, Requirements, Root, LASTFM, SCOPES, SETTINGS,
 };
-use crate::commands::reports::{object, ValueExt};
 use crate::commands::service::update::JournalState;
+use serde::Serialize;
 use std::io::Read;
 
-fn services(scope: &str) -> Vec<Value> {
+fn services(scope: &str) -> Vec<String> {
     let mut value = vec!["S90reborn", "S42y2-readiness"];
     if matches!(scope, "network" | "bluetooth-bonds" | "full-user") {
         value.extend(["S41y2-connectivity", "S40bluetoothd"]);
     }
-    value.into_iter().map(Value::from).collect()
+    value.into_iter().map(str::to_owned).collect()
 }
 
 /// `Path(token).name`.
@@ -27,7 +27,7 @@ fn base_name(token: &str) -> &str {
 
 /// The processes using the scope's data: their actual command lines (not stale PID files),
 /// supervision owners included.
-pub(super) fn busy(root: &Root, scope: &str) -> Result<Vec<Value>, Failure> {
+pub(super) fn busy(root: &Root, scope: &str) -> Result<Vec<u64>, Failure> {
     let mut needles = vec![
         "reborn",
         "reborn-supervise",
@@ -82,35 +82,11 @@ pub(super) fn busy(root: &Root, scope: &str) -> Result<Vec<Value>, Failure> {
             .filter(|t| !t.is_empty())
             .any(|t| needles.contains(&base_name(t)))
         {
-            // `int(entry.parent.name)`: the glob only asks for a leading digit.
-            found.push(pid(&name)?);
+            // A /proc entry with a leading digit is a pid.
+            found.extend(name.parse::<u64>().ok());
         }
     }
     Ok(found)
-}
-
-/// `int(name)` of a /proc entry name (whitespace around and single underscores between digits
-/// allowed, any size), or its ValueError.
-fn pid(name: &str) -> Result<Value, Failure> {
-    let text = y2p_core::root::python_strip(name);
-    let digits = text.strip_prefix('+').unwrap_or(text);
-    let valid = !digits.is_empty()
-        && !digits.starts_with('_')
-        && !digits.ends_with('_')
-        && !digits.contains("__")
-        && digits.chars().all(|c| c.is_ascii_digit() || c == '_');
-    if !valid {
-        return Err(Failure::int_literal(name));
-    }
-    let digits = digits.replace('_', "");
-    let trimmed = digits.trim_start_matches('0');
-    if trimmed.is_empty() {
-        return Ok(Value::from(0));
-    }
-    trimmed
-        .parse::<u64>()
-        .map(Value::from)
-        .map_err(|_| Failure::int_literal(name))
 }
 
 fn child_paths(root: &Root, relative: &str) -> Result<Vec<String>, Failure> {
@@ -180,7 +156,7 @@ fn paths(root: &Root, scope: &str) -> Result<Vec<String>, Failure> {
     })
 }
 
-pub(super) fn confirmation(value: &Value) -> String {
+pub(super) fn confirmation(value: &impl serde::Serialize) -> String {
     sha256_hex(
         y2p_core::json::python_dumps_sorted(value, y2p_core::json::Separators::Compact)
             .unwrap_or_default()
@@ -188,8 +164,22 @@ pub(super) fn confirmation(value: &Value) -> String {
     )
 }
 
+/// What `reset plan` answers: the plan, or what still uses the scope's data.
+#[derive(Serialize, Debug)]
+#[serde(untagged)]
+pub(super) enum Planned {
+    Plan(Plan),
+    NeedsQuiescence {
+        state: &'static str,
+        scope: String,
+        pids: Vec<u64>,
+        #[serde(flatten)]
+        requirements: Requirements,
+    },
+}
+
 /// `reset plan`: the targets of a scope and their identities, once their consumers stopped.
-pub(super) fn plan(root: &Root, scope: Option<&str>) -> Result<Value, Failure> {
+pub(super) fn plan(root: &Root, scope: Option<&str>) -> Result<Planned, Failure> {
     let scope = scope
         .filter(|s| SCOPES.contains(s))
         .ok_or_else(|| Failure::value("unknown_reset_scope"))?;
@@ -206,62 +196,52 @@ pub(super) fn plan(root: &Root, scope: Option<&str>) -> Result<Value, Failure> {
         ));
     }
     let live = busy(root, scope)?;
-    let preserved: Vec<Value> = [
-        "SSH identity",
-        "entropy",
-        "update/rollback",
-        "factory/calibration",
-        "unknown data directories",
-        "Y2Media internal music (/media/internal; delete files over MTP)",
-    ]
-    .into_iter()
-    .map(Value::from)
-    .collect();
-    let requirements = |value: Value| {
-        value
-            .with("stop_services", Value::Array(services(scope)))
-            .with("restart", Value::from("owner reboot after completion"))
-            .with("preserved", Value::Array(preserved.clone()))
+    let requirements = Requirements {
+        stop_services: services(scope),
+        restart: "owner reboot after completion".into(),
+        preserved: [
+            "SSH identity",
+            "entropy",
+            "update/rollback",
+            "factory/calibration",
+            "unknown data directories",
+            "Y2Media internal music (/media/internal; delete files over MTP)",
+        ]
+        .map(str::to_owned)
+        .to_vec(),
     };
     if !live.is_empty() {
-        return Ok(requirements(
-            object()
-                .with("state", Value::from("NeedsQuiescence"))
-                .with("scope", Value::from(scope))
-                .with("pids", Value::Array(live)),
-        ));
+        return Ok(Planned::NeedsQuiescence {
+            state: "NeedsQuiescence",
+            scope: scope.into(),
+            pids: live,
+            requirements,
+        });
     }
     let data = open_data(root)?;
     let mut targets = Vec::new();
     for path in paths(root, scope)? {
-        if let Some(meta) = inspect(&data, &path)? {
-            targets.push(
-                object()
-                    .with("path", Value::String(path))
-                    .with("identity", meta),
-            );
+        if let Some(identity) = inspect(&data, &path)? {
+            targets.push(PlanTarget { path, identity });
         }
     }
     drop(data);
-    let mut value = requirements(
-        object()
-            .with("schema", Value::from(1))
-            .with("id", Value::String(uuid4()?.replace('-', "")))
-            .with("state", Value::from("Planned"))
-            .with("scope", Value::from(scope))
-            .with("boot_id", Value::from(root.boot_id()))
-            .with("data_generation", Value::from(volume.generation.clone()))
-            .with("data_uuid", Value::from(volume.uuid.clone()))
-            .with(
-                "expires_monotonic_s",
-                Value::from(root.clock().monotonic() + 300.0),
-            )
-            .with("targets", Value::Array(targets)),
-    );
-    let signature = confirmation(&value);
-    value.set("confirmation", Value::String(signature));
+    let mut value = Plan {
+        schema: 1,
+        id: uuid4()?.replace('-', ""),
+        state: "Planned".into(),
+        scope: scope.into(),
+        boot_id: root.boot_id(),
+        data_generation: volume.generation.clone(),
+        data_uuid: volume.uuid.clone(),
+        expires_monotonic_s: root.clock().monotonic() + 300.0,
+        targets,
+        requirements,
+        confirmation: None,
+    };
+    value.confirmation = Some(confirmation(&value));
     let platform = root.path("/data/system/platform");
     private_directory(&platform)?;
     atomic_json(&platform.join("reset-plan.json"), &value, true)?;
-    Ok(value)
+    Ok(Planned::Plan(value))
 }

@@ -23,7 +23,7 @@
  ],
  "exit": 1,
  "stdout": {
-  "failure": "reset_record_unreadable",
+  "failure": "completed_reset_confirmation_required",
   "state": "Failed"
  },
  "tree": {

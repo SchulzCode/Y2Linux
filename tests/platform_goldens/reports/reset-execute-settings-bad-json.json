@@ -31,7 +31,7 @@
  ],
  "exit": 1,
  "stdout": {
-  "failure": "invalid JSON: EOF while parsing a value at line 1 column 6",
+  "failure": "invalid_saved_session",
   "state": "Failed"
  },
  "tree": {

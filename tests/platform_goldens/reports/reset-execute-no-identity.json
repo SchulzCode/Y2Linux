@@ -5,20 +5,7 @@
   "--confirm",
   "1b772d45766dd2a382621eb091785f69ccb8050d346435de057daef4eb0de83c"
  ],
- "calls": [
-  {
-   "argv": [
-    "blkid",
-    "-p",
-    "-s",
-    "UUID",
-    "-o",
-    "value",
-    "/dev/mmcblk0p9"
-   ],
-   "timeout": 1.0
-  }
- ],
+ "calls": [],
  "exit": 1,
  "stdout": {
   "failure": "reset_plan_unreadable",

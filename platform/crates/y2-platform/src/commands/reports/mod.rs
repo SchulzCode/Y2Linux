@@ -8,7 +8,6 @@ mod diagnostics;
 mod fields;
 mod maintenance;
 pub(crate) mod media;
-mod pyops;
 mod pyre;
 mod scrub;
 mod secrets;

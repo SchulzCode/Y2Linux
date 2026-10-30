@@ -10,17 +10,16 @@
 use super::{
     json_dict,
     media::{fstat, open_at, rename_between, stat_at},
-    os, os_name,
-    pyops::{self},
-    sha256_hex,
+    os, os_name, sha256_hex,
     state::uuid4,
     tarball,
     volume::{self, data_volume, free, open_directory},
     SCOPES,
 };
-use crate::commands::reports::{object, Value, ValueExt};
+use crate::commands::reports::Value;
 use crate::commands::workload::Lease;
 use crate::reply::{atomic_json, private_directory, Failure, Outcome, Reply};
+use serde::{Deserialize, Serialize};
 use std::{ffi::CString, io::Read, os::fd::OwnedFd, path::Path};
 use y2p_core::json::ObjectExt;
 use y2p_core::{command, Root};
@@ -40,8 +39,78 @@ use export::export;
 use plan::{busy, confirmation, plan};
 use purge::purge;
 
+/// A file's identity in a plan (`identity` of a target): what it was when the plan was made, what
+/// the apply and a resume compare with.
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
+struct FileIdentity {
+    device: u64,
+    inode: u64,
+    mode: i64,
+    size: i64,
+    mtime_ns: i64,
+}
+
+/// One path a reset moves, with its identity.
+#[derive(Serialize, Deserialize, Clone, Debug)]
+struct PlanTarget {
+    path: String,
+    identity: FileIdentity,
+}
+
+/// What every plan answer names: the services to stop, the restart and what a reset keeps.
+#[derive(Serialize, Deserialize, Clone, Debug)]
+struct Requirements {
+    stop_services: Vec<String>,
+    restart: String,
+    preserved: Vec<String>,
+}
+
+/// reset-plan.json, also what `reset plan` prints. `confirmation` is the hash of the rest (Python's
+/// sorted `json.dumps`), checked against the plan as read.
+#[derive(Serialize, Deserialize, Clone, Debug)]
+struct Plan {
+    schema: i64,
+    id: String,
+    state: String,
+    scope: String,
+    boot_id: Option<String>,
+    data_generation: Option<String>,
+    data_uuid: Option<String>,
+    expires_monotonic_s: f64,
+    targets: Vec<PlanTarget>,
+    #[serde(flatten)]
+    requirements: Requirements,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    confirmation: Option<String>,
+}
+
+/// A reset's record (record.json in its quarantine, maintenance-state.json once complete); a field
+/// it lacks reads as empty.
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
+#[serde(default)]
+struct ResetRecord {
+    schema: i64,
+    id: String,
+    scope: String,
+    state: String,
+    completed: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    preserved: Option<Vec<String>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    quarantine: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    purge_confirmation: Option<String>,
+}
+
+impl ResetRecord {
+    /// A record at `path` below the root (none when missing or of another shape).
+    fn read(root: &Root, path: &str) -> Option<ResetRecord> {
+        serde_json::from_value(root.json(path)?).ok()
+    }
+}
+
 /// The answer: the result, or `{"state": "Failed", "failure": str(error)}` (exit 1).
-fn answer(result: Result<Value, Failure>) -> Outcome {
+fn answer<T: Serialize>(result: Result<T, Failure>) -> Outcome {
     match result {
         Ok(value) => Ok(Reply::text(
             serde_json::to_string(&value).unwrap_or_default(),
@@ -64,11 +133,11 @@ pub fn reset(
     id: Option<&str>,
     erase: bool,
 ) -> Outcome {
-    answer(match action {
-        "plan" => plan(root, scope),
-        "purge" => purge(root, id.unwrap_or(""), confirm),
-        _ => execute(root, confirm, erase, action == "resume"),
-    })
+    match action {
+        "plan" => answer(plan(root, scope)),
+        "purge" => answer(purge(root, id.unwrap_or(""), confirm)),
+        _ => answer(execute(root, confirm, erase, action == "resume")),
+    }
 }
 
 /// `export-state`.
@@ -86,18 +155,14 @@ fn dup(fd: &OwnedFd) -> Result<OwnedFd, Failure> {
 }
 
 /// `identity(meta)`.
-fn identity(meta: &y2p_core::sys::Stat) -> Value {
-    object()
-        .with("device", Value::from(meta.dev))
-        .with("inode", Value::from(meta.ino))
-        .with("mode", Value::from(i64::from(meta.mode & libc::S_IFMT)))
-        .with("size", Value::from(meta.size))
-        .with(
-            "mtime_ns",
-            Value::from(
-                y2p_core::wide(meta.mtime) * 1_000_000_000 + y2p_core::wide(meta.mtime_nsec),
-            ),
-        )
+fn identity(meta: &y2p_core::sys::Stat) -> FileIdentity {
+    FileIdentity {
+        device: meta.dev,
+        inode: meta.ino,
+        mode: i64::from(meta.mode & libc::S_IFMT),
+        size: meta.size,
+        mtime_ns: y2p_core::wide(meta.mtime) * 1_000_000_000 + y2p_core::wide(meta.mtime_nsec),
+    }
 }
 
 fn not_found(error: &Failure) -> bool {
@@ -127,7 +192,7 @@ fn parent_fd(data: &OwnedFd, relative: &str) -> Result<(OwnedFd, String), Failur
 }
 
 /// `inspect(data, relative)`.
-fn inspect(data: &OwnedFd, relative: &str) -> Result<Option<Value>, Failure> {
+fn inspect(data: &OwnedFd, relative: &str) -> Result<Option<FileIdentity>, Failure> {
     let (parent, name) = match parent_fd(data, relative) {
         Err(e) if not_found(&e) => return Ok(None),
         other => other?,
@@ -185,10 +250,6 @@ fn regular_bytes(data: &OwnedFd, relative: &str, maximum: u64) -> Result<Vec<u8>
         return Err(Failure::value("export_file_grew"));
     }
     Ok(value)
-}
-
-fn text(value: Option<&Value>) -> Value {
-    value.cloned().unwrap_or(Value::Null)
 }
 
 #[cfg(test)]

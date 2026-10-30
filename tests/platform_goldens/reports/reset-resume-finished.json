@@ -21,9 +21,11 @@
  ],
  "exit": 0,
  "stdout": {
+  "completed": [],
   "id": "1234567890abcdef1234567890abcdef",
-  "state": "Complete",
-  "x": 1
+  "schema": 0,
+  "scope": "",
+  "state": "Complete"
  },
  "tree": {
   "added": {

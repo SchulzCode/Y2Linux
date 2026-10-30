@@ -23,7 +23,7 @@
  ],
  "exit": 1,
  "stdout": {
-  "failure": "invalid JSON: EOF while parsing an object at line 1 column 1",
+  "failure": "reset_record_unreadable",
   "state": "Failed"
  },
  "tree": {
