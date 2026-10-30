@@ -306,6 +306,15 @@ metrics, files copied into the report bundle: these stay `Value`).
 - **Q5:** clean-up, measure, CONTRACT.md.
 Test builds after Q1+Q2, after Q3, after Q4 (hardware round).
 
+Progress (2026-10-30 night): Q1 — every snapshot section returns its struct (92494f00, 47ca4a78, b8034e00),
+records are `y2p_contract::ObservationRecord` (bb523a82), health is `y2p_contract::Health` (d6296172), readiness
+typed (fc778448), previous-boot-evidence.json one typed record (d37b9e53), system section's reset cause / boot
+stages / USB (fc8bace0), one update-status and one reset-cause implementation (57f73c67), netlink answers typed
+(71fa7b72). Behaviour changes, all reviewed: unmounted volumes and the unavailable Bluetooth section carry every
+key; a broken evidence record or odd `ip` output leaves `status` readable. Left in Q1: Bluetooth internals,
+Wi-Fi's records (network.json signal cache, wifi-events/-power, coexistence), storage internal setup, power's
+policy record, bench, `status <section>` reduction.
+
 ## 4. Test builds
 
 | build | content |
