@@ -8,6 +8,7 @@ use super::{
     Path, PathBuf, Progress, Raise, Result, Root, Source, Value, BACKUPS, CANCELLED,
     CHECK_PROGRESS, FILES, IN_PROGRESS, KEPT_LOGS, MANIFEST_ATTEMPTS, RESERVE,
 };
+use serde::Serialize;
 use std::ops::ControlFlow;
 use std::os::fd::AsFd;
 use std::os::unix::fs::DirBuilderExt;
@@ -239,7 +240,8 @@ pub(super) struct Staging<'a> {
     token: String,
     check_only: bool,
     live: Option<Progress>,
-    summary: Value,
+    /// What download.json says once the manifest is checked; a cancel restores it (`null` before).
+    summary: Option<Download>,
     previous: Value,
 }
 
@@ -253,6 +255,54 @@ struct Payload {
     key: String,
     bytes: i64,
     sha256: Value,
+}
+
+/// download.json, what the Software Update page shows (written sorted; a field is left out where
+/// its state has none).
+#[derive(Serialize, Default)]
+struct Download {
+    schema: u8,
+    state: &'static str,
+    /// The token of the check or download that runs (Checking, Staging).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    up_to_date: Option<bool>,
+    /// Up to date: whether the channel has a release at all.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    published: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    release_version: Option<Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    sequence: Option<Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    download_bytes: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    bytes: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    notes: Option<Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    reborn_version: Option<Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    backup_budget: Option<&'static str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    reserve_bytes: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    cleaned_bytes: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    failure: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    needed_bytes: Option<i64>,
+}
+
+impl Download {
+    fn state(state: &'static str) -> Download {
+        Download {
+            schema: 1,
+            state,
+            ..Download::default()
+        }
+    }
 }
 
 /// What the core's `check-manifest` answers about a signed release.
@@ -308,10 +358,20 @@ impl Manifest {
     }
 
     /// download.json after a check: the release on offer (Update Now).
-    fn offer(&self) -> Value {
-        json!({"schema": 1, "state": "Checked", "release_version": self.release,
-               "sequence": self.sequence, "download_bytes": self.total, "notes": self.notes(),
-               "reborn_version": self.answer.get("reborn_version").cloned().unwrap_or(json!(""))})
+    fn offer(&self) -> Download {
+        Download {
+            release_version: Some(self.release.clone()),
+            sequence: Some(self.sequence.clone()),
+            download_bytes: Some(self.total),
+            notes: Some(self.notes()),
+            reborn_version: Some(
+                self.answer
+                    .get("reborn_version")
+                    .cloned()
+                    .unwrap_or(json!("")),
+            ),
+            ..Download::state("Checked")
+        }
     }
 }
 
@@ -332,7 +392,7 @@ impl Staging<'_> {
             ControlFlow::Break(up_to_date) => return Ok(up_to_date),
             ControlFlow::Continue(manifest) => manifest,
         };
-        self.summary = manifest.offer();
+        self.summary = Some(manifest.offer());
         if self.check_only {
             remove_package(&self.incoming)?;
             atomic_json(&self.record(), &self.summary, false)?;
@@ -397,8 +457,14 @@ impl Staging<'_> {
         // A check only reads the signed manifest; it never shows as a download.
         atomic_json(
             &self.record(),
-            &json!({"schema": 1, "state": if self.check_only { "Checking" } else { "Staging" },
-                    "id": self.token}),
+            &Download {
+                id: Some(self.token.clone()),
+                ..Download::state(if self.check_only {
+                    "Checking"
+                } else {
+                    "Staging"
+                })
+            },
             true,
         )?;
         Ok(cleaned)
@@ -499,11 +565,12 @@ impl Staging<'_> {
     fn up_to_date(&self, published: Option<bool>) -> Result<Value> {
         remove_package(&self.incoming)?;
         let installed = installed_release(self.root);
-        let mut record = json!({"schema": 1, "state": "Checked", "up_to_date": true,
-                                "release_version": installed});
-        if let Some(published) = published {
-            record["published"] = json!(published);
-        }
+        let record = Download {
+            up_to_date: Some(true),
+            published,
+            release_version: Some(installed.clone()),
+            ..Download::state("Checked")
+        };
         atomic_json(&self.record(), &record, false)?;
         Ok(json!({"state": "UpToDate", "release_version": installed}))
     }
@@ -602,11 +669,17 @@ impl Staging<'_> {
         }
         atomic_json(
             &self.record(),
-            &json!({"schema": 1, "state": "Verified", "bytes": count,
-                    "release_version": manifest.release,
-                    "notes": manifest.notes(),
-                    "backup_budget": "recovery captures the compressed previous root and BOOTIMG before any write",
-                    "reserve_bytes": RESERVE as i64, "cleaned_bytes": cleaned as i64}),
+            &Download {
+                bytes: Some(count),
+                release_version: Some(manifest.release.clone()),
+                notes: Some(manifest.notes()),
+                backup_budget: Some(
+                    "recovery captures the compressed previous root and BOOTIMG before any write",
+                ),
+                reserve_bytes: Some(RESERVE as i64),
+                cleaned_bytes: Some(cleaned as i64),
+                ..Download::state("Verified")
+            },
             true,
         )?;
         Ok(Value::Object(result))
@@ -663,7 +736,7 @@ pub(super) fn stage(
         token,
         check_only,
         live: None,
-        summary: Value::Null,
+        summary: None,
         previous: Value::Null,
     };
     let result = staging.run(&file, url, source, &volume);
@@ -680,19 +753,30 @@ pub(super) fn stage(
         }
         Err(error) => {
             let text = error.text();
-            let mut record = json!({"schema": 1, "state": "Failed", "failure": text});
+            let needed = match error {
+                Raise::NoSpace(needed) => {
+                    let _ = remove_package(&staging.incoming);
+                    Some(needed as i64)
+                }
+                _ => None,
+            };
             if check_only && string(staging.previous.get("state")) == Some("Checked") {
                 // A check that couldn't reach the server keeps the release the page already offered
                 // (Update Now stays); the error goes to the caller.
                 let mut kept = staging.previous.as_object().cloned().unwrap_or_default();
                 kept.insert("last_check_failure".into(), json!(shortened(&text, 120)));
-                record = Value::Object(kept);
+                if let Some(needed) = needed {
+                    kept.insert("needed_bytes".into(), json!(needed));
+                }
+                atomic_json(&download, &kept, true)?;
+            } else {
+                let record = Download {
+                    failure: Some(text),
+                    needed_bytes: needed,
+                    ..Download::state("Failed")
+                };
+                atomic_json(&download, &record, true)?;
             }
-            if let Raise::NoSpace(needed) = error {
-                record["needed_bytes"] = json!(needed as i64);
-                let _ = remove_package(&staging.incoming);
-            }
-            atomic_json(&download, &record, true)?;
             if let Some(live) = staging.live.as_mut() {
                 live.finish("failed");
             }
