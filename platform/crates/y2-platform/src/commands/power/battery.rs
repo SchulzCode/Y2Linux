@@ -11,9 +11,10 @@ pub use profile::{interpolate_int, load_profile};
 pub use soc::Soc;
 pub use status::{BatteryStatus, Confidence, DisplayRecord, UI_STATE};
 
+use std::sync::Mutex;
 use y2p_core::{
     power_text::{python_split, sense_current},
-    root::python_int,
+    root::{python_int, Attribute, READ_LIMIT},
     Root,
 };
 
@@ -93,6 +94,9 @@ pub fn read(root: &Root, engine: &Soc, now: f64) -> Reading {
     static PRESENT: std::sync::OnceLock<[bool; 4]> = std::sync::OnceLock::new();
     let base = "/sys/class/power_supply/BAT0/";
     let int = |name: &str| root.integer(&format!("{base}{name}"));
+    // Read every second: kept open on the player.
+    let each = |name: &'static str| every_sample(root, name);
+    let each_int = |name: &'static str| each(name).and_then(|text| python_int(&text));
     let present = root.is_real().then(|| {
         PRESENT.get_or_init(|| OPTIONAL.map(|n| root.path(&format!("{base}{n}")).exists()))
     });
@@ -100,21 +104,21 @@ pub fn read(root: &Root, engine: &Soc, now: f64) -> Reading {
         Some(present) if !present[index] => None,
         _ => int(OPTIONAL[index]),
     };
-    let status = root.read(&format!("{base}status"));
+    let status = each("status");
     let charging = status.as_deref() == Some("Charging");
     let first = engine.percent.is_none();
     // Read BAT0 only: PMIC/CPU temperatures and USB configured limits cannot
     // become pack sensor values. Missing hardware properties stay null.
     Reading {
-        voltage: int("voltage_now"),
-        present: int("present"),
+        voltage: each_int("voltage_now"),
+        present: each_int("present"),
         status,
         hardware_percent: optional(0),
         current: optional(1),
         temperature: optional(2).map(|t| t.saturating_mul(100)),
         counter: optional(3),
         charge_current: charging
-            .then(|| sense_current(root.read(&format!("{base}charging_state")).as_deref()))
+            .then(|| sense_current(each("charging_state").as_deref()))
             .flatten(),
         boot_ocv: (!engine.estimated() && now <= soc::BOOT_OCV_FRESH_SECONDS)
             .then(|| int("voltage_ocv"))
@@ -125,6 +129,28 @@ pub fn read(root: &Root, engine: &Soc, now: f64) -> Reading {
             None
         },
     }
+}
+
+/// A BAT0 attribute the daemon reads every second (`root.read`): on the player from a descriptor kept
+/// open (one pread per sample instead of five calls); below a fixture root, whose files a test may
+/// replace, read anew.
+fn every_sample(root: &Root, name: &'static str) -> Option<String> {
+    static OPEN: Mutex<Vec<(&'static str, Attribute)>> = Mutex::new(Vec::new());
+    let path = format!("/sys/class/power_supply/BAT0/{name}");
+    if !root.is_real() {
+        return root.read(&path);
+    }
+    let Ok(mut open) = OPEN.lock() else {
+        return root.read(&path);
+    };
+    let index = match open.iter().position(|(n, _)| *n == name) {
+        Some(index) => index,
+        None => {
+            open.push((name, Attribute::new(root.path(&path))));
+            open.len() - 1
+        }
+    };
+    open[index].1.read(READ_LIMIT)
 }
 
 #[cfg(test)]

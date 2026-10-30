@@ -246,6 +246,64 @@ pub fn read(path: &Path, limit: usize) -> Option<String> {
     Some(python_strip(&text).to_owned())
 }
 
+/// A sysfs attribute kept open and read again from offset 0 each time (kernfs makes the text anew at
+/// offset 0): one `pread` instead of open, fstat, read, read and close, for the attributes a daemon
+/// reads every second. The same answer as [`read`]; a failed read drops the descriptor, so the next
+/// read opens the file anew. Only for files that are never replaced (sysfs on the player).
+pub struct Attribute {
+    path: PathBuf,
+    file: Option<File>,
+    buffer: Vec<u8>,
+}
+
+impl Attribute {
+    pub fn new(path: PathBuf) -> Attribute {
+        Attribute {
+            path,
+            file: None,
+            buffer: vec![0; 4096],
+        }
+    }
+
+    /// [`read`]'s answer for this file now.
+    pub fn read(&mut self, limit: usize) -> Option<String> {
+        use std::os::unix::fs::FileExt;
+        if self.file.is_none() {
+            self.file = File::open(&self.path).ok();
+        }
+        let file = self.file.as_ref()?;
+        let cap = (limit + 1) * 4;
+        let mut filled = 0;
+        loop {
+            if filled == self.buffer.len() {
+                if filled >= cap {
+                    break;
+                }
+                self.buffer.resize((filled * 2).min(cap), 0);
+            }
+            match file.read_at(&mut self.buffer[filled..], filled as u64) {
+                Ok(0) => break,
+                Ok(n) => {
+                    filled += n;
+                    // kernfs answers at offset 0 with all it has: a short read is the end.
+                    if filled < self.buffer.len() {
+                        break;
+                    }
+                }
+                Err(_) => {
+                    self.file = None;
+                    return None;
+                }
+            }
+        }
+        let text = String::from_utf8_lossy(&self.buffer[..filled.min(cap)]);
+        if text.chars().count() > limit {
+            return None;
+        }
+        Some(python_strip(&text).to_owned())
+    }
+}
+
 /// Python `str.strip()` (`text::strip`).
 pub use crate::text::strip as python_strip;
 
@@ -275,6 +333,31 @@ pub fn python_int(text: &str) -> Option<i64> {
 pub(crate) mod tests {
     use super::*;
     use std::fs;
+
+    #[test]
+    fn an_attribute_reads_as_read_does_and_again_from_its_start() {
+        let dir = tempdir::Dir::new();
+        let path = dir.path().join("voltage_now");
+        fs::write(&path, " 3912000\n").unwrap();
+        let mut attribute = Attribute::new(path.clone());
+        assert_eq!(attribute.read(READ_LIMIT), read(&path, READ_LIMIT));
+        assert_eq!(attribute.read(READ_LIMIT).as_deref(), Some("3912000"));
+        // The same file with new text (sysfs makes it anew at offset 0).
+        fs::write(&path, "3800000\n").unwrap();
+        assert_eq!(attribute.read(READ_LIMIT).as_deref(), Some("3800000"));
+        // Longer than the first buffer, and over a limit.
+        let long = "x".repeat(10_000);
+        fs::write(&path, &long).unwrap();
+        assert_eq!(attribute.read(READ_LIMIT).as_deref(), Some(long.as_str()));
+        assert_eq!(attribute.read(9_999), None);
+        assert_eq!(read(&path, 9_999), None);
+        // Gone: none, and opened anew once it is back.
+        fs::remove_file(&path).unwrap();
+        let mut missing = Attribute::new(path.clone());
+        assert_eq!(missing.read(READ_LIMIT), None);
+        fs::write(&path, "1\n").unwrap();
+        assert_eq!(missing.read(READ_LIMIT).as_deref(), Some("1"));
+    }
 
     fn fixture() -> (tempdir::Dir, Root) {
         let dir = tempdir::Dir::new();
