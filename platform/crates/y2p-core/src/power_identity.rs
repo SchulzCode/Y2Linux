@@ -4,15 +4,19 @@
 //! and accepts an acknowledgement only from the same process; `status --reborn` reads it too.
 // SPDX-License-Identifier: GPL-2.0-only
 pub use crate::paths::realpath;
-use crate::{
-    json::{Object, ObjectExt},
-    power_text::python_split,
-    root::parse_int,
-    Root,
-};
+use crate::{power_text::python_split, root::parse_int, Root};
+use serde::{Deserialize, Serialize};
 
-/// `{'pid': pid, 'start_ticks': ticks}` of a live process running `expected`, or `None`.
-pub fn process_identity(root: &Root, name: &str, expected: &str) -> Option<Object> {
+/// A live process told apart from a later one with its pid: its start time in clock ticks.
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ProcessIdentity {
+    pub pid: i64,
+    pub start_ticks: i64,
+}
+
+/// The identity of the live process running `expected` whose pid `/run/reborn/<name>.pid` names, or
+/// `None`.
+pub fn process_identity(root: &Root, name: &str, expected: &str) -> Option<ProcessIdentity> {
     let pid = root.integer(&format!("/run/reborn/{name}.pid"))?;
     if pid <= 1 {
         return None;
@@ -23,7 +27,10 @@ pub fn process_identity(root: &Root, name: &str, expected: &str) -> Option<Objec
     let value = root.read(&format!("/proc/{pid}/stat"))?;
     let (_, tail) = value.rsplit_once(") ")?;
     let ticks = parse_int(python_split(tail).get(19)?)?;
-    Some(Object::new().with("pid", pid).with("start_ticks", ticks))
+    Some(ProcessIdentity {
+        pid,
+        start_ticks: ticks,
+    })
 }
 
 #[cfg(test)]
@@ -56,11 +63,10 @@ mod tests {
         fs::write(base.join("proc/77/stat"), stat).unwrap();
         assert_eq!(
             process_identity(&root, "process", "/usr/bin/reborn"),
-            Some(
-                Object::new()
-                    .with("pid", 77i64)
-                    .with("start_ticks", 4242i64)
-            )
+            Some(ProcessIdentity {
+                pid: 77,
+                start_ticks: 4242
+            })
         );
         assert_eq!(process_identity(&root, "process", "/usr/bin/other"), None);
         assert_eq!(

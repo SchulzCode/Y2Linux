@@ -6,19 +6,22 @@ mod steps;
 #[cfg(test)]
 use steps::{LONG_PRESS_RESET, WATCHDOG_POWERS_OFF};
 
+pub use steps::Step;
+
 use crate::reply::{atomic_json, private_directory, Failure};
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{fs::File, io::Write};
 use y2p_core::{
-    json::{Object, ObjectExt},
-    power_identity::process_identity,
+    lenient::{self, BootId, Shaped},
+    power_identity::{process_identity, ProcessIdentity},
     py,
     py::PyValue,
     Root,
 };
 
 /// A shutdown intent's state (`state` of shutdown.json and the socket's answers).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum IntentState {
     /// Requested; its grace or Reborn's acknowledgement ends the wait.
     ShutdownPending,
@@ -29,7 +32,8 @@ pub enum IntentState {
 }
 
 /// What a shutdown does (`action`).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum ShutdownAction {
     Poweroff,
     Reboot,
@@ -44,26 +48,6 @@ pub enum ShutdownReason {
     Service,
 }
 
-impl IntentState {
-    pub fn as_str(self) -> &'static str {
-        match self {
-            IntentState::ShutdownPending => "ShutdownPending",
-            IntentState::Executing => "Executing",
-            IntentState::Failed => "Failed",
-        }
-    }
-
-    /// The state a record's value names (only these exact texts).
-    pub fn of(value: &Value) -> Option<IntentState> {
-        Some(match value.as_str()? {
-            "ShutdownPending" => IntentState::ShutdownPending,
-            "Executing" => IntentState::Executing,
-            "Failed" => IntentState::Failed,
-            _ => return None,
-        })
-    }
-}
-
 impl ShutdownAction {
     pub fn as_str(self) -> &'static str {
         match self {
@@ -72,9 +56,9 @@ impl ShutdownAction {
         }
     }
 
-    /// The action a request's or record's value names (only these exact texts).
-    pub fn of(value: &Value) -> Option<ShutdownAction> {
-        Some(match value.as_str()? {
+    /// The action a request names (only these exact texts).
+    pub fn named(text: &str) -> Option<ShutdownAction> {
+        Some(match text {
             "poweroff" => ShutdownAction::Poweroff,
             "reboot" => ShutdownAction::Reboot,
             _ => return None,
@@ -92,9 +76,9 @@ impl ShutdownReason {
         }
     }
 
-    /// The reason a request's value names (only these exact texts).
-    pub fn of(value: &Value) -> Option<ShutdownReason> {
-        Some(match value.as_str()? {
+    /// The reason a request names (only these exact texts).
+    pub fn named(text: &str) -> Option<ShutdownReason> {
+        Some(match text {
             "user" => ShutdownReason::User,
             "low_battery" => ShutdownReason::LowBattery,
             "update" => ShutdownReason::Update,
@@ -104,45 +88,89 @@ impl ShutdownReason {
     }
 }
 
-/// What the coordinator reads of an intent: one it built, or one resumed from shutdown.json after a
-/// daemon restart (which may hold anything a file can).
-pub trait IntentFields {
-    fn state(&self) -> Option<IntentState>;
-    /// The deadline in CLOCK_MONOTONIC ns (0 when it is not an int).
-    fn deadline_ns(&self) -> i128;
-    /// Whether Reborn acknowledged with `Ready`. Anything but a dict with that outcome (null, or what
-    /// a damaged resumed intent holds) is no acknowledgement: the deadline still ends the grace.
-    fn ready(&self) -> bool;
-    /// An acknowledgement that is set but is no dict with an outcome (only a damaged file has one).
-    fn acknowledgement_odd(&self) -> bool;
-
-    fn pending(&self) -> bool {
-        self.state() == Some(IntentState::ShutdownPending)
-    }
+/// A shutdown intent (`/run/y2/shutdown.json`, the socket's answers, power.json's `shutdown`): one the
+/// coordinator built, or one resumed from shutdown.json after a daemon restart. Resuming needs the
+/// fields the coordinator decides on in their types, `client` and `acknowledgement` present; the
+/// others read leniently.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+pub struct Intent {
+    #[serde(default, deserialize_with = "lenient::integer")]
+    pub schema: Option<i64>,
+    pub id: String,
+    #[serde(default)]
+    pub boot_id: BootId,
+    pub state: IntentState,
+    pub action: ShutdownAction,
+    #[serde(default, deserialize_with = "lenient::text")]
+    pub reason: Option<String>,
+    #[serde(default, deserialize_with = "lenient::integer")]
+    pub requested_monotonic_ns: Option<i64>,
+    pub deadline_monotonic_ns: i64,
+    /// Reborn's process when the intent was made (`null` without one).
+    #[serde(deserialize_with = "lenient::or_none")]
+    pub client: Option<ProcessIdentity>,
+    /// Reborn's answer (`null` until it answers; what a damaged file holds is kept as it is).
+    #[serde(deserialize_with = "acknowledgement")]
+    pub acknowledgement: Option<Shaped<Acknowledgement>>,
+    #[serde(default, deserialize_with = "lenient::text")]
+    pub failure: Option<String>,
+    /// What each shutdown step did, once they ran.
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "lenient::or_none"
+    )]
+    pub stop_results: Option<std::collections::BTreeMap<String, Step>>,
 }
 
-impl IntentFields for Object {
-    fn state(&self) -> Option<IntentState> {
-        self.get("state").and_then(IntentState::of)
+/// Reborn's acknowledgement of an intent.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+pub struct Acknowledgement {
+    /// `Ready` or `Failed` (an acknowledgement without one is a damaged file's).
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "lenient::there"
+    )]
+    pub outcome: Option<Value>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "lenient::integer"
+    )]
+    pub monotonic_ns: Option<i64>,
+}
+
+fn acknowledgement<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Option<Shaped<Acknowledgement>>, D::Error> {
+    Option::deserialize(deserializer)
+}
+
+impl Intent {
+    pub fn pending(&self) -> bool {
+        self.state == IntentState::ShutdownPending
     }
 
-    fn deadline_ns(&self) -> i128 {
-        self.get("deadline_monotonic_ns")
-            .and_then(Value::exact_int)
-            .map_or(0, i128::from)
+    /// The deadline in CLOCK_MONOTONIC ns.
+    pub fn deadline_ns(&self) -> i128 {
+        i128::from(self.deadline_monotonic_ns)
     }
 
-    fn ready(&self) -> bool {
-        match self.get("acknowledgement") {
-            Some(Value::Object(ack)) => ack.get("outcome").is_some_and(|o| o.is_str("Ready")),
-            _ => false,
-        }
+    /// Whether Reborn acknowledged with `Ready`. Anything but an acknowledgement with that outcome
+    /// (none, or what a damaged resumed intent holds) is no acknowledgement: the deadline still ends
+    /// the grace.
+    pub fn ready(&self) -> bool {
+        matches!(&self.acknowledgement, Some(Shaped::Is(ack))
+            if ack.outcome.as_ref().and_then(Value::as_str) == Some("Ready"))
     }
 
+    /// An acknowledgement that is set but is no object with an outcome (only a damaged file has
+    /// one).
     fn acknowledgement_odd(&self) -> bool {
-        match self.get("acknowledgement") {
-            Some(Value::Object(ack)) => !ack.contains_key("outcome"),
-            Some(ack) => ack.truthy(),
+        match &self.acknowledgement {
+            Some(Shaped::Is(ack)) => ack.outcome.is_none(),
+            Some(Shaped::Odd(ack)) => ack.truthy(),
             None => false,
         }
     }
@@ -152,46 +180,32 @@ pub struct Coordinator {
     root: Root,
     watchdog: Option<File>,
     pub boot_id: Option<String>,
-    pub intent: Option<Object>,
+    pub intent: Option<Intent>,
 }
 
 impl Coordinator {
     pub fn new(root: &Root) -> Coordinator {
         let boot_id = root.boot_id();
         let previous = match root.json("/run/y2/shutdown.json") {
-            Some(Value::Object(o)) => o,
-            _ => Object::new(),
+            Some(Value::Object(o)) => serde_json::from_value::<Intent>(Value::Object(o)).ok(),
+            _ => None,
         };
-        let boot = Value::from(boot_id.clone());
-        let valid = previous.value("boot_id").py_eq(&boot)
-            && previous.state().is_some()
-            && previous
-                .get("action")
-                .and_then(ShutdownAction::of)
-                .is_some()
-            && previous
-                .get("deadline_monotonic_ns")
-                .and_then(Value::exact_int)
-                .is_some()
-            && previous.get("id").and_then(Value::as_str).is_some()
-            && previous.contains_key("client")
-            && previous.contains_key("acknowledgement");
-        let mut intent = valid.then_some(previous);
+        let mut intent = previous.filter(|p| p.boot_id.is(boot_id.as_deref()));
         if let Some(intent) = intent.as_mut() {
             if intent.acknowledgement_odd() {
                 // A damaged file: the shutdown goes on as unacknowledged (the panel is blanked
                 // before Reborn is stopped) once its deadline has passed.
+                let ack = serde_json::to_string(&intent.acknowledgement).unwrap_or_default();
                 let _ = writeln!(
                     std::io::stderr(),
-                    "power-daemon: resumed shutdown intent has no valid acknowledgement ({}); \
-                     waiting for its deadline",
-                    intent.value("acknowledgement")
+                    "power-daemon: resumed shutdown intent has no valid acknowledgement ({ack}); \
+                     waiting for its deadline"
                 );
             }
-            if intent.state() == Some(IntentState::Executing) {
+            if intent.state == IntentState::Executing {
                 // Continue the already requested transition after a daemon crash,
                 // retaining its original deadline. No new boot is auto-rebooted.
-                intent.set("state", IntentState::ShutdownPending.as_str());
+                intent.state = IntentState::ShutdownPending;
             }
         }
         Coordinator {
@@ -210,88 +224,79 @@ impl Coordinator {
         private_directory(&self.root.path("/run/y2"))?;
         atomic_json(
             &self.root.path("/run/y2/shutdown.json"),
-            &Value::from(self.intent.clone()),
+            &self.intent,
             false,
         )
     }
 
     pub fn request(
         &mut self,
-        action: &Value,
-        reason: &Value,
+        action: Option<&str>,
+        reason: Option<&str>,
         grace: i64,
-    ) -> Result<Object, Failure> {
-        let (Some(action), Some(reason)) = (ShutdownAction::of(action), ShutdownReason::of(reason))
-        else {
+    ) -> Result<Intent, Failure> {
+        let (Some(action), Some(reason)) = (
+            action.and_then(ShutdownAction::named),
+            reason.and_then(ShutdownReason::named),
+        ) else {
             return Err(Failure::value("invalid_shutdown_request"));
         };
         if !(3..=30).contains(&grace) {
             return Err(Failure::value("invalid_grace"));
         }
         if let Some(intent) = &self.intent {
-            if intent.get("action").and_then(ShutdownAction::of) != Some(action) {
+            if intent.action != action {
                 return Err(Failure::value("different_shutdown_already_pending"));
             }
             return Ok(intent.clone());
         }
         let now = self.clock();
-        let id = py::uuid4()?;
-        let intent = self.intent.insert(
-            Object::new()
-                .with("schema", 1i64)
-                .with("id", id)
-                .with("boot_id", self.boot_id.clone())
-                .with("state", IntentState::ShutdownPending.as_str())
-                .with("action", action.as_str())
-                .with("reason", reason.as_str())
-                .with("requested_monotonic_ns", now as i64)
-                .with(
-                    "deadline_monotonic_ns",
-                    (now + i128::from(grace) * 1_000_000_000) as i64,
-                )
-                .with(
-                    "client",
-                    process_identity(&self.root, "process", "/usr/bin/reborn"),
-                )
-                .with("acknowledgement", Value::Null)
-                .with("failure", Value::Null),
-        );
+        let intent = self.intent.insert(Intent {
+            schema: Some(1),
+            id: py::uuid4()?,
+            boot_id: self.boot_id.clone().into(),
+            state: IntentState::ShutdownPending,
+            action,
+            reason: Some(reason.as_str().into()),
+            requested_monotonic_ns: Some(now as i64),
+            deadline_monotonic_ns: (now + i128::from(grace) * 1_000_000_000) as i64,
+            client: process_identity(&self.root, "process", "/usr/bin/reborn"),
+            acknowledgement: None,
+            failure: None,
+            stop_results: None,
+        });
         let answer = intent.clone();
         self.publish()?;
         Ok(answer)
     }
 
+    /// Reborn's answer (`request_id` none when the request's id was no text).
     pub fn ack(
         &mut self,
-        request_id: &Value,
+        request_id: Option<&str>,
         pid: i64,
-        outcome: &Value,
-    ) -> Result<Object, Failure> {
+        outcome: Option<&str>,
+    ) -> Result<Intent, Failure> {
         let Some(intent) = self
             .intent
             .as_mut()
-            .filter(|i| i.pending() && i.value("id").py_eq(request_id))
+            .filter(|i| i.pending() && Some(i.id.as_str()) == request_id)
         else {
             return Err(Failure::value("stale_shutdown_ack"));
         };
         let current = process_identity(&self.root, "process", "/usr/bin/reborn");
-        let same = current.as_ref().is_some_and(|c| {
-            Value::Object(c.clone()).py_eq(&intent.value("client"))
-                && c.value("pid").py_eq(&Value::from(pid))
-        });
+        let same = current.is_some_and(|c| intent.client == Some(c) && c.pid == pid);
         if !same {
             return Err(Failure::value("ack_client_identity_changed"));
         }
-        if !(outcome.is_str("Ready") || outcome.is_str("Failed")) {
+        let Some(outcome) = outcome.filter(|o| matches!(*o, "Ready" | "Failed")) else {
             return Err(Failure::value("invalid_ack_outcome"));
-        }
+        };
         let now = self.root.clock().monotonic_ns() as i64;
-        intent.set(
-            "acknowledgement",
-            Object::new()
-                .with("outcome", outcome.clone())
-                .with("monotonic_ns", now),
-        );
+        intent.acknowledgement = Some(Shaped::Is(Acknowledgement {
+            outcome: Some(outcome.into()),
+            monotonic_ns: Some(now),
+        }));
         let answer = intent.clone();
         self.publish()?;
         Ok(answer)

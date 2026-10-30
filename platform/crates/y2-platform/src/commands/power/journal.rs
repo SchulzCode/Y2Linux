@@ -21,6 +21,7 @@ pub(crate) use diagnostics::FOLLOW_UP_S;
 pub use diagnostics::{usb_net, Diagnostics};
 
 use super::battery::BatteryStatus;
+use super::coordinator::Intent;
 use crate::commands::time::wall;
 use serde::Serialize;
 use serde_json::Value;
@@ -93,7 +94,7 @@ struct Row<'a, B: BatteryRow> {
     build: Value,
     state: &'a str,
     battery: &'a B,
-    shutdown: Option<&'a Object>,
+    shutdown: Option<&'a Intent>,
     usb: Object,
     usb_net: Object,
     charger: Option<String>,
@@ -163,7 +164,7 @@ impl PowerJournal {
         root: &Root,
         state: &str,
         battery: &impl BatteryRow,
-        shutdown: Option<&Object>,
+        shutdown: Option<&Intent>,
         event: Option<&str>,
     ) -> bool {
         self.observe_at(
@@ -182,7 +183,7 @@ impl PowerJournal {
         root: &Root,
         state: &str,
         battery: &impl BatteryRow,
-        shutdown: Option<&Object>,
+        shutdown: Option<&Intent>,
         event: Option<&str>,
         now: f64,
     ) -> bool {
@@ -229,7 +230,7 @@ impl PowerJournal {
         root: &Root,
         state: &'a str,
         battery: &'a B,
-        shutdown: Option<&'a Object>,
+        shutdown: Option<&'a Intent>,
         event: Option<&'a str>,
         safety: bool,
         now: f64,

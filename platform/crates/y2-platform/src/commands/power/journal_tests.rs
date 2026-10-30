@@ -68,7 +68,10 @@ fn state_storm_is_bounded_but_shutdown_is_immediate() {
         journal.observe_at(&fixture.root, "Normal", &sample, None, None, now as f64);
     }
     assert_eq!(rows(&fixture).len(), 1);
-    let shutdown = battery(json!({"reason": "low_battery"}));
+    let shutdown: crate::commands::power::coordinator::Intent = serde_json::from_value(json!({
+        "id": "x", "state": "ShutdownPending", "action": "poweroff", "reason": "low_battery",
+        "deadline_monotonic_ns": 1, "client": null, "acknowledgement": null}))
+    .unwrap();
     journal.observe_at(
         &fixture.root,
         "ShutdownPending",

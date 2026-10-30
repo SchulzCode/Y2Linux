@@ -53,7 +53,8 @@ fn rpc(root: &Root, action: &str) -> Result<Value> {
     let request = Object::new()
         .with("action", action)
         .with("reason", "update");
-    Ok(crate::commands::power::client::rpc(root, &request)?)
+    let intent = crate::commands::power::client::rpc(root, &request)?;
+    serde_json::to_value(intent).map_err(|e| Raise::Value(e.to_string()))
 }
 
 /// `function` under the `Maintenance` workload lease (commands::workload).

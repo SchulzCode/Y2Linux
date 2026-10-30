@@ -4,14 +4,14 @@
 //! Below a fixture root nothing here signals a process or starts a power command: the steps' commands
 //! get the fixture answers (`y2p_core::command`) and the kill step runs only on the real root.
 // SPDX-License-Identifier: GPL-2.0-only
-use super::{Coordinator, IntentFields, IntentState, ShutdownAction};
-use serde_json::Value;
-use std::{fs::OpenOptions, io::Write, os::unix::fs::OpenOptionsExt, time::Duration};
+use super::{Coordinator, Intent, IntentState, ShutdownAction};
+use serde::{Deserialize, Serialize};
+use std::{
+    collections::BTreeMap, fs::OpenOptions, io::Write, os::unix::fs::OpenOptionsExt, time::Duration,
+};
 use y2p_core::{
     command,
-    json::{Object, ObjectExt},
-    power_identity::process_identity,
-    py::PyValue,
+    power_identity::{process_identity, ProcessIdentity},
     Root,
 };
 
@@ -26,7 +26,7 @@ pub(super) const LONG_PRESS_RESET: &str = "/sys/firmware/y2_pmic/long_press_rese
 const STAGE_SECONDS: f64 = 3.0;
 
 /// A step's `{ok, reason}` (its output is never kept).
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Step {
     pub ok: bool,
     pub reason: Option<String>,
@@ -113,17 +113,21 @@ impl Coordinator {
         let Some(intent) = self.intent.as_mut() else {
             return Step::of(false, Some("no_shutdown_intent"));
         };
-        intent.set("state", IntentState::Executing.as_str());
-        let (action, reason) = (intent.value("action"), intent.value("reason"));
+        intent.state = IntentState::Executing;
+        let action = intent.action;
+        let reason = intent.reason.clone();
         self.publish_noted();
         shutdown_trail(
             &self.root,
-            &format!("execute {} {}", action.py_str(), reason.py_str()),
+            &format!(
+                "execute {} {}",
+                action.as_str(),
+                reason.as_deref().unwrap_or("None")
+            ),
             None,
         );
         let mut results: Vec<(String, Step)> = Vec::new();
-        let watchdog =
-            self.arm_watchdog(ShutdownAction::of(&action) == Some(ShutdownAction::Poweroff));
+        let watchdog = self.arm_watchdog(action == ShutdownAction::Poweroff);
         shutdown_trail(&self.root, "watchdog", Some(&watchdog));
         results.push(("watchdog".into(), watchdog));
         let long_press = self.long_press_reset_off();
@@ -199,30 +203,21 @@ impl Coordinator {
             );
             results.push(("journal_complete".into(), complete));
         }
-        let mut stop_results = Object::new();
-        for (name, step) in &results {
-            stop_results.set(
-                name,
-                Object::new()
-                    .with("ok", step.ok)
-                    .with("reason", step.reason.clone()),
-            );
-        }
+        let stop_results: BTreeMap<String, Step> = results.into_iter().collect();
         self.set_intent(|intent| {
-            intent.set("stop_results", stop_results);
+            intent.stop_results = Some(stop_results);
         });
         // BusyBox init owns rcK, unmount and final reboot(2). Never use -f.
-        let action = action.as_str().unwrap_or_default().to_owned();
+        let action = action.as_str();
         let result = self.step(
             &format!("init_{action}"),
-            Some(&["/bin/busybox", &action]),
+            Some(&["/bin/busybox", action]),
             2.0,
         );
         if !result.ok {
             self.set_intent(|intent| {
-                intent
-                    .set("state", IntentState::Failed.as_str())
-                    .set("failure", "init_shutdown_request_failed");
+                intent.state = IntentState::Failed;
+                intent.failure = Some("init_shutdown_request_failed".into());
             });
         }
         // The watchdog stays armed and is fed no more (this daemon's exit at
@@ -233,7 +228,7 @@ impl Coordinator {
     }
 
     /// Change the intent and publish it (`execute` runs only with one).
-    fn set_intent(&mut self, change: impl FnOnce(&mut Object)) {
+    fn set_intent(&mut self, change: impl FnOnce(&mut Intent)) {
         if let Some(intent) = self.intent.as_mut() {
             change(intent);
         }
@@ -325,11 +320,8 @@ impl Coordinator {
 }
 
 /// SIGKILL through a pidfd, after checking the identity once more (only on the real root).
-fn kill(root: &Root, name: &str, executable: &str, identity: &Object) {
-    let Some(pid) = identity.get("pid").and_then(Value::exact_int) else {
-        return;
-    };
-    let Ok(pidfd) = libc::pid_t::try_from(pid)
+fn kill(root: &Root, name: &str, executable: &str, identity: &ProcessIdentity) {
+    let Ok(pidfd) = libc::pid_t::try_from(identity.pid)
         .map_err(drop)
         .and_then(|pid| y2p_core::sys::pidfd_open(pid).map_err(drop))
     else {

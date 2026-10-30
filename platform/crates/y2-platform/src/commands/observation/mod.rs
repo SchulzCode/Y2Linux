@@ -169,17 +169,7 @@ struct StatusOptions {
 /// The pid in /run/reborn/<name>.pid while its executable is still `expected` (not a reused pid),
 /// with its start time.
 pub fn process_identity(root: &Root, name: &str, expected: &str) -> Option<(i64, i64)> {
-    let pid = root
-        .integer(&format!("/run/reborn/{name}.pid"))
-        .filter(|p| *p > 1)?;
-    let exe = util::realpath(&root.path(&format!("/proc/{pid}/exe")));
-    if exe != util::realpath(&root.path(expected)) {
-        return None;
-    }
-    let stat = root.read(&format!("/proc/{pid}/stat"))?;
-    let (_, after) = stat.rsplit_once(") ")?;
-    let start = util::int(util::split_ws(after).get(19)?)?;
-    Some((pid, start))
+    y2p_core::power_identity::process_identity(root, name, expected).map(|p| (p.pid, p.start_ticks))
 }
 
 /// Reborn's control socket (rebornctl's default).

@@ -2,7 +2,7 @@
 //! daemon for the transition and print the intent it answers with, in the daemon's key order. It
 //! returns at once; the daemon executes the intent after Reborn's acknowledgement or the 10 s grace.
 // SPDX-License-Identifier: GPL-2.0-only
-use super::{daemon::SOCKET, unix};
+use super::{coordinator::Intent, daemon::SOCKET, unix};
 use crate::reply::{Failure, Outcome, Reply};
 use serde_json::Value;
 use std::time::Duration;
@@ -16,8 +16,8 @@ const TIMEOUT: Duration = Duration::from_secs(1);
 const REQUEST_LIMIT: usize = 2048;
 const RESPONSE_LIMIT: usize = 8192;
 
-/// `rpc(ctx, request)`: the daemon's `result`, or its `error` as a ValueError.
-pub fn rpc(root: &Root, request: &Object) -> Result<Value, Failure> {
+/// `rpc(ctx, request)`: the daemon's `result` (the intent), or its `error` as a ValueError.
+pub fn rpc(root: &Root, request: &Object) -> Result<Intent, Failure> {
     let data = dumps(request).map_err(Failure::value)? + "\n";
     if data.len() > REQUEST_LIMIT {
         return Err(Failure::value("request_too_large"));
@@ -49,6 +49,7 @@ pub fn rpc(root: &Root, request: &Object) -> Result<Value, Failure> {
     }
     result
         .shift_remove("result")
+        .and_then(|intent| serde_json::from_value(intent).ok())
         .ok_or_else(|| Failure::value("invalid_power_response"))
 }
 
@@ -65,7 +66,7 @@ mod tests {
     use std::os::unix::net::UnixListener;
 
     /// A daemon that answers one request with `answer` (a line), as `rpc` sees it.
-    fn answered(answer: &'static str) -> Result<Value, Failure> {
+    fn answered(answer: &'static str) -> Result<Intent, Failure> {
         let fixture = Fixture::new();
         fixture.mkdir("/run/y2");
         let listener = UnixListener::bind(fixture.path(SOCKET)).unwrap();
@@ -88,16 +89,18 @@ mod tests {
     }
 
     #[test]
-    fn the_daemons_result_is_returned_in_its_key_order() {
-        let result = answered("{\"ok\": true, \"result\": {\"state\": \"x\", \"id\": \"y\"}}\n");
-        let keys: Vec<String> = result
-            .unwrap()
-            .as_object()
-            .unwrap()
-            .keys()
-            .cloned()
-            .collect();
-        assert_eq!(keys, ["state", "id"]);
+    fn the_daemons_intent_is_returned() {
+        let intent = answered(
+            "{\"ok\": true, \"result\": {\"schema\": 1, \"id\": \"y\", \"boot_id\": \"b\", \
+             \"state\": \"ShutdownPending\", \"action\": \"poweroff\", \"reason\": \"user\", \
+             \"requested_monotonic_ns\": 1, \"deadline_monotonic_ns\": 2, \"client\": null, \
+             \"acknowledgement\": null, \"failure\": null}}\n",
+        )
+        .unwrap();
+        assert_eq!((intent.id.as_str(), intent.deadline_monotonic_ns), ("y", 2));
+        // Not an intent: no answer.
+        let other = answered("{\"ok\": true, \"result\": {\"state\": \"x\", \"id\": \"y\"}}\n");
+        assert_eq!(other.unwrap_err().message(), "invalid_power_response");
     }
 
     #[test]

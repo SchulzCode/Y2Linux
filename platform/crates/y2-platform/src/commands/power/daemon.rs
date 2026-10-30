@@ -8,6 +8,7 @@
 //! Below a fixture root `Y2_DAEMON_TICKS=n` ends the loop after n iterations (exit 0): the golden
 //! cases' bounded runs (tests/platform_cases/power.py).
 // SPDX-License-Identifier: GPL-2.0-only
+use super::coordinator::Intent;
 use crate::reply::At;
 mod requests;
 
@@ -28,7 +29,7 @@ use std::{
     time::Duration,
 };
 use y2p_core::sys::{set_signal, Handler};
-use y2p_core::{json::Object, Root};
+use y2p_core::Root;
 
 pub const SOCKET: &str = "/run/y2/power.sock";
 
@@ -49,7 +50,7 @@ struct PowerRecord<'a> {
     thresholds_enabled: bool,
     battery: &'a BatteryStatus,
     qualification_reference: Option<&'a str>,
-    shutdown: Option<&'a Object>,
+    shutdown: Option<&'a Intent>,
 }
 
 /// Failures the daemon outlives, on stderr (the supervisor's log) when one starts or its text
@@ -122,9 +123,9 @@ impl Daemon<'_> {
             let grace = self.policy.as_ref().map_or(10, |p| p.grace_seconds);
             // An intent that could not be published is still pending here: it runs after
             // its grace all the same.
-            let requested =
-                self.coordinator
-                    .request(&"poweroff".into(), &"low_battery".into(), grace);
+            let requested = self
+                .coordinator
+                .request(Some("poweroff"), Some("low_battery"), grace);
             self.notes.check("low-battery shutdown request", requested);
         }
         self.journal.observe(
@@ -186,7 +187,7 @@ struct Published {
     reason: Option<&'static str>,
     thresholds_enabled: bool,
     battery: BatteryStatus,
-    shutdown: Option<Object>,
+    shutdown: Option<Intent>,
 }
 
 impl Published {

@@ -9,6 +9,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Instant;
 use y2p_core::clock::{Clock, Manual};
 use y2p_core::command::Outcome;
+use y2p_core::json::{Object, ObjectExt};
 
 type Answers = Vec<(Vec<String>, Outcome)>;
 type Calls = Vec<(Vec<String>, f64)>;
@@ -76,20 +77,30 @@ fn player_watching_the_panel() -> (Fixture, Arc<Mutex<Option<String>>>) {
     (fixture, seen)
 }
 
-fn json(text: &str) -> Value {
-    Value::from(text)
+/// An intent as the JSON it is written as.
+fn object(intent: &Intent) -> Object {
+    match serde_json::to_value(intent).unwrap() {
+        Value::Object(object) => object,
+        _ => unreachable!(),
+    }
 }
 
 fn request(c: &mut Coordinator, action: &str, reason: &str, grace: i64) -> Object {
-    c.request(&json(action), &json(reason), grace)
-        .expect("request")
+    object(
+        &c.request(Some(action), Some(reason), grace)
+            .expect("request"),
+    )
+}
+
+/// The pending intent as JSON.
+fn current(c: &Coordinator) -> Object {
+    object(c.intent.as_ref().expect("an intent"))
 }
 
 fn deadline(c: &Coordinator) -> u64 {
     c.intent
         .as_ref()
-        .and_then(|i| i.get("deadline_monotonic_ns"))
-        .and_then(Value::as_u64)
+        .map(|i| i.deadline_monotonic_ns as u64)
         .expect("a deadline")
 }
 
@@ -107,16 +118,8 @@ fn execute(c: &mut Coordinator, fixture: &Fixture) -> Calls {
 
 /// `c.intent['stop_results'][name]` as (ok, reason).
 fn stop_result(c: &Coordinator, name: &str) -> Option<(bool, Option<String>)> {
-    let results = c.intent.as_ref()?.value("stop_results");
-    let result = results.get(name)?;
-    let ok = matches!(result.get("ok"), Some(Value::Bool(true)));
-    Some((
-        ok,
-        result
-            .get("reason")
-            .and_then(Value::as_str)
-            .map(str::to_owned),
-    ))
+    let result = c.intent.as_ref()?.stop_results.as_ref()?.get(name)?;
+    Some((result.ok, result.reason.clone()))
 }
 
 fn passed() -> Option<(bool, Option<String>)> {
@@ -172,16 +175,16 @@ fn ignored_app_and_failed_sync_do_not_block_final_init_request() {
     expire(&c, &clock);
     assert!(c.due());
     // Same request cannot extend grace; conflicting intent is rejected.
-    let deadline = c.intent.as_ref().unwrap().value("deadline_monotonic_ns");
+    let deadline = current(&c).value("deadline_monotonic_ns");
     assert_eq!(
         request(&mut c, "poweroff", "user", 30).value("deadline_monotonic_ns"),
         deadline
     );
-    assert!(c.request(&json("reboot"), &json("service"), 10).is_err());
+    assert!(c.request(Some("reboot"), Some("service"), 10).is_err());
     let calls = execute(&mut c, &fixture);
     assert_eq!(last(&calls), ["/bin/busybox", "poweroff"]);
     assert!(calls.iter().all(|(_, timeout)| *timeout <= 5.0));
-    assert!(c.intent.as_ref().unwrap().value("state").is_str("Failed"));
+    assert!(current(&c).value("state").is_str("Failed"));
     assert!(!c.due());
 }
 
@@ -248,7 +251,7 @@ fn acknowledged_shutdown_leaves_reborns_dark_frame_alone_until_the_end() {
     fixture.put("/sys/class/backlight/panel/bl_power", "0\n");
     let mut c = Coordinator::new(&fixture.root);
     let intent = request(&mut c, "poweroff", "user", 3);
-    c.ack(&intent.value("id"), 123, &json("Ready"))
+    c.ack(intent.value("id").as_str(), 123, Some("Ready"))
         .expect("ack");
     execute(&mut c, &fixture);
     assert_eq!(seen.lock().unwrap().as_deref(), Some("0\n"));
@@ -545,16 +548,16 @@ fn ack_requires_same_request_pid_start_time_and_boot() {
     let mut c = Coordinator::new(&fixture.root);
     let intent = request(&mut c, "reboot", "update", 10);
     let id = intent.value("id");
-    let ready = json("Ready");
-    assert!(c.ack(&json("old"), 123, &ready).is_err());
-    assert!(c.ack(&id, 124, &ready).is_err());
+    let (id, ready) = (id.as_str(), Some("Ready"));
+    assert!(c.ack(Some("old"), 123, ready).is_err());
+    assert!(c.ack(id, 124, ready).is_err());
     reborn(&fixture, 901);
-    assert!(c.ack(&id, 123, &ready).is_err());
+    assert!(c.ack(id, 123, ready).is_err());
     reborn(&fixture, 900);
-    c.ack(&id, 123, &ready).expect("ack");
+    c.ack(id, 123, ready).expect("ack");
     assert!(c.due());
     let resumed = Coordinator::new(&fixture.root);
-    assert_eq!(resumed.intent.as_ref().unwrap().value("id"), id);
+    assert_eq!(resumed.intent.as_ref().map(|i| i.id.as_str()), id);
     fixture.put("/proc/sys/kernel/random/boot_id", "two");
     assert!(Coordinator::new(&fixture.root).intent.is_none());
 }
@@ -587,7 +590,7 @@ fn a_resumed_intent_with_a_damaged_acknowledgement_waits_for_its_deadline() {
         assert_eq!(stop_result(&c, "backlight_early"), passed(), "{ack}");
         assert_eq!(last(&calls), ["/bin/busybox", "poweroff"]);
         // The damaged value stays as it was; only the steps' results are added.
-        assert_eq!(c.intent.as_ref().unwrap()["acknowledgement"], ack);
+        assert_eq!(current(&c)["acknowledgement"], ack);
     }
 }
 
