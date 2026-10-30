@@ -69,6 +69,16 @@ pub fn read(path: &Path) -> Option<String> {
     read_text(path, READ_LIMIT)
 }
 
+/// Whether a `/sys/class/block` entry's link names the eMMC controller: its device is then no SD card
+/// (sysfs class links name their device's canonical path). One readlink, where `resolve` takes one per
+/// path component; the SD inventory and the USB tick look at every mmcblk entry every pass.
+pub fn emmc_entry(entry: &Path) -> bool {
+    fs::read_link(entry).is_ok_and(|link| {
+        link.to_string_lossy()
+            .contains(&format!("/{}/", y2p_core::volume::EMMC_CONTROLLER))
+    })
+}
+
 /// The path with its symlinks followed as far as they exist, the rest kept as written (a removed
 /// device's sysfs path still names its controller).
 pub fn resolve(path: &Path) -> PathBuf {

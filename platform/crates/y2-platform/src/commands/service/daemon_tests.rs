@@ -292,6 +292,27 @@ fn sd_card(fixture: &Fixture, diskseq: &str, cid: &str) {
 }
 
 #[test]
+fn inventory_skips_emmc_entries_by_their_link_alone() {
+    let fixture = fixture();
+    sd_card(&fixture, "17", "0353445331364780");
+    let disk = "/sys/devices/platform/11230000.mmc/mmc_host/mmc0/mmc0:0001/block/mmcblk0";
+    fixture.put(&format!("{disk}/dev"), "179:0\n");
+    fixture.put(&format!("{disk}/diskseq"), "1\n");
+    let emmc = fixture.path("/sys/class/block/mmcblk0");
+    std::os::unix::fs::symlink(fixture.path(disk), &emmc).unwrap();
+    let card = fixture.path("/sys/class/block/mmcblk1");
+    assert!(crate::commands::storage::sys::emmc_entry(&emmc));
+    assert!(!crate::commands::storage::sys::emmc_entry(&card));
+    let names: Vec<Value> = inventory(&fixture.root)
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|entry| entry[0].clone())
+        .collect();
+    assert_eq!(names, [json!("mmcblk1"), json!("mmcblk1p1")]);
+}
+
+#[test]
 fn kernfs_reclaim_is_not_a_media_change() {
     let fixture = fixture();
     let cid = "0353445331364780";

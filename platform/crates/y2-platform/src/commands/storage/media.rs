@@ -6,8 +6,8 @@
 use super::observe::{media_identity, MEDIA_MOUNT};
 use super::records::{Claim, Properties, ReadOnly};
 use super::sys::{
-    device_instance, exists, get, is_symlink, lock_now, mkdir, name, object, read, release_sd,
-    resolve, to_object, Mount, Object,
+    device_instance, emmc_entry, exists, get, is_symlink, lock_now, mkdir, name, object, read,
+    release_sd, resolve, to_object, Mount, Object,
 };
 use crate::reply::{atomic_json, unlink_missing_ok, Failure};
 use serde::Serialize;
@@ -119,7 +119,7 @@ fn has_partitions(entry: &Path) -> bool {
 pub(crate) fn candidates(root: &Root) -> Vec<Card> {
     let mut result = Vec::new();
     for entry in root.glob("/sys/class/block/*") {
-        if !resolve(&entry).to_string_lossy().contains(CONTROLLER) {
+        if emmc_entry(&entry) || !resolve(&entry).to_string_lossy().contains(CONTROLLER) {
             continue;
         }
         if !entry.join("partition").is_file() && has_partitions(&entry) {
@@ -181,6 +181,9 @@ fn owned_mount(root: &Root, mounted: &Mount) -> bool {
 pub(crate) fn inventory(root: &Root) -> Value {
     let mut result = Vec::new();
     for entry in root.glob("/sys/class/block/mmcblk*") {
+        if emmc_entry(&entry) {
+            continue;
+        }
         let device = resolve(&entry);
         if device.to_string_lossy().contains(CONTROLLER) {
             let disk = if read(&entry.join("partition")).is_some() {
