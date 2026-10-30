@@ -934,6 +934,22 @@ fn a_healthy_card_is_read_only_between_writes() {
     assert!(write_window(card.root(), "anyone", 60, false).is_err());
 }
 
+/// The service daemon's USB tick asks for its window without waiting: while a check or a repair
+/// holds the card it gets the answer at once (and asks again next tick), never a 5 s stall.
+#[test]
+fn the_usb_tick_never_waits_for_the_card_lock() {
+    let card = Card::protected();
+    let held = y2p_core::lock::exclusive(&card.root().path("/run/y2/media.lock")).unwrap();
+    let started = std::time::Instant::now();
+    let answer = write_window_within(card.root(), "usb", 30, false, 0.0).unwrap();
+    // A test build retries a busy lock for 0.2 s (lock::settle); the CLI's wait is 5 s.
+    assert!(started.elapsed() < std::time::Duration::from_secs(2));
+    assert_eq!(answer["reason"], "media_operation_in_progress");
+    drop(held);
+    let answer = write_window_within(card.root(), "usb", 30, false, 0.0).unwrap();
+    assert_eq!(answer["state"], "Ready");
+}
+
 #[test]
 fn damaged_card_gets_no_window() {
     let card =

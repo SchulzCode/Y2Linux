@@ -34,7 +34,7 @@ pub use check::verify;
 use check::{fallback_filesystem, read_only_check, remember_admission, CHECK_SECONDS};
 pub use repair::repair;
 use window::{protect, PROTECT_OFF};
-pub use window::{window_expired, write_window};
+pub use window::{window_expired, write_window, write_window_within};
 
 /// Whether the SD card takes writes now or on a window: our mount of this boot, read-write or a
 /// protected card (never a damaged one or one being checked).

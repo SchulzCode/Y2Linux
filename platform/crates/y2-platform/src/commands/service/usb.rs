@@ -199,13 +199,18 @@ impl UsbService {
         let host = matches!(cable.as_deref(), Some("configured" | "suspended"));
         let now = self.root.clock().monotonic();
         if host && now - self.sd_window >= SD_WINDOW_RENEW {
-            let answer = media::write_window(&self.root, "usb", SD_WINDOW_SECONDS, false);
+            // Never wait for the card's lock here: a check or repair holding it is asked again next
+            // tick (the window is renewed well before it ends).
+            let answer =
+                media::write_window_within(&self.root, "usb", SD_WINDOW_SECONDS, false, 0.0);
             if answer.is_ok_and(|answer| answer.get("holders").is_some_and(py::truthy)) {
                 self.sd_window = now;
             }
         } else if !host
             && self.sd_window != 0.0
-            && media::write_window(&self.root, "usb", 60, true).is_ok()
+            && media::write_window_within(&self.root, "usb", 60, true, 0.0).is_ok_and(|answer| {
+                answer.get("reason") != Some(&json!("media_operation_in_progress"))
+            })
         {
             self.sd_window = 0.0;
         }

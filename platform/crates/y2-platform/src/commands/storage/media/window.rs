@@ -106,19 +106,32 @@ fn answer(state: &'static str, reason: Option<&'static str>, writable: bool) -> 
     })
 }
 
-/// Open (or end) the named holder's window on a protected card.
+/// Open (or end) the named holder's window on a protected card, waiting up to 5 s for a check or a
+/// repair that holds the card.
 pub fn write_window(
     root: &Root,
     holder: &str,
     seconds: i64,
     release: bool,
 ) -> Result<Object, Failure> {
+    write_window_within(root, holder, seconds, release, 5.0)
+}
+
+/// [`write_window`], waiting at most `wait` seconds for the card's lock (0: only if it is free now;
+/// the service daemon's USB tick, which must not stall Wi-Fi and the other ticks behind a check).
+pub fn write_window_within(
+    root: &Root,
+    holder: &str,
+    seconds: i64,
+    release: bool,
+    wait: f64,
+) -> Result<Object, Failure> {
     if !WRITE_HOLDERS.contains(&holder) {
         return Err(Failure::value("unknown_write_holder"));
     }
     let runtime = runtime(root)?;
     // A check or a repair holds the card; a short admission passes.
-    let Some(_lock) = lock_within(&runtime.join("media.lock"), 5.0)? else {
+    let Some(_lock) = lock_within(&runtime.join("media.lock"), wait)? else {
         return Ok(answer("Failed", Some("media_operation_in_progress"), false));
     };
     let (claim, mount) = sd_state(root);
