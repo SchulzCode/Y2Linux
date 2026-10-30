@@ -1,5 +1,16 @@
 # Current Y2Linux platform state
 
+## Since Beta 9.1 (test build 190, sequence 11510, 2026-10-31; not published)
+
+Code clean-up after an audit of both repositories, and the [coding standard](CODING-STANDARD.md) with its
+enforcement: the platform gate now runs `tools/development/code-quality.py`, a ratchet over the platform's and
+Reborn's production code (function and file length, `unsafe`, `unwrap`, panics, lint exceptions, raw JSON
+lookups, lines rustfmt cannot format, TODO markers) against `code-quality-baseline.json`. Changes: one command
+runner in y2p-core (`run_passing_fd` was a second copy), Reborn's screen dispatch once (the skin fallback had lost
+Music), `effect_inner` an exhaustive table (921 → 299 lines, the long cases in `runtime/effects/`), the Bluetooth
+thread a worker (`run`, `session`, `open`, seven steps, `command`), eight stale development scripts in
+`tools/archive/`. Behaviour unchanged except the Music fallback; every move checked token for token.
+
 ## Y2Linux 1.0 Beta 9.1, Baseline 189 — 2026-10-30 (latest, published)
 
 Release `1.0.0-beta.9.1`, tag `baseline-189`, Linux `2851b70d`, Reborn `e309b49`, sequence 11500. Housekeeping after

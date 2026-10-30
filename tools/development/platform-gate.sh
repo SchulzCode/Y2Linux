@@ -1,6 +1,7 @@
 #!/bin/sh
 # Every check a platform commit needs, in one run; prints "GATE OK" only when all pass:
-# cargo fmt, clippy (no warning), the armv7 type check, cargo test (no failure) and the byte comparison of
+# cargo fmt, clippy (no warning), the armv7 type check, the code-quality ratchet over the platform and
+# Y2Reborn (tools/development/code-quality.py), cargo test (no failure) and the byte comparison of
 # every golden case's stdout and files against a baseline (tools/development/platform-raw-goldens.py).
 #
 #   tools/development/platform-gate.sh                         # gate a change (semantic, the default)
@@ -36,6 +37,11 @@ out=$(cargo clippy --offline --locked --all-targets -q 2>&1 | grep -E '^(warning
 [ -z "$out" ] || { echo "$out" | head -30; echo "GATE FAIL clippy"; exit 1; }
 out=$(cargo check --offline --locked -q --target armv7-unknown-linux-gnueabihf 2>&1 | grep -E '^(warning|error)' -A6)
 [ -z "$out" ] || { echo "$out" | head -20; echo "GATE FAIL armv7"; exit 1; }
+if ! out=$(python3 "$project/tools/development/code-quality.py" 2>&1); then
+    echo "$out" | head -30
+    echo "GATE FAIL code quality (docs/CODING-STANDARD.md; an improvement is recorded with --update)"
+    exit 1
+fi
 log=$(cargo test --offline --locked -q 2>&1)
 if echo "$log" | grep -qE 'FAILED|^error'; then
     echo "$log" | grep -E 'FAILED|panicked|^error' -A6 | head -30

@@ -13,3 +13,7 @@ or flash anything and does not repeat unchanged source/ROM/recovery provenance.
 
 Preserve the existing configured Git author/committer identity and authenticated
 GitHub account. Do not modify identity settings or add model attribution.
+
+Write code to [the coding standard](docs/CODING-STANDARD.md) (platform and Y2Reborn alike): the platform gate
+(`tools/development/platform-gate.sh`) must print `GATE OK` before every commit, including its code-quality
+ratchet (`tools/development/code-quality.py`), which lets nothing get worse.

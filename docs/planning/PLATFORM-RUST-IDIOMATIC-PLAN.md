@@ -382,6 +382,12 @@ After Beta 9.0 (2026-10-30, owner: "do all of it, no extra testing from me for n
   tests in `tests/test_platform_update.py`, but cannot ship before a hardware round including recovery boots;
   owner decision pending.
 
+After Beta 9.1 (2026-10-31, test build 190): an audit of both repositories by measurement (function and file
+length, duplication, `unsafe`, raw JSON lookups, markers), then the fixes the owner chose — one command runner,
+one screen dispatch, `effect_inner` as a table, the Bluetooth thread as a worker, stale tools archived — and the
+[coding standard](../CODING-STANDARD.md) with a ratchet in the gate (`tools/development/code-quality.py`), so the
+measured figures can only improve from here.
+
 ## 4. Test builds
 
 | build | content |

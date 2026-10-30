@@ -1,6 +1,14 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.4 candidate (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-30, late night): BETA 9.1 (BASELINE 189) RELEASE.** Owner: "build it install it test it
+> **START HERE (2026-10-31): TEST BUILD 190 AND THE CODING STANDARD.** After an audit ("do we have clean Reborn, Y2Linux
+> and platform now?") the owner chose the quick fixes and the two big player functions (CURRENT_PLATFORM_STATE.md
+> "Since Beta 9.1"), then: "going forward I only want high grade production level code everywhere" — the
+> [coding standard](../CODING-STANDARD.md) and its ratchet (`tools/development/code-quality.py`, in the gate) are
+> the answer; read both before writing code. Test build 190 (seq 11510) built and installed on the owner's player,
+> not published. Next free label 191, sequence above 11510. Open: plugins/store design (owner question 2026-10-31),
+> the hardware round, the update core in Rust, 184 broken links in old docs (`tools/development/check-docs.py`).
+>
+> Previous entry: **START HERE (2026-10-30, late night): BETA 9.1 (BASELINE 189) RELEASE.** Owner: "build it install it test it
 > briefly and then publish it". Release `1.0.0-beta.9.1`, sequence 11500, label 189 ([Beta 9.1 report](../validation/Y2-LINUX-1.0-BETA-9.1.md)):
 > Reborn on the contract types, the file and function split, platform leftovers (PLATFORM-RUST-IDIOMATIC-PLAN.md
 > "After Beta 9.0"). Labels 187/188 were built only. Still open: the owner's hardware round; the update core in
