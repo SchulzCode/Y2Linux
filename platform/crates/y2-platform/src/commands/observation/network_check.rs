@@ -1,8 +1,12 @@
 //! `y2-platform network-check` (`network_check.check` under `workload.workload("NetworkTransfer")`):
 //! explicit owner-run IP and throughput qualification, never run during boot.
 // SPDX-License-Identifier: GPL-2.0-only
-use super::{snapshot::snapshot, util};
+use super::{
+    snapshot::{snapshot, Snapshot},
+    util::{self, ObservationRecord},
+};
 use crate::reply::{Failure, Outcome, Reply};
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
 use y2p_core::{command, Root};
 
@@ -46,8 +50,61 @@ fn ipv4(text: &str) -> Result<String, Failure> {
     Ok(text.to_owned())
 }
 
-fn outcome(answer: &command::Outcome) -> Value {
-    json!({"ok": answer.ok, "reason": answer.reason, "output": answer.output})
+/// A command's outcome in the record.
+#[derive(Serialize)]
+struct Answer {
+    ok: bool,
+    reason: Option<String>,
+    output: Option<String>,
+}
+
+impl From<&command::Outcome> for Answer {
+    fn from(answer: &command::Outcome) -> Answer {
+        Answer {
+            ok: answer.ok,
+            reason: answer.reason.clone(),
+            output: answer.output.clone(),
+        }
+    }
+}
+
+/// iperf3's measurement as it printed it (its JSON), or why there is none.
+#[derive(Serialize)]
+#[serde(untagged)]
+enum Measured {
+    Iperf(Value),
+    Missing(Answer),
+}
+
+/// What iperf3's JSON must hold to count: an `end.sum_sent` and no error.
+#[derive(Deserialize, Default)]
+#[serde(default)]
+struct IperfSummary {
+    #[serde(deserialize_with = "y2p_core::lenient::or_none")]
+    end: Option<IperfEnd>,
+    #[serde(deserialize_with = "y2p_core::lenient::text")]
+    error: Option<String>,
+}
+
+#[derive(Deserialize, Default)]
+#[serde(default)]
+struct IperfEnd {
+    #[serde(deserialize_with = "y2p_core::lenient::or_none")]
+    sum_sent: Option<serde_json::Map<String, Value>>,
+}
+
+/// `network-check`'s record: the snapshot before, the measurements, the snapshot after.
+#[derive(Serialize)]
+struct Check {
+    schema: &'static str,
+    record: ObservationRecord,
+    before: Snapshot,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    ping: Option<Answer>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    iperf3: Option<Measured>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    after: Option<Snapshot>,
 }
 
 /// `y2-platform network-check --peer A [--seconds N] [--throughput] [--interface wlan0|usb0]`.
@@ -63,26 +120,27 @@ pub fn run(root: &Root, peer: &str, seconds: i64, throughput: bool, interface: &
     parameters.insert("interface".into(), json!(interface));
     parameters.insert("seconds".into(), json!(seconds));
     parameters.insert("throughput_requested".into(), json!(throughput));
-    let mut record = util::record(root, "network-qualification", parameters);
+    let record = util::record(root, "network-qualification", parameters);
     let before = snapshot(root, &[], false, 0.0)?;
-    let mut result = Map::new();
-    result.insert("schema".into(), json!("org.y2linux.benchmark/v1"));
-    if interface == "wlan0" && before.wifi.state != "Online" {
-        record.result = json!("FAILED");
-        record.failure = json!("wifi_not_online");
-        result.insert("record".into(), json!(record));
-        before.printable()?;
-        result.insert("before".into(), Value::Object(before.into_map()?));
-        return Reply::sorted(&result, 1);
-    }
     before.printable()?;
-    result.insert("before".into(), Value::Object(before.into_map()?));
+    let mut check = Check {
+        schema: "org.y2linux.benchmark/v1",
+        record,
+        before,
+        ping: None,
+        iperf3: None,
+        after: None,
+    };
+    if interface == "wlan0" && check.before.wifi.state != "Online" {
+        check.record.result = json!("FAILED");
+        check.record.failure = json!("wifi_not_online");
+        return Reply::sorted(&check, 1);
+    }
     let ping = command::run(
         root,
         &["ping", "-I", interface, "-c", "5", "-W", "2", &peer],
         15.0,
     );
-    result.insert("ping".into(), outcome(&ping));
     let ok = if throughput {
         // Existing pinned iperf3 package, no new network protocol or package.
         let duration = seconds.to_string();
@@ -102,34 +160,44 @@ pub fn run(root: &Root, peer: &str, seconds: i64, throughput: bool, interface: &
             262_144,
             false,
         );
-        let measured = if answer.ok {
-            serde_json::from_str::<Value>(answer.output.as_deref().unwrap_or_default())
-                .unwrap_or(json!({"ok": false, "reason": "invalid_iperf_json"}))
-        } else {
-            outcome(&answer)
+        let printed = answer
+            .output
+            .as_deref()
+            .and_then(|text| serde_json::from_str::<Value>(text).ok());
+        let (measured, valid) = match (answer.ok, printed) {
+            (true, Some(printed)) => {
+                let summary: IperfSummary =
+                    serde_json::from_value(printed.clone()).unwrap_or_default();
+                let valid = summary.end.and_then(|end| end.sum_sent).is_some()
+                    && summary.error.as_deref().is_none_or(str::is_empty);
+                (Measured::Iperf(printed), valid)
+            }
+            (true, None) => (
+                Measured::Missing(Answer {
+                    ok: false,
+                    reason: Some("invalid_iperf_json".into()),
+                    output: None,
+                }),
+                false,
+            ),
+            (false, _) => (Measured::Missing(Answer::from(&answer)), false),
         };
-        let valid = measured.as_object().is_some_and(|m| {
-            m.get("end")
-                .and_then(Value::as_object)
-                .is_some_and(|end| end.get("sum_sent").is_some_and(Value::is_object))
-                && !m.get("error").is_some_and(y2p_core::py::truthy)
-        });
-        result.insert("iperf3".into(), measured);
+        check.iperf3 = Some(measured);
         answer.ok && valid && ping.ok
     } else {
         ping.ok
     };
-    record.result = json!(if ok { "OK" } else { "FAILED" });
-    record.failure = if ok {
+    check.ping = Some(Answer::from(&ping));
+    check.record.result = json!(if ok { "OK" } else { "FAILED" });
+    check.record.failure = if ok {
         Value::Null
     } else {
         json!("network_test_failed_see_measurements")
     };
-    result.insert("record".into(), json!(record));
     let after = snapshot(root, &[], false, 0.0)?;
     after.printable()?;
-    result.insert("after".into(), Value::Object(after.into_map()?));
-    Reply::sorted(&result, u8::from(!ok))
+    check.after = Some(after);
+    Reply::sorted(&check, u8::from(!ok))
 }
 
 #[cfg(test)]

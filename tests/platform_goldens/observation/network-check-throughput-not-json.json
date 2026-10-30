@@ -1265,6 +1265,7 @@
   },
   "iperf3": {
    "ok": false,
+   "output": null,
    "reason": "invalid_iperf_json"
   },
   "ping": {
