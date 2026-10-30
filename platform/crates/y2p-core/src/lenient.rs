@@ -59,6 +59,14 @@ pub fn present<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Option<Valu
     Value::deserialize(deserializer).map(Some)
 }
 
+/// A field that is there, read as `T` (whose own reading is lenient: a `BootId`, say); with
+/// `#[serde(default)]` a missing one is none.
+pub fn there<'de, D: Deserializer<'de>, T: Deserialize<'de>>(
+    deserializer: D,
+) -> Result<Option<T>, D::Error> {
+    T::deserialize(deserializer).map(Some)
+}
+
 /// A part of the record as `T`, its default where it has another shape.
 pub fn or_default<'de, D: Deserializer<'de>, T: DeserializeOwned + Default>(
     deserializer: D,

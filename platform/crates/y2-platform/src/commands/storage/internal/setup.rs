@@ -4,8 +4,7 @@
 use super::super::observe::setup_status;
 use super::super::records::Properties;
 use super::super::sys::{
-    exists, get, get_eq, is_symlink, mkdir, mounts as all_mounts, name, release_view, statvfs,
-    to_object, Mount, Object,
+    exists, is_symlink, mkdir, mounts as all_mounts, name, release_view, statvfs, Mount,
 };
 use super::gate::automatic_blocked;
 use super::provision::{copy_verified, makedirs, migrate, sha256, sync, tree};
@@ -14,19 +13,14 @@ use super::{
 };
 use crate::reply::At;
 use crate::reply::{atomic_json, atomic_json_mode, write_text, Failure};
-use serde::Serialize;
-use serde_json::{json, Value};
+use serde::{Deserialize, Serialize};
+use serde_json::{Map, Value};
 use std::{
     fs::{self, OpenOptions},
     os::unix::fs::OpenOptionsExt,
     path::{Path, PathBuf},
 };
-use y2p_core::{
-    command,
-    py::{truthy, PyValue},
-    storage_media::fat_benign_only,
-    Root,
-};
+use y2p_core::{command, lenient, storage_media::fat_benign_only, Root};
 
 const SETUP_FOLDER: &str = "/data/system"; // Y2DATA: survives formatting p8
 pub(super) const SETUP: &str = "/data/system/internal-media-setup.json"; // the resume record
@@ -89,7 +83,7 @@ pub(super) fn decide(kept: &[(String, u64)], data_free: u64) -> u8 {
 
 /// The setup's state as its note publishes it (`internal-media-setup.json`, the answer).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
-enum SetupState {
+pub enum SetupState {
     /// p8 is not the stock FAT: nothing to set up.
     NotNeeded,
     /// Blocked for now (battery, an update); a later start tries again.
@@ -133,27 +127,27 @@ impl SetupPhase {
 }
 
 /// internal-media-setup.json in /run: this boot's setup state, for Reborn (counts only, never file
-/// names).
-#[derive(Serialize)]
-struct Note {
+/// names); also what `setup` prints.
+#[derive(Serialize, Debug)]
+pub struct Note {
     schema: u8,
-    state: SetupState,
+    pub state: SetupState,
     reason: Option<String>,
     boot_id: Option<String>,
-    /// What p8 holds when it is not the stock FAT.
+    /// What p8 holds when it is not the stock FAT (`null`: blkid named no type).
     #[serde(skip_serializing_if = "Option::is_none")]
-    filesystem: Option<Value>,
+    filesystem: Option<Option<String>>,
     /// What is kept (Running) or waits for the listener (Waiting).
     #[serde(skip_serializing_if = "Option::is_none")]
-    files: Option<Value>,
+    files: Option<u64>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    bytes: Option<Value>,
-    /// The old storage's serial the listener confirms with (Waiting).
+    bytes: Option<u64>,
+    /// The old storage's serial the listener confirms with (Waiting; `null`: it has none).
     #[serde(skip_serializing_if = "Option::is_none")]
-    serial: Option<Value>,
+    serial: Option<Option<String>>,
     /// The files moved to Old Player Files (Done).
     #[serde(skip_serializing_if = "Option::is_none")]
-    kept: Option<Value>,
+    kept: Option<u64>,
 }
 
 impl Note {
@@ -173,14 +167,14 @@ impl Note {
 }
 
 /// Publish the note (others read it: 0644); it is also the answer.
-fn publish(root: &Root, note: Note) -> Result<Object, Failure> {
+fn publish(root: &Root, note: Note) -> Result<Note, Failure> {
     mkdir(&root.path("/run/y2"), 0o700)?;
     atomic_json_mode(&root.path(STATUS), &note, false, 0o644)?;
-    Ok(to_object(&note))
+    Ok(note)
 }
 
 /// A note with no counts.
-fn note(root: &Root, state: SetupState, reason: Option<&str>) -> Result<Object, Failure> {
+fn note(root: &Root, state: SetupState, reason: Option<&str>) -> Result<Note, Failure> {
     publish(root, Note::new(root, state, reason))
 }
 
@@ -264,7 +258,7 @@ fn unmount_old(root: &Root) -> bool {
 }
 
 /// The resume record, durable: the file and then its folder are synced before a phase starts.
-pub(super) fn save(root: &Root, value: &Object) -> Result<(), Failure> {
+pub(super) fn save(root: &Root, value: &impl Serialize) -> Result<(), Failure> {
     let folder = root.path(SETUP_FOLDER);
     mkdir(&folder, 0o700)?;
     atomic_json(&root.path(SETUP), value, true)?;
@@ -279,64 +273,115 @@ pub(super) fn save(root: &Root, value: &Object) -> Result<(), Failure> {
 /// The setup's resume record on Y2DATA (it survives formatting p8): the partition, the old
 /// storage's serial, the phase reached and what is kept. A phase moves on in place: fields this
 /// version does not know stay as they are.
-struct Resume(Object);
+#[derive(Serialize, Deserialize, Default)]
+#[serde(default)]
+struct Resume {
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "lenient::integer"
+    )]
+    schema: Option<i64>,
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "lenient::text"
+    )]
+    device: Option<String>,
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "lenient::text"
+    )]
+    start: Option<String>,
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "lenient::text"
+    )]
+    size: Option<String>,
+    /// The old storage's serial (`Some(None)`: it had none); none when the record lacks it.
+    #[serde(skip_serializing_if = "Option::is_none", deserialize_with = "serial")]
+    serial: Option<Option<String>>,
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "lenient::text"
+    )]
+    phase: Option<String>,
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "lenient::count"
+    )]
+    files: Option<u64>,
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "lenient::count"
+    )]
+    bytes: Option<u64>,
+    #[serde(flatten)]
+    other: Map<String, Value>,
+}
+
+/// A serial as written: a text, or `null` for none (anything else reads as missing).
+fn serial<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Option<Option<String>>, D::Error> {
+    Ok(match Value::deserialize(deserializer)? {
+        Value::Null => Some(None),
+        Value::String(serial) => Some(Some(serial)),
+        _ => None,
+    })
+}
 
 impl Resume {
-    fn new(device: &str, serial: Value, kept: &[(String, u64)]) -> Resume {
+    fn new(device: &str, serial: Option<String>, kept: &[(String, u64)]) -> Resume {
         let total: u64 = kept.iter().map(|(_, size)| size).sum();
         let phase = if kept.is_empty() {
             SetupPhase::Formatting
         } else {
             SetupPhase::Staging
         };
-        let fields = [
-            ("schema", json!(1)),
-            ("device", json!(device)),
-            ("start", json!(START)),
-            ("size", json!(SIZE)),
-            ("serial", serial),
-            ("phase", json!(phase.as_str())),
-            ("files", json!(kept.len())),
-            ("bytes", json!(total)),
-        ];
-        Resume(fields.into_iter().map(|(k, v)| (k.to_owned(), v)).collect())
+        Resume {
+            schema: Some(1),
+            device: Some(device.into()),
+            start: Some(START.into()),
+            size: Some(SIZE.into()),
+            serial: Some(serial),
+            phase: Some(phase.as_str().into()),
+            files: Some(kept.len() as u64),
+            bytes: Some(total),
+            other: Map::new(),
+        }
     }
 
     /// Made for this partition.
     fn names(&self, device: &str) -> bool {
-        get_eq(&self.0, "device", &json!(device))
-            && get_eq(&self.0, "start", &json!(START))
-            && get_eq(&self.0, "size", &json!(SIZE))
+        self.device.as_deref() == Some(device)
+            && self.start.as_deref() == Some(START)
+            && self.size.as_deref() == Some(SIZE)
     }
 
     /// The phase reached; a record without one (or with one no version writes) stops the setup
     /// (`setup_record_phase`).
     fn phase(&self) -> Option<SetupPhase> {
-        get(&self.0, "phase").as_str().and_then(SetupPhase::named)
+        self.phase.as_deref().and_then(SetupPhase::named)
     }
 
-    /// The old storage's serial; without it the record cannot tell the old storage is unchanged
+    /// Whether the old storage is still the FAT the record was made for (its serial as blkid
+    /// prints it); `None` when the record has no serial and cannot tell
     /// (`setup_record_incomplete`).
-    fn serial(&self) -> Option<&Value> {
-        self.0.get("serial")
-    }
-
-    /// A count as recorded (0 when missing).
-    fn count(&self, name: &str) -> Value {
-        self.0.get(name).cloned().unwrap_or(json!(0))
+    fn same_storage(&self, props: &Properties) -> Option<bool> {
+        let serial = self.serial.as_ref()?;
+        Some(props.get("UUID") == serial.as_deref())
     }
 
     /// The next phase, saved before its work starts.
     fn advance(&mut self, root: &Root, phase: SetupPhase) -> Result<(), Failure> {
-        self.0.insert("phase".into(), json!(phase.as_str()));
-        save(root, &self.0)
+        self.phase = Some(phase.as_str().into());
+        save(root, self)
     }
 }
 
 /// Turn the stock FAT into Y2Media (see the module note). `automatic` at start decides by itself;
 /// otherwise the listener confirmed with the old storage's serial (erases what is too much to keep).
 /// Resumes an interrupted run from the Y2DATA record.
-pub fn setup(root: &Root, automatic: bool, confirm_serial: &Value) -> Result<Object, Failure> {
+pub fn setup(root: &Root, automatic: bool, confirm_serial: Option<&str>) -> Result<Note, Failure> {
     let _lock = lock_runtime(root)?;
     setup_locked(root, automatic, confirm_serial).or_else(|error| {
         let reason: String = error.message().chars().take(100).collect();
@@ -348,7 +393,11 @@ pub fn setup(root: &Root, automatic: bool, confirm_serial: &Value) -> Result<Obj
     })
 }
 
-fn setup_locked(root: &Root, automatic: bool, confirm_serial: &Value) -> Result<Object, Failure> {
+fn setup_locked(
+    root: &Root,
+    automatic: bool,
+    confirm_serial: Option<&str>,
+) -> Result<Note, Failure> {
     let Some(entry) = partition(root) else {
         return note(
             root,
@@ -364,7 +413,7 @@ fn setup_locked(root: &Root, automatic: bool, confirm_serial: &Value) -> Result<
     }
     let mut saved = match stored {
         Some(Value::Object(map)) if !map.is_empty() => {
-            let saved = Resume(map);
+            let saved: Resume = lenient::read(map);
             if !saved.names(&device) {
                 return note(root, SetupState::Failed, Some("setup_record_mismatch"));
             }
@@ -381,8 +430,8 @@ fn setup_locked(root: &Root, automatic: bool, confirm_serial: &Value) -> Result<
         },
     };
     let running = Note {
-        files: Some(saved.count("files")),
-        bytes: Some(saved.count("bytes")),
+        files: Some(saved.files.unwrap_or(0)),
+        bytes: Some(saved.bytes.unwrap_or(0)),
         ..Note::new(root, SetupState::Running, None)
     };
     publish(root, running)?;
@@ -392,10 +441,10 @@ fn setup_locked(root: &Root, automatic: bool, confirm_serial: &Value) -> Result<
         if props.get("TYPE") != Some("vfat") {
             return note(root, SetupState::Failed, Some("old_storage_changed"));
         }
-        let Some(serial) = saved.serial() else {
+        let Some(same) = saved.same_storage(&props) else {
             return note(root, SetupState::Failed, Some("setup_record_incomplete"));
         };
-        if !props.value("UUID").py_eq(serial) {
+        if !same {
             return note(root, SetupState::Failed, Some("old_storage_changed"));
         }
         if let Some(problem) = mount_old(root, &device)? {
@@ -427,10 +476,10 @@ fn setup_locked(root: &Root, automatic: bool, confirm_serial: &Value) -> Result<
         if !valid(&props) {
             // A FAT there must be the recorded one.
             if props.get("TYPE") == Some("vfat") {
-                let Some(serial) = saved.serial() else {
+                let Some(same) = saved.same_storage(&props) else {
                     return note(root, SetupState::Failed, Some("setup_record_incomplete"));
                 };
-                if !props.value("UUID").py_eq(serial) {
+                if !same {
                     return note(root, SetupState::Failed, Some("old_storage_changed"));
                 }
             }
@@ -475,7 +524,7 @@ fn setup_locked(root: &Root, automatic: bool, confirm_serial: &Value) -> Result<
         fs::remove_file(&path).at(&path)?;
         splash(root, 100);
         let done = Note {
-            kept: Some(saved.count("files")),
+            kept: Some(saved.files.unwrap_or(0)),
             ..Note::new(root, SetupState::Done, None)
         };
         return publish(root, done);
@@ -486,14 +535,14 @@ fn setup_locked(root: &Root, automatic: bool, confirm_serial: &Value) -> Result<
 /// What a setup without a resume record does: run with the record it saved, or answer at once.
 enum Start {
     Run(Resume),
-    Answer(Object),
+    Answer(Note),
 }
 
 /// A setup without a resume record decides from a read-only look at the old storage.
 fn begin_setup(
     root: &Root,
     automatic: bool,
-    confirm_serial: &Value,
+    confirm_serial: Option<&str>,
     device: &str,
     props: &Properties,
 ) -> Result<Start, Failure> {
@@ -502,17 +551,20 @@ fn begin_setup(
     }
     if props.get("TYPE") != Some("vfat") {
         let other = Note {
-            filesystem: Some(props.value("TYPE")),
+            filesystem: Some(props.text("TYPE")),
             ..Note::new(root, SetupState::Unavailable, Some("not_stock_storage"))
         };
         return publish(root, other).map(Start::Answer);
     }
-    let serial = props.value("UUID");
+    let serial = props.text("UUID");
     if automatic {
         if let Some(blocked) = automatic_blocked(root) {
             return note(root, SetupState::Pending, Some(blocked)).map(Start::Answer);
         }
-    } else if !truthy(confirm_serial) || !confirm_serial.py_eq(&serial) {
+    } else if confirm_serial
+        .filter(|c| !c.is_empty())
+        .is_none_or(|c| serial.as_deref() != Some(c))
+    {
         let reason = "confirmation_does_not_match_stock_filesystem";
         return note(root, SetupState::Failed, Some(reason)).map(Start::Answer);
     }
@@ -541,8 +593,8 @@ fn begin_setup(
             // Nothing changes; the old files stay readable (Old Storage) until the listener decides.
             let total: u64 = kept.iter().map(|(_, size)| size).sum();
             let waiting = Note {
-                files: Some(json!(kept.len())),
-                bytes: Some(json!(total)),
+                files: Some(kept.len() as u64),
+                bytes: Some(total),
                 serial: Some(serial),
                 ..Note::new(
                     root,
@@ -556,7 +608,7 @@ fn begin_setup(
         kept.clear();
     }
     let fresh = Resume::new(device, serial, &kept);
-    save(root, &fresh.0)?;
+    save(root, &fresh)?;
     Ok(Start::Run(fresh))
 }
 
@@ -579,14 +631,10 @@ fn remove_empty_below(top: &Path) {
     }
 }
 
-/// `setup --confirm-shown`: the serial this boot reported as waiting, else `null`.
-pub fn shown_serial(root: &Root) -> Value {
+/// `setup --confirm-shown`: the serial this boot reported as waiting, else none.
+pub fn shown_serial(root: &Root) -> Option<String> {
     let shown = setup_status(root);
-    if get(&shown, "state").as_str() == Some("Waiting") {
-        get(&shown, "serial").clone()
-    } else {
-        Value::Null
-    }
+    shown.waiting().then_some(shown.serial).flatten()
 }
 
 #[cfg(test)]

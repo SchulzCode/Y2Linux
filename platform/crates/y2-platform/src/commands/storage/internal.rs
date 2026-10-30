@@ -14,12 +14,9 @@
 //! is recorded on Y2DATA and resumes after a power loss.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::records::Properties;
-use super::sys::{
-    device_instance, lock_now, mkdir, name, object, read, resolve, to_object, Mount, Object,
-};
+use super::sys::{device_instance, lock_now, mkdir, name, read, resolve, Mount};
 use crate::reply::{atomic_json, Failure};
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use std::{
     fs::File,
     path::{Path, PathBuf},
@@ -35,10 +32,10 @@ mod gate;
 mod provision;
 mod setup;
 
-pub use provision::provision;
+pub use provision::{provision, Migration};
 #[cfg(test)] // the boot order test reads the start screen's phase
 pub(crate) use setup::splash;
-pub use setup::{setup, shown_serial};
+pub use setup::{setup, shown_serial, SetupState};
 
 const PATH: &str = "/media/internal";
 const MUSIC: &str = "/media/internal/music";
@@ -124,22 +121,25 @@ fn valid(props: &Properties) -> bool {
 /// internal-media.json: Y2Media's state this boot (`atomic_json` keeps it compact: sftp-server
 /// greps it for `"state":"Ready"`), also what the commands print.
 #[derive(Clone, Debug, Serialize)]
-struct Marker {
+pub struct Marker {
     schema: u8,
-    state: &'static str,
+    pub state: &'static str,
     reason: Option<String>,
     path: &'static str,
     boot_id: Option<String>,
     /// What blkid found where Y2Media should be (`null` for what it did not print).
     #[serde(skip_serializing_if = "Option::is_none")]
-    filesystem: Option<Value>,
+    filesystem: Option<Option<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    label: Option<Value>,
+    label: Option<Option<String>>,
     /// The stock FAT's serial a provision was not confirmed with.
     #[serde(skip_serializing_if = "Option::is_none")]
-    serial: Option<Value>,
+    serial: Option<Option<String>>,
     #[serde(flatten)]
     mounted: Option<Mounted>,
+    /// What `provision` moved from the old /data/music library (only in its answer).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    migration: Option<Migration>,
 }
 
 /// The mount a marker names.
@@ -176,6 +176,7 @@ impl Marker {
             label: None,
             serial: None,
             mounted: None,
+            migration: None,
         }
     }
 
@@ -188,10 +189,6 @@ impl Marker {
 
     fn ready(&self) -> bool {
         self.state == "Ready"
-    }
-
-    fn object(&self) -> Object {
-        to_object(self)
     }
 }
 
@@ -208,25 +205,78 @@ fn lock_runtime(root: &Root) -> Result<File, Failure> {
     lock_now(&runtime.join("internal-media.lock"))
 }
 
-/// What a reader of internal-media.json checks: the claim's state and the mount it names, with the
+/// internal-media.json as a reader checks it: the claim's state and the mount it names, with the
 /// types the claim is written in: texts for state, device and boot id, an integer for the mount id. A
-/// field of another type matches nothing.
-#[derive(Deserialize, Default)]
+/// field of another type matches nothing (and is not shown).
+#[derive(Serialize, Deserialize, Default)]
 #[serde(default)]
 pub struct Claim {
-    #[serde(deserialize_with = "lenient::text")]
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "lenient::integer"
+    )]
+    schema: Option<i64>,
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "lenient::text"
+    )]
     state: Option<String>,
-    boot_id: BootId,
-    #[serde(deserialize_with = "lenient::integer")]
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "lenient::text"
+    )]
+    reason: Option<String>,
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "lenient::text"
+    )]
+    path: Option<String>,
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "lenient::there"
+    )]
+    boot_id: Option<BootId>,
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "lenient::text"
+    )]
+    filesystem: Option<String>,
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "lenient::text"
+    )]
+    label: Option<String>,
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "lenient::text"
+    )]
+    serial: Option<String>,
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "lenient::integer"
+    )]
     mount_id: Option<i64>,
-    #[serde(deserialize_with = "lenient::text")]
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "lenient::text"
+    )]
     device_id: Option<String>,
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "lenient::text"
+    )]
+    uuid: Option<String>,
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "lenient::text"
+    )]
+    source_instance: Option<String>,
 }
 
 impl Claim {
     /// The claim at internal-media.json (all absent when it is missing or no object).
     pub fn read(root: &Root) -> Claim {
-        lenient::read(object(root, MARKER))
+        lenient::read(root.json_object(MARKER))
     }
 
     /// Whether Y2Media is ready: recorded Ready this boot, and the claim's mount is still the only,
@@ -237,7 +287,11 @@ impl Claim {
             return false;
         };
         self.state.as_deref() == Some("Ready")
-            && self.boot_id.is(root.boot_id().as_deref())
+            && self
+                .boot_id
+                .as_ref()
+                .unwrap_or(&BootId::Null)
+                .is(root.boot_id().as_deref())
             && self.mount_id == Some(mount.mount_id)
             && self.device_id.as_deref() == Some(mount.device_id.as_str())
     }
@@ -248,9 +302,9 @@ pub fn ready(root: &Root) -> bool {
     Claim::read(root).ready(root)
 }
 
-pub fn mount(root: &Root) -> Result<Object, Failure> {
+pub fn mount(root: &Root) -> Result<Marker, Failure> {
     let _lock = lock_runtime(root)?;
-    Ok(mount_locked(root)?.object())
+    mount_locked(root)
 }
 
 fn mount_locked(root: &Root) -> Result<Marker, Failure> {
@@ -261,8 +315,8 @@ fn mount_locked(root: &Root) -> Result<Marker, Failure> {
     let props = probe(root, &entry);
     if !valid(&props) {
         let marker = Marker {
-            filesystem: Some(props.value("TYPE")),
-            label: Some(props.value("LABEL")),
+            filesystem: Some(props.text("TYPE")),
+            label: Some(props.text("LABEL")),
             ..Marker::new(root, "Unavailable", Some("filesystem_identity_not_y2media"))
         };
         return record(root, marker);
@@ -305,7 +359,7 @@ fn mount_locked(root: &Root) -> Result<Marker, Failure> {
     }
 }
 
-pub fn unmount(root: &Root) -> Result<Object, Failure> {
+pub fn unmount(root: &Root) -> Result<Marker, Failure> {
     let _lock = lock_runtime(root)?;
     let marker = if mounts_at(root, PATH).is_empty() {
         Marker::new(root, "Unavailable", Some("not_mounted"))
@@ -318,39 +372,41 @@ pub fn unmount(root: &Root) -> Result<Object, Failure> {
             Marker::new(root, "Unavailable", Some("unmounted"))
         }
     };
-    Ok(record(root, marker)?.object())
+    record(root, marker)
 }
 
 /// What `internal-media status` prints.
 #[derive(Serialize)]
-struct Status {
+pub struct Status {
     schema: u8,
     path: &'static str,
     partition: Option<String>,
-    filesystem: Value,
-    label: Value,
-    uuid: Value,
+    filesystem: Option<String>,
+    label: Option<String>,
+    uuid: Option<String>,
     identity_valid: bool,
     mounted: bool,
     ready: bool,
-    marker: Object,
+    /// internal-media.json as it reads.
+    marker: Claim,
 }
 
-pub fn status(root: &Root) -> Object {
+pub fn status(root: &Root) -> Status {
     let entry = partition(root);
     let props = entry.as_ref().map(|e| probe(root, e)).unwrap_or_default();
-    to_object(&Status {
+    let marker = Claim::read(root);
+    Status {
         schema: 1,
         path: PATH,
         partition: entry.as_deref().map(name),
-        filesystem: props.value("TYPE"),
-        label: props.value("LABEL"),
-        uuid: props.value("UUID"),
+        filesystem: props.text("TYPE"),
+        label: props.text("LABEL"),
+        uuid: props.text("UUID"),
         identity_valid: valid(&props),
         mounted: !mounts_at(root, PATH).is_empty(),
-        ready: ready(root),
-        marker: object(root, MARKER),
-    })
+        ready: marker.ready(root),
+        marker,
+    }
 }
 
 #[cfg(test)]

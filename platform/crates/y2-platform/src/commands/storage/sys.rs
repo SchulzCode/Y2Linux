@@ -1,4 +1,4 @@
-//! What the storage commands share beyond their records: reading parsed records, paths below the
+//! What the storage commands share beyond their records: sysfs numbers, paths below the
 //! root (symlinks resolved as far as they exist), block device instances, the observation record of
 //! `space`, the media locks, the hand-off with the USB responder (its state, releasing the SD card
 //! or a view before an eject) and the `Maintenance` workload lease.
@@ -6,7 +6,7 @@
 use crate::reply::At;
 use crate::reply::{atomic_json, mkdir_parents, Failure};
 use serde::{Deserialize, Serialize};
-use serde_json::{Map, Value};
+use serde_json::Value;
 use std::{
     fs::{self, File},
     io,
@@ -25,36 +25,9 @@ use y2p_core::{
     Root,
 };
 
-pub type Object = Map<String, Value>;
-
-// ---- parsed records ----------------------------------------------------------------------------
-
-/// A field of a record, `null` when it is missing.
-pub fn get<'a>(map: &'a Object, key: &str) -> &'a Value {
-    map.get(key).unwrap_or(&Value::Null)
-}
-
-/// A field equals `value` (JSON equality: a number of another kind or a bool is another value).
-pub fn get_eq(map: &Object, key: &str, value: &Value) -> bool {
-    get(map, key) == value
-}
-
-/// A record struct as the JSON object it serializes to (every struct of this group does).
-pub fn to_object<T: serde::Serialize>(value: &T) -> Object {
-    match serde_json::to_value(value) {
-        Ok(Value::Object(map)) => map,
-        _ => Object::new(),
-    }
-}
-
 /// Only ASCII digits, at least one (sysfs numbers).
 pub fn isdigit(text: &str) -> bool {
     !text.is_empty() && text.chars().all(|c| c.is_ascii_digit())
-}
-
-/// The JSON object at a device path; empty when it is missing, unreadable or no object.
-pub fn object(root: &Root, name: &str) -> Object {
-    root.json_object(name)
 }
 
 // ---- paths -------------------------------------------------------------------------------------

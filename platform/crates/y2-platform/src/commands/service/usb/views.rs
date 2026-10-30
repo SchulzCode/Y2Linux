@@ -115,10 +115,7 @@ pub(super) fn media_views(root: &Root) -> Vec<View> {
             "/dev/{}",
             entry.file_name().unwrap_or_default().to_string_lossy()
         );
-        if old.source == device
-            && old.filesystem == "vfat"
-            && setup_status(root).get("state").and_then(Value::as_str) == Some("Waiting")
-        {
+        if old.source == device && old.filesystem == "vfat" && setup_status(root).waiting() {
             result.push(view(old, OLD, None, "vfat", "ro"));
         }
     }

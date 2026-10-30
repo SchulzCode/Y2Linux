@@ -288,7 +288,7 @@ pub struct Storage {
     pub volumes: Vec<Volume>,
     blocks: Vec<Block>,
     controllers: Vec<Controller>,
-    internal_setup: Map<String, Value>,
+    internal_setup: crate::commands::storage::observe::SetupStatus,
     media: Media,
     bus_parameters: Option<String>,
     sd_bus_parameters: Option<String>,

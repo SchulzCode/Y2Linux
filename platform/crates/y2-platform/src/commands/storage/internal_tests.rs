@@ -6,7 +6,7 @@ use super::{provision::*, setup::*, *};
 use crate::commands::observation::snapshot;
 use crate::commands::storage::{observe::setup_status, sys::statvfs};
 use crate::testing::{Fixture, Outcome};
-use serde_json::json;
+use serde_json::{json, Value};
 use std::{
     cell::Cell,
     fs::{self, FileTimes},
@@ -223,15 +223,15 @@ impl Player {
     }
 
     fn mount(&self) -> Value {
-        Value::Object(mount(self.root()).unwrap())
+        json!(mount(self.root()).unwrap())
     }
 
     fn unmount(&self) -> Value {
-        Value::Object(unmount(self.root()).unwrap())
+        json!(unmount(self.root()).unwrap())
     }
 
     fn status(&self) -> Value {
-        Value::Object(status(self.root()))
+        json!(status(self.root()))
     }
 
     fn ready(&self) -> bool {
@@ -239,11 +239,11 @@ impl Player {
     }
 
     fn provision(&self, confirm: Option<&str>) -> Value {
-        Value::Object(provision(self.root(), &json!(confirm), true).unwrap())
+        json!(provision(self.root(), confirm, true).unwrap())
     }
 
     fn set_up(&self, automatic: bool, confirm: Option<&str>) -> Value {
-        Value::Object(setup(self.root(), automatic, &json!(confirm)).unwrap())
+        json!(setup(self.root(), automatic, confirm).unwrap())
     }
 
     /// The argv of every command since the last `clear`.
@@ -532,7 +532,7 @@ fn a_mounted_foreign_filesystem_is_never_replaced() {
 fn provision_formats_the_confirmed_stock_fat_mounts_and_creates_the_music_folder() {
     let player = Player::new();
     player.fixture.mkdir("/media/internal");
-    let result = Value::Object(provision(player.root(), &json!(STOCK_SERIAL), false).unwrap());
+    let result = json!(provision(player.root(), Some(STOCK_SERIAL), false).unwrap());
     assert_eq!(pair(&result, "state", "reason"), json!(["Ready", null]));
     let mkfs = player.first("mkfs.ext4");
     let after = |flag: &str| mkfs[mkfs.iter().position(|a| a == flag).unwrap() + 1].clone();
@@ -600,8 +600,8 @@ fn provision_moves_the_library_with_hashes_and_removes_only_verified_originals()
 fn any_migration_problem_keeps_every_original() {
     let player = Player::new();
     player.music(&[("a.flac", &[b'A'; 100]), ("b.flac", &[b'B'; 100])]);
-    let confirm = json!(STOCK_SERIAL);
-    let result = Value::Object(provision_with(player.root(), &confirm, true, mismatching).unwrap());
+    let result =
+        json!(provision_with(player.root(), Some(STOCK_SERIAL), true, mismatching).unwrap());
     assert_eq!(result["state"], "Degraded");
     assert!(result["reason"]
         .as_str()
@@ -788,8 +788,8 @@ fn a_few_files_are_kept_in_old_player_files_with_hashes_and_times() {
     assert!(!player.fixture.exists(SETUP));
     assert!(player.index("fsck.fat") < player.index("mkfs.ext4"));
     assert_eq!(
-        Value::Object(setup_status(player.root())),
-        json!({"state": "Done", "reason": null, "kept": 2})
+        json!(setup_status(player.root())),
+        json!({"state": "Done", "kept": 2})
     );
 }
 

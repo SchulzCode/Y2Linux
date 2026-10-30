@@ -16,9 +16,7 @@ pub(crate) mod sys;
 
 use super::Command;
 use crate::reply::{Outcome, Reply};
-use serde_json::{json, Value};
 use std::collections::BTreeMap;
-use sys::get;
 
 /// The parsed tokens of one subcommand: positionals, options with their value, flags.
 struct Parsed<'a> {
@@ -120,35 +118,38 @@ pub fn route(args: &[&str]) -> Option<Command> {
             let confirm = parsed
                 .options
                 .get("--confirm-serial")
-                .map_or(Value::Null, |s| json!(s));
+                .map(|s| s.to_string());
             let (automatic, shown, migrate) = (
                 parsed.flag("--automatic"),
                 parsed.flag("--confirm-shown"),
                 !parsed.flag("--no-migrate"),
             );
             Some(Box::new(move |root| {
-                let result = match *action {
-                    "status" => internal::status(root),
-                    "provision" => internal::provision(root, &confirm, migrate)?,
+                let marker = |marker: internal::Marker, failed: fn(&str) -> bool| {
+                    Reply::sorted(&marker, u8::from(failed(marker.state)))
+                };
+                match *action {
+                    "status" => Reply::sorted(&internal::status(root), 0),
+                    "provision" => marker(
+                        internal::provision(root, confirm.as_deref(), migrate)?,
+                        |state| state != "Ready",
+                    ),
                     "setup" => {
                         let serial = if shown {
                             internal::shown_serial(root)
                         } else {
                             confirm.clone()
                         };
-                        internal::setup(root, automatic, &serial)?
+                        let note = internal::setup(root, automatic, serial.as_deref())?;
+                        let failed = matches!(
+                            note.state,
+                            internal::SetupState::Failed | internal::SetupState::Unavailable
+                        );
+                        Reply::sorted(&note, u8::from(failed))
                     }
-                    "mount" => internal::mount(root)?,
-                    _ => internal::unmount(root)?,
-                };
-                let state = get(&result, "state").as_str();
-                let failed = match *action {
-                    "mount" | "provision" => state != Some("Ready"),
-                    "setup" => matches!(state, Some("Failed" | "Unavailable")),
-                    "unmount" => state == Some("Failed"),
-                    _ => false,
-                };
-                Reply::sorted(&result, u8::from(failed))
+                    "mount" => marker(internal::mount(root)?, |state| state != "Ready"),
+                    _ => marker(internal::unmount(root)?, |state| state == "Failed"),
+                }
             }))
         }
         "space" => {

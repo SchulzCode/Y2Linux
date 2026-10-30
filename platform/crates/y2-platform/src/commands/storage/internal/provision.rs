@@ -1,16 +1,14 @@
 //! `internal-media provision`: Y2Media over the stock FAT the owner names, and the verified move
 //! of a music library onto it (also the setup's kept files).
 // SPDX-License-Identifier: GPL-2.0-only
-use super::super::sys::{
-    exists, is_symlink, mkdir, mkdir_io, mounts as all_mounts, name, statvfs, Object,
-};
+use super::super::sys::{exists, is_symlink, mkdir, mkdir_io, mounts as all_mounts, name, statvfs};
 use super::{
     lock_runtime, mkfs, mount_locked, partition, probe, record, valid, Marker, Mounted,
     LEGACY_MUSIC, MUSIC, PATH,
 };
 use crate::reply::At;
 use crate::reply::Failure;
-use serde_json::{json, Value};
+use serde::Serialize;
 use std::{
     ffi::CString,
     fs::{self, File, OpenOptions},
@@ -22,13 +20,7 @@ use std::{
     },
     path::{Path, PathBuf},
 };
-use y2p_core::{
-    command,
-    digest::Sha256,
-    mounts::mounts_at,
-    py::{truthy, PyValue},
-    Root,
-};
+use y2p_core::{command, digest::Sha256, mounts::mounts_at, Root};
 
 const CHUNK: usize = 1 << 20;
 const RESERVE: u64 = 64 << 20; // keep this much free after a migration
@@ -251,10 +243,10 @@ pub(super) fn migrate(
     target: &str,
     progress: &mut dyn FnMut(u64, u64),
     digest: Digest,
-) -> Result<Value, Failure> {
+) -> Result<Migration, Failure> {
     let (src, dst) = (root.path(source), root.path(target));
     if !src.is_dir() {
-        return Ok(json!({"files": 0, "bytes": 0, "copied": 0, "removed": 0}));
+        return Ok(Migration::default());
     }
     let (files, directories) = tree(&src)?;
     let total: u64 = files.iter().map(|(_, size)| size).sum();
@@ -288,41 +280,55 @@ pub(super) fn migrate(
     for relative in longest.iter().filter(|r| *r != ".") {
         let _ = fs::remove_dir(src.join(relative));
     }
-    Ok(json!({"files": files.len(), "bytes": total, "copied": copied, "removed": removed}))
+    Ok(Migration {
+        files: files.len() as u64,
+        bytes: total,
+        copied,
+        removed,
+    })
+}
+
+/// What a library move did (`migration` of `provision`'s answer).
+#[derive(Serialize, Clone, Debug, Default)]
+pub struct Migration {
+    files: u64,
+    bytes: u64,
+    copied: u64,
+    removed: u64,
 }
 
 /// Create Y2Media over the stock FAT partition. Names the filesystem it replaces.
 pub fn provision(
     root: &Root,
-    confirm_uuid: &Value,
+    confirm_uuid: Option<&str>,
     migrate_music: bool,
-) -> Result<Object, Failure> {
+) -> Result<Marker, Failure> {
     provision_with(root, confirm_uuid, migrate_music, sha256)
 }
 
 /// `provision` with the migration's copies verified by `digest`.
 pub(super) fn provision_with(
     root: &Root,
-    confirm_uuid: &Value,
+    confirm_uuid: Option<&str>,
     migrate_music: bool,
     digest: Digest,
-) -> Result<Object, Failure> {
+) -> Result<Marker, Failure> {
     if let Some(refused) = replace_stock(root, confirm_uuid)? {
-        return Ok(refused.object());
+        return Ok(refused);
     }
     let state = {
         let _lock = lock_runtime(root)?;
         mount_locked(root)?
     };
     if !state.ready() {
-        return Ok(state.object());
+        return Ok(state);
     }
     mkdir(&root.path(MUSIC), 0o755)?;
-    let mut result = state.object();
+    let mut result = state.clone();
     if migrate_music {
         match migrate(root, LEGACY_MUSIC, MUSIC, &mut |_, _| {}, digest) {
             Ok(migration) => {
-                result.insert("migration".into(), migration);
+                result.migration = Some(migration);
             }
             Err(error) => {
                 let reason = format!("migration_failed:{}", error.message());
@@ -334,7 +340,7 @@ pub(super) fn provision_with(
                     mounted,
                     ..Marker::new(root, "Degraded", Some(&reason))
                 };
-                return Ok(record(root, marker)?.object());
+                return record(root, marker);
             }
         }
     }
@@ -343,7 +349,7 @@ pub(super) fn provision_with(
 
 /// The first half of `provision`: Y2Media made over the confirmed stock FAT (nothing when it is
 /// Y2Media already); `Some` refusal record otherwise.
-fn replace_stock(root: &Root, confirm_uuid: &Value) -> Result<Option<Marker>, Failure> {
+fn replace_stock(root: &Root, confirm_uuid: Option<&str>) -> Result<Option<Marker>, Failure> {
     let _lock = lock_runtime(root)?;
     let Some(entry) = partition(root) else {
         let marker = Marker::new(root, "Unavailable", Some("partition_geometry_not_found"));
@@ -362,15 +368,15 @@ fn replace_stock(root: &Root, confirm_uuid: &Value) -> Result<Option<Marker>, Fa
         let marker = Marker::new(root, "Failed", Some("partition_is_mounted"));
         return Ok(Some(record(root, marker)?));
     }
-    if props.get("TYPE") != Some("vfat")
-        || !truthy(confirm_uuid)
-        || !props.value("UUID").py_eq(confirm_uuid)
-    {
+    let confirmed = confirm_uuid
+        .filter(|c| !c.is_empty())
+        .is_some_and(|c| props.get("UUID") == Some(c));
+    if props.get("TYPE") != Some("vfat") || !confirmed {
         // Only the stock FAT filesystem, named by its serial, may be replaced.
         let reason = "confirmation_does_not_match_stock_filesystem";
         let marker = Marker {
-            filesystem: Some(props.value("TYPE")),
-            serial: Some(props.value("UUID")),
+            filesystem: Some(props.text("TYPE")),
+            serial: Some(props.text("UUID")),
             ..Marker::new(root, "Failed", Some(reason))
         };
         return Ok(Some(record(root, marker)?));

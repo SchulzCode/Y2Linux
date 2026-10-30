@@ -6,7 +6,7 @@ use crate::commands::observation::snapshot;
 use crate::testing::Fixture;
 
 /// The storage observation's controllers, every command answered `fixture`.
-fn controllers(fixture: &Fixture) -> Value {
+fn controllers(fixture: &Fixture) -> serde_json::Value {
     serde_json::json!(snapshot::storage(&fixture.root).unwrap())["controllers"].clone()
 }
 

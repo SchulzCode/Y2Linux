@@ -97,7 +97,10 @@ pub struct MediaRecord {
     pub state: Option<String>,
     #[serde(deserialize_with = "lenient::text")]
     pub reason: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none", deserialize_with = "boot")]
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "lenient::there"
+    )]
     pub boot_id: Option<BootId>,
     #[serde(
         skip_serializing_if = "Option::is_none",
@@ -159,11 +162,6 @@ pub struct MediaRecord {
 
 /// One SD device reconcile saw: its name, `dev`, disk sequence and CID.
 pub type Inserted = (String, Option<String>, Option<String>, Option<String>);
-
-/// A field that is there (`null` too: a record of no boot).
-fn boot<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Option<BootId>, D::Error> {
-    BootId::deserialize(deserializer).map(Some)
-}
 
 #[allow(clippy::type_complexity)]
 fn read_only<'de, D: Deserializer<'de>>(
@@ -416,9 +414,9 @@ impl Properties {
         self.0.get(key).map(String::as_str)
     }
 
-    /// A property as a record keeps it: its text, or `null` when blkid did not print it.
-    pub fn value(&self, key: &str) -> Value {
-        self.get(key).map_or(Value::Null, Value::from)
+    /// A property's text (none when blkid did not print it).
+    pub fn text(&self, key: &str) -> Option<String> {
+        self.get(key).map(str::to_owned)
     }
 }
 
@@ -450,7 +448,7 @@ mod tests {
         ));
         assert_eq!(props.get("TYPE"), Some("exfat"));
         assert_eq!(props.get("UUID"), Some("A-B=C"));
-        assert_eq!(props.value("LABEL"), Value::Null);
+        assert_eq!(props.text("LABEL"), None);
         assert!(Properties::parse(None).get("TYPE").is_none());
     }
 }
