@@ -205,7 +205,7 @@ OBSERVE = ['/usr/sbin/y2-bt-observe']
 PCM = {'Device': '/org/bluez/hci0/dev_ZZ', 'Transport': 'A2DP-source', 'Mode': 'sink', 'Format': 0x8210,
        'Rate': 44100, 'Channels': 2, 'Codec': 'SBC', 'Sequence': 4, 'Running': True,
        'CodecConfiguration': [0x24, 0x15, 2, 47],
-       'EncoderStats': {'Active': 1.0, 'Bitpool': 47, 'AbrEnabled': 1, 'AbrAdjustments': 3, 'BitrateKbps': 552,
+       'EncoderStats': {'Active': 1, 'Bitpool': 47, 'AbrEnabled': 1, 'AbrAdjustments': 3, 'BitrateKbps': 552,
                         'Errors': 0}}
 
 
@@ -233,8 +233,8 @@ def observation(pcm=None, devices=None, powered=True, adapters=1, bluealsa_manag
 CODEC_LIVE = {
     '/run/y2/bluealsa.pid': '777\n', '/proc/777/cmdline': '/usr/bin/bluealsad\0-p\0a2dp-source\0--sbc-quality=high\0',
     '/run/y2/codec-runtime.json': json.dumps({'boot_id': BOOT, 'arguments': ['-p', 'a2dp-source'], 'settings': {
-        'schema': 1.0, 'experimental': False, 'sbc_quality': 'high', 'sbc_abr': True, 'ldac_quality': 'standard',
-        'ldac_abr': True, 'aac_quality': 'high', 'aac_abr': 1}}),
+        'schema': 1, 'experimental': False, 'sbc_quality': 'high', 'sbc_abr': True, 'ldac_quality': 'standard',
+        'ldac_abr': True, 'aac_quality': 'high', 'aac_abr': True}}),
     '/run/y2/bt-reconnect.json': fresh({'boot_id': BOOT, 'state': 'Connected'}, 'monotonic_us', us=True),
 }
 REBORN = ['/usr/bin/rebornctl', 'metrics', '--json']
@@ -342,7 +342,7 @@ CASES = [
         pcm={'EncoderStats': None, 'CodecConfiguration': [1, 2, 3], 'Rate': 4100, 'Channels': 1.0, 'Format': 7})),
     status('status-bluetooth-aac', ['bluetooth'], commands=observation(pcm={'Codec': 'AAC', 'EncoderStats': {
         'Active': 1, 'AbrEnabled': 0, 'QualityIndex': 2, 'AbrAdjustments': 5, 'BitrateKbps': 256}})),
-    status('status-bluetooth-ldac', ['bluetooth'], commands=observation(pcm={'Codec': 'LDAC', 'Rate': 96000.0,
+    status('status-bluetooth-ldac', ['bluetooth'], commands=observation(pcm={'Codec': 'LDAC', 'Rate': 96000,
         'EncoderStats': {'Active': 1, 'AbrEnabled': 1, 'QualityIndex': 1, 'AbrAdjustments': 2, 'BitrateKbps': 0}})),
     status('status-bluetooth-preferred', ['bluetooth'], files={'/data/bluetooth/preferred-audio': 'aa:bb:cc:00:00:02\n'},
            commands=observation()),

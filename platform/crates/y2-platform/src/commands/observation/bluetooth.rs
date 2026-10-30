@@ -1,17 +1,16 @@
 //! The `bluetooth` section: what D-Bus shows of the adapter, the selected peer, its playback PCM and
 //! encoder (y2-bt-observe), next to the codec settings; observations only, never codec requests.
 // SPDX-License-Identifier: GPL-2.0-only
-use super::util::{self, contains, fields, get_eq, is_int, present, record_fields};
+use super::util::{fields, present, record_fields};
 use crate::{
     commands::codec::{inventory_codec, requested, validate},
     reply::Failure,
 };
 use serde::Deserialize;
 use serde_json::{json, Map, Value};
-use y2p_core::py::PyValue;
 use y2p_core::{
     command,
-    py::{exact_int, is_true, truthy},
+    lenient::{self, BootId},
     Root,
 };
 
@@ -47,10 +46,10 @@ const INVENTORY: &str = "/etc/y2linux/bluetooth-codecs.json";
 #[derive(Deserialize, Default)]
 #[serde(default)]
 struct AppliedCodecs {
-    /// Missing (no arguments) differs from null (no list: unobserved).
+    /// Missing (no arguments) differs from anything but a list of texts (unobserved).
     #[serde(deserialize_with = "present")]
     arguments: Option<Value>,
-    boot_id: Value,
+    boot_id: BootId,
     settings: Value,
 }
 
@@ -58,8 +57,9 @@ struct AppliedCodecs {
 #[derive(Deserialize, Default)]
 #[serde(default)]
 struct ReconnectStamp {
-    boot_id: Value,
-    monotonic_us: Value,
+    boot_id: BootId,
+    #[serde(deserialize_with = "lenient::integer")]
+    monotonic_us: Option<i64>,
 }
 
 /// The codec settings: the owner's policy, what BlueALSA was started with this boot (its effective
@@ -76,25 +76,27 @@ fn codec_settings(root: &Root, inventory: &Map<String, Value>) -> Result<Value, 
         Some(pid) if pid > 1 => root.read_limited(&format!("/proc/{pid}/cmdline"), 8192),
         _ => None,
     };
-    let argv: Vec<Value> = match command.as_deref().filter(|c| !c.is_empty()) {
-        Some(c) => c.split('\0').map(|a| json!(a)).collect(),
+    let argv: Vec<&str> = match command.as_deref().filter(|c| !c.is_empty()) {
+        Some(c) => c.split('\0').collect(),
         None => Vec::new(),
     };
-    let live = !argv.is_empty()
-        && argv[0]
-            .as_str()
-            .is_some_and(|a| a.rsplit('/').next() == Some("bluealsad"))
+    let live = argv
+        .first()
+        .is_some_and(|a| a.rsplit('/').next() == Some("bluealsad"))
         && {
-            let arguments = match &applied.arguments {
+            let arguments: Vec<&str> = match &applied.arguments {
                 None => Vec::new(),
-                Some(other) => {
-                    y2p_core::py::iterate(other).ok_or(Settings::Stop(Stop::Unobserved))?
-                }
+                Some(Value::Array(items)) => items
+                    .iter()
+                    .map(Value::as_str)
+                    .collect::<Option<_>>()
+                    .ok_or(Settings::Stop(Stop::Unobserved))?,
+                Some(_) => return Err(Settings::Stop(Stop::Unobserved)),
             };
-            arguments.iter().all(|a| contains(&argv, a))
+            arguments.iter().all(|a| argv.contains(a))
         };
     let effective = if live
-        && applied.boot_id.py_eq(&util::text(boot.clone()))
+        && applied.boot_id.is(boot.as_deref())
         && boot.as_deref().is_some_and(|b| !b.is_empty())
     {
         applied.settings
@@ -104,10 +106,11 @@ fn codec_settings(root: &Root, inventory: &Map<String, Value>) -> Result<Value, 
     let policy = Value::Object(policy);
     let aac = inventory_entry(inventory, "AAC")?;
     let ldac = inventory_entry(inventory, "LDAC")?;
-    let compiled =
-        |codec: Option<&Map<String, Value>>| codec.and_then(|c| c.get("compiled_locally")).cloned();
+    let compiled = |codec: Option<&Map<String, Value>>| {
+        codec.and_then(|c| c.get("compiled_locally")) == Some(&Value::Bool(true))
+    };
     let qualities = |codec: Option<&Map<String, Value>>, list: Value| {
-        if compiled(codec).as_ref().is_some_and(truthy) {
+        if compiled(codec) {
             list
         } else {
             json!([])
@@ -116,14 +119,14 @@ fn codec_settings(root: &Root, inventory: &Map<String, Value>) -> Result<Value, 
     Ok(json!({
         "schema": y2p_contract::schema::CODEC_SETTINGS, "requested": policy.clone(),
         "effective": effective.clone(), "effective_scope": "daemon_start_arguments",
-        "pending_restart": !effective.py_eq(&policy),
+        "pending_restart": effective != policy,
         "apply_action": "restart_player",
         "supported": {
             "sbc_quality": ["high", "xq", "xq+"], "sbc_abr": true,
             "aac_quality": qualities(aac, json!(["standard", "high"])),
-            "aac_abr": is_true(compiled(aac).as_ref()),
+            "aac_abr": compiled(aac),
             "ldac_quality": qualities(ldac, json!(["mobile", "standard", "high"])),
-            "ldac_abr": is_true(compiled(ldac).as_ref()),
+            "ldac_abr": compiled(ldac),
         },
     }))
 }
@@ -134,7 +137,7 @@ fn quality(codec: &Value, pcm: &Map<String, Value>, settings: &Value) -> Map<Str
     let config: Vec<i64> = match pcm.get("CodecConfiguration") {
         Some(Value::Array(items)) => items
             .iter()
-            .map(|v| exact_int(Some(v)).filter(|n| (0..=255).contains(n)))
+            .map(|v| v.as_i64().filter(|n| (0..=255).contains(n)))
             .collect::<Option<Vec<i64>>>()
             .unwrap_or_default(),
         _ => Vec::new(),
@@ -143,12 +146,16 @@ fn quality(codec: &Value, pcm: &Map<String, Value>, settings: &Value) -> Map<Str
         Some(Value::Object(map)) => Some(map),
         _ => None,
     };
-    let live = is_true(pcm.get("Running")) && stats.is_some_and(|s| get_eq(s, "Active", &json!(1)));
+    let live = pcm.get("Running") == Some(&Value::Bool(true))
+        && stats.is_some_and(|s| s.get("Active").and_then(Value::as_i64) == Some(1));
     let observed = |key: &str, minimum: i64, maximum: i64| -> Option<i64> {
         if !live {
             return None;
         }
-        exact_int(stats.and_then(|s| s.get(key))).filter(|v| (minimum..=maximum).contains(v))
+        stats
+            .and_then(|s| s.get(key))
+            .and_then(Value::as_i64)
+            .filter(|v| (minimum..=maximum).contains(v))
     };
     const MAX: i64 = (1 << 31) - 1;
     let mut value = Map::new();
@@ -215,8 +222,8 @@ fn quality(codec: &Value, pcm: &Map<String, Value>, settings: &Value) -> Map<Str
             );
         }
         Some("LDAC") => {
-            let rate = pcm.get("Rate").cloned().unwrap_or(Value::Null);
-            let is = |n: i64| rate.py_eq(&json!(n));
+            let rate = pcm.get("Rate").and_then(Value::as_i64);
+            let is = |n: i64| rate == Some(n);
             value.insert(
                 "ldac_nominal_choices_kbps".into(),
                 if is(44100) || is(88200) {
@@ -315,8 +322,8 @@ fn settled_base(root: &Root) -> Result<Map<String, Value>, Stop> {
     let stale = match result.get("reconnect") {
         Some(Value::Object(record)) => {
             let stamp: ReconnectStamp = fields(record);
-            !stamp.boot_id.py_eq(&Value::from(root.boot_id()))
-                || !is_int(Some(&stamp.monotonic_us)).is_some_and(|us| {
+            !stamp.boot_id.is(root.boot_id().as_deref())
+                || !stamp.monotonic_us.is_some_and(|us| {
                     let age = root.clock().monotonic() * 1e6 - us as f64;
                     (0.0..10_000_000.0).contains(&age)
                 })
@@ -340,7 +347,9 @@ fn field(map: &Map<String, Value>, key: &str) -> Value {
 /// its codecs), the devices and the selected peer's transport. A step that cannot go on has left its
 /// state or reason in `result` and ends the section there (None).
 fn observed(root: &Root, raw: &Map<String, Value>, result: &mut Map<String, Value>) -> Option<()> {
-    if !get_eq(raw, "schema", &json!(1)) || !raw.get("stable_owners").is_some_and(truthy) {
+    if raw.get("schema").and_then(Value::as_i64) != Some(1)
+        || raw.get("stable_owners") != Some(&Value::Bool(true))
+    {
         return None;
     }
     let Some(Value::Object(bluez)) = raw.get("bluez") else {
@@ -382,7 +391,7 @@ fn adapter(
         "discovering": field(adapter, "Discovering"), "pairable": field(adapter, "Pairable"),
         "discoverable": field(adapter, "Discoverable"), "bluez_owner": field(raw, "bluez_owner")}),
     );
-    if !is_true(adapter.get("Powered")) {
+    if adapter.get("Powered") != Some(&Value::Bool(true)) {
         result.insert("reason".into(), json!("radio_off"));
         return None;
     }
@@ -404,7 +413,11 @@ fn runtime<'a>(
         result.insert("reason".into(), json!("bluealsa_not_ready"));
         return None;
     };
-    if !raw.get("bluealsa_owner").is_some_and(truthy) {
+    if !raw
+        .get("bluealsa_owner")
+        .and_then(Value::as_str)
+        .is_some_and(|owner| !owner.is_empty())
+    {
         result.insert("state".into(), json!("Starting"));
         result.insert("reason".into(), json!("bluealsa_not_ready"));
         return None;
@@ -477,7 +490,7 @@ fn selected_peer(root: &Root, devices: &[Value], result: &mut Map<String, Value>
             .collect(),
         None => devices
             .iter()
-            .filter(|d| is_true(d.get("connected")))
+            .filter(|d| d.get("connected") == Some(&Value::Bool(true)))
             .collect(),
     };
     let [device] = selected[..] else {
@@ -485,7 +498,7 @@ fn selected_peer(root: &Root, devices: &[Value], result: &mut Map<String, Value>
         return None;
     };
     result.insert("selected_peer".into(), device.clone());
-    if !is_true(device.get("connected")) {
+    if device.get("connected") != Some(&Value::Bool(true)) {
         result.insert(
             "transport_reason".into(),
             json!("selected_peer_disconnected"),
@@ -507,7 +520,7 @@ fn transport(
         .iter()
         .filter_map(|(path, interfaces)| {
             let pcm = interfaces.get("org.bluealsa.PCM1")?.as_object()?;
-            (get_eq(pcm, "Device", &device["path"])
+            (pcm.get("Device") == Some(&device["path"])
                 && pcm.get("Transport").and_then(Value::as_str) == Some("A2DP-source")
                 && pcm.get("Mode").and_then(Value::as_str) == Some("sink"))
             .then_some((path, pcm))
@@ -518,7 +531,7 @@ fn transport(
         return None;
     };
     let format_code = field(pcm, "Format");
-    let format = match exact_int(Some(&format_code)) {
+    let format = match format_code.as_i64() {
         Some(0x8210) => Some(("S16_LE", 16, 16)),
         Some(0x8418) => Some(("S24_LE", 24, 32)),
         Some(0x8420) => Some(("S32_LE", 32, 32)),
@@ -549,12 +562,12 @@ fn transport(
         "connection_sequence": field(pcm, "Sequence"), "running": field(pcm, "Running"),
         "lifetime_note": "snapshot; use ObjectManager removal signals for per-open lifetime"}),
     );
-    let rate_ok = exact_int(Some(&rate)).is_some_and(|r| (8000..=192_000).contains(&r));
-    if format.is_none() || !rate_ok || !channels.py_eq(&json!(2)) {
+    let rate_ok = rate.as_i64().is_some_and(|r| (8000..=192_000).contains(&r));
+    if format.is_none() || !rate_ok || channels.as_i64() != Some(2) {
         result.insert("state".into(), json!("Degraded"));
         result.insert("reason".into(), json!("unsupported_or_incomplete_pcm"));
     }
-    if get_eq(raw, "codec_pcm", &json!(path)) {
+    if raw.get("codec_pcm").and_then(Value::as_str) == Some(path.as_str()) {
         if let Some(Value::Object(mutual)) = raw.get("mutually_available_codecs") {
             result.insert("mutually_usable".into(), Value::Object(mutual.clone()));
         }
@@ -567,7 +580,7 @@ pub fn bluetooth(root: &Root) -> Result<Value, Failure> {
     let answer = command::run_with(root, &["/usr/sbin/y2-bt-observe"], 3.0, 262_144, false);
     let output = answer.output.unwrap_or_default();
     if let Ok(Value::Object(observed)) = serde_json::from_str::<Value>(&output) {
-        if get_eq(&observed, "schema", &json!(1)) {
+        if observed.get("schema").and_then(Value::as_i64) == Some(1) {
             match normalize(root, &observed) {
                 Ok(value) => return Ok(value),
                 Err(Stop::Refused(error)) => return Err(error),

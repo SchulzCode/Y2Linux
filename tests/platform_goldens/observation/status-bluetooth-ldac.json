@@ -162,11 +162,11 @@
     "format": "S16_LE",
     "format_code": 33296,
     "physical_bits": 16,
-    "rate_hz": 96000.0,
+    "rate_hz": 96000,
     "valid_bits": 16
    },
    "preferred_codec": null,
-   "reason": "unsupported_or_incomplete_pcm",
+   "reason": "controller_bluez_bluealsa_observed",
    "reconnect": {
     "reason": "reconnect_record_stale_or_absent",
     "state": "Unavailable"
@@ -188,7 +188,7 @@
     "services_resolved": null,
     "trusted": null
    },
-   "state": "Degraded",
+   "state": "Ready",
    "transport": {
     "bluealsa_owner": ":1.3",
     "connection_sequence": 4,

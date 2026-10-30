@@ -401,7 +401,7 @@ fn bluetooth_observations_normalise_as_python_does() {
                "CodecConfiguration": config, "EncoderStats": stats})
     };
     let sbc_stats = json!({"Active": 1, "Bitpool": 47, "AbrEnabled": 1, "AbrAdjustments": 3, "BitrateKbps": 552, "Errors": 0});
-    let ldac_stats = json!({"Active": true, "QualityIndex": 1, "AbrEnabled": 1, "AbrAdjustments": 2, "BitrateKbps": 660});
+    let ldac_stats = json!({"Active": 1, "QualityIndex": 1, "AbrEnabled": 1, "AbrAdjustments": 2, "BitrateKbps": 660});
     let cases: Vec<(String, Vec<(&str, String)>)> = vec![
         (
             observation(

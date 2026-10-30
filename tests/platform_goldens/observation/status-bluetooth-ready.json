@@ -66,14 +66,14 @@
    "codec_settings": {
     "apply_action": "restart_player",
     "effective": {
-     "aac_abr": 1,
+     "aac_abr": true,
      "aac_quality": "high",
      "experimental": false,
      "ldac_abr": true,
      "ldac_quality": "standard",
      "sbc_abr": true,
      "sbc_quality": "high",
-     "schema": 1.0
+     "schema": 1
     },
     "effective_scope": "daemon_start_arguments",
     "pending_restart": false,
