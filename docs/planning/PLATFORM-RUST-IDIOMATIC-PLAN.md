@@ -283,6 +283,29 @@ Delete what no longer has users: `y2p_core::pyjson` (except what a pinned output
 `os_text`'s surrogate escapes where no path text is printed, `json::PythonFormatter`, `argparse/`. Update
 `platform/CONTRACT.md` (the contract is now §1 of this file) and the handoff.
 
+### Finishing (Q1–Q5), owner decisions 2026-10-30 evening
+
+Owner: "no more loose JSON", more breaking changes accepted. Decided: (1) critical code is converted too, **last**,
+with its own test build and the owner's hardware round (sleep, overnight drain, OTA + rollback, SD, reset);
+(2) /data records stay **rollback-safe** (structs keep field names/types, new fields allowed); (3) the status/health
+JSON Reborn reads **may change shape**, Reborn's parser and contract test change in the same commit pair.
+
+Size at the start: ≈3,470 `Value`/`json!`/`.get("…")` in non-test code; ≈55 % own records and sections, ≈30 %
+critical code, ≈10–15 % real boundaries (y2-bt-observe's answer, /etc audio profiles, pcm_contract, Reborn
+metrics, files copied into the report bundle: these stay `Value`).
+
+- **Q1 observation:** section functions return their structs (`Cpu`, `Memory`, `Thermal`, `Power`, `Storage`,
+  `Wifi`, `System`, `Bluetooth`, `Readiness`); `Snapshot` holds them; readiness/health/collect read typed fields;
+  `status <section>` serialises one field; evidence, bench typed. scenarios.rs under `#[cfg(test)]`.
+- **Q2 reports:** reports.json, queue entries, report-progress, facts, checks, upload as structs; `pyops` goes.
+- **Q3 service/connectivity/storage read sides:** update staging/health reads, radiofw copy, download, Wi-Fi
+  monitor, storage observe volume map and records.
+- **Q4 critical:** typed records with identical decisions (suspend receipt/transition/admission, sleep.rs, power
+  coordinator/policy, update journal/health/staging, SD write ops, internal setup, reset execute); then
+  `y2p_core::{py, lenient}`, `suspend/pyjson.rs`, `argparse/python.rs` deleted.
+- **Q5:** clean-up, measure, CONTRACT.md.
+Test builds after Q1+Q2, after Q3, after Q4 (hardware round).
+
 ## 4. Test builds
 
 | build | content |
