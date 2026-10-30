@@ -287,6 +287,14 @@ fn base(root: &Root, settings: Value, inventory: Option<Value>) -> Map<String, V
 
 /// The section from y2-bt-observe's answer (`raw`).
 fn normalize(root: &Root, raw: &Map<String, Value>) -> Result<Value, Stop> {
+    let mut result = settled_base(root)?;
+    observed(root, raw, &mut result);
+    Ok(Value::Object(result))
+}
+
+/// The section before y2-bt-observe's answer: the codec settings, inventory and the reconnect
+/// helper's record (shown only while fresh: written this boot within the last 10 s).
+fn settled_base(root: &Root) -> Result<Map<String, Value>, Stop> {
     // Read once: the settings check it and the section shows it.
     let inventory = root.json(INVENTORY);
     let none = Map::new();
@@ -304,7 +312,6 @@ fn normalize(root: &Root, raw: &Map<String, Value>) -> Result<Value, Stop> {
         Err(Settings::Stop(stop)) => return Err(stop),
     };
     let mut result = base(root, settings, inventory);
-    // Fresh: written this boot within the last 10 s.
     let stale = match result.get("reconnect") {
         Some(Value::Object(record)) => {
             let stamp: ReconnectStamp = fields(record);
@@ -322,12 +329,40 @@ fn normalize(root: &Root, raw: &Map<String, Value>) -> Result<Value, Stop> {
             json!({"state": "Unavailable", "reason": "reconnect_record_stale_or_absent"}),
         );
     }
+    Ok(result)
+}
+
+fn field(map: &Map<String, Value>, key: &str) -> Value {
+    map.get(key).cloned().unwrap_or(Value::Null)
+}
+
+/// What y2-bt-observe saw, added to `result` step by step: the adapter, the runtime (bluealsa and
+/// its codecs), the devices and the selected peer's transport. A step that cannot go on has left its
+/// state or reason in `result` and ends the section there (None).
+fn observed(root: &Root, raw: &Map<String, Value>, result: &mut Map<String, Value>) -> Option<()> {
     if !get_eq(raw, "schema", &json!(1)) || !raw.get("stable_owners").is_some_and(truthy) {
-        return Ok(Value::Object(result));
+        return None;
     }
     let Some(Value::Object(bluez)) = raw.get("bluez") else {
-        return Ok(Value::Object(result));
+        return None;
     };
+    adapter(raw, bluez, result)?;
+    let bluealsa = runtime(raw, result)?;
+    let devices = devices(bluez);
+    result.insert(
+        "devices".into(),
+        Value::Array(devices.iter().take(128).cloned().collect()),
+    );
+    let device = selected_peer(root, &devices, result)?;
+    transport(raw, bluealsa, &device, result)
+}
+
+/// The one adapter and whether it is powered.
+fn adapter(
+    raw: &Map<String, Value>,
+    bluez: &Map<String, Value>,
+    result: &mut Map<String, Value>,
+) -> Option<()> {
     let adapters: Vec<(&String, &Map<String, Value>)> = bluez
         .iter()
         .filter_map(|(path, interfaces)| {
@@ -339,36 +374,40 @@ fn normalize(root: &Root, raw: &Map<String, Value>) -> Result<Value, Stop> {
         .collect();
     let [(path, adapter)] = adapters[..] else {
         result.insert("reason".into(), json!("no_unique_adapter"));
-        return Ok(Value::Object(result));
+        return None;
     };
-    let get = |m: &Map<String, Value>, k: &str| m.get(k).cloned().unwrap_or(Value::Null);
     result.insert(
         "adapter".into(),
-        json!({"path": path, "powered": get(adapter, "Powered"),
-        "discovering": get(adapter, "Discovering"), "pairable": get(adapter, "Pairable"),
-        "discoverable": get(adapter, "Discoverable"), "bluez_owner": get(raw, "bluez_owner")}),
+        json!({"path": path, "powered": field(adapter, "Powered"),
+        "discovering": field(adapter, "Discovering"), "pairable": field(adapter, "Pairable"),
+        "discoverable": field(adapter, "Discoverable"), "bluez_owner": field(raw, "bluez_owner")}),
     );
     if !is_true(adapter.get("Powered")) {
         result.insert("reason".into(), json!("radio_off"));
-        return Ok(Value::Object(result));
+        return None;
     }
-    let bluealsa = match raw.get("bluealsa") {
+    Some(())
+}
+
+/// bluealsa and its manager: Ready with SBC enabled and the runtime version 5.0.0, else Degraded
+/// (Starting while bluealsa is not up). bluealsa's objects for the transport step.
+fn runtime<'a>(
+    raw: &'a Map<String, Value>,
+    result: &mut Map<String, Value>,
+) -> Option<&'a Map<String, Value>> {
+    let object = |key: &str| match raw.get(key) {
         Some(Value::Object(map)) => Some(map),
         _ => None,
     };
-    let manager = match raw.get("manager") {
-        Some(Value::Object(map)) => Some(map),
-        _ => None,
-    };
-    let (Some(bluealsa), Some(manager)) = (bluealsa, manager) else {
+    let (Some(bluealsa), Some(manager)) = (object("bluealsa"), object("manager")) else {
         result.insert("state".into(), json!("Starting"));
         result.insert("reason".into(), json!("bluealsa_not_ready"));
-        return Ok(Value::Object(result));
+        return None;
     };
     if !raw.get("bluealsa_owner").is_some_and(truthy) {
         result.insert("state".into(), json!("Starting"));
         result.insert("reason".into(), json!("bluealsa_not_ready"));
-        return Ok(Value::Object(result));
+        return None;
     }
     result.insert("state".into(), json!("Ready"));
     result.insert("reason".into(), json!("controller_bluez_bluealsa_observed"));
@@ -401,23 +440,28 @@ fn normalize(root: &Root, raw: &Map<String, Value>) -> Result<Value, Stop> {
         result.insert("state".into(), json!("Degraded"));
         result.insert("reason".into(), json!("bluealsa_runtime_version_mismatch"));
     }
-    // In y2-bt-observe's order (the object's keys as the output gives them).
-    let mut devices = Vec::new();
-    for (device_path, interfaces) in bluez {
-        let Some(device) = interfaces
-            .get("org.bluez.Device1")
-            .and_then(Value::as_object)
-        else {
-            continue;
-        };
-        devices.push(json!({"path": device_path, "address": get(device, "Address"),
-            "paired": get(device, "Paired"), "bonded": get(device, "Bonded"), "trusted": get(device, "Trusted"),
-            "connected": get(device, "Connected"), "services_resolved": get(device, "ServicesResolved")}));
-    }
-    result.insert(
-        "devices".into(),
-        Value::Array(devices.iter().take(128).cloned().collect()),
-    );
+    Some(bluealsa)
+}
+
+/// BlueZ's devices in y2-bt-observe's order (the object's keys as the output gives them).
+fn devices(bluez: &Map<String, Value>) -> Vec<Value> {
+    bluez
+        .iter()
+        .filter_map(|(device_path, interfaces)| {
+            let device = interfaces.get("org.bluez.Device1")?.as_object()?;
+            Some(
+                json!({"path": device_path, "address": field(device, "Address"),
+                "paired": field(device, "Paired"), "bonded": field(device, "Bonded"),
+                "trusted": field(device, "Trusted"), "connected": field(device, "Connected"),
+                "services_resolved": field(device, "ServicesResolved")}),
+            )
+        })
+        .collect()
+}
+
+/// The peer audio goes to: the preferred address when one is set, else the one connected device;
+/// it must be unique and connected.
+fn selected_peer(root: &Root, devices: &[Value], result: &mut Map<String, Value>) -> Option<Value> {
     let preferred = root.read("/data/bluetooth/preferred-audio");
     let selected: Vec<&Value> = match preferred
         .as_deref()
@@ -438,17 +482,27 @@ fn normalize(root: &Root, raw: &Map<String, Value>) -> Result<Value, Stop> {
     };
     let [device] = selected[..] else {
         result.insert("transport_reason".into(), json!("no_unique_selected_peer"));
-        return Ok(Value::Object(result));
+        return None;
     };
-    let device = device.clone();
     result.insert("selected_peer".into(), device.clone());
     if !is_true(device.get("connected")) {
         result.insert(
             "transport_reason".into(),
             json!("selected_peer_disconnected"),
         );
-        return Ok(Value::Object(result));
+        return None;
     }
+    Some(device.clone())
+}
+
+/// The selected peer's one playback PCM: its format, codec, encoder and transport, Degraded when
+/// the PCM is not one the player plays.
+fn transport(
+    raw: &Map<String, Value>,
+    bluealsa: &Map<String, Value>,
+    device: &Value,
+    result: &mut Map<String, Value>,
+) -> Option<()> {
     let pcms: Vec<(&String, &Map<String, Value>)> = bluealsa
         .iter()
         .filter_map(|(path, interfaces)| {
@@ -461,16 +515,16 @@ fn normalize(root: &Root, raw: &Map<String, Value>) -> Result<Value, Stop> {
         .collect();
     let [(path, pcm)] = pcms[..] else {
         result.insert("transport_reason".into(), json!("no_unique_playback_pcm"));
-        return Ok(Value::Object(result));
+        return None;
     };
-    let format_code = get(pcm, "Format");
+    let format_code = field(pcm, "Format");
     let format = match exact_int(Some(&format_code)) {
         Some(0x8210) => Some(("S16_LE", 16, 16)),
         Some(0x8418) => Some(("S24_LE", 24, 32)),
         Some(0x8420) => Some(("S32_LE", 32, 32)),
         _ => None,
     };
-    let (rate, channels) = (get(pcm, "Rate"), get(pcm, "Channels"));
+    let (rate, channels) = (field(pcm, "Rate"), field(pcm, "Channels"));
     result.insert(
         "pcm".into(),
         json!({"format_code": format_code, "format": format.map(|f| f.0),
@@ -491,8 +545,8 @@ fn normalize(root: &Root, raw: &Map<String, Value>) -> Result<Value, Stop> {
     result.insert("encoder".into(), Value::Object(encoder));
     result.insert(
         "transport".into(),
-        json!({"object": path, "bluealsa_owner": get(raw, "bluealsa_owner"),
-        "connection_sequence": get(pcm, "Sequence"), "running": get(pcm, "Running"),
+        json!({"object": path, "bluealsa_owner": field(raw, "bluealsa_owner"),
+        "connection_sequence": field(pcm, "Sequence"), "running": field(pcm, "Running"),
         "lifetime_note": "snapshot; use ObjectManager removal signals for per-open lifetime"}),
     );
     let rate_ok = exact_int(Some(&rate)).is_some_and(|r| (8000..=192_000).contains(&r));
@@ -505,7 +559,7 @@ fn normalize(root: &Root, raw: &Map<String, Value>) -> Result<Value, Stop> {
             result.insert("mutually_usable".into(), Value::Object(mutual.clone()));
         }
     }
-    Ok(Value::Object(result))
+    Some(())
 }
 
 /// The `bluetooth` section; Unavailable when y2-bt-observe gives no usable answer.
