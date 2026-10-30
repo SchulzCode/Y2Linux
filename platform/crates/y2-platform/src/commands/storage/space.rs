@@ -7,7 +7,7 @@ use crate::reply::At;
 use crate::reply::{atomic_json, Failure};
 use serde::Serialize;
 use serde_json::{json, Value};
-use std::os::fd::BorrowedFd;
+use std::os::fd::{AsFd, OwnedFd};
 use std::{ffi::CString, io, os::unix::ffi::OsStrExt};
 use y2p_contract::ObservationRecord;
 use y2p_core::volume::{SpaceState, VolumeState};
@@ -78,62 +78,26 @@ struct Policy {
     cleanup: Option<Value>,
 }
 
-/// An open directory descriptor, closed when dropped.
-struct Fd(libc::c_int);
-
-impl Drop for Fd {
-    fn drop(&mut self) {
-        // SAFETY: a descriptor this module opened and owns.
-        unsafe { libc::close(self.0) };
-    }
-}
-
-fn last_error() -> io::Error {
-    io::Error::last_os_error()
-}
-
 fn cstring(text: &str) -> io::Result<CString> {
     CString::new(text).map_err(|_| io::Error::from_raw_os_error(libc::EINVAL))
 }
 
-fn open_directory(at: libc::c_int, name: &CString) -> io::Result<Fd> {
-    // SAFETY: a NUL-terminated name relative to an open directory (or AT_FDCWD).
-    let fd = unsafe {
-        libc::openat(
-            at,
-            name.as_ptr(),
-            libc::O_RDONLY | libc::O_DIRECTORY | libc::O_NOFOLLOW | libc::O_CLOEXEC,
-        )
-    };
-    if fd < 0 {
-        Err(last_error())
-    } else {
-        Ok(Fd(fd))
-    }
-}
-
-fn fstat(fd: libc::c_int) -> io::Result<y2p_core::sys::Stat> {
-    // SAFETY: the caller's descriptor (an Fd it owns) is open for this call.
-    y2p_core::sys::fstat(unsafe { BorrowedFd::borrow_raw(fd) })
-}
-
-fn lstat_at(fd: libc::c_int, name: &CString) -> io::Result<y2p_core::sys::Stat> {
-    // SAFETY: as fstat, for a name in an open directory, not following a symlink.
-    y2p_core::sys::fstatat(
-        unsafe { BorrowedFd::borrow_raw(fd) },
+/// A directory in `at` (the working directory when none), never through a symlink.
+fn open_directory(at: Option<&OwnedFd>, name: &CString) -> io::Result<OwnedFd> {
+    y2p_core::sys::openat(
+        at.map(AsFd::as_fd),
         name,
-        libc::AT_SYMLINK_NOFOLLOW,
+        libc::O_RDONLY | libc::O_DIRECTORY | libc::O_NOFOLLOW | libc::O_CLOEXEC,
+        0,
     )
+}
+
+fn lstat_at(fd: &OwnedFd, name: &CString) -> io::Result<y2p_core::sys::Stat> {
+    y2p_core::sys::fstatat(fd.as_fd(), name, libc::AT_SYMLINK_NOFOLLOW)
 }
 
 fn regular(meta: &y2p_core::sys::Stat) -> bool {
     meta.mode & libc::S_IFMT == libc::S_IFREG
-}
-
-/// The names of an open directory in its order (without `.` and `..`), at most `limit`.
-fn names(fd: libc::c_int, limit: usize) -> io::Result<Vec<CString>> {
-    // SAFETY: the caller's descriptor (an Fd it owns) is open for this call.
-    y2p_core::sys::dir_names(unsafe { BorrowedFd::borrow_raw(fd) }, limit)
 }
 
 /// Never walk arbitrary trees or delete media, settings, databases or stages.
@@ -142,7 +106,7 @@ fn disposable_cleanup(root: &Root, max_files: u64, max_bytes: u64) -> Result<Val
     let (mut files, mut bytes, mut errors) = (0u64, 0u64, Vec::new());
     let data = root.path("/data");
     let top = CString::new(data.as_os_str().as_bytes()).map_err(Failure::value)?;
-    let rootfd = open_directory(libc::AT_FDCWD, &top).at(&data)?;
+    let rootfd = open_directory(None, &top).at(&data)?;
     for (parts, category, keep) in [
         (["reborn", "cache"], "cache", 0usize),
         (["reborn", "diagnostics"], "diagnostics", 2),
@@ -150,19 +114,20 @@ fn disposable_cleanup(root: &Root, max_files: u64, max_bytes: u64) -> Result<Val
     ] {
         let mut attempt = || -> io::Result<()> {
             let [parent, child] = parts;
-            let parent = open_directory(rootfd.0, &cstring(parent)?)?;
-            let fd = open_directory(parent.0, &cstring(child)?)?;
-            if fstat(fd.0)?.dev != fstat(rootfd.0)?.dev {
+            let parent = open_directory(Some(&rootfd), &cstring(parent)?)?;
+            let fd = open_directory(Some(&parent), &cstring(child)?)?;
+            if y2p_core::sys::fstat(fd.as_fd())?.dev != y2p_core::sys::fstat(rootfd.as_fd())?.dev {
                 return Err(io::Error::from_raw_os_error(libc::EXDEV)); // cleanup_submount_refused
             }
             // A bounded scan, not an unbounded in-memory directory listing.
             let mut entries: Vec<(f64, String, u64, u64)> = Vec::new();
-            for name in names(fd.0, 4096)? {
+            // The names in the directory's order (without `.` and `..`), at most 4096.
+            for name in y2p_core::sys::dir_names(fd.as_fd(), 4096)? {
                 let text = name.to_string_lossy().into_owned();
                 if !disposable_name(category, &text) {
                     continue;
                 }
-                let meta = lstat_at(fd.0, &name)?;
+                let meta = lstat_at(&fd, &name)?;
                 if regular(&meta) && meta.nlink == 1 {
                     let mtime = meta.mtime as f64 + meta.mtime_nsec as f64 * 1e-9;
                     entries.push((mtime, text, meta.size as u64, meta.ino));
@@ -179,14 +144,11 @@ fn disposable_cleanup(root: &Root, max_files: u64, max_bytes: u64) -> Result<Val
                     continue;
                 }
                 let name = cstring(name)?;
-                let current = lstat_at(fd.0, &name)?;
+                let current = lstat_at(&fd, &name)?;
                 if current.ino != *inode || current.size as u64 != *size || !regular(&current) {
                     continue;
                 }
-                // SAFETY: a NUL-terminated name in the open directory.
-                if unsafe { libc::unlinkat(fd.0, name.as_ptr(), 0) } != 0 {
-                    return Err(last_error());
-                }
+                y2p_core::sys::unlinkat(fd.as_fd(), &name, 0)?;
                 files += 1;
                 bytes += size;
             }

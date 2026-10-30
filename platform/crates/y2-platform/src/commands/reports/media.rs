@@ -10,12 +10,7 @@ use super::{
 use crate::commands::reports::{object, ValueExt};
 use crate::reply::Failure;
 use std::os::fd::AsFd;
-use std::{
-    ffi::CString,
-    io,
-    os::fd::{AsRawFd, OwnedFd},
-    path::Path,
-};
+use std::{ffi::CString, io, os::fd::OwnedFd, path::Path};
 use y2p_contract::reports::ReportPhase;
 pub use y2p_core::mounts::mountinfo;
 use y2p_core::Root;
@@ -42,9 +37,7 @@ fn write_into(mount: &Path, top: &str, data: &[u8], stamp: &str) -> io::Result<S
         dir = open_at(Some(&dir), part, flags, 0)?;
     }
     let folder_name = CString::new(build::FOLDER).expect("no NUL");
-    // SAFETY: a valid directory fd and a NUL-terminated name.
-    if unsafe { libc::mkdirat(dir.as_raw_fd(), folder_name.as_ptr(), 0o755) } != 0 {
-        let error = io::Error::last_os_error();
+    if let Err(error) = y2p_core::sys::mkdirat(dir.as_fd(), &folder_name, 0o755) {
         if error.raw_os_error() != Some(libc::EEXIST) {
             return Err(error);
         }
@@ -94,13 +87,11 @@ fn write_into(mount: &Path, top: &str, data: &[u8], stamp: &str) -> io::Result<S
     })();
     if let Err(error) = written {
         let c = CString::new(temporary).expect("no NUL");
-        // SAFETY: a valid fd and name.
-        unsafe { libc::unlinkat(folder.as_raw_fd(), c.as_ptr(), 0) };
+        let _ = y2p_core::sys::unlinkat(folder.as_fd(), &c, 0);
         return Err(error);
     }
     // An SD card may be pulled right afterwards.
-    // SAFETY: a valid fd.
-    unsafe { libc::fsync(folder.as_raw_fd()) };
+    let _ = y2p_core::sys::fsync(folder.as_fd());
     Ok(name)
 }
 
@@ -136,19 +127,7 @@ pub fn rename_between(
         CString::new(from).map_err(|_| io::Error::from_raw_os_error(libc::EINVAL))?,
         CString::new(to).map_err(|_| io::Error::from_raw_os_error(libc::EINVAL))?,
     );
-    // SAFETY: valid fds and NUL-terminated names.
-    if unsafe {
-        libc::renameat(
-            from_dir.as_raw_fd(),
-            a.as_ptr(),
-            to_dir.as_raw_fd(),
-            b.as_ptr(),
-        )
-    } != 0
-    {
-        return Err(io::Error::last_os_error());
-    }
-    Ok(())
+    y2p_core::sys::renameat(from_dir.as_fd(), &a, to_dir.as_fd(), &b)
 }
 
 /// Build a report and save it onto Internal Storage or

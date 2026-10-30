@@ -15,17 +15,8 @@ pub fn is_false(value: Option<&Value>) -> bool {
     matches!(value, Some(Value::Bool(false)))
 }
 
-/// Python truthiness of a parsed JSON value.
-pub fn truthy(value: &Value) -> bool {
-    match value {
-        Value::Null => false,
-        Value::Bool(b) => *b,
-        Value::Number(n) => n.as_f64() != Some(0.0),
-        Value::String(s) => !s.is_empty(),
-        Value::Array(a) => !a.is_empty(),
-        Value::Object(o) => !o.is_empty(),
-    }
-}
+/// Python truthiness of a parsed JSON value (the contract's reading of a value that counts as set).
+pub use y2p_contract::lenient::is_truthy as truthy;
 
 /// The value is the JSON integer `n` (not `n.0`, not a bool: every writer of the records read with this
 /// writes integers as integers).

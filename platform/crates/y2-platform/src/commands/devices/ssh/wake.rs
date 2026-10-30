@@ -16,19 +16,10 @@ static WAKE: AtomicI32 = AtomicI32::new(-1);
 const SIGNALS: [libc::c_int; 3] = [libc::SIGTERM, libc::SIGINT, libc::SIGCHLD];
 
 extern "C" fn on_signal(signal: libc::c_int) {
-    // SAFETY: only async-signal-safe calls; errno is restored for the interrupted code.
-    unsafe {
-        let errno = *libc::__errno_location();
-        if signal == libc::SIGTERM || signal == libc::SIGINT {
-            RUNNING.store(false, Ordering::SeqCst);
-        }
-        let fd = WAKE.load(Ordering::SeqCst);
-        if fd >= 0 {
-            let byte = signal as u8;
-            libc::write(fd, (&byte as *const u8).cast(), 1);
-        }
-        *libc::__errno_location() = errno;
+    if signal == libc::SIGTERM || signal == libc::SIGINT {
+        RUNNING.store(false, Ordering::SeqCst);
     }
+    y2p_core::sys::signal_note(WAKE.load(Ordering::SeqCst), signal as u8);
 }
 
 pub(super) struct Signals {

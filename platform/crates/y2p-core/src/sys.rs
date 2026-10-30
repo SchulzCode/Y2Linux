@@ -305,6 +305,31 @@ pub fn linkat(
     })
 }
 
+/// A pipe, both ends close-on-exec with `flags` (`O_NONBLOCK`): its reading and writing end.
+pub fn pipe(flags: libc::c_int) -> io::Result<(OwnedFd, OwnedFd)> {
+    let mut fds = [-1; 2];
+    // SAFETY: a two-element array for the new descriptors.
+    if unsafe { libc::pipe2(fds.as_mut_ptr(), flags | libc::O_CLOEXEC) } != 0 {
+        return Err(io::Error::last_os_error());
+    }
+    // SAFETY: both descriptors were just created and are owned once.
+    Ok(unsafe { (OwnedFd::from_raw_fd(fds[0]), OwnedFd::from_raw_fd(fds[1])) })
+}
+
+/// For a signal handler: write `byte` to the wakeup pipe `fd` (none below 0; a full non-blocking
+/// pipe drops it) and leave errno as the interrupted code had it, which may be between a failed call
+/// and its errno check. Only async-signal-safe calls.
+pub fn signal_note(fd: libc::c_int, byte: u8) {
+    // SAFETY: errno is this thread's; write(2) is async-signal-safe and reads one byte of a local.
+    unsafe {
+        let errno = *libc::__errno_location();
+        if fd >= 0 {
+            libc::write(fd, (&byte as *const u8).cast(), 1);
+        }
+        *libc::__errno_location() = errno;
+    }
+}
+
 /// One `read(fd)` into `buffer`; how many bytes it took (0 at the end of a file).
 pub fn read(fd: BorrowedFd<'_>, buffer: &mut [u8]) -> io::Result<usize> {
     // SAFETY: the buffer is writable for its length.

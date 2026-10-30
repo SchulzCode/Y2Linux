@@ -13,21 +13,11 @@ macro_rules! signal_wake {
 
         pub(super) extern "C" fn on_signal(signal: libc::c_int) {
             use std::sync::atomic::Ordering;
-            // SAFETY: errno is this thread's; restored below for the interrupted code, which may be
-            // between a failed call and its errno check (a full pipe fails the write with EAGAIN).
-            let errno = unsafe { *libc::__errno_location() };
             if signal != libc::SIGUSR1 {
                 RUNNING.store(false, Ordering::SeqCst);
             }
-            let fd = WAKE_FD.load(Ordering::SeqCst);
-            if fd >= 0 {
-                let byte = signal as u8;
-                // SAFETY: write(2) is async-signal-safe; a full pipe drops the byte
-                // (warn_on_full_buffer=False).
-                unsafe { libc::write(fd, (&byte as *const u8).cast(), 1) };
-            }
-            // SAFETY: as above.
-            unsafe { *libc::__errno_location() = errno };
+            // A full pipe drops the byte (warn_on_full_buffer=False).
+            y2p_core::sys::signal_note(WAKE_FD.load(Ordering::SeqCst), signal as u8);
         }
 
         /// The self-pipe and the handlers it replaced, which come back on drop.
@@ -39,16 +29,8 @@ macro_rules! signal_wake {
 
         impl SignalWake {
             pub(super) fn new() -> Result<Self, $crate::reply::Failure> {
-                use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
-                let mut fds = [0; 2];
-                // SAFETY: pipe2 fills two descriptors this struct then owns.
-                if unsafe { libc::pipe2(fds.as_mut_ptr(), libc::O_NONBLOCK | libc::O_CLOEXEC) } != 0
-                {
-                    return Err(std::io::Error::last_os_error().into());
-                }
-                // SAFETY: both descriptors were just created and are owned once.
-                let (read, write) =
-                    unsafe { (OwnedFd::from_raw_fd(fds[0]), OwnedFd::from_raw_fd(fds[1])) };
+                use std::os::fd::AsRawFd;
+                let (read, write) = y2p_core::sys::pipe(libc::O_NONBLOCK)?;
                 WAKE_FD.store(write.as_raw_fd(), std::sync::atomic::Ordering::SeqCst);
                 let mut previous = Vec::new();
                 for signal in [libc::SIGTERM, libc::SIGINT, libc::SIGUSR1] {
@@ -80,8 +62,7 @@ macro_rules! signal_wake {
             /// Empty the pipe (each signal left one byte).
             pub(super) fn drain(&self) {
                 let mut buffer = [0u8; 4096];
-                // SAFETY: reading into a local buffer from our own non-blocking pipe.
-                unsafe { libc::read(self.fd(), buffer.as_mut_ptr().cast(), buffer.len()) };
+                let _ = y2p_core::sys::read(std::os::fd::AsFd::as_fd(&self.read), &mut buffer);
             }
         }
 

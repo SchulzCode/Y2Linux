@@ -12,10 +12,7 @@ use crate::reply::{atomic_json, private_directory, Failure, Outcome};
 use serde::{Deserialize, Serialize};
 use std::{
     io::{self, Write},
-    os::{
-        fd::{AsRawFd, FromRawFd, OwnedFd},
-        unix::process::CommandExt,
-    },
+    os::{fd::AsRawFd, unix::process::CommandExt},
     process::{Child, Command, Stdio},
     sync::atomic::Ordering,
     thread,
@@ -298,14 +295,7 @@ pub fn serve(root: &Root) -> Outcome {
         .at(&path)?
         .ok_or_else(Failure::busy)?;
     RUNNING.store(true, Ordering::SeqCst);
-    let mut pipe = [-1; 2];
-    // SAFETY: a two-element array for the new descriptors.
-    if unsafe { libc::pipe2(pipe.as_mut_ptr(), libc::O_NONBLOCK | libc::O_CLOEXEC) } != 0 {
-        return Err(Failure::from(io::Error::last_os_error()));
-    }
-    // SAFETY: both descriptors were just created and are owned here.
-    let (wake_read, wake_write) =
-        unsafe { (OwnedFd::from_raw_fd(pipe[0]), OwnedFd::from_raw_fd(pipe[1])) };
+    let (wake_read, wake_write) = y2p_core::sys::pipe(libc::O_NONBLOCK).map_err(Failure::from)?;
     let signals = Signals::install(wake_write.as_raw_fd());
     // Below a fixture root a test may end the loop after n iterations (the golden suite).
     let ticks = (!root.is_real())

@@ -4,6 +4,7 @@
 use super::*;
 use crate::testing::{ok, Fixture};
 use serde_json::json;
+use std::os::fd::{FromRawFd, OwnedFd};
 use std::sync::Arc;
 
 const IP: [&str; 7] = ["ip", "-j", "-4", "addr", "show", "dev", "usb0"];
