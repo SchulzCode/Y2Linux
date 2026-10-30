@@ -4,7 +4,7 @@
 use super::power_features;
 use crate::reply::At;
 use crate::reply::{atomic_json, lock, private_directory, Failure, Outcome, Reply};
-use serde::Serialize;
+use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::{json, Value};
 use std::{
     collections::HashMap,
@@ -15,7 +15,7 @@ use std::{
 use y2p_contract::BootStage;
 use y2p_core::mounts::mounts_at;
 use y2p_core::{
-    json::{dumps, Object, ObjectExt},
+    json::dumps,
     py::{python_number, truthy},
     Root,
 };
@@ -110,15 +110,23 @@ enum Counter {
     Flag(bool),
 }
 
-impl Counter {
-    fn of(value: Option<&Value>) -> Counter {
-        match value {
-            Some(Value::Bool(flag)) => Counter::Flag(*flag),
-            Some(Value::Number(n)) => Counter::Count(n.as_u64().unwrap_or(0)),
-            _ => Counter::Count(0),
-        }
+impl Default for Counter {
+    fn default() -> Counter {
+        Counter::Count(0)
     }
+}
 
+impl<'de> Deserialize<'de> for Counter {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Counter, D::Error> {
+        Ok(match Value::deserialize(deserializer)? {
+            Value::Bool(flag) => Counter::Flag(flag),
+            Value::Number(n) => Counter::Count(n.as_u64().unwrap_or(0)),
+            _ => Counter::Count(0),
+        })
+    }
+}
+
+impl Counter {
     fn count(self) -> u64 {
         match self {
             Counter::Count(n) => n,
@@ -148,6 +156,37 @@ struct BootRecord {
     identity: Value,
 }
 
+/// The previous boot.json as the next boot reads it: the counters and flags it decides on, and the
+/// fields it takes over as they were written (missing ones as `null`).
+#[derive(Deserialize, Default)]
+#[serde(default)]
+struct Previous {
+    /// Schema 1 (as Python's `== 1` read it: `1.0` and `true` too).
+    #[serde(rename = "schema", deserialize_with = "schema_one")]
+    known: bool,
+    boot_id: Value,
+    previous_boot_id: Value,
+    last_stage: Value,
+    orderly_shutdown: Value,
+    identity: Value,
+    consecutive_unclean: Counter,
+    boot_count: Counter,
+    /// The earlier boots' rows as they were written (anything but a list: none).
+    #[serde(deserialize_with = "rows")]
+    history: Vec<Value>,
+}
+
+fn schema_one<'de, D: Deserializer<'de>>(deserializer: D) -> Result<bool, D::Error> {
+    Ok(python_number(Some(&Value::deserialize(deserializer)?)) == Some(1.0))
+}
+
+fn rows<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Vec<Value>, D::Error> {
+    Ok(match Value::deserialize(deserializer)? {
+        Value::Array(rows) => rows,
+        _ => Vec::new(),
+    })
+}
+
 /// The journal after `stage` of boot `boot_id`. A previous record that is not a
 /// schema-1 object starts a new journal. A new boot counts one more boot, and one more unclean boot
 /// unless the last one ended with `shutdown_complete`; three unclean boots in a row recommend
@@ -160,19 +199,22 @@ fn transition(
     now_ns: u64,
     reset: ResetCause,
 ) -> BootRecord {
-    let previous = match previous {
-        Some(Value::Object(map)) if python_number(map.get("schema")) == Some(1.0) => map,
-        _ => Object::new(),
+    let previous: Previous = match previous {
+        Some(Value::Object(map)) => y2p_core::lenient::read(map),
+        _ => Previous::default(),
     };
-    let known = !previous.is_empty();
-    let same = previous.get("boot_id").and_then(Value::as_str) == Some(boot_id);
-    let mut unclean = Counter::of(previous.get("consecutive_unclean"));
-    let mut history = match previous.get("history") {
-        Some(Value::Array(items)) => items.clone(),
-        _ => Vec::new(),
+    // A record of another schema starts a new journal.
+    let previous = if previous.known {
+        previous
+    } else {
+        Previous::default()
     };
+    let known = previous.known;
+    let same = previous.boot_id.as_str() == Some(boot_id);
+    let mut unclean = previous.consecutive_unclean;
+    let mut history = previous.history;
     if !same {
-        let orderly = previous.get("orderly_shutdown").is_some_and(truthy);
+        let orderly = truthy(&previous.orderly_shutdown);
         unclean = Counter::Count(if known && !orderly {
             (unclean.count() + 1).min(1000)
         } else {
@@ -180,10 +222,10 @@ fn transition(
         });
         if known {
             history.push(json!({
-                "boot_id": previous.value("boot_id"),
-                "last_stage": previous.value("last_stage"),
-                "orderly_shutdown": previous.value("orderly_shutdown"),
-                "identity": previous.value("identity"),
+                "boot_id": previous.boot_id,
+                "last_stage": previous.last_stage,
+                "orderly_shutdown": previous.orderly_shutdown,
+                "identity": previous.identity,
             }));
             history = history.split_off(history.len().saturating_sub(HISTORY));
         }
@@ -191,8 +233,12 @@ fn transition(
     BootRecord {
         schema: 1,
         boot_id: boot_id.to_owned(),
-        boot_count: Counter::of(previous.get("boot_count")).count() + u64::from(!same),
-        previous_boot_id: previous.value(if same { "previous_boot_id" } else { "boot_id" }),
+        boot_count: previous.boot_count.count() + u64::from(!same),
+        previous_boot_id: if same {
+            previous.previous_boot_id
+        } else {
+            previous.boot_id
+        },
         last_stage: stage.as_str(),
         stage_monotonic_ns: now_ns,
         orderly_shutdown: stage == BootStage::ShutdownComplete,
