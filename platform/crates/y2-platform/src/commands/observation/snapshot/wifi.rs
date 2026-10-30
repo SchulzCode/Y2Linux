@@ -289,7 +289,10 @@ pub fn observe(root: &Root, signal_cache: Option<&Wifi>) -> Wifi {
         rssi_dbm: rssi,
         signal_observation: signal,
         traffic_counters: stats,
-        events: root.json("/run/y2/wifi-events.json"),
+        events: root
+            .path("/run/y2/wifi-events.json")
+            .exists()
+            .then(|| crate::commands::network::WifiEvents::read(root)),
         reconnect_owner: "wpa_supplicant".into(),
         power_save: root
             .path("/run/y2/wifi-power.json")
@@ -319,7 +322,7 @@ pub struct Wifi {
     pub rssi_dbm: Option<i64>,
     pub signal_observation: Option<SignalObservation>,
     pub traffic_counters: Counted,
-    events: Option<Value>,
+    events: Option<crate::commands::network::WifiEvents>,
     reconnect_owner: String,
     power_save: Option<WifiPower>,
     coexistence: Option<Value>,

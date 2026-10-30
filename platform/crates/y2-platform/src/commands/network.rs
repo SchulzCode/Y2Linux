@@ -11,13 +11,12 @@ use ipv4::{dotted, interface, ipv4, network};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::{env, fs, os::unix::fs::PermissionsExt, path::Path};
-use y2p_core::lenient as record;
+use y2p_core::lenient::{self, self as record};
 use y2p_core::{
     command,
-    json::{sorted_object, Object, ObjectExt},
+    json::{Object, ObjectExt},
     power_text::python_split,
-    py::{self, is_true, truthy},
-    Root,
+    py, Root,
 };
 
 /// The runtime record `/run/y2/<name>.json`: `value`'s fields in their order, then `schema`, `boot_id`
@@ -79,18 +78,55 @@ const FLUSH: [&[&str]; 2] = [
     &["ip", "-4", "route", "flush", "dev", "wlan0"],
 ];
 
-/// A counter of the events record as it continues: a non-negative integer, a bool an old record
-/// holds kept as it is (it counts as 0 or 1), anything else 0.
-fn count(value: Option<&Value>) -> Value {
-    match value {
-        Some(v @ Value::Bool(_)) => v.clone(),
-        Some(Value::Number(n)) if n.as_u64().is_some() => Value::Number(n.clone()),
-        _ => json!(0),
-    }
+/// `/run/y2/wifi-events.json`: the association events of this boot (`wifi-event`), with the real
+/// link losses counted apart from sleep's radio-off. Each field reads leniently (another shape
+/// reads as none).
+#[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
+#[serde(default)]
+pub struct WifiEvents {
+    #[serde(deserialize_with = "lenient::or_none")]
+    pub link_counts_since_s: Option<f64>,
+    #[serde(deserialize_with = "lenient::or_default")]
+    pub real_disconnects: u64,
+    #[serde(deserialize_with = "lenient::or_default")]
+    pub reconnects: u64,
+    #[serde(deserialize_with = "lenient::or_default")]
+    pub radio_off_disconnects: u64,
+    #[serde(deserialize_with = "lenient::or_default")]
+    pub connected: u64,
+    #[serde(deserialize_with = "lenient::or_default")]
+    pub disconnected: u64,
+    #[serde(deserialize_with = "lenient::or_default")]
+    pub service_restart: u64,
+    #[serde(deserialize_with = "lenient::or_none")]
+    pub association_active: Option<bool>,
+    #[serde(deserialize_with = "lenient::text")]
+    pub last_event: Option<String>,
+    /// The stamp `publish` writes.
+    #[serde(
+        deserialize_with = "lenient::text",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub boot_id: Option<String>,
+    #[serde(
+        deserialize_with = "lenient::or_none",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub monotonic_s: Option<f64>,
+    #[serde(
+        deserialize_with = "lenient::or_none",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub schema: Option<i64>,
 }
 
-fn plus_one(value: &Value) -> Value {
-    json!(py::number(Some(value)).unwrap_or(0.0) as u64 + 1)
+impl WifiEvents {
+    /// The record (its defaults when missing or no object).
+    pub fn read(root: &Root) -> WifiEvents {
+        root.read("/run/y2/wifi-events.json")
+            .and_then(|text| serde_json::from_str(&text).ok())
+            .unwrap_or_default()
+    }
 }
 
 /// `/run/y2/dhcp.json` (also `wifi-event`'s and `dhcp-event`'s stdout) before `publish` adds its
@@ -178,44 +214,37 @@ pub fn wifi_event(root: &Root, event: &str) -> Outcome {
     private_directory(&runtime)?;
     write_text(&runtime.join("wifi-epoch"), &format!("{epoch}\n"))?;
     unlink_missing_ok(&runtime.join("dns.json"))?;
-    let mut old = root.json_object("/run/y2/wifi-events.json");
-    if old.value("boot_id") != json!(root.boot_id()) {
-        old = Object::new();
+    let mut record = WifiEvents::read(root);
+    if record.boot_id != root.boot_id() {
+        record = WifiEvents::default();
     }
-    let active = match old.get("association_active") {
-        Some(value) => is_true(Some(value)),
-        None => old.get("last_event").and_then(Value::as_str) == Some("CONNECTED"),
-    };
+    let active = record
+        .association_active
+        .unwrap_or(record.last_event.as_deref() == Some("CONNECTED"));
     // Action calls include supervisory cleanup as well as native link events. Keep their historical
     // raw counts, but count a real loss only once after a known connection.
-    let mut record = sorted_object(&old);
-    if record.get("link_counts_since_s").is_none() {
-        record.set("link_counts_since_s", root.clock().monotonic());
-    }
-    for name in ["real_disconnects", "reconnects", "radio_off_disconnects"] {
-        let value = count(record.get(name));
-        record.set(name, value);
+    if record.link_counts_since_s.is_none() {
+        record.link_counts_since_s = Some(root.clock().monotonic());
     }
     if event == "DISCONNECTED" && active {
         // Sleep switches the radio off: that is not a lost link (Beta 1 counted every sleep as a real
         // disconnect).
-        let name = if wlan_switched_off(root) {
-            "radio_off_disconnects"
+        if wlan_switched_off(root) {
+            record.radio_off_disconnects += 1;
         } else {
-            "real_disconnects"
-        };
-        let value = plus_one(&record.value(name));
-        record.set(name, value);
+            record.real_disconnects += 1;
+        }
     }
-    if event == "CONNECTED" && !active && record.get("connected").is_some_and(truthy) {
-        let value = plus_one(&record.value("reconnects"));
-        record.set("reconnects", value);
+    if event == "CONNECTED" && !active && record.connected > 0 {
+        record.reconnects += 1;
     }
-    record.set("association_active", event == "CONNECTED");
-    let key = event.to_lowercase();
-    let current = count(record.get(&key));
-    record.set(&key, plus_one(&current));
-    record.set("last_event", event);
+    record.association_active = Some(event == "CONNECTED");
+    match event {
+        "CONNECTED" => record.connected += 1,
+        "DISCONNECTED" => record.disconnected += 1,
+        _ => record.service_restart += 1,
+    }
+    record.last_event = Some(event.to_owned());
     publish(root, "wifi-events", &record)?;
     // Leases never survive a new association/service epoch. USB's fixed address and routes are outside
     // this interface-scoped lifecycle.

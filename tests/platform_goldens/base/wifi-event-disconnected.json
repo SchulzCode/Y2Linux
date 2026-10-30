@@ -80,7 +80,8 @@
      "radio_off_disconnects": 0,
      "real_disconnects": 1,
      "reconnects": 0,
-     "schema": 1
+     "schema": 1,
+     "service_restart": 0
     },
     "mode": "0o600",
     "type": "file"

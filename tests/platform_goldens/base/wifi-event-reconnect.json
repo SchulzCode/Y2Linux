@@ -73,13 +73,15 @@
      "association_active": true,
      "boot_id": "boot-a",
      "connected": 3,
+     "disconnected": 0,
      "last_event": "CONNECTED",
      "link_counts_since_s": "<volatile>",
      "monotonic_s": "<volatile>",
      "radio_off_disconnects": 0,
      "real_disconnects": 0,
      "reconnects": 2,
-     "schema": 1
+     "schema": 1,
+     "service_restart": 0
     },
     "mode": "0o600",
     "type": "file"
