@@ -9701,3 +9701,17 @@ connectivity 0.1, Reborn 14.4 s/h (main 6.0, watchdog 2.4). Owed: a long-uptime 
 owner's dark-wake checks (Power, USB plug, Bluetooth Play, automatic sleep on battery), handoff §6 A. Owed: the owner's dark-wake checks (Power, USB plug, Bluetooth
 Play, automatic sleep on battery) and PLATFORM-RUST-PORT-HANDOFF.md §6 A.
 
+
+**Test build 176 (2026-10-30 night, PLATFORM-RUST-NEXT-AGENT-HANDOFF.md §4 A–F, one agent, owner asleep):** every
+step byte-identical against the 175 code (tools/development/platform-gate.sh, baseline from 2e68d63e, no golden
+re-recorded), host suite 576 OK. Staged on the owner's player from 175 (Queued, seq 11210) and applied 03:48:30
+(host clock); the host saw the usual sequence (preloader twice, then the Y2 gadget at 03:49:23, MTP + ECM) but the
+USB network never carried a packet: host cdc_ether transmit timeouts 03:49:29–03:50:00, rx 0 packets, ARP for
+10.42.0.1 FAILED, SSH "No route to host" at +4.5, +6, +11 min and after re-activating the host's NM connection.
+MTP from the host (KDE KIO) listed "Internal Storage" and "SD Card": the player's userspace and the USB service run;
+only usb0 on the player is down or has no address (S20y2-usb sets 10.42.0.1 once, when usb0 first appears). Update
+state (Acknowledged or not) and the device check could not be read. Owner's rule for this case: write down and stop
+— no further install, no 177, no idle measurement. **Owed (owner):** look at the player's screen / Software Update
+page; replug the USB cable (a new enumeration) and check `ip addr show usb0` and `update status` on 176; if 176 is
+at fault, the commits after 2e68d63e are the suspects (none touches usb0 or S20y2-usb directly; the USB tick's
+views became a typed struct in 82503b14).
