@@ -1,6 +1,22 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.4 candidate (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-30, late night): TEST BUILD 183 ON THE OWNER'S PLAYER; FINISHING Q1–Q3 DONE, Q4 NEXT.**
+> **START HERE (2026-10-30, after midnight): TEST BUILD 184 ON THE OWNER'S PLAYER; Q4 PART 1 DONE, OWNER'S HARDWARE ROUND OPEN.**
+> Q4 part 1 (021e2b9a … da7b1338): update health-ack, time floor, update restart/channel (one power-socket client),
+> SD records (MediaRecord = media.json/claim/lifecycle, card Identity, Check, write windows), USB hand-off
+> (usb-transfer views, one mtp-roots/mtp-events record), Y2Media (setup note/status, resume record keeps unknown
+> fields, marker/claim), battery profile loader (shared with the setup gate), boot journal, CPU idle policy, power
+> policy, shutdown Intent (+ one ProcessIdentity). Bug fixed on the way: USB tick and radiofw read the write-window
+> answer's `holders` as an object (it is a list), so USB re-opened its SD window every tick and never closed it on
+> unplug. 184 (seq 11290, 0516270c) Acknowledged, device check OK (power.json 11 rewrites/20 s as before).
+> **Owner's hardware round on 184:** SD (insert/remove, write window with the USB cable in and out — card goes ro
+> again), power-off/restart and low-battery shutdown, OTA + rollback, Y2Media, sleep unchanged so far.
+> Owner decisions for part 2: corrupted /data records on the remaining critical path fail closed with ONE refusal
+> reason (no Python error-text parity, pyjson/pyops go); build 185 follows. Part 2 so far: Reborn's sleep answer
+> typed, pyjson removed (83778bce). Next: typed suspend Receipt/Product (sleep status, transition, record/progress,
+> admission, helper, both journals), reset/maintenance, power journal; then build 185. Next free label 185,
+> sequence above 11290. The native update core's journal/answers stay a boundary (C program's record, shown as is).
+>
+> Previous entry: **START HERE (2026-10-30, late night): TEST BUILD 183 ON THE OWNER'S PLAYER; FINISHING Q1–Q3 DONE, Q4 NEXT.**
 > Q3 since 182: codec module, radio firmware, wifi-failure record, typed Wi-Fi look end to end, power-save record,
 > transfer manifest, capabilities on y2p_contract::Capabilities, one volume probe + one SD identity (storage),
 > Wi-Fi events, USB records, readiness reasons, network-check (7a64dcc0 … c8833769). 183 (seq 11280)
