@@ -1,7 +1,7 @@
 //! The radio helpers' supervisor: restart a dead helper (rate-bounded), attach wpa_supplicant to
 //! wlan0 with the wpa-event action hook, re-add a stale interface (F53), stop every helper at the end.
 // SPDX-License-Identifier: GPL-2.0-only
-use super::super::published::Published;
+use super::super::published;
 use super::super::wifi::journal;
 use crate::commands::{codec, network::wlan_switched_off};
 use crate::reply::{unlink_missing_ok, Failure};
@@ -229,8 +229,8 @@ impl Supervisor {
     /// blocks it (the platform's own readiness record; no command while healthy).
     pub fn verify(&mut self, now: f64) {
         let root = &self.root;
-        let net = Published::read(root);
-        let fresh = net.is_this_boot(self.boot_id()) && net.fresh(root, 30.0);
+        let net = published::read(root);
+        let fresh = net.is_this_boot(self.boot_id()) && net.fresh(root.clock().monotonic(), 30.0);
         let association = net.association.as_deref();
         if fresh && association == Some("COMPLETED") {
             self.renewals = 0;

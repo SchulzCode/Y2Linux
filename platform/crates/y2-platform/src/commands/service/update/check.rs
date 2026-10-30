@@ -4,7 +4,7 @@ use super::{
     atomic_json, channel, download_record, journal_state, json, private_directory, shortened,
     stage, Io, ManifestUrl, Raise, Result, Root, Value, CHECK_INTERVAL, IN_PROGRESS, LAST_CHECK,
 };
-use crate::commands::connectivity::published::Published;
+use crate::commands::connectivity::published;
 use y2p_contract::update::LastCheck;
 
 /// The manifest URL `stage` gets from the channel: none for a missing or empty one, refused for one
@@ -41,7 +41,7 @@ pub(super) fn automatic_check(root: &Root, io: &dyn Io) -> Result<Value> {
     if !channel(root).manifest_url.set() {
         return Ok(skipped("no_channel"));
     }
-    if !Published::read(root).online() {
+    if !published::read(root).online() {
         return Ok(skipped("offline"));
     }
     if !io.time_status(root).tls_ready {

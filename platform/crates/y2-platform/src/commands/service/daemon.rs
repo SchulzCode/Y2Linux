@@ -12,7 +12,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use super::process::{self, Child, Start};
 use super::{radiofw, update, usb::UsbService};
-use crate::commands::connectivity::published::{Published, Record};
+use crate::commands::connectivity::published::{self, Record};
 use crate::commands::connectivity::{
     observe_wifi::wifi,
     radio_policy::wifi_policy,
@@ -141,7 +141,7 @@ impl Service {
         let mut drawn_recorded = false;
         // It cannot change while the service runs.
         let boot_id = root.boot_id();
-        let previous = Published::read(root);
+        let previous = published::read(root);
         let mut query_failures = previous
             .status_query_failures
             .filter(|_| previous.is_this_boot(boot_id.as_deref()))

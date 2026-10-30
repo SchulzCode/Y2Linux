@@ -178,7 +178,7 @@ fn upload_blocked(root: &Root) -> Result<Option<&'static str>, Failure> {
         return Ok(Some("not_enabled"));
     }
     let boot = root.boot_id();
-    let network = crate::commands::connectivity::published::Published::read(root);
+    let network = crate::commands::connectivity::published::read(root);
     if !network.online() || !network.is_this_boot(boot.as_deref()) {
         return Ok(Some("offline"));
     }
