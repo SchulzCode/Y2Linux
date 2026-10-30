@@ -167,7 +167,7 @@ prepare allocation behavior and balancing normal/abort unwind without WARN/taint
 
 ## Qualification and software evidence
 
-The owner-run [SSH harness](../../tools/development/qualify-cpu-fix01.py) defaults
+The owner-run [SSH harness](../../tools/archive/development/qualify-cpu-fix01.py) defaults
 to a plan. `--run` pins installed source identities to package manifest, captures
 all independent checks, polls/reconnects automatically, and never treats a new
 boot as resume. Battery sleep uses the owner's existing Wi-Fi SSH configuration;
