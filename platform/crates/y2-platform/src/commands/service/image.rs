@@ -24,8 +24,11 @@ fn value(text: &str) -> Error {
     Error::Value(text.into())
 }
 
-fn os(error: std::io::Error) -> Error {
-    Error::Os(py::os_error(&error, None).0)
+/// An `OSError` naming no file.
+impl From<std::io::Error> for Error {
+    fn from(error: std::io::Error) -> Error {
+        Error::Os(py::os_error(&error, None).0)
+    }
 }
 
 fn field(buffer: &[u8], offset: usize, size: usize) -> Result<&[u8]> {
@@ -78,10 +81,7 @@ impl Image {
         let mut file = File::open(path)
             .map_err(|e| Error::Os(py::os_error(&e, Some(&path.to_string_lossy())).0))?;
         let mut header = Vec::new();
-        Read::by_ref(&mut file)
-            .take(28)
-            .read_to_end(&mut header)
-            .map_err(os)?;
+        Read::by_ref(&mut file).take(28).read_to_end(&mut header)?;
         if header.len() == 28 && u32_at(&header, 0)? == 0xED26_FF3A {
             let major = u16_at(&header, 4)?;
             let file_hdr = u16_at(&header, 8)? as u64;
@@ -95,12 +95,9 @@ impl Image {
             let (mut offset, mut at) = (file_hdr, 0u128);
             let mut chunks = Vec::new();
             for _ in 0..count {
-                file.seek(SeekFrom::Start(offset)).map_err(os)?;
+                file.seek(SeekFrom::Start(offset))?;
                 let mut head = Vec::new();
-                Read::by_ref(&mut file)
-                    .take(12)
-                    .read_to_end(&mut head)
-                    .map_err(os)?;
+                Read::by_ref(&mut file).take(12).read_to_end(&mut head)?;
                 if head.len() != 12 {
                     return Err(Error::Value("unpack requires a buffer of 12 bytes".into()));
                 }
@@ -120,12 +117,9 @@ impl Image {
                         });
                     }
                     FILL => {
-                        file.seek(SeekFrom::Start(data)).map_err(os)?;
+                        file.seek(SeekFrom::Start(data))?;
                         let mut pattern = Vec::new();
-                        Read::by_ref(&mut file)
-                            .take(4)
-                            .read_to_end(&mut pattern)
-                            .map_err(os)?;
+                        Read::by_ref(&mut file).take(4).read_to_end(&mut pattern)?;
                         chunks.push(Chunk {
                             start: at,
                             blocks,
@@ -153,7 +147,7 @@ impl Image {
                 sparse: true,
             });
         }
-        let size = file.metadata().map_err(os)?.len() as u128;
+        let size = file.metadata()?.len() as u128;
         Ok(Image {
             file,
             block: 4096,
@@ -186,12 +180,11 @@ impl Image {
                 Data::Raw(data) => {
                     let at = *data as u128 + (block - chunk.start) * self.block + within;
                     let at = u64::try_from(at).map_err(|_| value("image_offset_outside"))?;
-                    self.file.seek(SeekFrom::Start(at)).map_err(os)?;
+                    self.file.seek(SeekFrom::Start(at))?;
                     let mut part = Vec::with_capacity(take_usize.min(1 << 26));
                     Read::by_ref(&mut self.file)
                         .take(take as u64)
-                        .read_to_end(&mut part)
-                        .map_err(os)?;
+                        .read_to_end(&mut part)?;
                     if part.len() != take_usize && self.sparse {
                         return Err(value("sparse_short_read"));
                     }

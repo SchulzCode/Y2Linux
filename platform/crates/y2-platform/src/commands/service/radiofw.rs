@@ -145,6 +145,13 @@ impl Error {
     }
 }
 
+/// An `OSError` naming no file.
+impl From<std::io::Error> for Error {
+    fn from(error: std::io::Error) -> Error {
+        Error::Os(y2p_core::py::os_error(&error, None).0)
+    }
+}
+
 impl From<image::Error> for Error {
     fn from(error: image::Error) -> Error {
         match error {

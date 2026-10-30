@@ -159,9 +159,7 @@ pub(super) fn install(root: &Root, reviewed: &Reviewed, files: Files) -> Result<
             .custom_flags(libc::O_NOFOLLOW)
             .open(&path)
             .map_err(|e| os_path(e, &path))?;
-        out.write_all(data)
-            .and_then(|()| out.sync_all())
-            .map_err(|e| Error::Os(py::os_error(&e, None).0))?;
+        out.write_all(data).and_then(|()| out.sync_all())?;
     }
     let meta = target.symlink_metadata();
     if meta.as_ref().is_ok_and(|m| m.file_type().is_symlink())
@@ -180,9 +178,7 @@ pub(super) fn install(root: &Root, reviewed: &Reviewed, files: Files) -> Result<
         .custom_flags(libc::O_DIRECTORY)
         .open(&parent)
         .map_err(|e| os_path(e, &parent))?;
-    directory
-        .sync_all()
-        .map_err(|e| Error::Os(py::os_error(&e, None).0))
+    directory.sync_all().map_err(Error::from)
 }
 
 fn rename_error(error: std::io::Error, from: &Path, to: &Path) -> Error {

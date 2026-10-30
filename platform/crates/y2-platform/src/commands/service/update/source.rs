@@ -73,8 +73,7 @@ pub(super) trait Io {
 
     /// The free space and inodes of the volume `file` is on.
     fn space(&self, file: &File) -> Result<Space> {
-        let info = y2p_core::sys::fstatvfs(file.as_fd())
-            .map_err(|e| Raise::Os(py::os_error(&e, None).0))?;
+        let info = y2p_core::sys::fstatvfs(file.as_fd())?;
         Ok(Space {
             readonly: info.read_only(),
             available: info.bavail as i128 * info.frsize as i128,
@@ -91,7 +90,7 @@ pub(super) trait Io {
                 return Ok(format!(".incoming-{fixed}"));
             }
         }
-        let id = py::uuid4().map_err(|e| Raise::Os(py::os_error(&e, None).0))?;
+        let id = py::uuid4()?;
         Ok(format!(".incoming-{}", id.replace('-', "")))
     }
 
@@ -186,8 +185,7 @@ impl Stream {
                 let mut out = Vec::new();
                 Read::by_ref(file)
                     .take(limit as u64)
-                    .read_to_end(&mut out)
-                    .map_err(|e| Raise::Os(py::os_error(&e, None).0))?;
+                    .read_to_end(&mut out)?;
                 Ok(out)
             }
             Stream::Http(response) => response.read(limit, cancellable).map_err(Raise::Net),
@@ -225,9 +223,7 @@ impl Source {
                     .custom_flags(libc::O_NOFOLLOW | libc::O_NONBLOCK)
                     .open(&path)
                     .map_err(|e| Raise::os(e, &path))?;
-                let meta = file
-                    .metadata()
-                    .map_err(|e| Raise::Os(py::os_error(&e, None).0))?;
+                let meta = file.metadata()?;
                 if !meta.file_type().is_file() {
                     return Err(Raise::value("local_package_regular_files_required"));
                 }
@@ -274,18 +270,14 @@ pub(super) fn copy_stream(
             return Err(Raise::value("download_size_limit"));
         }
         free(io, &stream, chunk.len() as i128)?;
-        stream
-            .write_all(&chunk)
-            .map_err(|e| Raise::Os(py::os_error(&e, None).0))?;
+        stream.write_all(&chunk)?;
         digest.update(&chunk);
         report(count);
     }
     if exact.is_some_and(|e| e != count) {
         return Err(Raise::value("incomplete_download"));
     }
-    stream
-        .sync_all()
-        .map_err(|e| Raise::Os(py::os_error(&e, None).0))?;
+    stream.sync_all()?;
     Ok((count, digest.hexdigest()))
 }
 

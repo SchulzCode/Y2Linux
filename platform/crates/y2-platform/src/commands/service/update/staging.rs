@@ -355,7 +355,7 @@ impl Staging<'_> {
         match lock::try_fd(file.as_fd(), lock::Kind::Exclusive) {
             Ok(true) => {}
             Ok(false) => return Err(Raise::Os(py::os_error(&lock::would_block(), None).0)),
-            Err(e) => return Err(Raise::Os(py::os_error(&e, None).0)),
+            Err(e) => return Err(Raise::from(e)),
         }
         if !state_is(&status(root), &TERMINAL) {
             return Err(Raise::value("update_already_pending"));
@@ -594,9 +594,7 @@ impl Staging<'_> {
             .custom_flags(libc::O_DIRECTORY | libc::O_NOFOLLOW)
             .open(&self.directory)
             .map_err(|e| Raise::os(e, &self.directory))?;
-        parent
-            .sync_all()
-            .map_err(|e| Raise::Os(py::os_error(&e, None).0))?;
+        parent.sync_all()?;
         drop(parent);
         let result = core(root, "queue", None, 300.0)?;
         if let Some(live) = self.live.as_mut() {

@@ -36,6 +36,13 @@ pub enum Error {
     Cancelled,
 }
 
+/// An `OSError` naming no file.
+impl From<std::io::Error> for Error {
+    fn from(error: std::io::Error) -> Error {
+        Error::Os(y2p_core::py::os_error(&error, None).0)
+    }
+}
+
 impl Error {
     pub fn text(&self) -> String {
         match self {
@@ -294,12 +301,12 @@ fn read_some(
             if error.kind() == std::io::ErrorKind::Interrupted {
                 continue;
             }
-            return Err(Error::Os(y2p_core::py::os_error(&error, None).0));
+            return Err(Error::from(error));
         }
         match stdout.read(buffer) {
             Ok(n) => return Ok(n),
             Err(e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
-            Err(e) => return Err(Error::Os(y2p_core::py::os_error(&e, None).0)),
+            Err(e) => return Err(Error::from(e)),
         }
     }
 }

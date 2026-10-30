@@ -124,6 +124,13 @@ impl Raise {
     }
 }
 
+/// An `OSError` naming no file.
+impl From<std::io::Error> for Raise {
+    fn from(error: std::io::Error) -> Raise {
+        Raise::Os(y2p_core::py::os_error(&error, None).0)
+    }
+}
+
 impl From<Failure> for Raise {
     fn from(failure: Failure) -> Raise {
         match failure {
