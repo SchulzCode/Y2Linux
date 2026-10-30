@@ -4,15 +4,9 @@
 //! the controllers and block devices.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::sys::{isdigit, read, resolve};
-use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::path::Path;
-use y2p_core::{
-    json::Separators,
-    lenient::{self, BootId},
-    storage_media::sha256_hex,
-    Root,
-};
+use y2p_core::{json::Separators, lenient, storage_media::sha256_hex, Root};
 
 pub const MEDIA_MOUNT: &str = "/run/y2/media-mount.json";
 pub const MEDIA_STATE: &str = "/run/y2/media.json";
@@ -60,44 +54,7 @@ pub fn media_identity(entry: &Path, filesystem: &str, uuid: Option<&str>) -> Opt
     })
 }
 
-/// This boot's Y2Media setup state as its note says it (counts and the old storage's serial, no file
-/// names); `Unknown` without a note of this boot.
-#[derive(Serialize, Deserialize, Default, Debug)]
-#[serde(default)]
-pub struct SetupStatus {
-    #[serde(skip_serializing)]
-    boot_id: BootId,
-    #[serde(
-        skip_serializing_if = "Option::is_none",
-        deserialize_with = "lenient::text"
-    )]
-    pub state: Option<String>,
-    #[serde(
-        skip_serializing_if = "Option::is_none",
-        deserialize_with = "lenient::text"
-    )]
-    pub reason: Option<String>,
-    #[serde(
-        skip_serializing_if = "Option::is_none",
-        deserialize_with = "lenient::count"
-    )]
-    pub files: Option<u64>,
-    #[serde(
-        skip_serializing_if = "Option::is_none",
-        deserialize_with = "lenient::count"
-    )]
-    pub bytes: Option<u64>,
-    #[serde(
-        skip_serializing_if = "Option::is_none",
-        deserialize_with = "lenient::text"
-    )]
-    pub serial: Option<String>,
-    #[serde(
-        skip_serializing_if = "Option::is_none",
-        deserialize_with = "lenient::count"
-    )]
-    pub kept: Option<u64>,
-}
+pub use y2p_contract::storage::SetupStatus;
 
 pub fn setup_status(root: &Root) -> SetupStatus {
     let unknown = || SetupStatus {
@@ -112,13 +69,6 @@ pub fn setup_status(root: &Root) -> SetupStatus {
         return unknown();
     }
     note
-}
-
-impl SetupStatus {
-    /// The old storage holds more than can be kept: the listener must confirm.
-    pub fn waiting(&self) -> bool {
-        self.state.as_deref() == Some("Waiting")
-    }
 }
 
 #[cfg(test)]

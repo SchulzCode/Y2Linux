@@ -64,31 +64,7 @@ impl Record {
     }
 }
 
-/// What `firmware status|scan|install` answers: the state, why, and for a missing copy where it goes.
-#[derive(Serialize, Debug, PartialEq)]
-pub struct Status {
-    pub state: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub reason: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub folder: Option<&'static str>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub file: Option<&'static str>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub location: Option<&'static str>,
-}
-
-impl Status {
-    pub fn of(state: &str, reason: Option<String>) -> Status {
-        Status {
-            state: state.into(),
-            reason,
-            folder: None,
-            file: None,
-            location: None,
-        }
-    }
-}
+pub use y2p_contract::radio::FirmwareStatus as Status;
 
 /// True only while the recorded mount is still the live, exact Y2Media mount.
 pub fn internal(root: &Root) -> bool {
@@ -199,9 +175,9 @@ pub fn state(root: &Root) -> Status {
     Status {
         state: "Missing".into(),
         reason: full.then(|| "no_space".into()),
-        folder: Some(FOLDER),
-        file: Some(SOURCE),
-        location: Some(if internal(root) { "internal" } else { "drive" }),
+        folder: Some(FOLDER.into()),
+        file: Some(SOURCE.into()),
+        location: Some(if internal(root) { "internal" } else { "drive" }.into()),
     }
 }
 
