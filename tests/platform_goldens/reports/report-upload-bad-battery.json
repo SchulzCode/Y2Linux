@@ -4,10 +4,10 @@
   "upload"
  ],
  "calls": [],
- "exit": 1,
+ "exit": 0,
  "stdout": {
-  "failure": "report_failed",
-  "reason": "power_record_unreadable"
+  "reason": "battery_low",
+  "uploaded": []
  },
  "tree": {
   "added": {

@@ -23,7 +23,7 @@
  "stdout": {
   "reports": [],
   "upload": {
-   "reason": "power_record_unreadable",
+   "reason": "battery_low",
    "uploaded": []
   }
  },

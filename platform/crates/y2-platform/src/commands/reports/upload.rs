@@ -4,17 +4,18 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{
     build::{self, Bytes, ReportIndex},
-    clock, json_dict, or_dict,
+    clock, json_dict,
     state::{self, Reports, Retry, QUEUE},
-    tarball, POWER_UNREADABLE,
+    tarball,
 };
-use crate::commands::reports::{filled, object, text_of, Value, ValueExt};
+use crate::commands::reports::{object, text_of, Value, ValueExt};
 use crate::reply::{mkdir_parents, Failure};
 use std::{
     io::Write,
     os::unix::fs::OpenOptionsExt,
     time::{Duration, Instant as Monotonic},
 };
+use y2p_core::lenient::BootId;
 use y2p_core::{command, Root};
 
 const QUEUE_MAX: usize = 3;
@@ -129,25 +130,20 @@ fn upload_blocked(root: &Root) -> Result<Option<&'static str>, Failure> {
     if !Reports::load(root).enabled() {
         return Ok(Some("not_enabled"));
     }
-    let boot: Value = root.boot_id().into();
-    let network = or_dict(json_dict(root, "/run/y2/network.json"));
-    if !network
-        .get("state")
-        .is_some_and(|s| s.eq(&Value::from("Online")))
-        || !network.get("boot_id").unwrap_or(&Value::Null).eq(&boot)
-    {
+    let boot = root.boot_id();
+    let network = crate::commands::connectivity::published::Published::read(root);
+    if !network.online() || !network.is_this_boot(boot.as_deref()) {
         return Ok(Some("offline"));
     }
     if !crate::commands::time::tls_ready(root) {
         return Ok(Some("clock_not_ready"));
     }
-    let update = or_dict(json_dict(root, "/data/updates/state.json"));
-    let quiet = match update.get("state") {
-        None | Some(Value::Null) => true,
-        Some(s) => ["Idle", "Acknowledged", "RolledBack", "Failed"]
-            .iter()
-            .any(|w| s.eq(&Value::from(*w))),
-    };
+    let update: super::checks::UpdateJournal =
+        serde_json::from_value(json_dict(root, "/data/updates/state.json")).unwrap_or_default();
+    let quiet = update
+        .state
+        .as_deref()
+        .is_none_or(|state| ["Idle", "Acknowledged", "RolledBack", "Failed"].contains(&state));
     if !quiet
         || root
             .path("/data/system/platform/maintenance-pending")
@@ -155,28 +151,13 @@ fn upload_blocked(root: &Root) -> Result<Option<&'static str>, Failure> {
     {
         return Ok(Some("update_in_progress"));
     }
-    let power = or_dict(json_dict(root, "/run/y2/power.json"));
-    let same_boot = match power.get("boot_id") {
-        None | Some(Value::Null) => true,
-        Some(b) => b.eq(&boot),
-    };
-    let battery = if same_boot {
-        power
-            .get("battery")
-            .filter(|b| filled(b))
-            .cloned()
-            .unwrap_or(object())
-    } else {
-        object()
-    };
-    if !battery.is_object() {
-        return Err(Failure::value(POWER_UNREADABLE));
-    }
-    let charging = matches!(battery.get("charging"), Some(Value::Bool(true)))
-        || battery
-            .get("status")
-            .is_some_and(|s| s.eq(&Value::from("Charging")) || s.eq(&Value::from("Full")));
-    let percent = battery.get("percent").and_then(Value::as_i64);
+    // The battery of this boot's power record (a record without a boot counts; a battery of
+    // another shape reads as no reading).
+    let power = crate::commands::power::published::PowerState::read(root);
+    let same_boot = matches!(power.boot_id, BootId::Null) || power.is_this_boot(root);
+    let battery = power.battery.reading();
+    let charging = same_boot && battery.charging_or_full();
+    let percent = battery.percent.filter(|_| same_boot);
     if !charging && percent.is_none_or(|p| p < MINIMUM_PERCENT) {
         return Ok(Some("battery_low"));
     }

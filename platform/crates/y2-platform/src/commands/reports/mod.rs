@@ -99,9 +99,8 @@ fn lower_priority() {
 
 /// Refusals of a record of an unexpected shape: Reborn's health answer, power.json's battery,
 /// Reborn's session.json (reports.json and a queued report's report.json read leniently).
-pub const POWER_UNREADABLE: &str = "power_record_unreadable";
 pub const SESSION_UNREADABLE: &str = "session_unreadable";
-const UNREADABLE: [&str; 2] = [POWER_UNREADABLE, SESSION_UNREADABLE];
+const UNREADABLE: [&str; 1] = [SESSION_UNREADABLE];
 
 /// `report <action>`: every failure prints `report_failed` (exit 1) with a reason.
 fn report(root: &Root, action: &str, to: Option<&str>, topic: Option<&str>) -> Outcome {
@@ -199,15 +198,6 @@ pub fn json_dict(root: &Root, name: &str) -> Value {
     match json_at(root, name) {
         Some(value @ Value::Object(_)) => value,
         _ => object(),
-    }
-}
-
-/// `value or {}` of a dict default.
-pub fn or_dict(value: Value) -> Value {
-    if filled(&value) {
-        value
-    } else {
-        object()
     }
 }
 

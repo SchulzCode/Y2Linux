@@ -349,11 +349,11 @@ fn reborn_failure(root: &Root, value: &mut Reports, boot: &str) -> Result<Fired,
 /// The update journal's fields the update trigger reads (state.json, the update core's).
 #[derive(Deserialize, Default)]
 #[serde(default)]
-struct UpdateJournal {
+pub(super) struct UpdateJournal {
     #[serde(deserialize_with = "lenient::text")]
-    state: Option<String>,
+    pub state: Option<String>,
     #[serde(deserialize_with = "lenient::or_none")]
-    sequence: Option<i64>,
+    pub sequence: Option<i64>,
 }
 
 /// Whether Reborn drew its first frame this boot (application-ready.json).
