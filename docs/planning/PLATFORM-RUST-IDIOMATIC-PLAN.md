@@ -315,6 +315,14 @@ key; a broken evidence record or odd `ip` output leaves `status` readable. Left 
 Wi-Fi's records (network.json signal cache, wifi-events/-power, coexistence), storage internal setup, power's
 policy record, bench, `status <section>` reduction.
 
+Later the same night: Q1 also Bluetooth answer (bf6156cc), power record (a1c7d63b); Q2 reports.json (a97b74f4),
+report index (09032b20), triggers (34c9ac43), upload gate/answers (04d33cd8, 2db80593), diagnostics (fb733801);
+test build 182 Acknowledged. Q3: codec module (7a64dcc0), radio firmware (90e44555), wifi-failure record
+(95d097d1), the Wi-Fi look as one typed `Wifi` through status, network.json, DNS probe, recovery and the service
+daemon (d590c239), power-save policy/record (b69813c9). Loose JSON in product code (test-only modules excluded):
+≈2,380. Left for Q3: devices transfer/time/ssh records, capabilities template, storage observe/records/sys read
+sides, service usb/download, coexistence record, then Q4.
+
 ## 4. Test builds
 
 | build | content |
