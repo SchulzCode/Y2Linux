@@ -9,13 +9,35 @@ use y2p_core::py::PyValue;
 // UI_SOC in an MT6323 RTC spare register (set_rtc_spare_fg_value, ledger F29).
 pub const UI_STATE: &str = "/data/system/platform/battery-ui.json";
 
+/// Where a sample's percentage comes from (`battery.source`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum BatterySource {
+    Unavailable,
+    FuelGauge,
+    Hybrid,
+    StockOam,
+    VoltageEstimate,
+}
+
+/// How far a sample's percentage can be trusted (`battery.confidence`): the low-battery policy acts
+/// on a percentage only from `hardware` or `calibrated_estimate`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Confidence {
+    Unavailable,
+    Hardware,
+    CalibratedEstimate,
+    Provisional,
+}
+
 /// What one sample publishes (`battery` in power.json and in the journal rows), in this key order:
 /// the reading, then for a voltage estimate the estimate's own fields.
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct BatteryStatus {
     pub percent: Option<i64>,
-    pub source: &'static str,
-    pub confidence: &'static str,
+    pub source: BatterySource,
+    pub confidence: Confidence,
     pub status: Option<String>,
     pub charging: bool,
     pub voltage_uv: Option<i64>,
@@ -33,8 +55,8 @@ impl Default for BatteryStatus {
     fn default() -> Self {
         Self {
             percent: None,
-            source: "unavailable",
-            confidence: "unavailable",
+            source: BatterySource::Unavailable,
+            confidence: Confidence::Unavailable,
             status: None,
             charging: false,
             voltage_uv: None,

@@ -44,7 +44,7 @@ fn a_sample_without_the_fuel_gauge_goes_on_from_its_percent() {
     assert_eq!(soc.observe(10.0, &reading(Some(55))).percent, Some(55));
     let next = soc.observe(11.0, &reading(None));
     // The voltage estimate takes over as on a first sample (no TypeError, no crash).
-    assert_eq!(next.source, "voltage_estimate");
+    assert_eq!(next.source, BatterySource::VoltageEstimate);
     assert!(next.percent.is_some());
     assert_eq!(
         next.estimate.and_then(|e| e.start).as_deref(),

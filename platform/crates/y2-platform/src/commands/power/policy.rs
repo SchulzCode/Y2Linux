@@ -1,7 +1,8 @@
 //! `power.load_policy` and `power.LowBattery`: UI-independent shutdown policy. Electrical thresholds
 //! are owner-qualified data.
 // SPDX-License-Identifier: GPL-2.0-only
-use super::battery::BatteryStatus;
+use super::battery::{BatteryStatus, Confidence};
+use serde::Serialize;
 use serde_json::{Map, Value};
 use y2p_core::{
     py::{eq_int, exact_int, is_true},
@@ -109,21 +110,43 @@ pub fn load_policy(root: &Root) -> (Option<Policy>, Option<&'static str>) {
     )
 }
 
-/// `LowBattery`: Unavailable, Normal, Low, Critical or ShutdownPending after `critical_samples`
-/// consecutive critical samples.
-#[derive(Debug)]
-pub struct LowBattery {
-    pub state: &'static str,
-    samples: i64,
+/// The low-battery state (power.json `state`, the journal rows): ShutdownPending after
+/// `critical_samples` consecutive critical samples.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize)]
+pub enum BatteryState {
+    /// No policy, or no battery reading.
+    #[default]
+    Unavailable,
+    Normal,
+    Low,
+    Critical,
+    ShutdownPending,
 }
 
-impl Default for LowBattery {
-    fn default() -> Self {
-        Self {
-            state: "Unavailable",
-            samples: 0,
+impl BatteryState {
+    /// The text records carry.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            BatteryState::Unavailable => "Unavailable",
+            BatteryState::Normal => "Normal",
+            BatteryState::Low => "Low",
+            BatteryState::Critical => "Critical",
+            BatteryState::ShutdownPending => "ShutdownPending",
         }
     }
+}
+
+impl PartialEq<&str> for BatteryState {
+    fn eq(&self, text: &&str) -> bool {
+        self.as_str() == *text
+    }
+}
+
+/// `LowBattery`: the state of the last sample and how many critical samples came in a row.
+#[derive(Debug, Default)]
+pub struct LowBattery {
+    pub state: BatteryState,
+    samples: i64,
 }
 
 impl LowBattery {
@@ -133,20 +156,23 @@ impl LowBattery {
         voltage: Option<i64>,
         present: Option<i64>,
         soc: &BatteryStatus,
-    ) -> &'static str {
+    ) -> BatteryState {
         let Some(policy) = policy else {
-            (self.state, self.samples) = ("Unavailable", 0);
+            (self.state, self.samples) = (BatteryState::Unavailable, 0);
             return self.state;
         };
         let Some(voltage) = voltage.filter(|v| present == Some(1) && *v > 0) else {
-            (self.state, self.samples) = ("Unavailable", 0);
+            (self.state, self.samples) = (BatteryState::Unavailable, 0);
             return self.state;
         };
         // USB presence does not prove positive net pack current. The same
         // qualified voltage guard applies while connected to a source.
         let valid_soc = soc.percent.filter(|p| (0..=100).contains(p));
-        let trustworthy =
-            valid_soc.is_some() && matches!(soc.confidence, "hardware" | "calibrated_estimate");
+        let trustworthy = valid_soc.is_some()
+            && matches!(
+                soc.confidence,
+                Confidence::Hardware | Confidence::CalibratedEstimate
+            );
         // F36: on a charger the shown value never falls (battery.Soc.track), so a
         // low one is a start value from before the charge; the voltage guard
         // alone covers a source weaker than the load.
@@ -157,22 +183,25 @@ impl LowBattery {
             && valid_soc.is_some_and(|p| p <= policy.shutdown_soc);
         if voltage <= policy.critical_uv || soc_shutdown {
             self.samples += 1;
-            self.state = "Critical";
+            self.state = BatteryState::Critical;
             if self.samples >= policy.critical_samples {
-                self.state = "ShutdownPending";
+                self.state = BatteryState::ShutdownPending;
             }
         } else {
             self.samples = 0;
             if policy.schema2 && valid_soc.is_some_and(|p| p <= policy.critical_soc) {
-                self.state = "Critical";
+                self.state = BatteryState::Critical;
             } else if voltage <= policy.low_uv
                 || (policy.schema2 && valid_soc.is_some_and(|p| p <= policy.warning_soc))
             {
-                self.state = "Low";
-            } else if voltage >= policy.recover_uv || self.state == "Unavailable" {
-                self.state = "Normal";
-            } else if matches!(self.state, "Critical" | "ShutdownPending") {
-                self.state = "Low";
+                self.state = BatteryState::Low;
+            } else if voltage >= policy.recover_uv || self.state == BatteryState::Unavailable {
+                self.state = BatteryState::Normal;
+            } else if matches!(
+                self.state,
+                BatteryState::Critical | BatteryState::ShutdownPending
+            ) {
+                self.state = BatteryState::Low;
             }
         }
         self.state
@@ -246,7 +275,7 @@ mod tests {
         let mut low = LowBattery::default();
         let soc = |percent: i64, status: &str| BatteryStatus {
             percent: Some(percent),
-            confidence: "calibrated_estimate",
+            confidence: Confidence::CalibratedEstimate,
             status: Some(status.into()),
             charging: status == "Charging",
             ..BatteryStatus::default()

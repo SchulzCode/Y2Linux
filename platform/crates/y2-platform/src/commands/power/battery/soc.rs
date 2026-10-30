@@ -8,7 +8,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{
     profile::{interpolate, interpolate_int, voltage_at, Profile},
-    status::{BatteryStatus, Estimate, Saved},
+    status::{BatterySource, BatteryStatus, Confidence, Estimate, Saved},
     Reading,
 };
 use serde_json::Value;
@@ -151,8 +151,8 @@ impl Soc {
             // Only BAT0's genuine capacity property can select FuelGaugeSoc.
             self.percent = Some(hardware as f64);
             result.percent = Some(hardware);
-            result.source = "fuel_gauge";
-            result.confidence = "hardware";
+            result.source = BatterySource::FuelGauge;
+            result.confidence = Confidence::Hardware;
             result.provisional = false;
             return result;
         }
@@ -271,16 +271,16 @@ impl Soc {
         self.ui = Some(ui);
         result.percent = Some(ui);
         result.source = if hybrid.is_some() {
-            "hybrid"
+            BatterySource::Hybrid
         } else if oam.is_some() {
-            "stock_oam"
+            BatterySource::StockOam
         } else {
-            "voltage_estimate"
+            BatterySource::VoltageEstimate
         };
         result.confidence = if p.provisional {
-            "provisional"
+            Confidence::Provisional
         } else {
-            "calibrated_estimate"
+            Confidence::CalibratedEstimate
         };
         result.provisional = p.provisional;
         result.resting = resting;

@@ -15,7 +15,7 @@ use super::{
     battery::{load_profile, sample, BatteryStatus, DisplayRecord, Soc, UI_STATE},
     coordinator::Coordinator,
     journal::PowerJournal,
-    policy::{load_policy, LowBattery, Policy},
+    policy::{load_policy, BatteryState, LowBattery, Policy},
     quiet_exit, unix,
 };
 use crate::reply::{atomic_json, private_directory, unlink_missing_ok, Failure, Outcome};
@@ -44,7 +44,7 @@ struct PowerRecord<'a> {
     schema: i64,
     boot_id: Option<&'a str>,
     monotonic_ns: u64,
-    state: &'a str,
+    state: BatteryState,
     voltage_uv: Option<i64>,
     reason: Option<&'a str>,
     thresholds_enabled: bool,
@@ -88,7 +88,7 @@ struct Daemon<'r> {
     policy: Option<Policy>,
     /// Why there is no policy (power.json `reason`).
     reason: Option<&'static str>,
-    state: &'static str,
+    state: BatteryState,
     battery_status: BatteryStatus,
     /// What the power.json last written said (see [`Published`]) and when.
     published: Option<(Published, u64)>,
@@ -119,7 +119,7 @@ impl Daemon<'_> {
             reading.present,
             &self.battery_status,
         );
-        if self.state == "ShutdownPending" && self.coordinator.intent.is_none() {
+        if self.state == BatteryState::ShutdownPending && self.coordinator.intent.is_none() {
             let grace = self.policy.as_ref().map_or(10, |p| p.grace_seconds);
             // An intent that could not be published is still pending here: it runs after
             // its grace all the same.
@@ -130,7 +130,7 @@ impl Daemon<'_> {
         }
         self.journal.observe(
             root,
-            self.state,
+            self.state.as_str(),
             &self.battery_status,
             self.coordinator.intent.as_ref(),
             None,
@@ -164,7 +164,7 @@ impl Daemon<'_> {
         }
         self.journal.observe(
             self.root,
-            self.state,
+            self.state.as_str(),
             &self.battery_status,
             self.coordinator.intent.as_ref(),
             Some("shutdown_execute"),
@@ -180,7 +180,7 @@ impl Daemon<'_> {
 /// a record at most 2 s old (Reborn refuses one 5 s old, sleep admission one 10 s old).
 #[derive(PartialEq)]
 struct Published {
-    state: &'static str,
+    state: BatteryState,
     reason: Option<&'static str>,
     thresholds_enabled: bool,
     battery: BatteryStatus,
@@ -263,7 +263,7 @@ pub fn serve(root: &Root) -> Outcome {
         ui_saved: None,
         policy,
         reason,
-        state: "Unavailable",
+        state: BatteryState::Unavailable,
         battery_status: BatteryStatus::default(),
         published: None,
         notes: Notes::default(),

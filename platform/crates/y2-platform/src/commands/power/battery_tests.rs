@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use super::*;
 use super::{profile::*, soc::*, status::*};
-use crate::commands::power::policy::{self, load_policy, LowBattery};
+use crate::commands::power::policy::{self, load_policy, BatteryState, LowBattery};
 use crate::testing::Fixture;
 use serde_json::Value;
 
@@ -74,7 +74,7 @@ fn flag(value: &BatteryStatus, key: &str) -> bool {
     }
 }
 
-fn estimate(percent: i64, confidence: &'static str) -> BatteryStatus {
+fn estimate(percent: i64, confidence: Confidence) -> BatteryStatus {
     BatteryStatus {
         percent: Some(percent),
         confidence,
@@ -265,7 +265,7 @@ fn low_soc_estimate_warns_but_shutdown_requires_trust_or_hard_floor() {
     let fixture = fixture();
     let policy = stock_policy(&fixture);
     let mut guard = LowBattery::default();
-    let provisional = estimate(1, "provisional");
+    let provisional = estimate(1, Confidence::Provisional);
     for _ in 0..10 {
         assert_eq!(
             guard.observe(Some(&policy), Some(3800000), Some(1), &provisional),
@@ -283,13 +283,13 @@ fn low_soc_estimate_warns_but_shutdown_requires_trust_or_hard_floor() {
         "ShutdownPending"
     );
     let mut guard = LowBattery::default();
-    let mut state = "";
+    let mut state = BatteryState::Unavailable;
     for _ in 0..5 {
         state = guard.observe(
             Some(&policy),
             Some(3800000),
             Some(1),
-            &estimate(1, "hardware"),
+            &estimate(1, Confidence::Hardware),
         );
     }
     assert_eq!(state, "ShutdownPending");
@@ -495,7 +495,7 @@ fn start_on_a_charger_after_a_low_battery_poweroff_runs() {
         let mut soc = Soc::new(Some(stock(&fixture)), saved(low));
         let mut guard = LowBattery::default();
         let mut value = BatteryStatus::default();
-        let mut state = "";
+        let mut state = BatteryState::Unavailable;
         for tick in 0..6 {
             value = soc.observe(
                 (now + tick) as f64,
@@ -529,7 +529,7 @@ fn start_on_a_charger_after_a_low_battery_poweroff_runs() {
     // On battery a saved 5 % still turns a drained player off.
     let mut soc = Soc::new(Some(stock(&fixture)), saved(low));
     let mut guard = LowBattery::default();
-    let mut state = "";
+    let mut state = BatteryState::Unavailable;
     for tick in 0..6 {
         let value = soc.observe((10 + tick) as f64, &at(3627026, 1, "Discharging"));
         state = guard.observe(Some(&policy), Some(3627026), Some(1), &value);
@@ -540,7 +540,7 @@ fn start_on_a_charger_after_a_low_battery_poweroff_runs() {
     let charging = BatteryStatus {
         charging: true,
         status: Some("Charging".into()),
-        ..estimate(40, "calibrated_estimate")
+        ..estimate(40, Confidence::CalibratedEstimate)
     };
     for _ in 0..5 {
         state = guard.observe(Some(&policy), Some(3390000), Some(1), &charging);

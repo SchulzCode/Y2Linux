@@ -9,7 +9,7 @@ mod status;
 
 pub use profile::{interpolate_int, load_profile};
 pub use soc::Soc;
-pub use status::{BatteryStatus, DisplayRecord, UI_STATE};
+pub use status::{BatteryStatus, Confidence, DisplayRecord, UI_STATE};
 
 use y2p_core::{
     power_text::{python_split, sense_current},
