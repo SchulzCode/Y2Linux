@@ -1,6 +1,20 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.4 candidate (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-30, after midnight): TEST BUILD 184 ON THE OWNER'S PLAYER; Q4 PART 1 DONE, OWNER'S HARDWARE ROUND OPEN.**
+> **START HERE (2026-10-30, later): TEST BUILD 185 ON THE OWNER'S PLAYER; Q4 DONE, OWNER'S HARDWARE ROUND OPEN.**
+> Q4 part 2 (83778bce … a683b584): Reborn's sleep answer typed (pyjson deleted), suspend Receipt/Product (an
+> unreadable receipt refuses as suspend_receipt_unreadable; the failure is still recorded in a new receipt), sleep
+> admission, reset Plan/ResetRecord (confirmation still a hash over the plan as read; pyops deleted), one power-journal
+> row and one sleep-diagnostics row, Failure::Crash gone. 185 (seq 11300, e7624ebf) Acknowledged; device check OK;
+> the apply from 184 ran through the typed shutdown Intent on the player; `sleep status` read a 185-written receipt
+> (refused, charger_active); application_ready 37.0 s (183: 40.0, before 37.4). **Owner's hardware round on
+> 184/185:** SD + USB write window (ro after unplug), power-off/restart/low-battery, OTA + rollback, Y2Media, sleep
+> (normal, maintenance wake, charger refusal), one reset of `caches`, `sleep status` after a wake. **Next (Q5):**
+> optional: type the update core's journal on the platform side (contract test against the real core),
+> versions.json and the battery copy (lenient: old receipts must stay readable); measure against the start;
+> CONTRACT.md. A Rust rewrite of the C update core is its own later project (owner discussed 2026-10-30). Nothing
+> pushed. Next free label 186, sequence above 11300.
+>
+> Previous entry: **START HERE (2026-10-30, after midnight): TEST BUILD 184 ON THE OWNER'S PLAYER; Q4 PART 1 DONE, OWNER'S HARDWARE ROUND OPEN.**
 > Q4 part 1 (021e2b9a … da7b1338): update health-ack, time floor, update restart/channel (one power-socket client),
 > SD records (MediaRecord = media.json/claim/lifecycle, card Identity, Check, write windows), USB hand-off
 > (usb-transfer views, one mtp-roots/mtp-events record), Y2Media (setup note/status, resume record keeps unknown
