@@ -198,6 +198,64 @@ texts). Replace with plain Rust where it is not visible: `py::truthy`/`py_eq` on
 group's `Py` value type tolerates odd old records exactly as Python did; replacing it is an **owner decision**
 (refuse odd values instead of tolerating them).
 
+### I. An event-driven service daemon (L; the one item left with a real CPU gain; device tests required)
+
+Owner (2026-10-30): "nice to have, put it in the handoff". Do it after A–H, in its own commits, never mixed with
+a structural change.
+
+**Today:** `service/daemon.rs` `fn serve` runs a full pass every 3 s lit / 10 s dark (`INTERVAL_S`,
+`DARK_INTERVAL_S`), waking early only for supplicant events and signals (`monitor.wait(.., wake.fd())`). Each pass:
+`display_dark` (backlight glob + 2 reads), `usb.tick` (UDC glob and state, usb-mode.json, block and mount
+snapshots, write windows), the Wi-Fi look (cheap now: direct reads), coexistence, the 30-s radio policy,
+`network.json` and `time-status.json` writes, the media reconcile/verify, firmware and report job slots, NTP
+(60 s) and the maintenance pass (30 s lit / 300 s dark). Measured 7.7 s CPU/h dark on 174; the expected gain is
+about half of that, plus faster reactions (USB, SD card, Wi-Fi).
+
+**Shape:** one poll set and one deadline:
+- what is already there: the supplicant event socket and the signal pipe;
+- new event sources:
+  - rtnetlink link/address events (`y2p_core::sys::netlink_route(1 | 0x10, true)`, as the connectivity daemon
+    does);
+  - kernel uevents (`y2p_core::sys::netlink(libc::NETLINK_KOBJECT_UEVENT, 1, true)`) for UDC, power_supply and
+    block add/remove (SD insert/remove);
+  - `/proc/self/mountinfo` with POLLPRI (mount and remount);
+  - POLLPRI on sysfs attributes that `sysfs_notify` (the UDC `state`).
+- **Check each source on the player's kernel first** (6.18 with the Y2 drivers; the `y2-backlight` driver and
+  `y2-usb` may not notify): a small probe that waits on each source and prints what arrives while the owner plugs
+  USB, inserts the SD card and lets the screen go dark. A source that does not notify stays polled.
+- The display state: if `bl_power` does not notify, poll it alone (a two-file read) or have Reborn signal the
+  service daemon (SIGUSR1 already means "look now").
+- One `Deadlines` struct for the timers (maintenance, NTP, radio policy, job retries, report check) — this
+  overlaps with D's `Job` type; do D first.
+- **A fallback full pass** (e.g. every 30 s lit / 120 s dark) so a missed event costs at most that delay.
+
+**Constraints:**
+- Reborn treats `network.json` as stale after 15 s (an Online record after 45 s); `time-status.json` is read by
+  Reborn's scrobbler (`tls_ready`). Either keep renewing both within those bounds (a cheap write on a timer, no
+  full pass), or change Reborn's freshness rule in the same release — a coordinated Reborn change, **owner
+  decision**.
+- The goldens run the loop for N ticks below a fixture root (`Y2_DAEMON_TICKS`): keep a tick-equivalent mode
+  for them so the recorded calls stay comparable; expect deliberate re-recordings and review them as in §3.
+
+**Verify on the player:**
+- per-daemon CPU before/after (≥ 30 min uptime, screen off, as in §6), plus `voluntary_ctxt_switches` from
+  `/proc/<pid>/status` (wake-ups);
+- USB: plug and unplug (MTP appears and goes, and the screen lights within ~1 s);
+- SD card: insert and remove (admission, write window);
+- Wi-Fi: connect, disconnect, sleep and wake (Online again, `network.json` fresh);
+- the screen: lit vs dark cadence;
+- the daily update check and report check still due on time.
+
+### J. Smaller idle items (S–M)
+
+- Power daemon (7.3 s/h): keep the BAT0 attribute descriptors open and `pread` at offset 0 each second instead
+  of open/read/close (≈40 → ≈10 syscalls per sample). Keep the 1-s cadence (the low-battery policy's timing).
+- Reborn (Y2Reborn repo, its own commits with the Luca identity env vars): the `wifi` thread (2.8 s/h) and
+  `avrcp` (1 s wait plus `GetNameOwner` every 3 s, 1.3 s/h) are the next polling candidates after 173's dark
+  cadence.
+- Boot time (≈37–40 s to `application_ready`) was never profiled stage by stage; `/run/y2/boot-stages.jsonl`
+  and the boot journal give the stage times — likely the most noticeable gain left for the owner.
+
 ## 5. Owner decisions to ask for (only when the item comes)
 
 1. A4: which equality the Y2Media claim uses when the copies disagree on odd values.
@@ -206,6 +264,8 @@ group's `Py` value type tolerates odd old records exactly as Python did; replaci
 4. G: ext4 superblock instead of `blkid` in `status`; gating `y2-bt-observe`.
 5. H: replacing the reports `Py` type (refuse odd old values).
 6. A2: dropping the bool tolerance of `status_query_failures`.
+7. I: keep renewing `network.json`/`time-status.json` on a timer, or change Reborn's 15-s freshness rule with
+   the event-driven daemon.
 
 ## 6. Build, install, verify
 
