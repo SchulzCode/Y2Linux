@@ -1,6 +1,16 @@
 # Current Y2Linux platform state
 
-## Y2Linux 1.0 Beta 9.0, Baseline 186 — 2026-10-30 (latest, published)
+## Y2Linux 1.0 Beta 9.1, Baseline 189 — 2026-10-30 (latest, published)
+
+Release `1.0.0-beta.9.1`, tag `baseline-189`, Linux `2851b70d`, Reborn `e309b49`, sequence 11500. Housekeeping after
+the rewrite (owner: "do all the stuff you mentioned"): Reborn reads the platform's records in `y2p-contract` types
+(`update`, `power`, `network`, `storage`, `usb`, `reports`, `radio`; CONTRACT.md), Reborn's `main.rs`, `playback.rs`
+and `reborn-ui/src/lib.rs` split and its main loop and audio threads cut into named sections (no code change,
+verified by comparing the moved text), platform leftovers into y2p-core. Visible: the Settings row shows the update
+download percentage. Test builds 187–188 built only; 189 = the published images. Details:
+[Beta 9.1 report](validation/Y2-LINUX-1.0-BETA-9.1.md).
+
+## Y2Linux 1.0 Beta 9.0, Baseline 186 — 2026-10-30 (published)
 
 Release `1.0.0-beta.9.0`, tag `baseline-186`, Linux `1e55c79f`, Reborn `2bc1e2c`, sequence 11400. The platform is
 Rust (no Python on the player): the port (test builds 165–171), the refactor (172–179) and typed records

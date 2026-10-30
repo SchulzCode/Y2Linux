@@ -357,6 +357,7 @@ Indexed pages: **341**. Explicit scope notices: **228**.
 | [Error reports plan](planning/ERROR-REPORTS-PLAN.md) | Opt-in error reports: content, scrubbing, triggers, Cloudflare Worker + R2 receiver |
 | [Error reports](ERROR-REPORTS.md) | User guide: save a report, send it, what is in it and what never is |
 | [Y2Linux 1.0 Beta 8.40 report](validation/Y2-LINUX-1.0-BETA-8.40.md) | Beta 8.40 (Baseline 154): power off on a charger opens the charging screen (F46) |
+| [Y2Linux 1.0 Beta 9.1 report](validation/Y2-LINUX-1.0-BETA-9.1.md) | Beta 9.1 (Baseline 189): Reborn on the platform's message types, its large files and functions split, platform clean-ups; written for players' owners |
 | [Y2Linux 1.0 Beta 9.0 report](validation/Y2-LINUX-1.0-BETA-9.0.md) | Beta 9.0 (Baseline 186): the platform rewritten from Python into Rust, typed records, fixes; written for players' owners |
 | [Y2Linux 1.0 Beta 8.43 report](validation/Y2-LINUX-1.0-BETA-8.43.md) | Beta 8.43 (Baseline 164): Y2Reborn issue fixes (#25 #28 #30 #45 #46 #51 #52 #55 #56 #57 #60 #62) |
 | [Y2Linux 1.0 Beta 8.42 report](validation/Y2-LINUX-1.0-BETA-8.42.md) | Beta 8.42 (Baseline 163): sleep without relighting, large SD cards, quick scan, error report fixes F17 F23 F34 F39 F50–F57, #62 empty factory partitions |

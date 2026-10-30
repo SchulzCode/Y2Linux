@@ -1,6 +1,12 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.4 candidate (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-30, night): BETA 9.0 (BASELINE 186) RELEASE.** Owner: "make a build and publish it as beta
+> **START HERE (2026-10-30, late night): BETA 9.1 (BASELINE 189) RELEASE.** Owner: "build it install it test it
+> briefly and then publish it". Release `1.0.0-beta.9.1`, sequence 11500, label 189 ([Beta 9.1 report](../validation/Y2-LINUX-1.0-BETA-9.1.md)):
+> Reborn on the contract types, the file and function split, platform leftovers (PLATFORM-RUST-IDIOMATIC-PLAN.md
+> "After Beta 9.0"). Labels 187/188 were built only. Still open: the owner's hardware round; the update core in
+> Rust (not started, owner decision). Next free label 190, sequence above 11500.
+>
+> Previous entry: **START HERE (2026-10-30, night): BETA 9.0 (BASELINE 186) RELEASE.** Owner: "make a build and publish it as beta
 > 9.0" with a report users can read: [Beta 9.0 report](../validation/Y2-LINUX-1.0-BETA-9.0.md). Release
 > `1.0.0-beta.9.0`, sequence 11400, label 186. Open: the owner's hardware round (overnight sleep, low-battery shutdown,
 > SD repair/format, reset) — not done before publishing; answer error reports against 9.0 first. Next free label 187,
