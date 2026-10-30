@@ -3,6 +3,7 @@
 //! tools/connectivity/reconnect.c: version 1, the same boot, a sequence in CLOCK_MONOTONIC µs not
 //! after its own clock, a deadline at most 30 s later).
 // SPDX-License-Identifier: GPL-2.0-only
+use crate::reply::At;
 use crate::reply::{private_directory, Failure, Outcome, Reply};
 use serde_json::Value;
 use std::{
@@ -63,7 +64,7 @@ pub fn intent(root: &Root, operation: &str) -> Result<(), Failure> {
         fs::rename(&temporary, directory.join("bt-control.ini"))
     })();
     let _ = fs::remove_file(&temporary);
-    result.map_err(|e| Failure::os(e, &temporary))
+    result.at(&temporary)
 }
 
 /// Switch the radio with the reconnect owner held off: bluetoothctl's result, or the busy refusal
@@ -74,8 +75,7 @@ pub fn power(root: &Root, value: &str) -> Result<Object, Failure> {
     }
     // /run/y2 is not made here: without it the boot never started the radio (FileNotFoundError).
     let path = root.path("/run/y2/bt-operation.lock");
-    let Some(_lock) = y2p_core::lock::try_exclusive(&path).map_err(|e| Failure::os(e, &path))?
-    else {
+    let Some(_lock) = y2p_core::lock::try_exclusive(&path).at(&path)? else {
         return Ok(Object::new()
             .with("ok", false)
             .with("reason", "platform_bluetooth_operation_in_progress"));

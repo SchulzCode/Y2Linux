@@ -3,6 +3,7 @@
 //! `connect()` does not wait for a full backlog (EAGAIN is `BlockingIOError`, as CPython's timeout
 //! sockets), `SO_PEERCRED`, and Python's error texts (`timed out` for a socket timeout).
 // SPDX-License-Identifier: GPL-2.0-only
+use crate::reply::At;
 use crate::reply::Failure;
 use std::{
     io,
@@ -16,13 +17,6 @@ use std::{
     path::Path,
     time::{Duration, Instant},
 };
-use y2p_core::py;
-
-/// An `OSError` from a socket call (Python names no file in these).
-pub fn os(error: io::Error) -> Failure {
-    let (text, class) = py::os_error(&error, None);
-    Failure::Os { text, class }
-}
 
 /// `socket.timeout` (`TimeoutError: timed out`).
 pub fn timed_out() -> Failure {
@@ -57,7 +51,7 @@ fn socket(flags: libc::c_int) -> Result<OwnedFd, Failure> {
         )
     };
     if fd < 0 {
-        return Err(os(io::Error::last_os_error()));
+        return Err(Failure::from(io::Error::last_os_error()));
     }
     // SAFETY: a new descriptor this function owns.
     Ok(unsafe { OwnedFd::from_raw_fd(fd) })
@@ -76,13 +70,12 @@ pub fn listen(path: &Path) -> Result<UnixListener, Failure> {
         )
     } < 0
     {
-        return Err(os(io::Error::last_os_error()));
+        return Err(Failure::from(io::Error::last_os_error()));
     }
-    std::fs::set_permissions(path, std::os::unix::fs::PermissionsExt::from_mode(0o600))
-        .map_err(|e| Failure::os(e, path))?;
+    std::fs::set_permissions(path, std::os::unix::fs::PermissionsExt::from_mode(0o600)).at(path)?;
     // SAFETY: listen(2) on the bound socket.
     if unsafe { libc::listen(fd.as_raw_fd(), 4) } < 0 {
-        return Err(os(io::Error::last_os_error()));
+        return Err(Failure::from(io::Error::last_os_error()));
     }
     Ok(UnixListener::from(fd))
 }
@@ -121,12 +114,12 @@ fn poll(fd: libc::c_int, events: libc::c_short, deadline: Instant) -> io::Result
 pub fn accept(listener: &UnixListener, wait: Duration) -> Result<Option<UnixStream>, Failure> {
     let deadline = Instant::now() + wait;
     loop {
-        if !poll(listener.as_raw_fd(), libc::POLLIN, deadline).map_err(os)? {
+        if !poll(listener.as_raw_fd(), libc::POLLIN, deadline)? {
             return Ok(None);
         }
         match listener.accept() {
             Ok((stream, _)) => {
-                stream.set_nonblocking(false).map_err(os)?;
+                stream.set_nonblocking(false)?;
                 return Ok(Some(stream));
             }
             Err(e)
@@ -134,7 +127,7 @@ pub fn accept(listener: &UnixListener, wait: Duration) -> Result<Option<UnixStre
                     e.kind(),
                     io::ErrorKind::WouldBlock | io::ErrorKind::Interrupted
                 ) => {}
-            Err(e) => return Err(os(e)),
+            Err(e) => return Err(Failure::from(e)),
         }
     }
 }
@@ -155,7 +148,7 @@ pub fn peer(stream: &UnixStream) -> Result<(i64, u32), Failure> {
         )
     };
     if result < 0 {
-        return Err(os(io::Error::last_os_error()));
+        return Err(Failure::from(io::Error::last_os_error()));
     }
     Ok((i64::from(credentials.pid), credentials.uid))
 }
@@ -175,9 +168,9 @@ pub fn connect(path: &Path, timeout: Duration) -> Result<UnixStream, Failure> {
     if result < 0 {
         let error = io::Error::last_os_error();
         if error.raw_os_error() != Some(libc::EINPROGRESS) {
-            return Err(os(error));
+            return Err(Failure::from(error));
         }
-        if !poll(fd.as_raw_fd(), libc::POLLOUT, Instant::now() + timeout).map_err(os)? {
+        if !poll(fd.as_raw_fd(), libc::POLLOUT, Instant::now() + timeout)? {
             return Err(timed_out());
         }
         let mut code: libc::c_int = 0;
@@ -193,19 +186,21 @@ pub fn connect(path: &Path, timeout: Duration) -> Result<UnixStream, Failure> {
             )
         };
         if code != 0 {
-            return Err(os(io::Error::from_raw_os_error(code)));
+            return Err(Failure::from(io::Error::from_raw_os_error(code)));
         }
     }
     let stream = UnixStream::from(fd);
-    stream.set_nonblocking(false).map_err(os)?;
+    stream.set_nonblocking(false)?;
     timeouts(&stream, timeout)?;
     Ok(stream)
 }
 
 /// A socket timeout for each send and receive.
 pub fn timeouts(stream: &UnixStream, timeout: Duration) -> Result<(), Failure> {
-    stream.set_read_timeout(Some(timeout)).map_err(os)?;
-    stream.set_write_timeout(Some(timeout)).map_err(os)
+    stream.set_read_timeout(Some(timeout))?;
+    stream
+        .set_write_timeout(Some(timeout))
+        .map_err(Failure::from)
 }
 
 /// One `recv(size)`: a timeout is `timed out`.
@@ -223,7 +218,7 @@ pub fn recv(stream: &mut UnixStream, buffer: &mut [u8]) -> Result<usize, Failure
             {
                 return Err(timed_out())
             }
-            Err(e) => return Err(os(e)),
+            Err(e) => return Err(Failure::from(e)),
         }
     }
 }
@@ -238,7 +233,7 @@ pub fn send_all(stream: &mut UnixStream, data: &[u8]) -> Result<(), Failure> {
         ) {
             timed_out()
         } else {
-            os(e)
+            Failure::from(e)
         }
     })
 }

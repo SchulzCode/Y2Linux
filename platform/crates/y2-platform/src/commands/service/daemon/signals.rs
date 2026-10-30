@@ -2,8 +2,7 @@
 //! supplicant's events in one place.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{
-    io, py, set_signal, AtomicBool, AtomicI32, Disposition, Failure, Handler, Ordering, OwnedFd,
-    RawFd,
+    io, set_signal, AtomicBool, AtomicI32, Disposition, Failure, Handler, Ordering, OwnedFd, RawFd,
 };
 use std::os::fd::AsRawFd;
 use std::os::fd::FromRawFd;
@@ -23,11 +22,6 @@ pub(super) extern "C" fn on_signal(signal: libc::c_int) {
     }
 }
 
-pub(super) fn os(error: io::Error) -> Failure {
-    let (text, class) = py::os_error(&error, None);
-    Failure::Os { text, class }
-}
-
 /// Wake the same select as supplicant events; retain signals until drained.
 /// SIGTERM and SIGINT end the loop, SIGUSR1 (usb.wake_service: re-read the media views now) only wakes
 /// it. The previous handlers come back on drop.
@@ -42,7 +36,7 @@ impl SignalWake {
         let mut fds = [0; 2];
         // SAFETY: pipe2 fills two descriptors this struct then owns.
         if unsafe { libc::pipe2(fds.as_mut_ptr(), libc::O_NONBLOCK | libc::O_CLOEXEC) } != 0 {
-            return Err(os(io::Error::last_os_error()));
+            return Err(Failure::from(io::Error::last_os_error()));
         }
         // SAFETY: both descriptors were just created and are owned once.
         let (read, write) = unsafe { (OwnedFd::from_raw_fd(fds[0]), OwnedFd::from_raw_fd(fds[1])) };

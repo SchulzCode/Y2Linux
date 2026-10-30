@@ -61,6 +61,25 @@ pub enum Failure {
     },
 }
 
+/// An `OSError` from a call that names no file (`os.fstat`, a socket, a read on a descriptor).
+impl From<io::Error> for Failure {
+    fn from(error: io::Error) -> Failure {
+        let (text, class) = py::os_error(&error, None);
+        Failure::Os { text, class }
+    }
+}
+
+/// `result.at(path)`: an I/O result whose error is an `OSError` of a call given `path`.
+pub trait At<T> {
+    fn at(self, path: impl AsRef<Path>) -> Result<T, Failure>;
+}
+
+impl<T> At<T> for io::Result<T> {
+    fn at(self, path: impl AsRef<Path>) -> Result<T, Failure> {
+        self.map_err(|e| Failure::os(e, path.as_ref()))
+    }
+}
+
 impl Failure {
     pub fn value(error: impl ToString) -> Failure {
         Failure::Value(error.to_string())
@@ -161,7 +180,7 @@ pub type Outcome = Result<Reply, Failure>;
 
 /// `Path.write_text(text)`: open for writing (created 0666 & umask, truncated), write.
 pub fn write_text(path: &Path, text: &str) -> Result<(), Failure> {
-    fs::write(path, text).map_err(|e| Failure::os(e, path))
+    fs::write(path, text).at(path)
 }
 
 /// `Path.unlink(missing_ok=True)`.
@@ -178,7 +197,7 @@ pub fn mkdir_parents(path: &Path, mode: u32) -> Result<(), Failure> {
         return Ok(());
     }
     if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).map_err(|e| Failure::os(e, parent))?;
+        fs::create_dir_all(parent).at(parent)?;
     }
     match fs::DirBuilder::new().mode(mode).create(path) {
         Err(e) if !(e.kind() == io::ErrorKind::AlreadyExists && path.is_dir()) => {
@@ -190,7 +209,7 @@ pub fn mkdir_parents(path: &Path, mode: u32) -> Result<(), Failure> {
 
 /// `os.open(path, O_RDWR | O_CREAT | O_NOFOLLOW, 0o600)` + `fcntl.flock(fd, LOCK_EX)`.
 pub fn lock(path: &Path) -> Result<fs::File, Failure> {
-    y2p_core::lock::exclusive(path).map_err(|e| Failure::os(e, path))
+    y2p_core::lock::exclusive(path).at(path)
 }
 
 /// `boot.private_directory`.
@@ -217,7 +236,7 @@ pub fn atomic_json_mode<T: Serialize + ?Sized>(
     durable: bool,
     mode: u32,
 ) -> Result<(), Failure> {
-    y2p_core::record::atomic_json(path, value, durable, mode).map_err(|e| Failure::os(e, path))
+    y2p_core::record::atomic_json(path, value, durable, mode).at(path)
 }
 
 /// `os.open(path, flags | O_CREAT, mode)` for a file whose content does not matter.

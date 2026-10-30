@@ -8,6 +8,7 @@
 //! Below a fixture root the loop does not wait, sees no netlink events (a socket that never becomes
 //! readable) and ends after `Y2_DAEMON_TICKS` iterations (tests/platform_cases/connectivity.py).
 // SPDX-License-Identifier: GPL-2.0-only
+use crate::reply::At;
 mod supervisor;
 mod wait;
 
@@ -19,7 +20,7 @@ use std::{
 };
 pub use supervisor::Supervisor;
 pub use wait::select;
-use wait::{os, pidfd_open, Events, SignalWake, RUNNING};
+use wait::{pidfd_open, Events, SignalWake, RUNNING};
 use y2p_core::Root;
 
 /// One run of the loop until SIGTERM/SIGINT (or the fixture's tick count).
@@ -62,7 +63,7 @@ fn monitor(
             .chain(pidfds.iter().map(|(_, _, fd)| fd.as_raw_fd()))
             .chain(events.fd())
             .collect();
-        let ready = select(&readers, timeout).map_err(os)?;
+        let ready = select(&readers, timeout)?;
         changed = events.wait(0.0, wake.read.as_raw_fd())?;
         dead = pidfds
             .iter()
@@ -96,8 +97,8 @@ pub fn serve(root: &Root) -> Outcome {
     private_directory(&runtime)?;
     let path = runtime.join("connectivity-monitor.lock");
     let lock = y2p_core::lock::try_exclusive(&path)
-        .map_err(|e| Failure::os(e, &path))?
-        .ok_or_else(|| os(io::Error::from_raw_os_error(libc::EWOULDBLOCK)))?;
+        .at(&path)?
+        .ok_or_else(|| Failure::from(io::Error::from_raw_os_error(libc::EWOULDBLOCK)))?;
     let ticks = if root.is_real() {
         None
     } else {

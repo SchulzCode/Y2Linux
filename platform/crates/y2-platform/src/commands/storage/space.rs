@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use super::observe::volumes;
 use super::sys::{get, mkdir, observation_record, wall, Object};
+use crate::reply::At;
 use crate::reply::{atomic_json, Failure};
 use serde_json::{json, Value};
 use std::os::fd::BorrowedFd;
@@ -145,7 +146,7 @@ fn disposable_cleanup(root: &Root, max_files: u64, max_bytes: u64) -> Result<Val
     let (mut files, mut bytes, mut errors) = (0u64, 0u64, Vec::new());
     let data = root.path("/data");
     let top = CString::new(data.as_os_str().as_bytes()).map_err(Failure::value)?;
-    let rootfd = open_directory(libc::AT_FDCWD, &top).map_err(|e| Failure::os(e, &data))?;
+    let rootfd = open_directory(libc::AT_FDCWD, &top).at(&data)?;
     for (parts, category, keep) in [
         (["reborn", "cache"], "cache", 0usize),
         (["reborn", "diagnostics"], "diagnostics", 2),

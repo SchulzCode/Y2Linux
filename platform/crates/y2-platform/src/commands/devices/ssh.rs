@@ -7,6 +7,7 @@
 //! restarts the daemon). Below a fixture root `Y2_DAEMON_TICKS=n` ends the loop after n iterations, as
 //! SIGTERM would.
 // SPDX-License-Identifier: GPL-2.0-only
+use crate::reply::At;
 use crate::reply::{atomic_json, private_directory, Failure, Outcome};
 use serde::Serialize;
 use serde_json::Value;
@@ -289,7 +290,7 @@ pub fn serve(root: &Root) -> Outcome {
     private_directory(&runtime)?;
     let path = runtime.join("ssh.lock");
     let lock = y2p_core::lock::try_exclusive(&path)
-        .map_err(|e| Failure::os(e, &path))?
+        .at(&path)?
         .ok_or_else(|| Failure::Os {
             text: "[Errno 11] Resource temporarily unavailable".into(),
             class: "BlockingIOError",

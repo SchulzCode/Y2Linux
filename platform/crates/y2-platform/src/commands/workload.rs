@@ -4,6 +4,7 @@
 //! (`<class> 3000`: valid for 3 s), written at once and renewed every second on its own thread, also
 //! while a blocking transfer runs for minutes. A missing or failing hint never fails the work.
 // SPDX-License-Identifier: GPL-2.0-only
+use crate::reply::At;
 use crate::reply::{private_directory, Failure};
 use std::{
     fs::{File, OpenOptions},
@@ -30,7 +31,7 @@ impl Lease {
         private_directory(&runtime)?;
         let path = runtime.join("activity.lock");
         let activity = y2p_core::lock::try_shared(&path)
-            .map_err(|e| Failure::os(e, &path))?
+            .at(&path)?
             .ok_or_else(|| Failure::value("sleep_operation_in_progress"))?;
         let mut lease = Lease {
             _activity: activity,

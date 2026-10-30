@@ -10,11 +10,6 @@ use std::{
 use y2p_core::sys::{set_signal, Disposition, Handler};
 use y2p_core::{clock, Root};
 
-pub(super) fn os(error: io::Error) -> Failure {
-    let (text, class) = y2p_core::py::os_error(&error, None);
-    Failure::Os { text, class }
-}
-
 /// Readable descriptors among `fds` within `timeout` seconds (a hang-up or error reads as readable,
 /// so its owner looks and closes it; EINTR waits again for the rest).
 pub fn select(fds: &[RawFd], timeout: f64) -> io::Result<Vec<RawFd>> {
@@ -87,7 +82,7 @@ impl SignalWake {
         let mut fds = [0; 2];
         // SAFETY: pipe2 fills two descriptors this struct then owns.
         if unsafe { libc::pipe2(fds.as_mut_ptr(), libc::O_NONBLOCK | libc::O_CLOEXEC) } != 0 {
-            return Err(os(io::Error::last_os_error()));
+            return Err(Failure::from(io::Error::last_os_error()));
         }
         // SAFETY: both descriptors were just created and are owned once.
         let (read, write) = unsafe { (OwnedFd::from_raw_fd(fds[0]), OwnedFd::from_raw_fd(fds[1])) };
@@ -187,7 +182,7 @@ impl Events {
     /// whether a link or address changed.
     pub(super) fn wait(&mut self, timeout: f64, wake: RawFd) -> Result<bool, Failure> {
         let fds: Vec<RawFd> = std::iter::once(wake).chain(self.fd()).collect();
-        let ready = select(&fds, timeout).map_err(os)?;
+        let ready = select(&fds, timeout)?;
         if ready.contains(&wake) {
             let mut buffer = [0u8; 4096];
             // SAFETY: reads into a local buffer from our own non-blocking pipe until it is empty.

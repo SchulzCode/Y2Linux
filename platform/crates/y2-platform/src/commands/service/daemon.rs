@@ -22,6 +22,7 @@ use crate::commands::{
     storage::media::{self, inventory},
     time,
 };
+use crate::reply::At;
 use crate::reply::{atomic_json, private_directory, Failure, Outcome};
 use serde_json::{json, Map, Value};
 use std::{
@@ -279,8 +280,8 @@ pub fn serve(root: &Root) -> Outcome {
     private_directory(&runtime)?;
     let path = runtime.join("service.lock");
     let lock = y2p_core::lock::try_exclusive(&path)
-        .map_err(|e| Failure::os(e, &path))?
-        .ok_or_else(|| os(io::Error::from_raw_os_error(libc::EWOULDBLOCK)))?;
+        .at(&path)?
+        .ok_or_else(|| Failure::from(io::Error::from_raw_os_error(libc::EWOULDBLOCK)))?;
     let ticks = if root.is_real() {
         None
     } else {

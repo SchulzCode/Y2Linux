@@ -8,6 +8,7 @@
 //! Below a fixture root `Y2_DAEMON_TICKS=n` ends the loop after n iterations (exit 0): the golden
 //! cases' bounded runs (tests/platform_cases/power.py).
 // SPDX-License-Identifier: GPL-2.0-only
+use crate::reply::At;
 mod requests;
 
 use super::{
@@ -233,16 +234,20 @@ pub fn serve(root: &Root) -> Outcome {
     let lock_path = runtime.join("power.lock");
     let _lock = match y2p_core::lock::try_exclusive(&lock_path) {
         Ok(Some(lock)) => lock,
-        Ok(None) => return Err(unix::os(std::io::Error::from_raw_os_error(libc::EAGAIN))),
+        Ok(None) => {
+            return Err(Failure::from(std::io::Error::from_raw_os_error(
+                libc::EAGAIN,
+            )))
+        }
         Err(error) => return Err(Failure::os(error, &lock_path)),
     };
     let address = root.path(SOCKET);
     if address.exists() {
-        let meta = std::fs::symlink_metadata(&address).map_err(|e| Failure::os(e, &address))?;
+        let meta = std::fs::symlink_metadata(&address).at(&address)?;
         if !meta.file_type().is_socket() {
             return Err(Failure::value("unsafe_power_socket_path"));
         }
-        std::fs::remove_file(&address).map_err(|e| Failure::os(e, &address))?;
+        std::fs::remove_file(&address).at(&address)?;
     }
     let coordinator = Coordinator::new(root);
     let journal = PowerJournal::new();

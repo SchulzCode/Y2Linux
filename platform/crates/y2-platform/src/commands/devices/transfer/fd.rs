@@ -2,6 +2,7 @@
 //! descriptors opened without following symlinks (`openat` and friends relative to an open
 //! directory), and an OS error names the relative name the call was given.
 // SPDX-License-Identifier: GPL-2.0-only
+use crate::reply::At;
 use crate::reply::Failure;
 use std::{
     ffi::CString,
@@ -15,12 +16,6 @@ use std::{
 use y2p_core::{lock, py};
 
 // ---- errors ---------------------------------------------------------------------------------------
-
-/// The OS error of a call without a file name (read, write, fsync, flock).
-pub(super) fn unnamed(error: io::Error) -> Failure {
-    let (text, class) = py::os_error(&error, None);
-    Failure::Os { text, class }
-}
 
 // ---- descriptors ---------------------------------------------------------------------------------
 
@@ -36,7 +31,7 @@ pub(super) fn openat(dir: RawFd, name: &str, flags: i32, mode: u32) -> Result<Ow
     // SAFETY: the caller's directory descriptor is open for this call.
     let dir = unsafe { BorrowedFd::borrow_raw(dir) };
     y2p_core::sys::openat(Some(dir), &c, flags | libc::O_CLOEXEC, mode as libc::mode_t)
-        .map_err(|e| Failure::os(e, Path::new(name)))
+        .at(Path::new(name))
 }
 
 /// Open an absolute (root-prefixed) directory path, never through a final symlink.
@@ -59,20 +54,20 @@ pub(super) fn open_absolute_directory(path: &Path) -> Result<OwnedFd, Failure> {
 
 pub(super) fn fstat(fd: RawFd) -> Result<y2p_core::sys::Stat, Failure> {
     // SAFETY: callers pass a descriptor they hold open for this call.
-    y2p_core::sys::fstat(unsafe { BorrowedFd::borrow_raw(fd) }).map_err(unnamed)
+    y2p_core::sys::fstat(unsafe { BorrowedFd::borrow_raw(fd) }).map_err(Failure::from)
 }
 
 /// The bytes available to unprivileged writers on the filesystem holding `fd`.
 pub(super) fn available(fd: RawFd) -> Result<u64, Failure> {
     // SAFETY: callers pass a descriptor they hold open for this call.
-    let space = y2p_core::sys::fstatvfs(unsafe { BorrowedFd::borrow_raw(fd) }).map_err(unnamed)?;
+    let space = y2p_core::sys::fstatvfs(unsafe { BorrowedFd::borrow_raw(fd) })?;
     Ok(space.available())
 }
 
 /// The result of a libc call that returns 0 on success.
 pub(super) fn check(result: libc::c_int) -> Result<(), Failure> {
     if result != 0 {
-        return Err(unnamed(io::Error::last_os_error()));
+        return Err(Failure::from(io::Error::last_os_error()));
     }
     Ok(())
 }
@@ -86,8 +81,8 @@ pub(super) fn fsync(fd: RawFd) -> Result<(), Failure> {
 pub(super) fn flock(fd: BorrowedFd<'_>) -> Result<(), Failure> {
     match lock::try_fd(fd, lock::Kind::Exclusive) {
         Ok(true) => Ok(()),
-        Ok(false) => Err(unnamed(lock::would_block())),
-        Err(error) => Err(unnamed(error)),
+        Ok(false) => Err(Failure::from(lock::would_block())),
+        Err(error) => Err(Failure::from(error)),
     }
 }
 
@@ -134,7 +129,7 @@ pub(super) fn read_chunk(fd: RawFd, limit: usize) -> Result<Vec<u8>, Failure> {
     // SAFETY: the buffer is writable for `limit` bytes.
     let count = unsafe { libc::read(fd, buffer.as_mut_ptr().cast(), limit) };
     if count < 0 {
-        return Err(unnamed(io::Error::last_os_error()));
+        return Err(Failure::from(io::Error::last_os_error()));
     }
     buffer.truncate(count as usize);
     Ok(buffer)
@@ -145,7 +140,7 @@ pub(super) fn write_some(fd: RawFd, data: &[u8]) -> Result<usize, Failure> {
     // SAFETY: the slice is readable for its length.
     let count = unsafe { libc::write(fd, data.as_ptr().cast(), data.len()) };
     if count < 0 {
-        return Err(unnamed(io::Error::last_os_error()));
+        return Err(Failure::from(io::Error::last_os_error()));
     }
     Ok(count as usize)
 }

@@ -4,6 +4,7 @@
 //! directory descriptors opened without following symlinks (`fd`).
 // SPDX-License-Identifier: GPL-2.0-only
 use super::storage::{self, data_volume, Volume, INTERNAL};
+use crate::reply::At;
 use crate::reply::{atomic_json, private_directory, Failure, Outcome, Reply};
 use fd::{
     available, check, flock, fstat, fsync, linkat, open_absolute_directory, open_directory, openat,
@@ -136,10 +137,10 @@ fn begin(
     }
     let staging = root.path("/data/transfer-staging");
     private_directory(&staging)?;
-    let entries = std::fs::read_dir(&staging).map_err(|e| Failure::os(e, &staging))?;
+    let entries = std::fs::read_dir(&staging).at(&staging)?;
     let mut count = 0;
     for entry in entries.take(9) {
-        entry.map_err(|e| Failure::os(e, &staging))?;
+        entry.at(&staging)?;
         count += 1;
     }
     if count >= 8 {
@@ -147,14 +148,12 @@ fn begin(
             "staging_limit_remove_completed_or_aborted_transfers",
         ));
     }
-    let token = py::uuid4()
-        .map_err(|e| Failure::os(e, Path::new("/dev/urandom")))?
-        .replace('-', "");
+    let token = py::uuid4().at(Path::new("/dev/urandom"))?.replace('-', "");
     let directory = staging.join(&token);
     std::fs::DirBuilder::new()
         .mode(0o700)
         .create(&directory)
-        .map_err(|e| Failure::os(e, &directory))?;
+        .at(&directory)?;
     let mut manifest = NewManifest {
         schema: 1,
         id: &token,

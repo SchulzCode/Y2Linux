@@ -1,6 +1,7 @@
 //! `wifi-event` and `dhcp-event`: one DHCP lease lifecycle above wpa_supplicant
 //! (`wifi-event` from wpa-event, `dhcp-event` from udhcpc's script with its environment).
 // SPDX-License-Identifier: GPL-2.0-only
+use crate::reply::At;
 mod ipv4;
 
 use super::connectivity::record;
@@ -59,9 +60,7 @@ pub(crate) fn wlan_switched_off(root: &Root) -> bool {
 /// product. Never import search strings from DHCP.
 fn resolv(root: &Root, servers: &[String]) -> Result<(), Failure> {
     let path = root.path("/run/y2/resolv.conf");
-    let id = py::uuid4()
-        .map_err(|e| Failure::os(e, Path::new("/dev/urandom")))?
-        .replace('-', "");
+    let id = py::uuid4().at(Path::new("/dev/urandom"))?.replace('-', "");
     let temporary = path.with_file_name(format!(".resolv.conf.{id}"));
     let text: String = servers
         .iter()
@@ -69,9 +68,8 @@ fn resolv(root: &Root, servers: &[String]) -> Result<(), Failure> {
         .collect::<String>()
         + "options timeout:2 attempts:1\n";
     write_text(&temporary, &text)?;
-    fs::set_permissions(&temporary, fs::Permissions::from_mode(0o644))
-        .map_err(|e| Failure::os(e, &temporary))?;
-    fs::rename(&temporary, &path).map_err(|e| Failure::os(e, &temporary))
+    fs::set_permissions(&temporary, fs::Permissions::from_mode(0o644)).at(&temporary)?;
+    fs::rename(&temporary, &path).at(&temporary)
 }
 
 const FLUSH: [&[&str]; 2] = [
@@ -176,7 +174,7 @@ pub fn wifi_event(root: &Root, event: &str) -> Outcome {
     let runtime = root.path("/run/y2");
     private_directory(&runtime)?;
     let _lock = lock(&runtime.join("dhcp.lock"))?;
-    let epoch = py::uuid4().map_err(|e| Failure::os(e, Path::new("/dev/urandom")))?;
+    let epoch = py::uuid4().at(Path::new("/dev/urandom"))?;
     private_directory(&runtime)?;
     write_text(&runtime.join("wifi-epoch"), &format!("{epoch}\n"))?;
     unlink_missing_ok(&runtime.join("dns.json"))?;

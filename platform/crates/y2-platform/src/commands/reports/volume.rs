@@ -29,7 +29,7 @@ pub fn admitted(volume: &Volume, requested: u64) -> bool {
 
 /// `update.free(fd, size)`.
 pub fn free(fd: &OwnedFd, size: u64) -> Result<(), Failure> {
-    let info = y2p_core::sys::fstatvfs(fd.as_fd()).map_err(super::os_plain)?;
+    let info = y2p_core::sys::fstatvfs(fd.as_fd())?;
     let available = info.bavail as u128 * info.frsize as u128;
     if info.read_only()
         || available < size as u128 + RESERVE as u128
@@ -49,10 +49,7 @@ pub fn open_directory(parent: &OwnedFd, component: &str) -> Result<OwnedFd, Fail
         0,
     )
     .map_err(|e| super::os_name(e, component))?;
-    let (a, b) = (
-        media::fstat(&fd).map_err(super::os_plain)?,
-        media::fstat(parent).map_err(super::os_plain)?,
-    );
+    let (a, b) = (media::fstat(&fd)?, media::fstat(parent)?);
     if a.dev != b.dev {
         return Err(Failure::value("transfer_submount_refused"));
     }

@@ -3,6 +3,7 @@
 //! `space`, the media locks, the hand-off with the USB responder (its state, releasing the SD card
 //! or a view before an eject) and the `Maintenance` workload lease.
 // SPDX-License-Identifier: GPL-2.0-only
+use crate::reply::At;
 use crate::reply::{atomic_json, mkdir_parents, Failure};
 use serde_json::{json, Map, Value};
 use std::{
@@ -206,7 +207,7 @@ pub fn observation_record(root: &Root, workload: &str) -> Value {
 
 /// An exclusive lock on a platform lock file if it is free now (`None` when another holds it).
 pub fn try_lock(path: &Path) -> Result<Option<File>, Failure> {
-    lock::try_exclusive(path).map_err(|e| Failure::os(e, path))
+    lock::try_exclusive(path).at(path)
 }
 
 fn busy() -> Failure {
@@ -221,7 +222,7 @@ pub fn lock_now(path: &Path) -> Result<File, Failure> {
 
 /// A busy lock retried every 0.2 s until `seconds` passed; `None` when it stayed busy.
 pub fn lock_within(path: &Path, seconds: f64) -> Result<Option<File>, Failure> {
-    lock::exclusive_within(path, Duration::from_secs_f64(seconds)).map_err(|e| Failure::os(e, path))
+    lock::exclusive_within(path, Duration::from_secs_f64(seconds)).at(path)
 }
 
 // ---- the USB responder ----------------------------------------------------------------------

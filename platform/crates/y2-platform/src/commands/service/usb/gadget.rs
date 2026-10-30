@@ -4,6 +4,7 @@ use super::{
     config, expectations, fs, identity, mkdir_parents, mounts, py, selection, text, write_text,
     Failure, Object, Path, Start, UsbService, Value, GADGET,
 };
+use crate::reply::At;
 
 /// A symlink whose error names both paths (`[Errno 17] File exists: 'a' -> 'b'`).
 fn symlink(target: &Path, link: &Path) -> Result<(), Failure> {
@@ -98,7 +99,7 @@ impl UsbService {
             .symlink_metadata()
             .is_ok_and(|m| m.file_type().is_symlink())
         {
-            fs::remove_file(&os_link).map_err(|e| Failure::os(e, &os_link))?;
+            fs::remove_file(&os_link).at(&os_link)?;
         }
         if mode == "mtp" {
             symlink(&root.join("configs/c.1"), &os_link)?;
@@ -126,13 +127,13 @@ impl UsbService {
         self.write("configs/c.1/MaxPower", "500")?;
         self.write("configs/c.1/bmAttributes", "0x80")?;
         let config_dir = root.join("configs/c.1");
-        for entry in fs::read_dir(&config_dir).map_err(|e| Failure::os(e, &config_dir))? {
-            let link = entry.map_err(|e| Failure::os(e, &config_dir))?.path();
+        for entry in fs::read_dir(&config_dir).at(&config_dir)? {
+            let link = entry.at(&config_dir)?.path();
             if link
                 .symlink_metadata()
                 .is_ok_and(|m| m.file_type().is_symlink())
             {
-                fs::remove_file(&link).map_err(|e| Failure::os(e, &link))?;
+                fs::remove_file(&link).at(&link)?;
             }
         }
         for function in functions {

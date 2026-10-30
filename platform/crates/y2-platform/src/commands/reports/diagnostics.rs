@@ -11,7 +11,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{
     fields::{fields, kernel_fields, kernel_status_keys, public_words},
-    json_dict, os, os_plain,
+    json_dict, os,
     pyjson::{self, Py, Style},
     pyre::{self, lazy, S},
     sha256_hex,
@@ -281,19 +281,14 @@ fn log_tail(root: &Root, relative: &str) -> Result<Py, Failure> {
         Ok(file) => file,
         Err(e) => return missing(e, name).map(|_| Py::List(Vec::new())),
     };
-    let meta = fstat(&file).map_err(os_plain)?;
+    let meta = fstat(&file)?;
     if meta.mode & libc::S_IFMT != libc::S_IFREG || meta.nlink != 1 {
         return Err(Failure::value("diagnostic_log_type"));
     }
     let mut stream = std::fs::File::from(file);
-    stream
-        .seek(SeekFrom::Start((meta.size as u64).saturating_sub(65536)))
-        .map_err(os_plain)?;
+    stream.seek(SeekFrom::Start((meta.size as u64).saturating_sub(65536)))?;
     let mut tail = Vec::new();
-    stream
-        .take(65536)
-        .read_to_end(&mut tail)
-        .map_err(os_plain)?;
+    stream.take(65536).read_to_end(&mut tail)?;
     Ok(events(Some(&String::from_utf8_lossy(&tail))))
 }
 
@@ -395,16 +390,13 @@ fn export_inner(root: &Root) -> Result<Py, Failure> {
         );
         stream
             .write_all(&tarball::gzip(&tar.finish(), 9, now as u32))
-            .and_then(|()| stream.sync_all())
-            .map_err(os_plain)?;
+            .and_then(|()| stream.sync_all())?;
         if data_volume(root)?.generation != volume.generation {
             return Err(Failure::value("diagnostic_data_generation_changed"));
         }
         let complete = directory.join(&name);
         std::fs::rename(&partial, &complete).map_err(|e| os(e, &partial))?;
-        std::fs::File::open(&directory)
-            .and_then(|d| d.sync_all())
-            .map_err(os_plain)?;
+        std::fs::File::open(&directory).and_then(|d| d.sync_all())?;
         let bytes = std::fs::read(&complete).map_err(|e| os(e, &complete))?;
         let digest = sha256_hex(&bytes);
         Ok(Py::dict()

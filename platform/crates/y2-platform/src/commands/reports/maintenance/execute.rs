@@ -3,9 +3,9 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{
     atomic_json, busy, command, confirmation, data_volume, free, fstat, fsync, fsync_path,
-    identity, inspect, json_dict, open_at, open_data, os, os_name, os_plain, parent_fd,
-    private_directory, pyjson, pyops, regular_bytes, rename_between, sha256_hex, stat_at, text,
-    volume, Failure, OwnedFd, Path, Py, Root, Style, DIRECTORY, SCOPES, SETTINGS, TERMINAL,
+    identity, inspect, json_dict, open_at, open_data, os, os_name, parent_fd, private_directory,
+    pyjson, pyops, regular_bytes, rename_between, sha256_hex, stat_at, text, volume, Failure,
+    OwnedFd, Path, Py, Root, Style, DIRECTORY, SCOPES, SETTINGS, TERMINAL,
 };
 use crate::commands::reports::pyops::OrRefuse;
 use std::io::Write;
@@ -26,8 +26,7 @@ fn durable_flag(path: &Path) -> Result<(), Failure> {
         .open(path)
         .map_err(|e| os(e, path))?;
     file.write_all(b"Owner maintenance pending; keep mutable consumers stopped\n")
-        .and_then(|()| file.sync_all())
-        .map_err(os_plain)?;
+        .and_then(|()| file.sync_all())?;
     match path.parent() {
         Some(parent) => fsync_path(parent),
         None => Ok(()),
@@ -77,7 +76,7 @@ pub(super) fn execute(
     let lock_path = platform.join(".maintenance.lock");
     let _lock = y2p_core::lock::try_exclusive(&lock_path)
         .map_err(|e| os(e, &lock_path))?
-        .ok_or_else(|| os_plain(std::io::Error::from_raw_os_error(libc::EAGAIN)))?;
+        .ok_or_else(|| Failure::from(std::io::Error::from_raw_os_error(libc::EAGAIN)))?;
     let value = json_dict(root, "/data/system/platform/reset-plan.json");
     let required = || Failure::value("exact_reset_confirmation_required");
     // `not confirmation or value.get('confirmation') != confirmation or not re.fullmatch(...,
@@ -186,7 +185,7 @@ pub(super) fn execute(
     }
     let quarantine =
         open_at(None, &location.to_string_lossy(), DIRECTORY, 0).map_err(|e| os(e, &location))?;
-    if fstat(&quarantine).map_err(os_plain)?.dev != fstat(&data).map_err(os_plain)?.dev {
+    if fstat(&quarantine)?.dev != fstat(&data)?.dev {
         return Err(Failure::value("reset_quarantine_submount"));
     }
     let mut completed: Vec<Py> = Vec::new();
@@ -299,10 +298,7 @@ pub(super) fn execute(
                 )
                 .map_err(|e| os_name(e, &saved))?;
                 let mut backup = std::fs::File::from(fd);
-                backup
-                    .write_all(&raw)
-                    .and_then(|()| backup.sync_all())
-                    .map_err(os_plain)?;
+                backup.write_all(&raw).and_then(|()| backup.sync_all())?;
                 fsync(&quarantine)?;
             }
             let body = if wrapped {

@@ -10,7 +10,7 @@
 use super::{
     json_dict,
     media::{fstat, open_at, rename_between, stat_at},
-    os, os_name, os_plain,
+    os, os_name,
     pyjson::{self, Py, Style},
     pyops::{self},
     sha256_hex,
@@ -86,7 +86,7 @@ fn open_data(root: &Root) -> Result<OwnedFd, Failure> {
 }
 
 fn dup(fd: &OwnedFd) -> Result<OwnedFd, Failure> {
-    fd.try_clone().map_err(os_plain)
+    fd.try_clone().map_err(Failure::from)
 }
 
 /// `identity(meta)`.
@@ -139,9 +139,7 @@ fn inspect(data: &OwnedFd, relative: &str) -> Result<Option<Py>, Failure> {
         Err(e) => Err(os_name(e, &name)),
         Ok(meta) => {
             let kind = meta.mode & libc::S_IFMT;
-            if !(kind == libc::S_IFREG || kind == libc::S_IFDIR)
-                || meta.dev != fstat(data).map_err(os_plain)?.dev
-            {
+            if !(kind == libc::S_IFREG || kind == libc::S_IFDIR) || meta.dev != fstat(data)?.dev {
                 return Err(Failure::value(format!(
                     "unsafe_maintenance_path:{relative}"
                 )));
@@ -154,7 +152,7 @@ fn inspect(data: &OwnedFd, relative: &str) -> Result<Option<Py>, Failure> {
 fn fsync(fd: &OwnedFd) -> Result<(), Failure> {
     // SAFETY: a valid descriptor.
     if unsafe { libc::fsync(fd.as_raw_fd()) } != 0 {
-        return Err(os_plain(std::io::Error::last_os_error()));
+        return Err(Failure::from(std::io::Error::last_os_error()));
     }
     Ok(())
 }
@@ -181,15 +179,14 @@ fn regular_bytes(data: &OwnedFd, relative: &str, maximum: u64) -> Result<Vec<u8>
     )
     .map_err(|e| os_name(e, &name))?;
     drop(parent);
-    let meta = fstat(&fd).map_err(os_plain)?;
+    let meta = fstat(&fd)?;
     if meta.mode & libc::S_IFMT != libc::S_IFREG || meta.nlink != 1 || meta.size as u64 > maximum {
         return Err(Failure::value(format!("export_file_bounds:{relative}")));
     }
     let mut value = Vec::new();
     std::fs::File::from(fd)
         .take(maximum + 1)
-        .read_to_end(&mut value)
-        .map_err(os_plain)?;
+        .read_to_end(&mut value)?;
     if value.len() as u64 > maximum {
         return Err(Failure::value("export_file_grew"));
     }

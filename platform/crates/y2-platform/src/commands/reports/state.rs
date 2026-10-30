@@ -226,7 +226,7 @@ pub fn new_install_id(root: &Root) -> Result<Py, Failure> {
 }
 
 pub fn uuid4() -> Result<String, Failure> {
-    y2p_core::py::uuid4().map_err(super::os_plain)
+    y2p_core::py::uuid4().map_err(Failure::from)
 }
 
 /// `report status`: what Reborn's report screen shows.

@@ -8,6 +8,7 @@ use super::{
     lock_runtime, mkfs, mount_locked, partition, probe, record, valid, Marker, Mounted,
     LEGACY_MUSIC, MUSIC, PATH,
 };
+use crate::reply::At;
 use crate::reply::Failure;
 use serde_json::{json, Value};
 use std::{
@@ -118,7 +119,7 @@ pub(super) fn tree(top: &Path) -> Result<Tree, Failure> {
         directories.push(walked.relative.clone());
         for child in &walked.files {
             let path = walked.path.join(child);
-            let info = fs::symlink_metadata(&path).map_err(|e| Failure::os(e, &path))?;
+            let info = fs::symlink_metadata(&path).at(&path)?;
             if !info.file_type().is_file() {
                 return Err(Failure::Value(format!(
                     "migration_refuses_special_file:{}",
@@ -136,7 +137,7 @@ fn open_nofollow(path: &Path) -> Result<File, Failure> {
         .read(true)
         .custom_flags(libc::O_NOFOLLOW | libc::O_CLOEXEC)
         .open(path)
-        .map_err(|e| Failure::os(e, path))
+        .at(path)
 }
 
 /// What a copy is verified by: the hex SHA-256 of a file's bytes (a test's may disagree, since a
@@ -152,7 +153,7 @@ pub(super) fn sha256(path: &Path) -> Result<String, Failure> {
     let mut hasher = Sha256::new();
     let mut chunk = vec![0u8; CHUNK];
     loop {
-        let n = file.read(&mut chunk).map_err(|e| Failure::os(e, path))?;
+        let n = file.read(&mut chunk).at(path)?;
         if n == 0 {
             break;
         }
@@ -191,9 +192,7 @@ pub(super) fn copy_verified(
     digest: Digest,
 ) -> Result<&'static str, Failure> {
     if exists(target) {
-        let length = fs::metadata(target)
-            .map_err(|e| Failure::os(e, target))?
-            .len();
+        let length = fs::metadata(target).at(target)?.len();
         if length == size && digest(source)? == digest(target)? {
             return Ok("present");
         }
@@ -211,34 +210,33 @@ pub(super) fn copy_verified(
         .mode(0o644)
         .custom_flags(libc::O_NOFOLLOW | libc::O_CLOEXEC)
         .open(&temporary)
-        .map_err(|e| Failure::os(e, &temporary))?;
+        .at(&temporary)?;
     let mut chunk = vec![0u8; CHUNK];
     loop {
-        let n = src.read(&mut chunk).map_err(|e| Failure::os(e, source))?;
+        let n = src.read(&mut chunk).at(source)?;
         if n == 0 {
             break;
         }
-        dst.write_all(&chunk[..n])
-            .map_err(|e| Failure::os(e, &temporary))?;
+        dst.write_all(&chunk[..n]).at(&temporary)?;
     }
-    dst.sync_all().map_err(|e| Failure::os(e, &temporary))?;
+    dst.sync_all().at(&temporary)?;
     drop((src, dst));
     if digest(source)? != digest(&temporary)? {
-        fs::remove_file(&temporary).map_err(|e| Failure::os(e, &temporary))?;
+        fs::remove_file(&temporary).at(&temporary)?;
         return Err(Failure::Value(format!(
             "migration_hash_mismatch:{}",
             source.display()
         )));
     }
     fs::rename(&temporary, target).map_err(|e| os_error2(e, &temporary, target))?;
-    let info = fs::metadata(source).map_err(|e| Failure::os(e, source))?;
+    let info = fs::metadata(source).at(source)?;
     utime(target, &info)?;
     Ok("copied")
 }
 
 /// The directory with its parents, fine when it exists; the error names the path.
 pub(super) fn makedirs(path: &Path, mode: u32) -> Result<(), Failure> {
-    mkdir_io(path, mode).map_err(|e| Failure::os(e, path))
+    mkdir_io(path, mode).at(path)
 }
 
 pub(super) fn sync() {
@@ -261,7 +259,7 @@ pub(super) fn migrate(
     let (files, directories) = tree(&src)?;
     let total: u64 = files.iter().map(|(_, size)| size).sum();
     let media = root.path(PATH);
-    let free = statvfs(&media).map_err(|e| Failure::os(e, &media))?;
+    let free = statvfs(&media).at(&media)?;
     if total + RESERVE > free.available() {
         return Err(Failure::value("migration_does_not_fit"));
     }
@@ -282,7 +280,7 @@ pub(super) fn migrate(
     let mut removed = 0u64;
     for (relative, _) in &files {
         let path = src.join(relative);
-        fs::remove_file(&path).map_err(|e| Failure::os(e, &path))?;
+        fs::remove_file(&path).at(&path)?;
         removed += 1;
     }
     let mut longest = directories.clone();

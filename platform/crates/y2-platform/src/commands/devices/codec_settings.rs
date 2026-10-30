@@ -3,6 +3,7 @@
 //! daemon contract: they take effect at the next bluealsad start (a player restart), never by
 //! restarting the daemon here. Errors print `{"schema": "org.y2linux.codec-settings/v1", "failure": …}`.
 // SPDX-License-Identifier: GPL-2.0-only
+use crate::reply::At;
 use crate::{
     commands::codec::{inventory_codec, requested, validate},
     reply::{atomic_json, Failure, Outcome, Reply},
@@ -77,7 +78,7 @@ fn configure_inner(root: &Root, changes: Changes) -> Result<Status, Failure> {
     // /run/y2 is not created here: without it the lock fails (the runtime is not up).
     let path = root.path("/run/y2/codec-settings.lock");
     let _lock = y2p_core::lock::try_exclusive(&path)
-        .map_err(|e| Failure::os(e, &path))?
+        .at(&path)?
         .ok_or_else(|| Failure::Os {
             text: "[Errno 11] Resource temporarily unavailable".into(),
             class: "BlockingIOError",

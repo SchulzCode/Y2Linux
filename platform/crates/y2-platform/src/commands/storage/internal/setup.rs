@@ -12,6 +12,7 @@ use super::provision::{copy_verified, makedirs, migrate, sha256, sync, tree};
 use super::{
     lock_runtime, mkfs, mount_locked, partition, probe, valid, LEGACY_MUSIC, MUSIC, SIZE, START,
 };
+use crate::reply::At;
 use crate::reply::{atomic_json, atomic_json_mode, write_text, Failure};
 use serde::Serialize;
 use serde_json::{json, Value};
@@ -226,8 +227,8 @@ pub(super) fn save(root: &Root, value: &Object) -> Result<(), Failure> {
         .read(true)
         .custom_flags(libc::O_DIRECTORY | libc::O_CLOEXEC)
         .open(&folder)
-        .map_err(|e| Failure::os(e, &folder))?;
-    directory.sync_all().map_err(|e| Failure::os(e, &folder))
+        .at(&folder)?;
+    directory.sync_all().at(&folder)
 }
 
 /// The setup's resume record on Y2DATA (it survives formatting p8): the partition, the old
@@ -414,7 +415,7 @@ fn setup_locked(root: &Root, automatic: bool, confirm_serial: &Value) -> Result<
         migrate(root, LEGACY_MUSIC, MUSIC, &mut |_, _| {}, sha256)?; // the old /data/music library, as provision does
         sync();
         let path = root.path(SETUP);
-        fs::remove_file(&path).map_err(|e| Failure::os(e, &path))?;
+        fs::remove_file(&path).at(&path)?;
         splash(root, 100);
         let done = Note {
             kept: Some(saved.count("files")),
@@ -474,7 +475,7 @@ fn begin_setup(
         Some(_) => 3,
         None => {
             let data = root.path("/data");
-            let free = statvfs(&data).map_err(|e| Failure::os(e, &data))?;
+            let free = statvfs(&data).at(&data)?;
             decide(&kept, free.available())
         }
     };

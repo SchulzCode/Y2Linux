@@ -236,7 +236,7 @@ fn random_key() -> Result<[u8; 16], Failure> {
             if error.raw_os_error() == Some(libc::EINTR) {
                 continue;
             }
-            return Err(super::os_plain(error));
+            return Err(Failure::from(error));
         }
         filled += n as usize;
     }

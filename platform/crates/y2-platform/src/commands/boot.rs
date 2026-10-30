@@ -2,6 +2,7 @@
 //! is not a reset diagnosis. `application_ready` also arms the runtime power features.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::power_features;
+use crate::reply::At;
 use crate::reply::{atomic_json, lock, private_directory, Failure, Outcome, Reply};
 use serde::Serialize;
 use serde_json::{json, Value};
@@ -247,21 +248,14 @@ pub fn mark(root: &Root, stage: &str) -> Outcome {
         .mode(0o600)
         .custom_flags(libc::O_NOFOLLOW | libc::O_CLOEXEC)
         .open(&runtime)
-        .map_err(|e| Failure::os(e, &runtime))?;
-    if trail
-        .metadata()
-        .map_err(|e| Failure::os(e, &runtime))?
-        .size()
-        < 8192
-    {
+        .at(&runtime)?;
+    if trail.metadata().at(&runtime)?.size() < 8192 {
         let line = StageLine {
             stage: stage.as_str(),
             monotonic_s: root.clock().monotonic(),
         };
         let text = dumps(&line, Separators::Spaced).map_err(Failure::value)? + "\n";
-        trail
-            .write_all(text.as_bytes())
-            .map_err(|e| Failure::os(e, &runtime))?;
+        trail.write_all(text.as_bytes()).at(&runtime)?;
     }
     drop(trail);
     // The reset-surviving stage trail of init and rcS (F23); best effort.

@@ -198,7 +198,7 @@ pub fn save_to(
         Err(error) => Err(error),
         Ok(holders) => {
             let result = write_into(&root.path(mount), top, &data, &clock::local_stamp(now))
-                .map_err(super::os_plain);
+                .map_err(Failure::from);
             // The window ends whatever happened; its own OSError replaces the write's.
             match (holders.is_empty(), result) {
                 (true, result) => result,

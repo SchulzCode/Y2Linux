@@ -3,6 +3,7 @@
 //! without clearing them. No new logger/poll loop, retained-RAM allocation or guessed reset register.
 //! A panic may stop userspace before logging; absence of a marker proves nothing.
 // SPDX-License-Identifier: GPL-2.0-only
+use crate::reply::At;
 mod archive;
 
 use super::{
@@ -419,8 +420,7 @@ pub fn run(root: &Root) -> Outcome {
     };
     result.insert("retained".into(), retained);
     let data_path = root.path("/data");
-    let data = open_flags(&data_path, libc::O_DIRECTORY | libc::O_NOFOLLOW)
-        .map_err(|e| Failure::os(e, &data_path))?;
+    let data = open_flags(&data_path, libc::O_DIRECTORY | libc::O_NOFOLLOW).at(&data_path)?;
     let logs = match openat(
         &data,
         OsStr::new("logs"),
@@ -433,9 +433,7 @@ pub fn run(root: &Root) -> Outcome {
     let mut entries = Vec::new();
     if let Some(logs) = &logs {
         let dev = |f: &File| f.metadata().map(|m| m.dev());
-        if dev(logs).map_err(|e| Failure::os(e, Path::new("logs")))?
-            != dev(&data).map_err(|e| Failure::os(e, &data_path))?
-        {
+        if dev(logs).at(Path::new("logs"))? != dev(&data).at(&data_path)? {
             return Err(Failure::value("log_submount_refused"));
         }
         for name in ["system.log.0", "system.log"] {
@@ -448,9 +446,7 @@ pub fn run(root: &Root) -> Outcome {
                 Err(e) if e.kind() == io::ErrorKind::NotFound => continue,
                 Err(e) => return Err(Failure::os(e, Path::new(name))),
             };
-            let info = file
-                .metadata()
-                .map_err(|e| Failure::os(e, Path::new(name)))?;
+            let info = file.metadata().at(Path::new(name))?;
             if info.file_type().is_dir() {
                 return Err(Failure::Os {
                     text: directory_error(file),
@@ -463,7 +459,7 @@ pub fn run(root: &Root) -> Outcome {
             let raw = file
                 .seek(SeekFrom::Start(info.len().saturating_sub(65_536)))
                 .and_then(|_| read_up_to(&mut file, 65_536))
-                .map_err(|e| Failure::os(e, Path::new(name)))?;
+                .at(Path::new(name))?;
             let text = String::from_utf8_lossy(&raw);
             let lines = splitlines(&text);
             let lines: Vec<Value> = lines[lines.len().saturating_sub(32)..]

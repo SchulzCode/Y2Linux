@@ -2,7 +2,7 @@
 //! request) as one archive with a manifest.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{
-    atomic_json, data_volume, free, fsync_path, inspect, not_found, open_data, os, os_plain,
+    atomic_json, data_volume, free, fsync_path, inspect, not_found, open_data, os,
     private_directory, regular_bytes, sha256_hex, tarball, uuid4, volume, Failure, Lease, OwnedFd,
     Path, Py, Root, SETTINGS,
 };
@@ -271,8 +271,7 @@ fn export_into(
     // tarfile 'w:gz': GzipFile at level 9 with the current time in its header.
     stream
         .write_all(&tarball::gzip(&tar.finish(), 9, now))
-        .and_then(|()| stream.sync_all())
-        .map_err(os_plain)?;
+        .and_then(|()| stream.sync_all())?;
     drop(stream);
     if data_volume(root)?.generation != volume.generation {
         return Err(Failure::value("export_data_generation_changed"));

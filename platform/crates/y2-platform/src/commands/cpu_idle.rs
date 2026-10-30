@@ -2,6 +2,7 @@
 //! physically qualified CPU0 dormant policy. This only selects existing cpuidle/SPM controls; every
 //! entry still passes the kernel's topology, workload, OPP, deadline, UART ACK and restoration guards.
 // SPDX-License-Identifier: GPL-2.0-only
+use crate::reply::At;
 use crate::reply::{atomic_json, create, mkdir_parents, write_text, Failure, Outcome, Reply};
 use serde_json::{json, Map, Value};
 use std::io;
@@ -149,7 +150,7 @@ pub fn apply(root: &Root, action: &str) -> Outcome {
         }
     } else {
         // Reserve boot ownership so a subsequent start cannot undo a manual stop.
-        create(&lock, false).map_err(|e| Failure::os(e, &lock))?;
+        create(&lock, false).at(&lock)?;
         reasons = disable(root);
         result.insert(
             "state".into(),

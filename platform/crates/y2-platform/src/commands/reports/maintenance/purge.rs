@@ -1,8 +1,8 @@
 //! `reset purge`: delete a completed reset's quarantine, bounded per call (the owner asks again).
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{
-    data_volume, dup, fstat, fsync, open_data, open_directory, os_name, os_plain, pyops,
-    regular_bytes, stat_at, text, CString, Failure, Lease, OwnedFd, Py, Root,
+    data_volume, dup, fstat, fsync, open_data, open_directory, os_name, pyops, regular_bytes,
+    stat_at, text, CString, Failure, Lease, OwnedFd, Py, Root,
 };
 use std::os::fd::AsFd;
 use std::os::fd::AsRawFd;
@@ -15,7 +15,7 @@ fn entries(fd: &OwnedFd) -> Result<Vec<String>, Failure> {
     // SAFETY: fdopendir takes ownership of the duplicated descriptor; closedir releases it.
     let dir = unsafe { libc::fdopendir(raw) };
     if dir.is_null() {
-        return Err(os_plain(std::io::Error::last_os_error()));
+        return Err(Failure::from(std::io::Error::last_os_error()));
     }
     // SAFETY: rewind to the start as scandir's fresh stream.
     unsafe { libc::rewinddir(dir) };
@@ -73,10 +73,10 @@ pub(super) fn purge(root: &Root, token: &str, confirm: Option<&str>) -> Result<P
     {
         return Err(Failure::value("completed_reset_confirmation_required"));
     }
-    if !y2p_core::lock::try_fd(top.as_fd(), y2p_core::lock::Kind::Exclusive).map_err(os_plain)? {
-        return Err(os_plain(y2p_core::lock::would_block()));
+    if !y2p_core::lock::try_fd(top.as_fd(), y2p_core::lock::Kind::Exclusive)? {
+        return Err(Failure::from(y2p_core::lock::would_block()));
     }
-    let device = fstat(&top).map_err(os_plain)?.dev;
+    let device = fstat(&top)?.dev;
     let clock = root.clock();
     let deadline = clock.monotonic() + 8.0;
     let mut removed = 0usize;

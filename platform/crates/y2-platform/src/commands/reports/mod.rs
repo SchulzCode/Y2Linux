@@ -251,12 +251,6 @@ pub fn os(error: std::io::Error, path: &std::path::Path) -> Failure {
     Failure::os(error, path)
 }
 
-/// An OSError Python raises without a file name (`os.fstat`, `os.fsync`, a dir_fd call on a name).
-pub fn os_plain(error: std::io::Error) -> Failure {
-    let (text, class) = y2p_core::py::os_error(&error, None);
-    Failure::Os { text, class }
-}
-
 /// An OSError of a `dir_fd` call: Python names the relative name.
 pub fn os_name(error: std::io::Error, name: &str) -> Failure {
     let (text, class) = y2p_core::py::os_error(&error, Some(name));
