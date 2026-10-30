@@ -3,14 +3,6 @@
 //! inherited descriptor (`pass_fds`, bench-library's scratch directory).
 // SPDX-License-Identifier: GPL-2.0-only
 use crate::{command, Root};
-use std::{
-    io::Read,
-    os::unix::process::CommandExt,
-    process::{Command, Stdio},
-    sync::mpsc,
-    thread,
-    time::{Duration, Instant},
-};
 
 /// CPython's `random.Random`: MT19937 seeded by `init_by_array` with the 32-bit words of `abs(seed)`.
 pub struct PyRandom {
@@ -148,103 +140,7 @@ pub fn run_passing_fd(
     if !root.is_real() {
         return command::run_with(root, argv, timeout, limit, false);
     }
-    let unavailable = command::Outcome {
-        ok: false,
-        reason: Some("command_unavailable".into()),
-        output: None,
-    };
-    let Some((program, args)) = argv.split_first() else {
-        return unavailable;
-    };
-    let mut child = Command::new(program);
-    child
-        .args(args)
-        .env_clear()
-        .env("PATH", "/usr/sbin:/usr/bin:/sbin:/bin")
-        .env("LC_ALL", "C")
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::null());
-    // SAFETY: setsid() and fcntl() are async-signal-safe; they run in the forked child before exec.
-    unsafe {
-        child.pre_exec(move || {
-            if libc::setsid() < 0 {
-                return Err(std::io::Error::last_os_error());
-            }
-            let flags = libc::fcntl(fd, libc::F_GETFD);
-            if flags < 0 || libc::fcntl(fd, libc::F_SETFD, flags & !libc::FD_CLOEXEC) < 0 {
-                return Err(std::io::Error::last_os_error());
-            }
-            Ok(())
-        });
-    }
-    let mut child = match child.spawn() {
-        Ok(child) => child,
-        Err(_) => return unavailable,
-    };
-    let pid = child.id() as libc::pid_t;
-    let deadline = Instant::now() + Duration::from_secs_f64(timeout.max(0.0));
-    // Spawned with a piped stdout: always there.
-    let mut stdout = child.stdout.take().expect("piped stdout");
-    let (sender, receiver) = mpsc::channel();
-    thread::spawn(move || {
-        let mut chunk = [0u8; 4096];
-        while let Ok(n) = stdout.read(&mut chunk) {
-            if n == 0 || sender.send(chunk[..n].to_vec()).is_err() {
-                break;
-            }
-        }
-    });
-    let mut output = Vec::new();
-    let mut failure = None;
-    loop {
-        let remaining = deadline.saturating_duration_since(Instant::now());
-        if remaining.is_zero() {
-            failure = Some("command_timeout");
-            break;
-        }
-        match receiver.recv_timeout(remaining) {
-            Ok(chunk) => {
-                output.extend_from_slice(&chunk);
-                if output.len() > limit {
-                    failure = Some("command_output_limit");
-                    break;
-                }
-            }
-            Err(mpsc::RecvTimeoutError::Timeout) => {
-                failure = Some("command_timeout");
-                break;
-            }
-            Err(mpsc::RecvTimeoutError::Disconnected) => break,
-        }
-    }
-    let mut status = None;
-    while failure.is_none() {
-        match child.try_wait() {
-            Ok(Some(exit)) => status = Some(exit),
-            Ok(None) if Instant::now() < deadline => {
-                thread::sleep(Duration::from_millis(1));
-                continue;
-            }
-            _ => failure = Some("command_timeout"),
-        }
-        break;
-    }
-    if failure.is_some() {
-        command::kill_tree(pid);
-        let until = Instant::now() + Duration::from_millis(50);
-        while Instant::now() < until && !matches!(child.try_wait(), Ok(Some(_))) {
-            thread::sleep(Duration::from_millis(1));
-        }
-    }
-    let ok = failure.is_none() && status.is_some_and(|s| s.success());
-    command::Outcome {
-        ok,
-        reason: failure
-            .map(str::to_owned)
-            .or((!ok).then(|| "command_failed".to_owned())),
-        output: ok.then(|| crate::root::python_strip(&String::from_utf8_lossy(&output)).to_owned()),
-    }
+    command::real(argv, timeout, limit, false, Some(fd))
 }
 
 #[cfg(test)]

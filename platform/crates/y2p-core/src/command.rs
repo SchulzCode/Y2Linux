@@ -65,7 +65,7 @@ pub struct Processes;
 
 impl Runner for Processes {
     fn run(&self, argv: &[&str], timeout: f64, limit: usize, failure_output: bool) -> Outcome {
-        real(argv, timeout, limit, failure_output)
+        real(argv, timeout, limit, failure_output, None)
     }
 }
 
@@ -208,7 +208,16 @@ pub mod testing {
     }
 }
 
-fn real(argv: &[&str], timeout: f64, limit: usize, failure_output: bool) -> Outcome {
+/// The child process on the player: its own session, a clean environment, stdout read up to `limit`
+/// until `timeout`, the whole tree killed on a timeout or an overlong output. `keep_fd` stays open in the
+/// child under its own number (and only there).
+pub(crate) fn real(
+    argv: &[&str],
+    timeout: f64,
+    limit: usize,
+    failure_output: bool,
+    keep_fd: Option<libc::c_int>,
+) -> Outcome {
     let unavailable = Outcome {
         ok: false,
         reason: Some("command_unavailable".into()),
@@ -227,6 +236,18 @@ fn real(argv: &[&str], timeout: f64, limit: usize, failure_output: bool) -> Outc
         .stdout(Stdio::piped())
         .stderr(Stdio::null());
     new_session(&mut command);
+    if let Some(fd) = keep_fd {
+        // SAFETY: fcntl() is async-signal-safe; it runs in the forked child before exec.
+        unsafe {
+            command.pre_exec(move || {
+                let flags = libc::fcntl(fd, libc::F_GETFD);
+                if flags < 0 || libc::fcntl(fd, libc::F_SETFD, flags & !libc::FD_CLOEXEC) < 0 {
+                    return Err(std::io::Error::last_os_error());
+                }
+                Ok(())
+            });
+        }
+    }
     let mut child = match command.spawn() {
         Ok(child) => child,
         Err(_) => return unavailable,
@@ -382,6 +403,7 @@ mod tests {
             2.0,
             LIMIT,
             false,
+            None,
         );
         assert_eq!(
             echo,
@@ -417,6 +439,7 @@ mod tests {
             2.0,
             1000,
             false,
+            None,
         );
         assert_eq!(long.reason.as_deref(), Some("command_output_limit"));
         assert_eq!(
@@ -428,6 +451,7 @@ mod tests {
             2.0,
             LIMIT,
             false,
+            None,
         );
         assert_eq!(
             env.output.as_deref(),
