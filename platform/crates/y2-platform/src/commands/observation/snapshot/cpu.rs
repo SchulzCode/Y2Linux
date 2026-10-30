@@ -8,7 +8,7 @@ use crate::commands::observation::util::{
 };
 use crate::{regex, reply::Failure};
 use serde::Serialize;
-use serde_json::{Map, Value};
+use serde_json::Value;
 use std::{collections::BTreeMap, path::Path};
 use y2p_core::{command, Root};
 
@@ -159,7 +159,7 @@ struct Policy {
     /// The available frequencies at or below the DVFS ceiling and the policy's maximum.
     admitted_opp_khz: Vec<i64>,
     name: String,
-    time_in_state: Option<Map<String, Value>>,
+    time_in_state: Option<util::Counted>,
     time_in_state_unit: &'static str,
     frequency_unit: &'static str,
 }
@@ -252,12 +252,12 @@ struct SuspendPersistent {
 /// /proc/stat's totals the snapshot shows (null where a line is missing).
 #[derive(Serialize)]
 struct Counters {
-    ctxt: Value,
-    intr: Value,
-    softirq: Value,
-    processes: Value,
-    procs_running: Value,
-    procs_blocked: Value,
+    ctxt: Option<i64>,
+    intr: Option<i64>,
+    softirq: Option<i64>,
+    processes: Option<i64>,
+    procs_running: Option<i64>,
+    procs_blocked: Option<i64>,
 }
 
 #[derive(Serialize)]
@@ -332,7 +332,7 @@ pub fn cpu(root: &Root) -> Result<Cpu, Failure> {
             .read_limited("/sys/firmware/y2_pm/devices_previous", 16384),
         reset_status: read_text("/sys/firmware/y2_pm/reset_status"),
     };
-    let total = |key: &str| totals.get(key).cloned().unwrap_or(Value::Null);
+    let total = |key: &str| totals.get(key).copied().flatten();
     let counters = Counters {
         ctxt: total("ctxt"),
         intr: total("intr"),

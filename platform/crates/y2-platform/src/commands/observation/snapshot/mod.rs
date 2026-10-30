@@ -15,7 +15,7 @@ pub use cpu::{cpu, utilization, Cpu};
 // For the suspend group's receipt tests.
 #[cfg(test)]
 pub(crate) use cpu::timer_runtime;
-pub use memory::memory;
+pub use memory::{memory, Memory};
 pub use power::{power, printable, Power};
 pub use storage::{storage, storage_mode, Storage};
 pub use thermal::{thermal, Thermal};
@@ -37,7 +37,7 @@ pub struct Snapshot {
     pub schema: &'static str,
     pub record: Map<String, Value>,
     pub cpu: Cpu,
-    pub memory: Map<String, Value>,
+    pub memory: Memory,
     pub thermal: Thermal,
     pub power: Power,
     pub storage: Storage,

@@ -64,17 +64,20 @@ pub fn key_values(text: Option<&str>, separator: &str) -> BTreeMap<String, Strin
     result
 }
 
-/// `name value…` lines as name → its first value (an int or null).
-pub fn counters(text: Option<&str>) -> Map<String, Value> {
+/// `name value…` lines as name → its first value (none where it is no integer).
+pub fn counters(text: Option<&str>) -> Counted {
     key_values(text, " ")
         .into_iter()
         .filter(|(_, v)| !v.is_empty())
         .map(|(k, v)| {
             let first = split_ws(&v).first().copied();
-            (k, number(first))
+            (k, first.and_then(int))
         })
         .collect()
 }
+
+/// Counters by name (`counters`).
+pub type Counted = BTreeMap<String, Option<i64>>;
 
 /// Every match's two groups.
 pub fn findall2(pattern: &Regex, text: &str) -> Vec<(String, String)> {
@@ -209,7 +212,7 @@ mod tests {
         );
         assert_eq!(
             counters(Some("ctxt 5\nintr 7 1 2\nempty\n"))["intr"],
-            json!(7)
+            Some(7)
         );
     }
 

@@ -117,19 +117,11 @@ pub fn run(root: &Root, options: &Options) -> Outcome {
                 Value::String(s) => s.clone(),
                 _ => "None".into(),
             };
-            for process in value
-                .memory
-                .get("processes")
-                .unwrap_or(&Value::Null)
-                .as_array()
-                .into_iter()
-                .flatten()
-            {
-                let start_ticks = &process["start_ticks"];
-                if start_ticks.is_null() {
+            for process in &value.memory.processes {
+                let Some(start_ticks) = process.start_ticks else {
                     continue;
-                }
-                let key = format!("{boot}:{}:{start_ticks}", process["pid"]);
+                };
+                let key = format!("{boot}:{}:{start_ticks}", process.pid);
                 // PID reuse starts a new series; no process identity guessing.
                 let index = match growth.iter().position(|(k, _)| *k == key) {
                     Some(index) => index,
@@ -139,7 +131,7 @@ pub fn run(root: &Root, options: &Options) -> Outcome {
                         growth.len() - 1
                     }
                 };
-                growth[index].1.add(age, process["rss_kib"].as_i64());
+                growth[index].1.add(age, process.rss_kib);
             }
         }
         samples += 1;
