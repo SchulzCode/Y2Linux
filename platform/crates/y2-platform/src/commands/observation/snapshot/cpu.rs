@@ -38,11 +38,10 @@ pub fn timer_runtime(root: &Root) -> Result<Map<String, Value>, Failure> {
         if !util::isdigit(first) {
             continue;
         }
-        // `int(first)`: a superscript or circled digit passes isdigit() but is no int.
         let mut core = Map::new();
         core.insert("cpu".into(), json!(util::int_or_raise(first)?));
         let fields = findall_map(
-            regex!(r"(?m)^\s*\.(hres_active|nohz|tick_stopped|nr_hangs)\s*:\s*(\d+)\s*$"),
+            regex!(r"(?m)^\s*\.(hres_active|nohz|tick_stopped|nr_hangs)\s*:\s*([0-9]+)\s*$"),
             block,
         );
         for (key, value) in fields {

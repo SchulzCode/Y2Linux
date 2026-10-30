@@ -27,52 +27,20 @@ pub fn read_limited(path: &Path, limit: usize) -> Option<String> {
     root::read(path, limit)
 }
 
-/// `int(text)` (`common.number`) of a str: any Unicode decimal digits, surrounding whitespace and
-/// single underscores, as Python's `int()`. None where it raises (and, an accepted difference, beyond
-/// 64 bits, where Python would carry on with a larger int).
+/// A decimal integer as the kernel and the platform write it (surrounding whitespace allowed).
 pub fn int(text: &str) -> Option<i64> {
-    crate::argparse::python::int(text)?.parse().ok()
+    y2p_core::root::parse_int(text)
 }
 
-/// `int(text)` where nothing catches its ValueError: the value, or main.py's error record
+/// `int(text)` where nothing catches the error: the value, or the error record
 /// (`invalid literal for int() with base 10: '…'`).
 pub fn int_or_raise(text: &str) -> Result<i64, Failure> {
     int(text).ok_or_else(|| Failure::int_literal(text))
 }
 
-/// The characters `str.isdigit()` takes besides the decimal digits (Numeric_Type=Digit:
-/// superscripts, circled digits, …), as inclusive ranges (Python's Unicode 16 tables).
-const DIGITS: [(u32, u32); 20] = [
-    (0xb2, 0xb3),
-    (0xb9, 0xb9),
-    (0x1369, 0x1371),
-    (0x19da, 0x19da),
-    (0x2070, 0x2070),
-    (0x2074, 0x2079),
-    (0x2080, 0x2089),
-    (0x2460, 0x2468),
-    (0x2474, 0x247c),
-    (0x2488, 0x2490),
-    (0x24ea, 0x24ea),
-    (0x24f5, 0x24fd),
-    (0x24ff, 0x24ff),
-    (0x2776, 0x277e),
-    (0x2780, 0x2788),
-    (0x278a, 0x2792),
-    (0x10a40, 0x10a43),
-    (0x10e60, 0x10e68),
-    (0x11052, 0x1105a),
-    (0x1f100, 0x1f10a),
-];
-
-/// `str.isdigit()`: not empty, every character a decimal digit or another Unicode digit. `int()`
-/// reads only the decimal ones: an `isdigit()` text may still be no int.
+/// Not empty and only the digits 0-9.
 pub fn isdigit(text: &str) -> bool {
-    !text.is_empty()
-        && text.chars().all(|c| {
-            crate::argparse::python::decimal(c).is_some()
-                || DIGITS.iter().any(|&(a, b)| (a..=b).contains(&(c as u32)))
-        })
+    !text.is_empty() && text.bytes().all(|b| b.is_ascii_digit())
 }
 
 /// A decimal text as a JSON int, or null.
@@ -213,10 +181,11 @@ mod tests {
     use serde_json::json;
 
     #[test]
-    fn ints_and_digits_as_python() {
-        assert_eq!(int(" \u{661}_2 "), Some(12));
-        assert_eq!(int("\u{b2}"), None);
-        assert!(isdigit("\u{b2}1") && isdigit("\u{661}") && !isdigit("") && !isdigit("1 "));
+    fn ints_and_digits() {
+        assert_eq!(int(" 12\n"), Some(12));
+        assert_eq!(int("1_000"), None);
+        assert_eq!(int("\u{661}"), None);
+        assert!(isdigit("0123") && !isdigit("\u{661}") && !isdigit("") && !isdigit("1 "));
         assert_eq!(
             int_or_raise("x").unwrap_err().message(),
             "invalid literal for int() with base 10: 'x'"

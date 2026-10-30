@@ -233,10 +233,10 @@ fn source_type(text: Option<&str>) -> Value {
 /// once).
 fn charge_field(state: &str, name: &str) -> Result<Value, Failure> {
     let pattern = match name {
-        "stock_request_ua" => regex!(r"\bstock_request_ua=(-?\d+)"),
-        "class_ceiling_ua" => regex!(r"\bclass_ceiling_ua=(-?\d+)"),
-        "thermal_level" => regex!(r"\bthermal_level=(-?\d+)"),
-        "sense_current_est_ua" => regex!(r"\bsense_current_est_ua=(-?\d+)"),
+        "stock_request_ua" => regex!(r"\bstock_request_ua=(-?[0-9]+)"),
+        "class_ceiling_ua" => regex!(r"\bclass_ceiling_ua=(-?[0-9]+)"),
+        "thermal_level" => regex!(r"\bthermal_level=(-?[0-9]+)"),
+        "sense_current_est_ua" => regex!(r"\bsense_current_est_ua=(-?[0-9]+)"),
         _ => return Ok(Value::Null),
     };
     match pattern.captures(state) {
@@ -273,7 +273,7 @@ fn usb_diagnostics(
     if let [source] = &root.glob("/sys/bus/platform/drivers/y2-usb/*/rxdiag")[..] {
         let all = read_limited(source, 4096).unwrap_or_default();
         let first = splitlines(&all).first().copied().unwrap_or("");
-        for (key, value) in findall2(regex!(r"\b([a-z_]+)=(\d+)\b"), first) {
+        for (key, value) in findall2(regex!(r"\b([a-z_]+)=([0-9]+)\b"), first) {
             rx.insert(key, number(Some(&value)));
         }
     }
@@ -418,7 +418,7 @@ pub fn system(root: &Root) -> Result<Value, Failure> {
         let status = read_limited(source, 8192).unwrap_or_default();
         let mut dma = Map::new();
         for (key, value) in findall_map(
-            regex!(r"\b(transfer|dma_[a-z_]+|pio_[a-z_]+|irq_[a-z_]+)=([a-z_]+|-?\d+)\b"),
+            regex!(r"\b(transfer|dma_[a-z_]+|pio_[a-z_]+|irq_[a-z_]+)=([a-z_]+|-?[0-9]+)\b"),
             &status,
         ) {
             let typed = if key == "transfer" {
@@ -431,7 +431,7 @@ pub fn system(root: &Root) -> Result<Value, Failure> {
         let mut link = Map::new();
         for (key, value) in findall_map(
             regex!(
-                r"\b(detached|reconnect_retries|reconnect_failures|monitor_failures|monitor_transients|runtime_held)=(\d+)\b"
+                r"\b(detached|reconnect_retries|reconnect_failures|monitor_failures|monitor_transients|runtime_held)=([0-9]+)\b"
             ),
             &status,
         ) {

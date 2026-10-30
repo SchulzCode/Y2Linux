@@ -200,14 +200,9 @@
     "clockevents": {},
     "clocksource": null,
     "highres_active": null,
-    "no_hz_active": true,
-    "per_cpu": [
-     {
-      "cpu": 1,
-      "nohz": 2
-     }
-    ],
-    "reason": null,
+    "no_hz_active": null,
+    "per_cpu": [],
+    "reason": "runtime_timer_state_unavailable",
     "source": "/proc/timer_list"
    },
    "utilization_percent": null,

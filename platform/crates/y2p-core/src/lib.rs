@@ -19,7 +19,6 @@ pub mod power_identity;
 pub mod power_journal;
 pub mod power_text;
 pub mod py;
-pub mod pyjson;
 pub mod record;
 #[cfg(any(test, feature = "testing"))]
 pub mod recorded;

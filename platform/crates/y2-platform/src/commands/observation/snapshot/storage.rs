@@ -326,7 +326,7 @@ pub fn storage(root: &Root) -> Result<Value, Failure> {
         let parent = path.parent().map(Path::to_path_buf).unwrap_or_default();
         let mut performance = BTreeMap::new();
         for (key, value) in findall_map(
-            regex!(r"(cap_hz|actual_hz|transport_errors|fallbacks|clock_error)=(-?\d+)"),
+            regex!(r"(cap_hz|actual_hz|transport_errors|fallbacks|clock_error)=(-?[0-9]+)"),
             read(&path).as_deref().unwrap_or(""),
         ) {
             performance.insert(key, util::int_or_raise(&value)?);

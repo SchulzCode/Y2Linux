@@ -445,27 +445,37 @@ mod tests {
 mod python_digest_tests {
     use super::*;
 
-    /// The digests stored on /data were made from `pyjson::dumps` of a parsed `Py` (keys sorted);
-    /// `python_dumps_sorted` of the parsed `Value` must give the same bytes.
+    /// The digests stored on /data were made from Python's `json.dumps(value, sort_keys=True)` (with
+    /// `separators=(",", ":")` for the compact ones); `python_dumps_sorted` of the parsed `Value` gives
+    /// the same bytes (the expected texts are CPython's output).
     #[test]
-    fn python_dumps_matches_the_py_writer() {
-        for text in [
-            r#"["boot-a", 3, null, "Crash é 😀 \"x\"\n", true, 1.5, 1e-05, 12345678901234]"#,
-            r#"{"z": 1, "a": [2.0, {"k": "v"}], "id": "0123456789abcdef", "n": -7, "f": 0.1}"#,
-            r#"[{"b": false, "a": null}, [], {}, "", 100000000000000000000.0]"#,
+    fn python_dumps_matches_cpython() {
+        for (text, spaced, compact) in [
+            (
+                r#"["boot-a", 3, null, "Crash é 😀 \"x\"\n", true, 1.5, 1e-05, 12345678901234]"#,
+                r#"["boot-a", 3, null, "Crash \u00e9 \ud83d\ude00 \"x\"\n", true, 1.5, 1e-05, 12345678901234]"#,
+                r#"["boot-a",3,null,"Crash \u00e9 \ud83d\ude00 \"x\"\n",true,1.5,1e-05,12345678901234]"#,
+            ),
+            (
+                r#"{"z": 1, "a": [2.0, {"k": "v"}], "id": "0123456789abcdef", "n": -7, "f": 0.1}"#,
+                r#"{"a": [2.0, {"k": "v"}], "f": 0.1, "id": "0123456789abcdef", "n": -7, "z": 1}"#,
+                r#"{"a":[2.0,{"k":"v"}],"f":0.1,"id":"0123456789abcdef","n":-7,"z":1}"#,
+            ),
+            (
+                r#"[{"b": false, "a": null}, [], {}, "", 100000000000000000000.0]"#,
+                r#"[{"a": null, "b": false}, [], {}, "", 1e+20]"#,
+                r#"[{"a":null,"b":false},[],{},"",1e+20]"#,
+            ),
         ] {
-            let py = crate::pyjson::loads(text).unwrap();
             let value: serde_json::Value = serde_json::from_str(text).unwrap();
-            for (style, separators) in [
-                (crate::pyjson::Style::Spaced, Separators::Spaced),
-                (crate::pyjson::Style::Compact, Separators::Compact),
-            ] {
-                assert_eq!(
-                    python_dumps_sorted(&value, separators).unwrap(),
-                    crate::pyjson::dumps(&py, style),
-                    "{text}"
-                );
-            }
+            assert_eq!(
+                python_dumps_sorted(&value, Separators::Spaced).unwrap(),
+                spaced
+            );
+            assert_eq!(
+                python_dumps_sorted(&value, Separators::Compact).unwrap(),
+                compact
+            );
         }
     }
 }

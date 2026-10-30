@@ -57,7 +57,6 @@
    "bus_parameters": null,
    "controllers": [
     {
-     "cap_hz": 5,
      "clock_error": -1,
      "mode": null,
      "name": "11230000.mmc",
