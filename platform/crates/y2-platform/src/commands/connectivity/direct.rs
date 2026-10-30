@@ -11,7 +11,7 @@ use std::{
     io,
     net::Ipv4Addr,
     os::{
-        fd::{AsRawFd, FromRawFd, OwnedFd},
+        fd::AsRawFd,
         linux::net::SocketAddrExt,
         unix::net::{SocketAddr, UnixDatagram},
     },
@@ -217,18 +217,7 @@ pub(crate) enum DumpError {
 /// The payloads (after the netlink header) of the dump's `kind` messages, in the kernel's order.
 fn dump(kind: u16, timeout: f64) -> Result<Vec<Vec<u8>>, DumpError> {
     let deadline = Instant::now() + Duration::from_secs_f64(timeout.max(0.0));
-    // SAFETY: plain socket calls; the descriptor is owned right after it is created.
-    let sock = unsafe {
-        let fd = libc::socket(
-            libc::AF_NETLINK,
-            libc::SOCK_RAW | libc::SOCK_CLOEXEC,
-            libc::NETLINK_ROUTE,
-        );
-        if fd < 0 {
-            return Err(DumpError::Failed);
-        }
-        OwnedFd::from_raw_fd(fd)
-    };
+    let sock = y2p_core::sys::netlink_route(0, false).map_err(|_| DumpError::Failed)?;
     let seq = 1;
     let request = dump_request(
         if kind == RTM_NEWADDR {

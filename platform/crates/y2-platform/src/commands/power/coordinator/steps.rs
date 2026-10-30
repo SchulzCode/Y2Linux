@@ -328,25 +328,14 @@ fn kill(root: &Root, name: &str, executable: &str, identity: &Object) {
     let Some(pid) = identity.get("pid").and_then(Value::exact_int) else {
         return;
     };
-    // SAFETY: pidfd_open takes a pid and flags and returns a new fd or -1.
-    let fd = unsafe { libc::syscall(libc::SYS_pidfd_open, pid as libc::pid_t, 0) };
-    if fd < 0 {
+    let Ok(pidfd) = libc::pid_t::try_from(pid)
+        .map_err(drop)
+        .and_then(|pid| y2p_core::sys::pidfd_open(pid).map_err(drop))
+    else {
         return;
-    }
+    };
+    // The pidfd pins the process: a pid reused after the identity check is never signalled.
     if process_identity(root, name, executable).as_ref() == Some(identity) {
-        // SAFETY: `fd` is the pidfd opened above; no siginfo, no flags.
-        unsafe {
-            libc::syscall(
-                libc::SYS_pidfd_send_signal,
-                fd as libc::c_int,
-                libc::SIGKILL,
-                std::ptr::null::<libc::siginfo_t>(),
-                0,
-            );
-        }
-    }
-    // SAFETY: closing the pidfd this function opened.
-    unsafe {
-        libc::close(fd as libc::c_int);
+        let _ = y2p_core::sys::pidfd_send_signal(std::os::fd::AsFd::as_fd(&pidfd), libc::SIGKILL);
     }
 }

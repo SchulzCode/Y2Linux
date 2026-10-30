@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use std::{
     io,
-    os::fd::{AsRawFd, FromRawFd, OwnedFd, RawFd},
+    os::fd::{AsRawFd, OwnedFd, RawFd},
     sync::atomic::{AtomicBool, AtomicI32, Ordering},
     time::{Duration, Instant},
 };
@@ -145,28 +145,8 @@ fn concerns_usb0(mut data: &[u8]) -> bool {
 
 impl AddressEvents {
     pub(super) fn new() -> AddressEvents {
-        // SAFETY: plain socket calls; the descriptor is owned right after it is created.
-        let sock = unsafe {
-            let fd = libc::socket(
-                libc::AF_NETLINK,
-                libc::SOCK_RAW | libc::SOCK_NONBLOCK | libc::SOCK_CLOEXEC,
-                libc::NETLINK_ROUTE,
-            );
-            if fd < 0 {
-                None
-            } else {
-                let sock = OwnedFd::from_raw_fd(fd);
-                let mut address: libc::sockaddr_nl = std::mem::zeroed();
-                address.nl_family = libc::AF_NETLINK as libc::sa_family_t;
-                address.nl_groups = 1 | 0x10; // RTMGRP_LINK | RTMGRP_IPV4_IFADDR
-                let bound = libc::bind(
-                    sock.as_raw_fd(),
-                    (&address as *const libc::sockaddr_nl).cast(),
-                    std::mem::size_of::<libc::sockaddr_nl>() as libc::socklen_t,
-                );
-                (bound == 0).then_some(sock)
-            }
-        };
+        // RTMGRP_LINK | RTMGRP_IPV4_IFADDR.
+        let sock = y2p_core::sys::netlink_route(1 | 0x10, true).ok();
         AddressEvents::on(sock)
     }
 
@@ -254,6 +234,7 @@ impl AddressEvents {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::os::fd::FromRawFd;
 
     /// A netlink message of `kind` whose fixed header is `fixed` bytes, with one name attribute.
     fn message(kind: u16, fixed: usize, name: &str) -> Vec<u8> {

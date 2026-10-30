@@ -1,6 +1,6 @@
 //! Safe wrappers for the libc calls the platform repeats: filesystem space (`statvfs64`,
 //! `fstatvfs64`), file status (`fstat64`, `fstatat64`), positioned I/O (`pread64`, `pwrite64`) and
-//! signal dispositions (`sigaction`). The 64-bit calls are used throughout: the plain ones fail with
+//! signal dispositions (`sigaction`), rtnetlink sockets and pidfds. The 64-bit calls are used throughout: the plain ones fail with
 //! EOVERFLOW above 2 GiB on the player's 32-bit ARM, whose fields are also narrower; each figure is
 //! widened here once.
 // SPDX-License-Identifier: GPL-2.0-only
@@ -254,6 +254,67 @@ impl Disposition {
         // SAFETY: re-installing an action the kernel returned for this process.
         unsafe { libc::sigaction(signal, &self.0, std::ptr::null_mut()) };
     }
+}
+
+/// An rtnetlink socket (close-on-exec, non-blocking when asked), bound to the multicast `groups`
+/// (`RTMGRP_*`) when there are any; without groups the kernel binds it on its first send.
+pub fn netlink_route(groups: u32, nonblock: bool) -> io::Result<OwnedFd> {
+    let flags =
+        libc::SOCK_RAW | libc::SOCK_CLOEXEC | if nonblock { libc::SOCK_NONBLOCK } else { 0 };
+    // SAFETY: a plain socket call; the descriptor is owned right after it is created.
+    let fd = unsafe { libc::socket(libc::AF_NETLINK, flags, libc::NETLINK_ROUTE) };
+    if fd < 0 {
+        return Err(io::Error::last_os_error());
+    }
+    // SAFETY: the descriptor was just created and is owned once.
+    let sock = unsafe { OwnedFd::from_raw_fd(fd) };
+    if groups != 0 {
+        // SAFETY: sockaddr_nl is plain data; zeroed is the kernel's "assign a port" address.
+        let mut address: libc::sockaddr_nl = unsafe { std::mem::zeroed() };
+        address.nl_family = libc::AF_NETLINK as libc::sa_family_t;
+        address.nl_groups = groups;
+        // SAFETY: a valid sockaddr_nl of its own size.
+        let bound = unsafe {
+            libc::bind(
+                sock.as_raw_fd(),
+                (&address as *const libc::sockaddr_nl).cast(),
+                std::mem::size_of::<libc::sockaddr_nl>() as libc::socklen_t,
+            )
+        };
+        if bound != 0 {
+            return Err(io::Error::last_os_error());
+        }
+    }
+    Ok(sock)
+}
+
+/// `pidfd_open(pid, 0)`: a descriptor that stays this process even after its pid is reused.
+pub fn pidfd_open(pid: libc::pid_t) -> io::Result<OwnedFd> {
+    // SAFETY: pidfd_open(2) takes a pid and flags and returns a new descriptor or -1.
+    let fd = unsafe { libc::syscall(libc::SYS_pidfd_open, pid, 0) };
+    if fd < 0 {
+        return Err(io::Error::last_os_error());
+    }
+    // SAFETY: the descriptor was just created and is owned once.
+    Ok(unsafe { OwnedFd::from_raw_fd(fd as libc::c_int) })
+}
+
+/// `pidfd_send_signal(pidfd, signal, NULL, 0)`.
+pub fn pidfd_send_signal(pidfd: BorrowedFd<'_>, signal: libc::c_int) -> io::Result<()> {
+    // SAFETY: a pidfd, a signal number, no siginfo, no flags.
+    let sent = unsafe {
+        libc::syscall(
+            libc::SYS_pidfd_send_signal,
+            pidfd.as_raw_fd(),
+            signal,
+            std::ptr::null::<libc::siginfo_t>(),
+            0,
+        )
+    };
+    if sent != 0 {
+        return Err(io::Error::last_os_error());
+    }
+    Ok(())
 }
 
 #[cfg(test)]

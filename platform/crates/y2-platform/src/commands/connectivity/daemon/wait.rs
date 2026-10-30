@@ -4,7 +4,7 @@
 use crate::reply::Failure;
 use std::{
     io,
-    os::fd::{AsRawFd, FromRawFd, OwnedFd, RawFd},
+    os::fd::{AsRawFd, OwnedFd, RawFd},
 };
 use y2p_core::{clock, Root};
 
@@ -69,29 +69,10 @@ impl Events {
         if !root.is_real() {
             return Events::Fixture;
         }
-        // SAFETY: socket/bind with a zeroed sockaddr_nl; the descriptor is owned on success.
-        unsafe {
-            let fd = libc::socket(
-                libc::AF_NETLINK,
-                libc::SOCK_RAW | libc::SOCK_NONBLOCK | libc::SOCK_CLOEXEC,
-                libc::NETLINK_ROUTE,
-            );
-            if fd < 0 {
-                return Events::Closed;
-            }
-            let fd = OwnedFd::from_raw_fd(fd);
-            let mut address: libc::sockaddr_nl = std::mem::zeroed();
-            address.nl_family = libc::AF_NETLINK as libc::sa_family_t;
-            address.nl_groups = 1 | 0x10;
-            if libc::bind(
-                fd.as_raw_fd(),
-                (&address as *const libc::sockaddr_nl).cast(),
-                std::mem::size_of::<libc::sockaddr_nl>() as libc::socklen_t,
-            ) != 0
-            {
-                return Events::Closed;
-            }
-            Events::Real(fd)
+        // RTMGRP_LINK | RTMGRP_IPV4_IFADDR.
+        match y2p_core::sys::netlink_route(1 | 0x10, true) {
+            Ok(fd) => Events::Real(fd),
+            Err(_) => Events::Closed,
         }
     }
 
@@ -144,7 +125,5 @@ impl Events {
 }
 
 pub(super) fn pidfd_open(pid: i32) -> Option<OwnedFd> {
-    // SAFETY: pidfd_open(2) returns a new descriptor this function then owns.
-    let fd = unsafe { libc::syscall(libc::SYS_pidfd_open, pid, 0) };
-    (fd >= 0).then(|| unsafe { OwnedFd::from_raw_fd(fd as RawFd) })
+    y2p_core::sys::pidfd_open(pid).ok()
 }
