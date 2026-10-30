@@ -19,6 +19,7 @@ use std::{
     path::PathBuf,
     sync::{mpsc, Mutex},
 };
+use y2p_contract::reports::ReportPhase;
 use y2p_core::{command, root::python_strip, Root};
 
 /// The compressed report (the receiver takes at most 2 MiB; real ones ≈0.5 MB).
@@ -349,7 +350,7 @@ pub fn build(
     if triggers.is_empty() || !triggers.iter().all(|t| TRIGGERS.contains(&t.as_str())) {
         return Err(Failure::value("unknown_trigger"));
     }
-    progress.update("collect", 0.0, true, Bytes::NONE);
+    progress.update(ReportPhase::Collect, 0.0, true, Bytes::NONE);
     let known = secrets::secrets(root)?;
     let mut scrubber = Scrubber::new(&known, random_key()?)?;
     let versions = json_dict(root, "/etc/y2linux/versions.json");
@@ -446,11 +447,11 @@ pub fn build(
     };
     let mut seen = std::collections::HashSet::new();
     let mut files: Vec<(String, Vec<u8>, bool)> = Vec::new();
-    progress.update("collect", 0.3, false, Bytes::NONE);
+    progress.update(ReportPhase::Collect, 0.3, false, Bytes::NONE);
     let patterns: Vec<&str> = FILES.iter().copied().filter(|p| !p.is_empty()).collect();
     for (n, pattern) in patterns.iter().enumerate() {
         progress.update(
-            "collect",
+            ReportPhase::Collect,
             0.3 + 0.7 * n as f64 / patterns.len() as f64,
             false,
             Bytes::NONE,
@@ -471,15 +472,15 @@ pub fn build(
             }
         }
     }
-    progress.update("scrub", 0.0, true, Bytes::NONE);
+    progress.update(ReportPhase::Scrub, 0.0, true, Bytes::NONE);
     let items: Vec<(String, Vec<u8>)> = files
         .iter()
         .map(|(r, d, _)| (r.clone(), d.clone()))
         .collect();
     let cleaned = scrub_files(&mut scrubber, &items, |fraction| {
-        progress.update("scrub", fraction, false, Bytes::NONE)
+        progress.update(ReportPhase::Scrub, fraction, false, Bytes::NONE)
     });
-    progress.update("pack", 0.0, true, Bytes::NONE);
+    progress.update(ReportPhase::Pack, 0.0, true, Bytes::NONE);
     // The runner thread only collects outcomes (a panic aborts the process before this).
     let commands = runner.join().unwrap_or_default();
     for (name, result) in commands {
@@ -520,7 +521,7 @@ pub fn build(
     }
     index.scrubbed = scrubber.counts.clone();
     let packed = pack(root, &mut index, &mut members);
-    progress.update("pack", 1.0, true, Bytes::NONE);
+    progress.update(ReportPhase::Pack, 1.0, true, Bytes::NONE);
     Ok((packed, index))
 }
 

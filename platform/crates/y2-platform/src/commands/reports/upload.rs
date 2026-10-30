@@ -15,6 +15,7 @@ use std::{
     os::unix::fs::OpenOptionsExt,
     time::{Duration, Instant as Monotonic},
 };
+use y2p_contract::reports::ReportPhase;
 use y2p_core::lenient::BootId;
 use y2p_core::{command, Root};
 
@@ -360,7 +361,7 @@ fn upload_queue(
             continue;
         }
         if let Some(shown) = shown {
-            shown.update("upload", 0.0, true, Bytes::of(0, data.len()));
+            shown.update(ReportPhase::Upload, 0.0, true, Bytes::of(0, data.len()));
         }
         let (status, answer) = post(root, &data, &index, key, shown);
         match (status, answer) {

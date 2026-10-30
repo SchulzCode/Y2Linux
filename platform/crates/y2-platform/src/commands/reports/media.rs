@@ -16,6 +16,7 @@ use std::{
     os::fd::{AsRawFd, OwnedFd},
     path::Path,
 };
+use y2p_contract::reports::ReportPhase;
 pub use y2p_core::mounts::mountinfo;
 use y2p_core::Root;
 
@@ -179,7 +180,12 @@ pub fn save_to(
         now,
         progress,
     )?;
-    progress.update("save", 0.0, true, build::Bytes::total(data.len()));
+    progress.update(
+        ReportPhase::Save,
+        0.0,
+        true,
+        build::Bytes::total(data.len()),
+    );
     let window = if destination == "sd" {
         write_window(root, 120, false)
     } else {
@@ -199,7 +205,12 @@ pub fn save_to(
     };
     let name = match written {
         Ok(name) => {
-            progress.update("save", 1.0, true, build::Bytes::total(data.len()));
+            progress.update(
+                ReportPhase::Save,
+                1.0,
+                true,
+                build::Bytes::total(data.len()),
+            );
             name
         }
         Err(Failure::Os { text, .. }) => {

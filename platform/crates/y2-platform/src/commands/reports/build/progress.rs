@@ -2,6 +2,8 @@
 //! times a second, in RAM.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{Cell, PathBuf, Root, PROGRESS};
+pub use y2p_contract::reports::ReportPhase;
+use y2p_contract::reports::ReportProgress;
 
 /// The bytes an upload or a save has done of its whole (the progress record shows them).
 #[derive(Clone, Copy, Default)]
@@ -31,20 +33,6 @@ impl Bytes {
             total: Some(total),
         }
     }
-}
-
-/// /run/y2/report-progress.json, as Reborn's report screen reads it (written with sorted keys).
-#[derive(serde::Serialize)]
-struct ProgressRecord<'a> {
-    schema: u8,
-    phase: &'a str,
-    percent: f64,
-    seconds_left: Option<i64>,
-    destination: Option<&'a str>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    bytes_done: Option<usize>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    bytes_total: Option<usize>,
 }
 
 /// Live progress of one report run for the owner's screen: the step (collect, scrub, pack, then
@@ -83,7 +71,7 @@ impl Progress {
 
     /// The step `phase` is `fraction` done; written at most every 0.2 s unless `force`d (a step's
     /// start and end).
-    pub fn update(&self, phase: &str, fraction: f64, force: bool, bytes: Bytes) {
+    pub fn update(&self, phase: ReportPhase, fraction: f64, force: bool, bytes: Bytes) {
         let Some(sink) = &self.sink else {
             return;
         };
@@ -92,26 +80,21 @@ impl Progress {
             return;
         }
         sink.written.set(now);
-        let (low, high) = match phase {
-            "collect" => (0.0, 12.0),
-            "scrub" => (12.0, 76.0),
-            "pack" => (76.0, 82.0),
-            _ => (82.0, 100.0), // upload, save
-        };
+        let (low, high) = phase.span();
         let percent = low + (high - low) * fraction.clamp(0.0, 1.0);
         let elapsed = now - sink.start;
         // From 15 % on the run so far is a fair estimate of the rest.
         let seconds_left = (percent >= 15.0)
             .then(|| (elapsed * (100.0 - percent) / percent).round_ties_even() as i64);
-        let record = ProgressRecord {
+        let record = ReportProgress {
             schema: 1,
             phase,
             // `round(percent, 1)`: the formatter rounds the exact binary value, as Python does.
             percent: format!("{percent:.1}").parse().unwrap_or(percent),
             seconds_left,
-            destination: sink.destination.as_deref(),
-            bytes_done: bytes.done,
-            bytes_total: bytes.total,
+            destination: sink.destination.clone(),
+            bytes_done: bytes.done.map(|n| n as u64),
+            bytes_total: bytes.total.map(|n| n as u64),
         };
         // The screen goes without; the report does not.
         if let Some(parent) = sink.path.parent() {

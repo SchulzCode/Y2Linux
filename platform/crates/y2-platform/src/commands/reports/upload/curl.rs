@@ -9,6 +9,7 @@
 use super::{build, command, Bytes, Duration, Monotonic, ReportIndex, Root, ENDPOINT};
 use std::io::Read;
 use std::io::Write;
+use y2p_contract::reports::ReportPhase;
 
 /// curl's answer as urllib's: (HTTP status, answer) or (None, the exception class Python names).
 pub(super) fn answer(outcome: &command::Outcome) -> (Option<i64>, Result<ReceiverAnswer, String>) {
@@ -228,7 +229,7 @@ pub(super) fn stream(
         sent += piece.len();
         if let Some(progress) = progress {
             progress.update(
-                "upload",
+                ReportPhase::Upload,
                 sent as f64 / data.len().max(1) as f64,
                 false,
                 Bytes::of(sent, data.len()),

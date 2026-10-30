@@ -7,6 +7,7 @@ use super::*;
 use crate::commands::reports::test_player::{self as player, SSID};
 use crate::commands::reports::Value;
 use crate::testing::Fixture;
+use y2p_contract::reports::ReportPhase;
 
 fn built(root: &Root, trigger: &str, detail: &str, topic: Option<&str>) -> (Vec<u8>, Value) {
     let (data, index) = build(
@@ -158,15 +159,15 @@ fn progress_writes_at_most_five_times_a_second() {
     let fixture = Fixture::new().with_clock(clock.clone());
     let progress = Progress::new(&fixture.root, Some("sd"));
     clock.advance(1_000_000_000);
-    progress.update("scrub", 0.5, false, Bytes::NONE);
+    progress.update(ReportPhase::Scrub, 0.5, false, Bytes::NONE);
     let first = fixture.read(PROGRESS);
     clock.advance(199_000_000);
-    progress.update("scrub", 0.6, false, Bytes::NONE); // within 0.2 s: skipped
+    progress.update(ReportPhase::Scrub, 0.6, false, Bytes::NONE); // within 0.2 s: skipped
     assert_eq!(fixture.read(PROGRESS), first);
     clock.advance(2_000_000);
-    progress.update("scrub", 0.6, false, Bytes::NONE); // 0.2 s on
+    progress.update(ReportPhase::Scrub, 0.6, false, Bytes::NONE); // 0.2 s on
     assert_eq!(fixture.json(PROGRESS)["percent"], 50.4);
-    progress.update("scrub", 0.7, true, Bytes::NONE);
+    progress.update(ReportPhase::Scrub, 0.7, true, Bytes::NONE);
     let value = fixture.json(PROGRESS);
     assert_eq!(
         (&value["phase"], &value["destination"], &value["schema"]),
