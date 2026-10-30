@@ -2,7 +2,7 @@
 //! `--full` adds the ALSA and DRM queries (queries only, no playback or render takeover).
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{
-    snapshot::{snapshot, Snapshot},
+    snapshot::{readiness::Readiness, snapshot, Snapshot},
     util::{self, int, read},
 };
 use crate::reply::{Failure, Outcome, Reply};
@@ -119,17 +119,19 @@ pub fn check_from(root: &Root, status: &Snapshot, full: bool) -> Result<Health, 
             None,
         );
     }
-    for name in ["wifi", "bluetooth", "update"] {
-        let item = &status.readiness[name];
-        let state = match item["state"].as_str() {
-            Some("Ready") => CheckState::Ok,
-            Some("Starting" | "Degraded") => CheckState::Degraded,
-            Some("Failed") => CheckState::Failed,
-            Some("Unavailable") => CheckState::Unavailable,
-            // The snapshot's readiness knows no other state.
-            _ => return Err(Failure::value("invalid_readiness_state")),
+    let readiness = &status.readiness;
+    for (name, item) in [
+        ("wifi", &readiness.wifi),
+        ("bluetooth", &readiness.bluetooth),
+        ("update", &readiness.update),
+    ] {
+        let state = match item.state {
+            Readiness::Ready => CheckState::Ok,
+            Readiness::Starting | Readiness::Degraded => CheckState::Degraded,
+            Readiness::Failed => CheckState::Failed,
+            Readiness::Unavailable => CheckState::Unavailable,
         };
-        add(name, state, item["reason"].clone(), None);
+        add(name, state, item.reason.clone(), None);
     }
     let timer = &status.cpu.timer;
     for (name, active) in [

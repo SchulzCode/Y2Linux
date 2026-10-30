@@ -1,6 +1,7 @@
 //! The `bluetooth` section: what D-Bus shows of the adapter, the selected peer, its playback PCM and
 //! encoder (y2-bt-observe), next to the codec settings; observations only, never codec requests.
 // SPDX-License-Identifier: GPL-2.0-only
+use super::snapshot::readiness::Readiness;
 use super::util::{fields, present, record_fields};
 use crate::{
     commands::codec::{inventory_codec, requested, validate},
@@ -247,7 +248,7 @@ fn quality(codec: Option<&str>, pcm: &Map<String, Value>, settings: &Value) -> E
 /// only once the observation got that far).
 #[derive(Serialize)]
 pub struct Section {
-    pub state: &'static str,
+    pub state: Readiness,
     pub reason: &'static str,
     adapter: Option<Adapter>,
     selected_peer: Option<Device>,
@@ -320,7 +321,7 @@ struct Transport {
 impl Section {
     fn new(root: &Root, settings: Value, inventory: Option<Value>) -> Section {
         Section {
-            state: "Unavailable",
+            state: Readiness::Unavailable,
             reason: "dbus_observation_unavailable",
             adapter: None,
             selected_peer: None,
@@ -346,7 +347,7 @@ impl Section {
     }
 
     fn degraded(&mut self, reason: &'static str) {
-        (self.state, self.reason) = ("Degraded", reason);
+        (self.state, self.reason) = (Readiness::Degraded, reason);
     }
 }
 
@@ -475,10 +476,10 @@ fn runtime<'a>(
     let owner = text(raw, "bluealsa_owner").filter(|owner| !owner.is_empty());
     let (Some(bluealsa), Some(manager), Some(_)) = (object("bluealsa"), object("manager"), owner)
     else {
-        (section.state, section.reason) = ("Starting", "bluealsa_not_ready");
+        (section.state, section.reason) = (Readiness::Starting, "bluealsa_not_ready");
         return None;
     };
-    (section.state, section.reason) = ("Ready", "controller_bluez_bluealsa_observed");
+    (section.state, section.reason) = (Readiness::Ready, "controller_bluez_bluealsa_observed");
     let enabled: Option<Vec<String>> =
         manager
             .get("Codecs")

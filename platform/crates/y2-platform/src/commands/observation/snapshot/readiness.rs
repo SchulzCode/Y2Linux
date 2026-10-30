@@ -8,33 +8,47 @@ use serde_json::{json, Value};
 use y2p_core::volume::{SpaceState, VolumeState};
 
 /// What a subsystem's state means for the product.
-#[derive(Serialize, Clone, Copy)]
-enum Readiness {
+#[derive(Serialize, Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub enum Readiness {
     Ready,
     Degraded,
     Starting,
+    #[default]
     Unavailable,
     Failed,
 }
 
 /// One subsystem's readiness and why.
-#[derive(Serialize)]
-struct Item<S> {
-    state: S,
-    reason: Value,
+#[derive(Serialize, Default)]
+pub struct Item {
+    pub state: Readiness,
+    pub reason: Value,
 }
 
 /// The `readiness` section (in this key order); Bluetooth's state is its section's own.
-#[derive(Serialize)]
-struct Section {
-    storage: Item<Readiness>,
-    wifi: Item<Readiness>,
-    bluetooth: Item<Value>,
-    audio: Item<Readiness>,
-    update: Item<Readiness>,
+#[derive(Serialize, Default)]
+pub struct Section {
+    pub storage: Item,
+    pub wifi: Item,
+    pub bluetooth: Item,
+    pub audio: Item,
+    pub update: Item,
 }
 
-pub(super) fn readiness(status: &Snapshot) -> Result<Value, Failure> {
+impl Section {
+    /// Every subsystem's readiness.
+    pub fn items(&self) -> [&Item; 5] {
+        [
+            &self.storage,
+            &self.wifi,
+            &self.bluetooth,
+            &self.audio,
+            &self.update,
+        ]
+    }
+}
+
+pub(super) fn readiness(status: &Snapshot) -> Result<Section, Failure> {
     let item = |state: Readiness, reason: Value| Item { state, reason };
     let first = status.storage.volumes.iter().take(2);
     let storage_state = if first.clone().all(|v| v.state == VolumeState::Ready) {
@@ -93,10 +107,7 @@ pub(super) fn readiness(status: &Snapshot) -> Result<Value, Failure> {
     let section = Section {
         storage: item(storage_state, storage_reason),
         wifi: item(wifi_state, json!(wifi.reason)),
-        bluetooth: Item {
-            state: json!(bluetooth.state),
-            reason: json!(bluetooth.reason),
-        },
+        bluetooth: item(bluetooth.state, json!(bluetooth.reason)),
         audio: item(
             if audio {
                 Readiness::Ready
@@ -110,5 +121,5 @@ pub(super) fn readiness(status: &Snapshot) -> Result<Value, Failure> {
             update.get("failure").cloned().unwrap_or(Value::Null),
         ),
     };
-    serde_json::to_value(section).map_err(Failure::value)
+    Ok(section)
 }

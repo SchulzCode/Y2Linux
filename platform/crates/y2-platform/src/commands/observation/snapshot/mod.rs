@@ -6,7 +6,7 @@ mod cpu;
 mod idle;
 mod memory;
 mod power;
-mod readiness;
+pub mod readiness;
 mod storage;
 mod thermal;
 pub(crate) mod wifi;
@@ -45,7 +45,7 @@ pub struct Snapshot {
     pub bluetooth: bluetooth::Section,
     pub system: system::System,
     pub audio: Audio,
-    pub readiness: Value,
+    pub readiness: readiness::Section,
     /// `--reborn`: Reborn's own metrics record.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reborn_metrics: Option<Value>,
@@ -137,7 +137,7 @@ pub fn snapshot(root: &Root, pids: &[i64], pss: bool, interval: f64) -> Result<S
             pcm_contract: root.json("/sys/devices/platform/11220000.audio-controller/pcm_contract"),
             hw_params,
         },
-        readiness: Value::Null,
+        readiness: readiness::Section::default(),
         reborn_metrics: None,
     };
     result.readiness = readiness::readiness(&result)?;

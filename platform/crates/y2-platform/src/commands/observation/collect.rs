@@ -1,6 +1,7 @@
 //! `y2-platform collect` (`collect.collect`): bounded streaming observation for workload, thermal and
 //! endurance comparisons; one status line per sample, then a summary.
 // SPDX-License-Identifier: GPL-2.0-only
+use super::snapshot::readiness::Readiness;
 use super::{
     process_identity, reborn_metrics,
     snapshot::{snapshot, utilization, Snapshot},
@@ -140,8 +141,9 @@ pub fn run(root: &Root, options: &Options) -> Outcome {
         failures += u64::from(
             value
                 .readiness
-                .as_object()
-                .is_some_and(|r| r.values().any(|item| item["state"] == "Failed")),
+                .items()
+                .iter()
+                .any(|item| item.state == Readiness::Failed),
         );
         value.printable()?;
         let line = dumps_sorted(&value).map_err(Failure::value)? + "\n";
