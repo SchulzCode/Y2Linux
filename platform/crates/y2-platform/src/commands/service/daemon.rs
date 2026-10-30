@@ -215,9 +215,10 @@ impl Service {
                 radio_firmware(root, firmware_scan, firmware_ready, due);
             if due {
                 next_maintenance = before + maintenance;
-                // Run slow fs/stat/cleanup outside this readiness process. A kernel D-state does not
-                // block Wi-Fi or the power daemon.
-                command::run(root, &[PLATFORM, "space", "--cleanup"], 2.0);
+                // The space policy and its bounded cleanup (64 files, 8 MiB) look at Y2DATA only, which
+                // this daemon reads every pass anyway: in process, no y2-platform start each pass.
+                // The SD card (whose statvfs can hang in D state) is not touched.
+                let _ = crate::commands::storage::space_policy(root, true);
                 // A restart without Wi-Fi resumes near this clock (#53); hourly.
                 match remember_time(root) {
                     Err(Failure::Os { .. }) | Ok(()) => {}

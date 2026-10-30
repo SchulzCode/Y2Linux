@@ -168,14 +168,6 @@
   {
    "argv": [
     "/usr/sbin/y2-platform",
-    "space",
-    "--cleanup"
-   ],
-   "timeout": 2.0
-  },
-  {
-   "argv": [
-    "/usr/sbin/y2-platform",
     "update",
     "health-ack"
    ],
@@ -280,6 +272,83 @@
    },
    "/run/y2/service.lock": {
     "content": [],
+    "mode": "0o600",
+    "type": "file"
+   },
+   "/run/y2/storage.json": {
+    "content": {
+     "admission": {
+      "cache": {
+       "allowed": false,
+       "reason": "Failed"
+      },
+      "database": {
+       "allowed": false,
+       "reason": "Failed"
+      },
+      "diagnostic": {
+       "allowed": false,
+       "reason": "Failed"
+      },
+      "transfer": {
+       "allowed": false,
+       "reason": "Failed"
+      },
+      "update": {
+       "allowed": false,
+       "reason": "Failed"
+      },
+      "user_state": {
+       "allowed": false,
+       "reason": "Failed"
+      }
+     },
+     "cleanup": null,
+     "record": {
+      "boot_id": "boot-a",
+      "build_id": "fixture-build",
+      "evidence_level": "IMPLEMENTED",
+      "failure": null,
+      "kernel": "6.18.0-fixture",
+      "monotonic_ns": "<volatile>",
+      "parameters": {},
+      "reborn_commit": "reborn",
+      "result": null,
+      "rootfs_release": "v1.0",
+      "units": {},
+      "wall_timestamp": "<volatile>",
+      "workload": "space-policy",
+      "y2linux_commit": "linux-commit"
+     },
+     "schema": "org.y2linux.space/v1",
+     "state": "Failed",
+     "volume": {
+      "available_bytes": "<volatile>",
+      "available_inodes": "<volatile>",
+      "controller_valid": false,
+      "device_id": "179:9",
+      "filesystem": "ext4",
+      "free_bytes": "<volatile>",
+      "generation": "boot-a:30:179:9",
+      "mount_id": 30,
+      "options": [
+       "rw",
+       "noatime"
+      ],
+      "path": "/data",
+      "reason": "source_missing_or_wrong_controller",
+      "root": "/",
+      "source": "/dev/mmcblk0p9",
+      "source_instance": null,
+      "space_state": "Failed",
+      "state": "Failed",
+      "super_options": [
+       "rw"
+      ],
+      "total_bytes": "<volatile>",
+      "uuid": null
+     }
+    },
     "mode": "0o600",
     "type": "file"
    },

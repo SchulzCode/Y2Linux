@@ -11,6 +11,7 @@ pub(crate) mod media;
 pub(crate) mod observe;
 mod records;
 mod space;
+pub(crate) use space::policy as space_policy;
 pub(crate) mod sys;
 
 use super::Command;
