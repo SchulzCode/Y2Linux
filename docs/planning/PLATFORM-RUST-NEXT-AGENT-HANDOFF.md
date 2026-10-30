@@ -24,6 +24,10 @@ cheap timer (no Reborn change).
   - A5 `update::JournalState` (+ `TERMINAL` once) and `staging::Download` (download.json, one struct);
   - A6 `usb::views::View` + typed identity;
   - A7 previous-boot-evidence.json written from `evidence::Evidence`/`LogTail` (readers pass through / `Py`).
+- **B done** (byte-identical): `y2p_core::volume::{VolumeState, SpaceState}` (also in storage/observe.rs and the
+  status snapshot); `power::policy::BatteryState`, `power::battery::{BatterySource, Confidence}`; shutdown
+  `IntentState`/`ShutdownAction`/`ShutdownReason` (intent record stays a map, decision 2); Internal Storage
+  `SetupState`/`SetupPhase`; update `JournalState` (with A5).
 
 ## 1. Where it stands
 
