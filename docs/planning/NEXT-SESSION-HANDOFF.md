@@ -1,6 +1,19 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.4 candidate (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-30, evening): TEST BUILD 181 ON THE OWNER'S PLAYER; IDIOMATIC PLAN P0–P7 DONE FOR NON-CRITICAL CODE.**
+> **START HERE (2026-10-30, night): TEST BUILD 182 ON THE OWNER'S PLAYER; FINISHING PLAN Q1+Q2 DONE, Q3 STARTED.**
+> [PLATFORM-RUST-IDIOMATIC-PLAN.md](PLATFORM-RUST-IDIOMATIC-PLAN.md) "Finishing (Q1–Q5)" (owner decisions: critical
+> code last with a hardware round, /data rollback-safe, Reborn API may change with Reborn). Q1 (status sections,
+> ObservationRecord, Health, readiness, evidence record, netlink answers, power section) and Q2 (reports.json,
+> report index, triggers, upload gate and answers, diagnostics bundle) committed through the gate; 182 (seq 11270)
+> Acknowledged, device check OK, typed sections checked on the player. Q3 so far: one typed codec module
+> (7a64dcc0). Pattern: a broken record leaves the command readable (section Unavailable/Failed) instead of
+> refusing; odd fixture inputs the writer repairs go into tools/development/record-compat-allow.txt (reviewed).
+> **Next (Q3):** storage observe/records/sys read sides, service radiofw copy/usb/download, connectivity wifi
+> monitor/dns/radio_policy, devices transfer/time, capabilities template; then Q4 (critical: suspend, sleep.rs,
+> power coordinator/policy, update journal/health/staging/apply, SD ops, internal setup, reset) + build 183 +
+> owner's hardware round. Next free label 183, sequence above 11270.
+>
+> Previous entry: **START HERE (2026-10-30, evening): TEST BUILD 181 ON THE OWNER'S PLAYER; IDIOMATIC PLAN P0–P7 DONE FOR NON-CRITICAL CODE.**
 > [PLATFORM-RUST-IDIOMATIC-PLAN.md](PLATFORM-RUST-IDIOMATIC-PLAN.md) P5 (typed `Snapshot`, 01c484d2), P6 (reports
 > without `Py`, 76675310/585566fa), P7 (`y2p_core::pyjson` deleted, ASCII kernel numbers, ffd6ff52), CONTRACT.md
 > stdout rule (67254a08); Reborn 717f038 (contract data). 181 (seq 11260) Acknowledged, application_ready 37.5 s,
