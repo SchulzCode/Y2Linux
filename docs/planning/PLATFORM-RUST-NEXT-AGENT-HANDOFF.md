@@ -4,6 +4,27 @@ One agent works through this alone, in order, without spawning others. Everythin
 Read this file, then §1 and §3 of [PLATFORM-RUST-REFACTOR-PLAN.md](PLATFORM-RUST-REFACTOR-PLAN.md) (the contract
 and what was already done), then start at §4 below.
 
+## 0. Status of this pass (2026-10-30/31, one agent overnight; updated as items finish)
+
+Baseline: byte goldens recorded from 2e68d63e (test build 175's code). Owner decisions for §5 given up front
+(2026-10-30): 1 strictest equality that keeps every golden; 2 enums only, no typed shutdown intent; 3 do not merge
+the volume observers, share constants/helpers only; 4 keep blkid in status and y2-bt-observe; 5 keep the reports
+`Py` type; 6 keep the bool tolerance of `status_query_failures`; 7 keep renewing network.json/time-status.json on a
+cheap timer (no Reborn change).
+
+- **A done** (all byte-identical, gate OK each):
+  - lenient record fields moved to `y2p_core::lenient` (+ `BootId`, `number`, `integer`, `truthy`, `is_true`,
+    `json_number`);
+  - A1 ssh.json: `devices::ssh::Published` (is_this_boot, fresh);
+  - A2 network.json: `connectivity::published::{Record, Published, QueryFailures}` (bool kept, decision 6);
+  - A3 power.json readers: `power::published::{PowerState, Battery, BatteryReading}` (reports upload keeps `Py`);
+  - A4 Y2Media claim: `storage::internal::{Claim, ready}` for all four copies; decision 1 → texts compared
+    exactly, mount id a JSON number compared as Python numbers (a golden holds `41.0`), never a bool; SD claim:
+    `storage::records::Claim::checking` for the service daemon;
+  - A5 `update::JournalState` (+ `TERMINAL` once) and `staging::Download` (download.json, one struct);
+  - A6 `usb::views::View` + typed identity;
+  - A7 previous-boot-evidence.json written from `evidence::Evidence`/`LogTail` (readers pass through / `Py`).
+
 ## 1. Where it stands
 
 - The platform is Rust only: `platform/` (crates `y2p-core`, `y2p-contract`, `y2-platform`), about 49,600
