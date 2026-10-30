@@ -170,7 +170,7 @@ struct DmaOwner {
 /// What blocks C2 (SLIDLE): the clocks' slow-idle blocker mask.
 #[derive(Serialize)]
 struct SlowIdle {
-    attribution: Value,
+    attribution: crate::commands::observation::util::Readings,
     last_blocker: Option<String>,
     blocker_owners: Option<Vec<Blocker>>,
     shared_dma_owners: Vec<DmaOwner>,
@@ -235,7 +235,7 @@ struct Dormant {
     uart_clock_handoff: Option<String>,
     uart_sleep: Map<String, Value>,
     entry_budget: Option<i64>,
-    display_idle: Value,
+    display_idle: crate::commands::observation::util::Readings,
     prerequisites: Map<String, Value>,
     unmet: Vec<String>,
     blocker_owners: Option<Vec<Blocker>>,

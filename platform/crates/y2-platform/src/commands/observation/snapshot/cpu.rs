@@ -3,17 +3,17 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use super::idle::idle_completion;
 use crate::commands::observation::util::{
-    self, counters, findall_map, int, name, number, parent_name, read, read_limited, reads_by_name,
-    split_ws, splitlines, text,
+    self, counters, findall_map, int, name, parent_name, read, read_limited, reads_by_name,
+    split_ws, splitlines, Readings,
 };
 use crate::{regex, reply::Failure};
 use serde::Serialize;
-use serde_json::{json, Map, Value};
-use std::path::Path;
+use serde_json::{Map, Value};
+use std::{collections::BTreeMap, path::Path};
 use y2p_core::{command, Root};
 
 /// Whether every CPU runs high-resolution timers and tickless idle, from /proc/timer_list.
-pub fn timer_runtime(root: &Root) -> Result<Map<String, Value>, Failure> {
+pub fn timer_runtime(root: &Root) -> Result<Timer, Failure> {
     // On the player through a bounded child (0.2 s, 256 KiB), as the wakeup counter: a slow procfs
     // read cannot hold the snapshot.
     let text = if root.is_real() {
@@ -28,7 +28,7 @@ pub fn timer_runtime(root: &Root) -> Result<Map<String, Value>, Failure> {
         root.read_limited("/proc/timer_list", 262_144)
     };
     let text = text.unwrap_or_default();
-    let mut cpus: Vec<Map<String, Value>> = Vec::new();
+    let mut cpus: Vec<TimerCpu> = Vec::new();
     for block in regex!(r"(?m)^cpu:\s*").split(&text).skip(1) {
         let lines = splitlines(block);
         // A `cpu:` with nothing after it (the text cut short): no line to number the CPU by.
@@ -38,60 +38,80 @@ pub fn timer_runtime(root: &Root) -> Result<Map<String, Value>, Failure> {
         if !util::isdigit(first) {
             continue;
         }
-        let mut core = Map::new();
-        core.insert("cpu".into(), json!(util::int_or_raise(first)?));
+        let mut core = TimerCpu {
+            cpu: util::int_or_raise(first)?,
+            fields: BTreeMap::new(),
+        };
         let fields = findall_map(
             regex!(r"(?m)^\s*\.(hres_active|nohz|tick_stopped|nr_hangs)\s*:\s*([0-9]+)\s*$"),
             block,
         );
         for (key, value) in fields {
-            core.insert(key, json!(util::int_or_raise(&value)?));
+            core.fields.insert(key, util::int_or_raise(&value)?);
         }
         cpus.push(core);
     }
     // True or false only when every CPU reports the field.
-    let observed = |key: &str| -> Value {
-        let values: Option<Vec<i64>> = cpus
-            .iter()
-            .map(|c| c.get(key).and_then(Value::as_i64))
-            .collect();
-        match values {
-            Some(values) if !values.is_empty() => {
-                json!(values
-                    .iter()
-                    .all(|v| if key == "nohz" { *v > 0 } else { *v == 1 }))
-            }
-            _ => Value::Null,
-        }
+    let observed = |key: &str| -> Option<bool> {
+        let values: Option<Vec<i64>> = cpus.iter().map(|c| c.fields.get(key).copied()).collect();
+        values.filter(|values| !values.is_empty()).map(|values| {
+            values
+                .iter()
+                .all(|v| if key == "nohz" { *v > 0 } else { *v == 1 })
+        })
     };
-    let mut result = Map::new();
-    result.insert("highres_active".into(), observed("hres_active"));
-    result.insert("no_hz_active".into(), observed("nohz"));
-    result.insert("source".into(), json!("/proc/timer_list"));
-    result.insert(
-        "reason".into(),
-        if cpus.is_empty() {
-            json!("runtime_timer_state_unavailable")
-        } else {
-            Value::Null
-        },
-    );
-    result.insert(
-        "per_cpu".into(),
-        Value::Array(cpus.into_iter().map(Value::Object).collect()),
-    );
-    Ok(result)
+    Ok(Timer {
+        highres_active: observed("hres_active"),
+        no_hz_active: observed("nohz"),
+        source: "/proc/timer_list",
+        reason: cpus.is_empty().then_some("runtime_timer_state_unavailable"),
+        per_cpu: cpus,
+        admission: None,
+        clocksource: None,
+        broadcast_clockevent: None,
+        clockevents: None,
+    })
 }
+
+/// The timer runtime: high-resolution timers and tickless idle on every CPU, then the clock sources
+/// (filled in by the cpu section).
+#[derive(Serialize)]
+pub struct Timer {
+    pub highres_active: Option<bool>,
+    pub no_hz_active: Option<bool>,
+    source: &'static str,
+    reason: Option<&'static str>,
+    per_cpu: Vec<TimerCpu>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    admission: Option<Readings>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    clocksource: Option<Option<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    broadcast_clockevent: Option<Option<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    clockevents: Option<Readings>,
+}
+
+/// One CPU's timer fields from /proc/timer_list.
+#[derive(Serialize)]
+struct TimerCpu {
+    cpu: i64,
+    #[serde(flatten)]
+    fields: BTreeMap<String, i64>,
+}
+
+/// CPU tick counters by line (`cpu`, `cpu0`, …): the first eight fields of /proc/stat.
+pub type Ticks = BTreeMap<String, Vec<Option<i64>>>;
 
 /// The `cpu` section (in this key order; `utilization_percent` is filled in by the caller from
 /// two readings).
 #[derive(Serialize)]
-struct Cpu {
+pub struct Cpu {
     online: Option<String>,
     load_average: Option<String>,
-    ticks: Option<Map<String, Value>>,
+    pub ticks: Option<Ticks>,
     ticks_unit: &'static str,
-    utilization_percent: Value,
+    pub utilization_percent: Option<BTreeMap<String, f64>>,
     policies: Vec<Policy>,
     idle: Vec<IdleState>,
     idle_completion: super::idle::IdleCompletion,
@@ -104,23 +124,23 @@ struct Cpu {
     cirq: Option<String>,
     suspend_stage: Option<String>,
     suspend_persistent: SuspendPersistent,
-    dvfs_diagnostics: Value,
+    dvfs_diagnostics: Readings,
     voltage_ownership: Option<String>,
     slidle_clock_owners: Option<String>,
     pwrap_readiness: Option<String>,
-    slidle_attribution: Value,
-    mmc_runtime_pm: Value,
-    system_idle: Value,
+    slidle_attribution: Readings,
+    mmc_runtime_pm: Readings,
+    system_idle: Readings,
     radio_boot_retries: Option<i64>,
-    clock_blockers: Value,
-    idle_diagnostics: Value,
-    recovery_options: Value,
+    clock_blockers: Readings,
+    idle_diagnostics: Readings,
+    recovery_options: Readings,
     counters: Counters,
     wakeup_count: Option<i64>,
     wakeup_count_reason: Option<String>,
     throttling_reason: Option<String>,
     workload_qos: WorkloadQos,
-    timer: Map<String, Value>,
+    pub timer: Timer,
 }
 
 /// One cpufreq policy: its attributes (null where a file is missing), then what the snapshot derives.
@@ -217,7 +237,7 @@ struct SuspendPersistent {
     current: Option<String>,
     previous_boot: Option<String>,
     durable: Value,
-    usb_restore: Map<String, Value>,
+    usb_restore: Readings,
     radio_restore: Option<String>,
     /// Fix02: awake SRAM proof, retention and callback trail.
     retention: Option<String>,
@@ -249,22 +269,17 @@ struct WorkloadQos {
 }
 
 /// The `cpu` section.
-pub fn cpu(root: &Root) -> Result<Map<String, Value>, Failure> {
+pub fn cpu(root: &Root) -> Result<Cpu, Failure> {
     let stat = root.read("/proc/stat");
-    let mut ticks = Map::new();
+    let mut ticks = Ticks::new();
     for line in splitlines(stat.as_deref().unwrap_or_default()) {
         let fields = split_ws(line);
         if fields
             .first()
             .is_some_and(|f| regex!(r"\Acpu[0-9]*\z").is_match(f))
         {
-            let values: Vec<Value> = fields
-                .iter()
-                .skip(1)
-                .take(8)
-                .map(|v| number(Some(v)))
-                .collect();
-            ticks.insert(fields[0].to_owned(), Value::Array(values));
+            let values = fields.iter().skip(1).take(8).map(|v| int(v)).collect();
+            ticks.insert(fields[0].to_owned(), values);
         }
     }
     let ceiling = root.integer("/sys/module/cpu_dvfs/parameters/qualification_max_khz");
@@ -297,9 +312,9 @@ pub fn cpu(root: &Root) -> Result<Map<String, Value>, Failure> {
     };
     let completion = idle_completion(root, &idle);
     let read_text = |p: &str| root.read(p);
-    let mut usb_restore = Map::new();
+    let mut usb_restore = Readings::new();
     for path in root.glob("/sys/bus/platform/drivers/y2-usb/*/status") {
-        usb_restore.insert(parent_name(&path), text(read_limited(&path, 8192)));
+        usb_restore.insert(parent_name(&path), read_limited(&path, 8192));
     }
     let suspend_persistent = SuspendPersistent {
         current: read_text("/sys/firmware/y2_pm/state"),
@@ -327,36 +342,28 @@ pub fn cpu(root: &Root) -> Result<Map<String, Value>, Failure> {
         procs_blocked: total("procs_blocked"),
     };
     let mut timer = timer_runtime(root)?;
-    timer.insert(
-        "admission".into(),
-        reads_by_name(root, "/sys/module/local_timer/parameters/*", false),
-    );
-    timer.insert(
-        "clocksource".into(),
-        text(read_text(
-            "/sys/devices/system/clocksource/clocksource0/current_clocksource",
-        )),
-    );
-    timer.insert(
-        "broadcast_clockevent".into(),
-        text(read_text(
-            "/sys/devices/system/clockevents/broadcast/current_device",
-        )),
-    );
-    timer.insert(
-        "clockevents".into(),
-        reads_by_name(
-            root,
-            "/sys/devices/system/clockevents/clockevent*/current_device",
-            true,
-        ),
-    );
+    timer.admission = Some(reads_by_name(
+        root,
+        "/sys/module/local_timer/parameters/*",
+        false,
+    ));
+    timer.clocksource = Some(read_text(
+        "/sys/devices/system/clocksource/clocksource0/current_clocksource",
+    ));
+    timer.broadcast_clockevent = Some(read_text(
+        "/sys/devices/system/clockevents/broadcast/current_device",
+    ));
+    timer.clockevents = Some(reads_by_name(
+        root,
+        "/sys/devices/system/clockevents/clockevent*/current_device",
+        true,
+    ));
     let section = Cpu {
         online: read_text("/sys/devices/system/cpu/online"),
         load_average: read_text("/proc/loadavg"),
         ticks: (!ticks.is_empty()).then_some(ticks),
         ticks_unit: "USER_HZ_ticks",
-        utilization_percent: Value::Null,
+        utilization_percent: None,
         policies,
         idle,
         idle_completion: completion,
@@ -403,29 +410,25 @@ pub fn cpu(root: &Root) -> Result<Map<String, Value>, Failure> {
         },
         timer,
     };
-    match serde_json::to_value(section) {
-        Ok(Value::Object(section)) => Ok(section),
-        _ => Err(Failure::value("cpu_section_unserializable")),
-    }
+    Ok(section)
 }
 
 /// Each core's busy percentage between two `ticks` readings (3 decimals); null without a valid pair.
-pub fn utilization(before: Option<&Value>, after: Option<&Value>) -> Value {
-    let mut result = Map::new();
-    let empty = Map::new();
-    let before = before.and_then(Value::as_object).unwrap_or(&empty);
-    for (core, new) in after.and_then(Value::as_object).unwrap_or(&empty) {
-        let (Some(old), Some(new)) = (before.get(core).and_then(Value::as_array), new.as_array())
-        else {
+/// Busy percent per CPU line between two readings of the same boot (none where a line is missing,
+/// unread or went backwards).
+pub fn utilization(before: Option<&Ticks>, after: Option<&Ticks>) -> Option<BTreeMap<String, f64>> {
+    let (before, after) = (before?, after?);
+    let mut result = BTreeMap::new();
+    for (core, new) in after {
+        let Some(old) = before.get(core) else {
             continue;
         };
         if old.len() != new.len() || new.len() < 5 {
             continue;
         }
-        let (Some(old), Some(new)): (Option<Vec<i64>>, Option<Vec<i64>>) = (
-            old.iter().map(Value::as_i64).collect(),
-            new.iter().map(Value::as_i64).collect(),
-        ) else {
+        let (Some(old), Some(new)): (Option<Vec<i64>>, Option<Vec<i64>>) =
+            (old.iter().copied().collect(), new.iter().copied().collect())
+        else {
             continue;
         };
         let diff: Vec<i128> = old
@@ -436,18 +439,12 @@ pub fn utilization(before: Option<&Value>, after: Option<&Value>) -> Value {
         let total: i128 = diff.iter().sum();
         if diff.iter().min().is_some_and(|m| *m >= 0) && total > 0 {
             let busy = 100.0 * (total - diff[3] - diff[4]) as f64 / total as f64;
-            result.insert(core.clone(), json!(round3(busy)));
+            result.insert(core.clone(), round3(busy));
         }
     }
-    if result.is_empty() {
-        Value::Null
-    } else {
-        Value::Object(result)
-    }
+    (!result.is_empty()).then_some(result)
 }
 
-/// `x` rounded to 3 decimals, half to even on the exact binary value (Python's `round(x, 3)`, which
-/// the percentages were defined by).
 pub fn round3(x: f64) -> f64 {
     let text = format!("{x:.3}");
     let candidate: f64 = text.parse().unwrap_or(x);

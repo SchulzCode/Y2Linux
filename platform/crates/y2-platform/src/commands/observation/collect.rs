@@ -104,8 +104,8 @@ pub fn run(root: &Root, options: &Options) -> Outcome {
         // Utilisation since the previous sample of the same boot.
         if let Some(previous) = &previous {
             if previous.boot_id() == value.boot_id() {
-                let busy = utilization(previous.cpu.get("ticks"), value.cpu.get("ticks"));
-                value.cpu.insert("utilization_percent".into(), busy);
+                value.cpu.utilization_percent =
+                    utilization(previous.cpu.ticks.as_ref(), value.cpu.ticks.as_ref());
             }
         }
         if options.reborn {

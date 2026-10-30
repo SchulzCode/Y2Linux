@@ -132,11 +132,16 @@ fn unknown_sensors_are_null_not_zero_and_die_temperature_is_separate() {
 
 #[test]
 fn cpu_delta_rejects_reset_and_missing_cores() {
-    let a = json!({"cpu0": [10, 0, 10, 80, 0, 0, 0, 0]});
-    let b = json!({"cpu0": [20, 0, 20, 160, 0, 0, 0, 0], "cpu1": [1, 1, 1, 1, 1, 1, 1, 1]});
-    assert_eq!(utilization(Some(&a), Some(&b)), json!({"cpu0": 20.0}));
-    assert!(utilization(Some(&b), Some(&a)).is_null());
-    assert!(utilization(Some(&a), Some(&a)).is_null());
+    let ticks =
+        |value: serde_json::Value| -> super::cpu::Ticks { serde_json::from_value(value).unwrap() };
+    let a = ticks(json!({"cpu0": [10, 0, 10, 80, 0, 0, 0, 0]}));
+    let b = ticks(json!({"cpu0": [20, 0, 20, 160, 0, 0, 0, 0], "cpu1": [1, 1, 1, 1, 1, 1, 1, 1]}));
+    assert_eq!(
+        json!(utilization(Some(&a), Some(&b))),
+        json!({"cpu0": 20.0})
+    );
+    assert!(utilization(Some(&b), Some(&a)).is_none());
+    assert!(utilization(Some(&a), Some(&a)).is_none());
 }
 
 #[test]
@@ -280,7 +285,7 @@ fn active_wakeup_read_returns_without_leaving_a_reader() {
     let start = Instant::now();
     let answer = wakeup_answer(&fixture);
     let root = answering(&fixture, vec![answer.clone()]);
-    let result = cpu(&root).unwrap();
+    let result = json!(cpu(&root).unwrap());
     let calls = root.calls();
     assert!(start.elapsed().as_secs_f64() < 2.0);
     assert!(result["wakeup_count"].is_null());
@@ -307,7 +312,7 @@ fn wakeup_zero_is_observed_but_invalid_or_missing_data_is_unknown() {
     ] {
         fixture.put("/sys/power/wakeup_count", text);
         let answer = wakeup_answer(&fixture);
-        let result = cpu(&answering(&fixture, vec![answer])).unwrap();
+        let result = json!(cpu(&answering(&fixture, vec![answer])).unwrap());
         assert_eq!(result["wakeup_count"], json!(expected), "{text}");
         assert_eq!(
             result["wakeup_count_reason"],
@@ -320,7 +325,7 @@ fn wakeup_zero_is_observed_but_invalid_or_missing_data_is_unknown() {
     }
     fixture.remove("/sys/power/wakeup_count");
     let answer = wakeup_answer(&fixture);
-    let result = cpu(&answering(&fixture, vec![answer])).unwrap();
+    let result = json!(cpu(&answering(&fixture, vec![answer])).unwrap());
     assert!(result["wakeup_count"].is_null());
     assert_eq!(result["wakeup_count_reason"], "command_failed");
 }
@@ -330,7 +335,7 @@ fn wakeup_zero_is_observed_but_invalid_or_missing_data_is_unknown() {
 #[test]
 fn broadcast_and_dormant_abort_observations_are_explicit() {
     let fixture = Fixture::new();
-    assert!(cpu(&unanswered(&fixture)).unwrap()["timer"]["broadcast_clockevent"].is_null());
+    assert!(json!(cpu(&unanswered(&fixture)).unwrap())["timer"]["broadcast_clockevent"].is_null());
     fixture
         .put(
             "/sys/devices/system/clockevents/broadcast/current_device",
@@ -338,7 +343,7 @@ fn broadcast_and_dormant_abort_observations_are_explicit() {
         )
         .put("/sys/module/idle/parameters/dormant_aborts", "7")
         .put("/sys/module/idle/parameters/last_error", "-62");
-    let result = cpu(&unanswered(&fixture)).unwrap();
+    let result = json!(cpu(&unanswered(&fixture)).unwrap());
     assert_eq!(result["timer"]["broadcast_clockevent"], "y2-gpt4-broadcast");
     assert_eq!(result["idle_diagnostics"]["dormant_aborts"], "7");
     assert_eq!(result["idle_diagnostics"]["last_error"], "-62");

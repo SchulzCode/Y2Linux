@@ -162,18 +162,21 @@ pub fn record(root: &Root, workload: &str, parameters: Map<String, Value>) -> Ma
 }
 
 /// Each file matching `pattern` by its name (or its directory's), with its text.
-pub fn reads_by_name(root: &Root, pattern: &str, parent: bool) -> Value {
-    let mut map = Map::new();
+pub fn reads_by_name(root: &Root, pattern: &str, parent: bool) -> Readings {
+    let mut map = Readings::new();
     for path in root.glob(pattern) {
         let key = if parent {
             parent_name(&path)
         } else {
             name(&path)
         };
-        map.insert(key, text(read(&path)));
+        map.insert(key, read(&path));
     }
-    Value::Object(map)
+    map
 }
+
+/// Kernel attribute texts by file (or parent directory) name; null where a file did not read.
+pub type Readings = BTreeMap<String, Option<String>>;
 
 #[cfg(test)]
 mod tests {

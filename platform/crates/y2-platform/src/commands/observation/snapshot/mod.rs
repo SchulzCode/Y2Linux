@@ -11,7 +11,7 @@ mod storage;
 mod thermal;
 pub(crate) mod wifi;
 
-pub use cpu::{cpu, utilization};
+pub use cpu::{cpu, utilization, Cpu};
 // For the suspend group's receipt tests.
 #[cfg(test)]
 pub(crate) use cpu::timer_runtime;
@@ -36,7 +36,7 @@ use y2p_core::Root;
 pub struct Snapshot {
     pub schema: &'static str,
     pub record: Map<String, Value>,
-    pub cpu: Map<String, Value>,
+    pub cpu: Cpu,
     pub memory: Map<String, Value>,
     pub thermal: Thermal,
     pub power: Power,
@@ -108,9 +108,9 @@ pub fn snapshot(root: &Root, pids: &[i64], pss: bool, interval: f64) -> Result<S
     if interval > 0.0 {
         std::thread::sleep(std::time::Duration::from_secs_f64(interval));
         let later = cpu(root)?;
-        let busy = utilization(processor.get("ticks"), later.get("ticks"));
+        let busy = utilization(processor.ticks.as_ref(), later.ticks.as_ref());
         processor = later;
-        processor.insert("utilization_percent".into(), busy);
+        processor.utilization_percent = busy;
     }
     let mut hw_params = Map::new();
     let base = root.path("/");

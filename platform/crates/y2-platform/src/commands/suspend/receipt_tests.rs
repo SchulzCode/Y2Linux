@@ -398,7 +398,7 @@ fn durable_pre_entry_receipt_and_nohz_highres_mode() {
         "/proc/timer_list",
         "cpu: 0\n .hres_active : 1\n .nohz : 2\n",
     );
-    let result = timer_runtime(&fixture.root).unwrap();
+    let result = serde_json::json!(timer_runtime(&fixture.root).unwrap());
     assert_eq!(result["highres_active"], true);
     assert_eq!(result["no_hz_active"], true);
 }

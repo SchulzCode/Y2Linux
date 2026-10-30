@@ -137,12 +137,12 @@ pub fn check_from(
         };
         add(name, state, item["reason"].clone(), None);
     }
-    let timers = status.cpu.get("timer").unwrap_or(&Value::Null);
-    for (name, key) in [
-        ("highres_timer", "highres_active"),
-        ("tickless_idle", "no_hz_active"),
+    let timer = &status.cpu.timer;
+    for (name, active) in [
+        ("highres_timer", timer.highres_active),
+        ("tickless_idle", timer.no_hz_active),
     ] {
-        let (state, reason) = match timers[key].as_bool() {
+        let (state, reason) = match active {
             Some(true) => (CheckState::Ok, "runtime_observed"),
             Some(false) => (CheckState::Degraded, "legacy_fallback"),
             None => (CheckState::Unavailable, "runtime_unavailable"),
