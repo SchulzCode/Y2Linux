@@ -57,8 +57,9 @@ beta to 8.43. But Python needs its interpreter on the player, and that has costs
   reason on one side was only found when something went wrong. One such mismatch once made the player say
   "wrong password" for a Wi-Fi network that hadn't accepted the connection for another reason.
 
-With both sides in Rust they can share one definition of every message, and the compiler checks it whenever
-either side is built.
+With both sides in Rust, every answer the platform gives is now run through Reborn's own reading code before a
+build is accepted, so a mismatch is caught before it reaches a player. Moving Reborn onto the platform's shared
+message definitions, so that the compiler itself checks both sides, is the next step after this release.
 
 ## How we did it without breaking anything
 
