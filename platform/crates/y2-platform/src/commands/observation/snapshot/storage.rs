@@ -3,12 +3,12 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use super::device_instance;
 use crate::commands::observation::util::{
-    self, findall_map, int, name, number, read, read_limited, realpath, record_fields, text,
+    self, findall_map, int, name, read, read_limited, realpath, record_fields, text,
 };
 use crate::{regex, reply::Failure};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
-use std::path::Path;
+use std::{collections::BTreeMap, path::Path};
 use y2p_core::json::{dumps_sorted, Object, ObjectExt, Separators};
 use y2p_core::py::PyValue;
 use y2p_core::volume::{
@@ -152,24 +152,39 @@ pub fn storage(root: &Root) -> Result<Value, Failure> {
             volumes.push(Value::Object(volume));
             continue;
         };
-        let mut item = mount.value();
         let device_id = mount.device_id.as_str();
         let mount_id = mount.mount_id;
-        item.insert(
-            "generation".into(),
-            match boot.as_deref().filter(|b| !b.is_empty()) {
-                Some(b) => json!(format!("{b}:{mount_id}:{device_id}")),
-                None => Value::Null,
-            },
-        );
+        let mut item = Volume {
+            mount: mount.value(),
+            generation: boot
+                .as_deref()
+                .filter(|b| !b.is_empty())
+                .map(|b| format!("{b}:{mount_id}:{device_id}")),
+            source_instance: None,
+            controller_valid: false,
+            identity: None,
+            uuid: Value::Null,
+            writable: None,
+            total_bytes: None,
+            available_bytes: None,
+            free_bytes: None,
+            available_inodes: None,
+            // Both set below: from statvfs (or its failure) and the checks.
+            space_state: SpaceState::Failed,
+            partition_bytes: None,
+            capacity_state: None,
+            read_only_reason: None,
+            state: VolumeState::Failed,
+            reason: None,
+        };
         let device = root.path(&format!("/sys/dev/block/{device_id}"));
         let real = realpath(&device).to_string_lossy().into_owned();
         // The SD card on MSDC1, everything else on the eMMC (MSDC0).
         let expected = controller(target);
         let instance = device_instance(root, device_id);
         let controller_valid = real.contains(expected) && device.exists();
-        item.insert("source_instance".into(), text(instance.clone()));
-        item.insert("controller_valid".into(), json!(controller_valid));
+        item.source_instance = instance.clone();
+        item.controller_valid = controller_valid;
         let mut state = if controller_valid {
             VolumeState::Ready
         } else {
@@ -196,7 +211,7 @@ pub fn storage(root: &Root) -> Result<Value, Failure> {
             }
             if target == "/media/sd" {
                 let identity = media_identity(&device, &json!(mount.filesystem), &uuid);
-                item.insert("identity".into(), identity.clone());
+                item.identity = Some(identity.clone());
                 let matches = claim.boot_id.py_eq(&boot_value)
                     && claim.mount_id.py_eq(&json!(mount_id))
                     && claim.device_id.py_eq(&json!(device_id))
@@ -216,7 +231,7 @@ pub fn storage(root: &Root) -> Result<Value, Failure> {
                 }
             }
         }
-        item.insert("uuid".into(), uuid);
+        item.uuid = uuid;
         let readonly = mount.read_only();
         // The storage group mounts a healthy card read-only between writes: it is Ready; so is one that
         // plays while its check finishes in the background (F49).
@@ -224,20 +239,17 @@ pub fn storage(root: &Root) -> Result<Value, Failure> {
             && readonly
             && matches!(claim.read_only.as_str(), Some("protected" | "checking"));
         if target == "/media/sd" {
-            item.insert("writable".into(), json!(!readonly));
+            item.writable = Some(!readonly);
         }
         match y2p_core::sys::statvfs(&root.path(target)).ok() {
             Some(vfs) => {
                 let frsize = i128::from(vfs.frsize);
                 let total = i128::from(vfs.blocks) * frsize;
                 let available = i128::from(vfs.bavail) * frsize;
-                item.insert("total_bytes".into(), json!(total as u64));
-                item.insert("available_bytes".into(), json!(available as u64));
-                item.insert(
-                    "free_bytes".into(),
-                    json!((i128::from(vfs.bfree) * frsize) as u64),
-                );
-                item.insert("available_inodes".into(), json!(vfs.favail));
+                item.total_bytes = Some(total as u64);
+                item.available_bytes = Some(available as u64);
+                item.free_bytes = Some((i128::from(vfs.bfree) * frsize) as u64);
+                item.available_inodes = Some(vfs.favail);
                 let mut space = space_state(
                     available,
                     total,
@@ -247,26 +259,23 @@ pub fn storage(root: &Root) -> Result<Value, Failure> {
                 if vfs.files > 0 && vfs.favail == 0 {
                     space = SpaceState::CriticalSpace;
                 }
-                item.insert("space_state".into(), json!(space));
+                item.space_state = space;
                 if target == "/media/sd" {
                     // A filesystem far smaller than its partition (a copied image, an old partition
                     // layout) hides most of the card; report it, never auto-fix it.
                     if let Some(sectors) = read(&device.join("size")).filter(|s| util::isdigit(s)) {
                         let partition = i128::from(util::int_or_raise(&sectors)?) * 512;
-                        item.insert("partition_bytes".into(), json!(partition as u64));
-                        item.insert(
-                            "capacity_state".into(),
-                            json!(if (total as f64) < 0.9 * partition as f64 {
-                                "Undersized"
-                            } else {
-                                "Full"
-                            }),
-                        );
+                        item.partition_bytes = Some(partition as u64);
+                        item.capacity_state = Some(if (total as f64) < 0.9 * partition as f64 {
+                            "Undersized"
+                        } else {
+                            "Full"
+                        });
                     }
                 }
             }
             None => {
-                item.insert("space_state".into(), json!(SpaceState::Failed));
+                item.space_state = SpaceState::Failed;
                 (state, reason) = (VolumeState::Failed, Some("statvfs_failed"));
             }
         }
@@ -276,17 +285,17 @@ pub fn storage(root: &Root) -> Result<Value, Failure> {
                 // Why the storage group mounted the card read-only: its check found errors or
                 // did not finish; Repair can make it writable.
                 let cause = claim.read_only.as_str();
-                item.insert(
-                    "read_only_reason".into(),
-                    json!(cause
+                item.read_only_reason = Some(
+                    cause
                         .filter(|c| matches!(*c, "filesystem_errors" | "check_timed_out"))
-                        .unwrap_or("mounted_read_only")),
+                        .unwrap_or("mounted_read_only")
+                        .to_owned(),
                 );
             }
         }
-        item.insert("state".into(), json!(state));
-        item.insert("reason".into(), json!(reason));
-        volumes.push(Value::Object(item));
+        item.state = state;
+        item.reason = reason;
+        volumes.push(serde_json::to_value(item).map_err(|_| unserializable())?);
     }
     let mut blocks = Vec::new();
     for path in root.glob("/sys/class/block/*") {
@@ -297,52 +306,136 @@ pub fn storage(root: &Root) -> Result<Value, Failure> {
         {
             continue;
         }
-        blocks.push(
-            json!({"name": name(&path), "stat": read(&path.join("stat")),
-            "stat_unit": "Linux_block_stat_fields_sectors_512_bytes",
-            "size_sectors": number(read(&path.join("size")).as_deref()),
-            "type": read(&path.join("device/type")), "name_id": read(&path.join("device/name")),
-            "cid": read(&path.join("device/cid")), "serial": read(&path.join("device/serial")),
-            "io_error_count": number(read(&path.join("device/ioerr_cnt")).as_deref())}),
-        );
+        blocks.push(Block {
+            name: name(&path),
+            stat: read(&path.join("stat")),
+            stat_unit: "Linux_block_stat_fields_sectors_512_bytes",
+            size_sectors: read(&path.join("size")).as_deref().and_then(util::int),
+            kind: read(&path.join("device/type")),
+            name_id: read(&path.join("device/name")),
+            cid: read(&path.join("device/cid")),
+            serial: read(&path.join("device/serial")),
+            io_error_count: read(&path.join("device/ioerr_cnt"))
+                .as_deref()
+                .and_then(util::int),
+        });
     }
     let mut controllers = Vec::new();
     for path in root.glob("/sys/bus/platform/devices/*.mmc/y2_performance") {
         let parent = path.parent().map(Path::to_path_buf).unwrap_or_default();
-        let mut controller = Map::new();
-        controller.insert("name".into(), json!(name(&parent)));
+        let mut performance = BTreeMap::new();
         for (key, value) in findall_map(
             regex!(r"(cap_hz|actual_hz|transport_errors|fallbacks|clock_error)=(-?\d+)"),
             read(&path).as_deref().unwrap_or(""),
         ) {
-            controller.insert(key, json!(util::int_or_raise(&value)?));
+            performance.insert(key, util::int_or_raise(&value)?);
         }
-        controller.insert(
-            "mode".into(),
-            storage_mode(read_limited(&parent.join("y2_storage"), 4096).as_deref()),
-        );
-        controller.insert(
-            "runtime_pm".into(),
-            storage_mode(read_limited(&parent.join("y2_runtime_pm"), 4096).as_deref()),
-        );
-        controller.insert(
-            "runtime_status".into(),
-            text(read(&parent.join("power/runtime_status"))),
-        );
-        controller.insert(
-            "tuning".into(),
-            text(read_limited(&parent.join("y2_tune_diag"), 4096)),
-        );
-        controllers.push(Value::Object(controller));
+        controllers.push(Controller {
+            name: name(&parent),
+            performance,
+            mode: storage_mode(read_limited(&parent.join("y2_storage"), 4096).as_deref()),
+            runtime_pm: storage_mode(read_limited(&parent.join("y2_runtime_pm"), 4096).as_deref()),
+            runtime_status: read(&parent.join("power/runtime_status")),
+            tuning: read_limited(&parent.join("y2_tune_diag"), 4096),
+        });
     }
-    Ok(json!({
-        "volumes": volumes, "blocks": blocks, "controllers": controllers,
-        "internal_setup": crate::commands::observation::system::setup_status(root),
-        "media": {"last_operation": root.json("/run/y2/media.json"),
-                  "lifecycle": root.json("/run/y2/media-lifecycle.json")},
-        "bus_parameters": root.read("/sys/kernel/debug/mmc0/ios"),
-        "sd_bus_parameters": root.read("/sys/kernel/debug/mmc1/ios"),
-    }))
+    let section = Storage {
+        volumes,
+        blocks,
+        controllers,
+        internal_setup: crate::commands::observation::system::setup_status(root),
+        media: Media {
+            last_operation: root.json("/run/y2/media.json"),
+            lifecycle: root.json("/run/y2/media-lifecycle.json"),
+        },
+        bus_parameters: root.read("/sys/kernel/debug/mmc0/ios"),
+        sd_bus_parameters: root.read("/sys/kernel/debug/mmc1/ios"),
+    };
+    serde_json::to_value(section).map_err(|_| unserializable())
+}
+
+fn unserializable() -> Failure {
+    Failure::value("storage_section_unserializable")
+}
+
+/// The `storage` section, in this key order.
+#[derive(Serialize)]
+struct Storage {
+    /// Root, Y2DATA, SD, then Y2Media: the index order is a consumer contract.
+    volumes: Vec<Value>,
+    blocks: Vec<Block>,
+    controllers: Vec<Controller>,
+    internal_setup: Value,
+    media: Media,
+    bus_parameters: Option<String>,
+    sd_bus_parameters: Option<String>,
+}
+
+#[derive(Serialize)]
+struct Media {
+    last_operation: Option<Value>,
+    lifecycle: Option<Value>,
+}
+
+/// One uniquely mounted volume: the mount's own fields, then what the snapshot checked (a key left
+/// out where the snapshot does not show it: identity and writable only for the SD card, the space
+/// figures only with statvfs, the capacity only for an SD card whose partition size reads).
+#[derive(Serialize)]
+struct Volume {
+    #[serde(flatten)]
+    mount: Map<String, Value>,
+    generation: Option<String>,
+    source_instance: Option<String>,
+    controller_valid: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    identity: Option<Value>,
+    uuid: Value,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    writable: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    total_bytes: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    available_bytes: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    free_bytes: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    available_inodes: Option<u64>,
+    space_state: SpaceState,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    partition_bytes: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    capacity_state: Option<&'static str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    read_only_reason: Option<String>,
+    state: VolumeState,
+    reason: Option<&'static str>,
+}
+
+/// One block device on the eMMC or SD controller.
+#[derive(Serialize)]
+struct Block {
+    name: String,
+    stat: Option<String>,
+    stat_unit: &'static str,
+    size_sectors: Option<i64>,
+    #[serde(rename = "type")]
+    kind: Option<String>,
+    name_id: Option<String>,
+    cid: Option<String>,
+    serial: Option<String>,
+    io_error_count: Option<i64>,
+}
+
+/// One MMC controller: its performance counters (by name), modes and runtime state.
+#[derive(Serialize)]
+struct Controller {
+    name: String,
+    #[serde(flatten)]
+    performance: BTreeMap<String, i64>,
+    mode: Value,
+    runtime_pm: Value,
+    runtime_status: Option<String>,
+    tuning: Option<String>,
 }
 
 #[cfg(test)]
