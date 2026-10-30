@@ -67,7 +67,7 @@ pub fn run(root: &Root, peer: &str, seconds: i64, throughput: bool, interface: &
     let before = snapshot(root, &[], false, 0.0)?;
     let mut result = Map::new();
     result.insert("schema".into(), json!("org.y2linux.benchmark/v1"));
-    if interface == "wlan0" && before.wifi["state"] != "Online" {
+    if interface == "wlan0" && before.wifi.state != "Online" {
         record.insert("result".into(), json!("FAILED"));
         record.insert("failure".into(), json!("wifi_not_online"));
         result.insert("record".into(), Value::Object(record));

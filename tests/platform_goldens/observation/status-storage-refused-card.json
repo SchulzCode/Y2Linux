@@ -126,6 +126,7 @@
      "uuid": null
     },
     {
+     "controller_valid": false,
      "filesystem": "exfat",
      "findings": [
       "timeout"
@@ -133,15 +134,20 @@
      "generation": null,
      "path": "/media/sd",
      "reason": "filesystem_check_failed",
+     "source_instance": null,
      "space_state": "Unavailable",
-     "state": "Degraded"
+     "state": "Degraded",
+     "uuid": null
     },
     {
+     "controller_valid": false,
      "generation": null,
      "path": "/media/internal",
      "reason": "not_uniquely_mounted",
+     "source_instance": null,
      "space_state": "Unavailable",
-     "state": "Unavailable"
+     "state": "Unavailable",
+     "uuid": null
     }
    ]
   }

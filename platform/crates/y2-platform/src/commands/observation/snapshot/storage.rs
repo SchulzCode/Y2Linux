@@ -9,11 +9,11 @@ use crate::{regex, reply::Failure};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
 use std::{collections::BTreeMap, path::Path};
-use y2p_core::json::{Object, ObjectExt, Separators};
+use y2p_core::json::Separators;
 use y2p_core::volume::{
     controller, expected_uuid, SpaceState, VolumeState, EMMC_CONTROLLER, SD_CONTROLLER,
 };
-use y2p_core::{command, Root};
+use y2p_core::{command, mounts::Mount, Root};
 
 /// `/run/y2/media-mount.json`: what the platform mounted at /media/sd (storage group), checked
 /// against the live mount before the card counts as Ready.
@@ -70,31 +70,35 @@ pub fn storage_mode(text: Option<&str>) -> Value {
 /// The card still inserted that the last mount refused (its check failed), so the player can say so
 /// instead of "no card" (issue #44); {} otherwise. A removed or reinserted card has another disk
 /// sequence number.
-fn refused_card(root: &Root) -> Object {
+fn refused_card(root: &Root) -> Option<RefusedCard> {
     let last: LastOperation = record_fields(root, "/run/y2/media.json");
     if last.reason.as_str() != Some("filesystem_check_failed") {
-        return Object::new();
+        return None;
     }
     // `block:<major>:<minor>:diskseq:<n>`: still this card while the same disk sequence is there.
-    let Some(instance) = last.source_instance.as_str() else {
-        return Object::new();
-    };
+    let instance = last.source_instance.as_str()?;
     let parts: Vec<&str> = instance.split(':').collect();
     if parts.len() != 5
         || device_instance(root, &parts[1..3].join(":")).as_deref() != Some(instance)
     {
-        return Object::new();
+        return None;
     }
     let findings = match &last.filesystem_check {
         Value::Object(check) => check.get("findings").cloned().unwrap_or(json!([])),
         _ => json!([]),
     };
     // ['timeout'] for a card too slow to check in 60 s, not one that needs repair (F12).
-    Object::new()
-        .with("state", "Degraded")
-        .with("reason", "filesystem_check_failed")
-        .with("filesystem", last.filesystem)
-        .with("findings", findings)
+    Some(RefusedCard {
+        filesystem: last.filesystem,
+        findings,
+    })
+}
+
+/// An SD card the storage group refused to mount after a failed filesystem check (still inserted).
+#[derive(Serialize)]
+pub struct RefusedCard {
+    pub filesystem: Value,
+    pub findings: Value,
 }
 
 /// The SD card's identity: its UUID, or its CID and partition geometry where FAT has no usable UUID;
@@ -131,7 +135,7 @@ fn media_identity(entry: &Path, filesystem: &Value, uuid: &Value) -> Value {
     identity
 }
 
-pub fn storage(root: &Root) -> Result<Value, Failure> {
+pub fn storage(root: &Root) -> Result<Storage, Failure> {
     let mounts = y2p_core::mounts::mounts(root);
     let boot = root.boot_id();
     let boot_value = text(boot.clone());
@@ -141,43 +145,28 @@ pub fn storage(root: &Root) -> Result<Value, Failure> {
         let found: Vec<_> = mounts.iter().filter(|m| m.path == target).collect();
         // Stacked mounts are ambiguous to consumers; fail closed.
         let [mount] = found[..] else {
-            let mut volume = Object::new()
-                .with("path", target)
-                .with("state", "Unavailable")
-                .with("reason", "not_uniquely_mounted")
-                .with("generation", Value::Null)
-                .with("space_state", "Unavailable");
+            let mut volume = Volume::new(None);
+            volume.path = Some(target);
+            volume.space_state = SpaceState::Unavailable;
+            (volume.state, volume.reason) =
+                (VolumeState::Unavailable, Some("not_uniquely_mounted"));
             if target == "/media/sd" && found.is_empty() {
-                volume.extend(refused_card(root));
+                volume.refused = refused_card(root);
+                if volume.refused.is_some() {
+                    (volume.state, volume.reason) =
+                        (VolumeState::Degraded, Some("filesystem_check_failed"));
+                }
             }
-            volumes.push(Value::Object(volume));
+            volumes.push(volume);
             continue;
         };
         let device_id = mount.device_id.as_str();
         let mount_id = mount.mount_id;
-        let mut item = Volume {
-            mount: mount.value(),
-            generation: boot
-                .as_deref()
-                .filter(|b| !b.is_empty())
-                .map(|b| format!("{b}:{mount_id}:{device_id}")),
-            source_instance: None,
-            controller_valid: false,
-            identity: None,
-            uuid: Value::Null,
-            writable: None,
-            total_bytes: None,
-            available_bytes: None,
-            free_bytes: None,
-            available_inodes: None,
-            // Both set below: from statvfs (or its failure) and the checks.
-            space_state: SpaceState::Failed,
-            partition_bytes: None,
-            capacity_state: None,
-            read_only_reason: None,
-            state: VolumeState::Failed,
-            reason: None,
-        };
+        let mut item = Volume::new(Some(mount.clone()));
+        item.generation = boot
+            .as_deref()
+            .filter(|b| !b.is_empty())
+            .map(|b| format!("{b}:{mount_id}:{device_id}"));
         let device = root.path(&format!("/sys/dev/block/{device_id}"));
         let real = realpath(&device).to_string_lossy().into_owned();
         // The SD card on MSDC1, everything else on the eMMC (MSDC0).
@@ -296,7 +285,7 @@ pub fn storage(root: &Root) -> Result<Value, Failure> {
         }
         item.state = state;
         item.reason = reason;
-        volumes.push(serde_json::to_value(item).map_err(|_| unserializable())?);
+        volumes.push(item);
     }
     let mut blocks = Vec::new();
     for path in root.glob("/sys/class/block/*") {
@@ -340,7 +329,7 @@ pub fn storage(root: &Root) -> Result<Value, Failure> {
             tuning: read_limited(&parent.join("y2_tune_diag"), 4096),
         });
     }
-    let section = Storage {
+    Ok(Storage {
         volumes,
         blocks,
         controllers,
@@ -351,19 +340,14 @@ pub fn storage(root: &Root) -> Result<Value, Failure> {
         },
         bus_parameters: root.read("/sys/kernel/debug/mmc0/ios"),
         sd_bus_parameters: root.read("/sys/kernel/debug/mmc1/ios"),
-    };
-    serde_json::to_value(section).map_err(|_| unserializable())
-}
-
-fn unserializable() -> Failure {
-    Failure::value("storage_section_unserializable")
+    })
 }
 
 /// The `storage` section, in this key order.
 #[derive(Serialize)]
-struct Storage {
+pub struct Storage {
     /// Root, Y2DATA, SD, then Y2Media: the index order is a consumer contract.
-    volumes: Vec<Value>,
+    pub volumes: Vec<Volume>,
     blocks: Vec<Block>,
     controllers: Vec<Controller>,
     internal_setup: Map<String, Value>,
@@ -373,7 +357,7 @@ struct Storage {
 }
 
 #[derive(Serialize)]
-struct Media {
+pub struct Media {
     last_operation: Option<Value>,
     lifecycle: Option<Value>,
 }
@@ -382,9 +366,15 @@ struct Media {
 /// out where the snapshot does not show it: identity and writable only for the SD card, the space
 /// figures only with statvfs, the capacity only for an SD card whose partition size reads).
 #[derive(Serialize)]
-struct Volume {
+pub struct Volume {
+    /// The mount's own fields (none for a volume not mounted exactly once).
     #[serde(flatten)]
-    mount: Map<String, Value>,
+    pub mount: Option<Mount>,
+    /// The expected path of a volume not mounted exactly once.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    path: Option<&'static str>,
+    #[serde(flatten)]
+    pub refused: Option<RefusedCard>,
     generation: Option<String>,
     source_instance: Option<String>,
     controller_valid: bool,
@@ -401,20 +391,54 @@ struct Volume {
     free_bytes: Option<u64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     available_inodes: Option<u64>,
-    space_state: SpaceState,
+    pub space_state: SpaceState,
     #[serde(skip_serializing_if = "Option::is_none")]
     partition_bytes: Option<u64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     capacity_state: Option<&'static str>,
     #[serde(skip_serializing_if = "Option::is_none")]
     read_only_reason: Option<String>,
-    state: VolumeState,
-    reason: Option<&'static str>,
+    pub state: VolumeState,
+    pub reason: Option<&'static str>,
 }
 
 /// One block device on the eMMC or SD controller.
+impl Volume {
+    /// Nothing checked yet: the checks set space and state (failed until they do).
+    fn new(mount: Option<Mount>) -> Volume {
+        Volume {
+            mount,
+            path: None,
+            refused: None,
+            generation: None,
+            source_instance: None,
+            controller_valid: false,
+            identity: None,
+            uuid: Value::Null,
+            writable: None,
+            total_bytes: None,
+            available_bytes: None,
+            free_bytes: None,
+            available_inodes: None,
+            space_state: SpaceState::Failed,
+            partition_bytes: None,
+            capacity_state: None,
+            read_only_reason: None,
+            state: VolumeState::Failed,
+            reason: None,
+        }
+    }
+
+    /// Where the volume is (or should be) mounted.
+    pub fn path(&self) -> &str {
+        self.mount
+            .as_ref()
+            .map_or(self.path.unwrap_or_default(), |m| m.path.as_str())
+    }
+}
+
 #[derive(Serialize)]
-struct Block {
+pub struct Block {
     name: String,
     stat: Option<String>,
     stat_unit: &'static str,
@@ -429,7 +453,7 @@ struct Block {
 
 /// One MMC controller: its performance counters (by name), modes and runtime state.
 #[derive(Serialize)]
-struct Controller {
+pub struct Controller {
     name: String,
     #[serde(flatten)]
     performance: BTreeMap<String, i64>,

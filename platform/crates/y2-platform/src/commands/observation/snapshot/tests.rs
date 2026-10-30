@@ -70,7 +70,7 @@ fn mounted_sd(fixture: &Fixture, generation: i64) -> PathBuf {
 /// The SD card volume, every command answered `card-one` as the contract fixture's runner did.
 fn sd(fixture: &Fixture) -> Value {
     let root = answering(fixture, vec![ok(&BLKID, "card-one")]);
-    storage(&root).unwrap()["volumes"][2].clone()
+    json!(storage(&root).unwrap())["volumes"][2].clone()
 }
 
 #[test]
@@ -115,14 +115,14 @@ fn unknown_sensors_are_null_not_zero_and_die_temperature_is_separate() {
         );
     let result = snapshot(&unanswered(&fixture), &[], false, 0.0).unwrap();
     assert_eq!(
-        result.thermal["zones"][0]["temperature_millicelsius"],
+        json!(result.thermal)["zones"][0]["temperature_millicelsius"],
         46800
     );
-    assert!(result.power["pack_temperature"].is_null());
-    assert!(result.power["measured_current_ua"].is_null());
-    assert!(result.power["soc_percent"].is_null());
+    assert!(json!(result.power)["pack_temperature"].is_null());
+    assert!(json!(result.power)["measured_current_ua"].is_null());
+    assert!(json!(result.power)["soc_percent"].is_null());
     assert_eq!(
-        result.power["supplies"][0]["constant_charge_current"],
+        json!(result.power)["supplies"][0]["constant_charge_current"],
         "450000"
     );
     assert_eq!(result.record["evidence_level"], "IMPLEMENTED");
@@ -163,29 +163,29 @@ fn wifi_authentication_is_insufficient_and_dns_epoch_expires() {
         ];
         super::wifi(&answering(&fixture, answers)).unwrap()
     };
-    assert_eq!(wifi(&address)["state"], "AcquiringIP");
+    assert_eq!(json!(wifi(&address))["state"], "AcquiringIP");
     fixture.put(
         "/run/y2/dhcp.json",
         r#"{"boot_id":"boot-a","error":"dhcp_timeout"}"#,
     );
-    assert_eq!(wifi(&address)["reason"], "dhcp_timeout");
+    assert_eq!(json!(wifi(&address))["reason"], "dhcp_timeout");
     address.push(json!({"scope": "global", "local": "192.0.2.7"}));
-    assert_eq!(wifi(&address)["reason"], "dns_unavailable");
+    assert_eq!(json!(wifi(&address))["reason"], "dns_unavailable");
     fixture.put("/run/y2/wifi-epoch", "lease-one");
     let mut record = json!({"ok": true, "boot_id": "boot-a", "epoch": "lease-one",
                             "address": "192.0.2.7", "bssid": "peer1",
                             "monotonic_s": 1000.0});
     fixture.put_json("/run/y2/dns.json", &record);
-    assert_eq!(wifi(&address)["state"], "Online");
+    assert_eq!(json!(wifi(&address))["state"], "Online");
     record["monotonic_s"] = json!(1000.0 - 421.0);
     fixture.put_json("/run/y2/dns.json", &record);
-    assert_eq!(wifi(&address)["dns_ready"], false);
+    assert_eq!(json!(wifi(&address))["dns_ready"], false);
     record["monotonic_s"] = json!(1000.0);
     record["bssid"] = json!("peer2");
     fixture.put_json("/run/y2/dns.json", &record);
-    assert_eq!(wifi(&address)["dns_ready"], false);
+    assert_eq!(json!(wifi(&address))["dns_ready"], false);
     fixture.put("/run/y2/dns.json", r#"{"monotonic_s":null}"#);
-    assert_eq!(wifi(&address)["dns_ready"], false);
+    assert_eq!(json!(wifi(&address))["dns_ready"], false);
 }
 
 #[test]
@@ -229,7 +229,7 @@ fn supplicant_timeout_is_observation_failure_not_disconnect_evidence() {
         ),
     ];
     let root = answering(&fixture, answers);
-    let result = wifi(&root).unwrap();
+    let result = json!(wifi(&root).unwrap());
     let calls = root.calls();
     assert_eq!(result["reason"], "supplicant_unavailable");
     let observation = &result["supplicant_observation"];
@@ -243,7 +243,7 @@ fn supplicant_timeout_is_observation_failure_not_disconnect_evidence() {
     assert_eq!(calls[0], (status.map(String::from).to_vec(), 3.0));
     fs::remove_dir(fixture.path("/sys/class/net/wlan0")).unwrap();
     let root = unanswered(&fixture);
-    let result = wifi(&root).unwrap();
+    let result = json!(wifi(&root).unwrap());
     let calls = root.calls();
     assert_eq!(
         result["supplicant_observation"],

@@ -127,11 +127,14 @@
      "uuid": "79324c69-6e75-4801-8000-000000000101"
     },
     {
+     "controller_valid": false,
      "generation": null,
      "path": "/data",
      "reason": "not_uniquely_mounted",
+     "source_instance": null,
      "space_state": "Unavailable",
-     "state": "Unavailable"
+     "state": "Unavailable",
+     "uuid": null
     },
     {
      "controller_valid": true,

@@ -208,7 +208,7 @@ pub enum Odd {
 }
 
 /// The `wifi` section of `status`.
-pub fn wifi(root: &Root) -> Result<Value, Failure> {
+pub fn wifi(root: &Root) -> Result<Wifi, Failure> {
     observe(root, None, Odd::Refuse)
 }
 
@@ -219,7 +219,7 @@ pub fn observe(
     root: &Root,
     signal_cache: Option<&Map<String, Value>>,
     odd: Odd,
-) -> Result<Value, Failure> {
+) -> Result<Wifi, Failure> {
     let radio = root.path("/sys/class/net/wlan0").exists();
     let started = root.clock().monotonic_ns();
     // Station statistics can hold the control loop for about 2.1 s on this firmware. Bound the
@@ -349,7 +349,7 @@ pub fn observe(
         signal = Value::Null;
     }
     let credential = properties.get("credential_failure");
-    let section = Wifi {
+    Ok(Wifi {
         failed_network_id: if state == "Failed" && reason.as_ref() == credential {
             failed_network
         } else {
@@ -378,15 +378,14 @@ pub fn observe(
         reconnect_owner: "wpa_supplicant",
         power_save: root.json("/run/y2/wifi-power.json"),
         coexistence: root.json("/run/y2/coexistence.json"),
-    };
-    serde_json::to_value(section).map_err(|_| Failure::value("wifi_section_unserializable"))
+    })
 }
 
 /// The `wifi` section and the daemons' look (network.json `observation`), in this key order.
 #[derive(Serialize)]
-struct Wifi {
-    state: &'static str,
-    reason: Option<String>,
+pub struct Wifi {
+    pub state: &'static str,
+    pub reason: Option<String>,
     radio_present: bool,
     /// The saved network whose password failed (wpa_supplicant's id).
     failed_network_id: Value,
@@ -408,7 +407,7 @@ struct Wifi {
 }
 
 #[derive(Serialize)]
-struct SupplicantObservation {
+pub struct SupplicantObservation {
     ok: Option<bool>,
     reason: Option<String>,
     duration_ns: Option<u64>,

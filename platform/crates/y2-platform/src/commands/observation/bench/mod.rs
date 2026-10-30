@@ -131,7 +131,7 @@ fn storage_benchmark_with(
             json!([initial.0, initial.1, initial.2, initial.3]),
         );
         described.insert("uuid".into(), scratch.initial_uuid.clone());
-        described.insert("observation".into(), observe_storage(root)?);
+        described.insert("observation".into(), json!(observe_storage(root)?));
         bench.measured.volume = Value::Object(described);
         let ran = bench.run(&mut scratch, size, operations, &mut rng, &block);
         scratch.close();

@@ -16,10 +16,10 @@ pub use cpu::{cpu, utilization};
 #[cfg(test)]
 pub(crate) use cpu::timer_runtime;
 pub use memory::memory;
-pub use power::{power, printable};
-pub use storage::{storage, storage_mode};
-pub use thermal::thermal;
-pub use wifi::wifi;
+pub use power::{power, printable, Power};
+pub use storage::{storage, storage_mode, Storage};
+pub use thermal::{thermal, Thermal};
+pub use wifi::{wifi, Wifi};
 
 use super::{
     bluetooth, system,
@@ -38,12 +38,12 @@ pub struct Snapshot {
     pub record: Map<String, Value>,
     pub cpu: Map<String, Value>,
     pub memory: Map<String, Value>,
-    pub thermal: Value,
-    pub power: Value,
-    pub storage: Value,
-    pub wifi: Value,
-    pub bluetooth: Value,
-    pub system: Value,
+    pub thermal: Thermal,
+    pub power: Power,
+    pub storage: Storage,
+    pub wifi: Wifi,
+    pub bluetooth: bluetooth::Section,
+    pub system: system::System,
     pub audio: Audio,
     pub readiness: Value,
     /// `--reborn`: Reborn's own metrics record.

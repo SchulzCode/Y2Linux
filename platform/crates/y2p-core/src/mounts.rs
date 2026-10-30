@@ -13,8 +13,8 @@ use crate::{
 };
 use serde_json::json;
 
-/// One mountinfo line.
-#[derive(Clone, Debug, PartialEq, Eq)]
+/// One mountinfo line (serialised in `value`'s key order).
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
 pub struct Mount {
     pub mount_id: i64,
     pub device_id: String,

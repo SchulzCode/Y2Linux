@@ -246,9 +246,9 @@ fn quality(codec: Option<&str>, pcm: &Map<String, Value>, settings: &Value) -> E
 /// The `bluetooth` section (null where not observed; `devices`, `encoder` and `transport_reason`
 /// only once the observation got that far).
 #[derive(Serialize)]
-struct Section {
-    state: &'static str,
-    reason: &'static str,
+pub struct Section {
+    pub state: &'static str,
+    pub reason: &'static str,
     adapter: Option<Adapter>,
     selected_peer: Option<Device>,
     transport: Option<Transport>,
@@ -363,10 +363,10 @@ fn integer(map: &Map<String, Value>, key: &str) -> Option<i64> {
 }
 
 /// The section from y2-bt-observe's answer (`raw`).
-fn normalize(root: &Root, raw: &Map<String, Value>) -> Result<Value, Stop> {
+fn normalize(root: &Root, raw: &Map<String, Value>) -> Result<Section, Stop> {
     let mut section = settled_base(root)?;
     observed(root, raw, &mut section);
-    serde_json::to_value(section).map_err(|_| Stop::Unobserved)
+    Ok(section)
 }
 
 /// The section before y2-bt-observe's answer: the codec settings, inventory and the reconnect
@@ -621,7 +621,7 @@ fn transport(
 }
 
 /// The `bluetooth` section; Unavailable when y2-bt-observe gives no usable answer.
-pub fn bluetooth(root: &Root) -> Result<Value, Failure> {
+pub fn bluetooth(root: &Root) -> Result<Section, Failure> {
     let answer = command::run_with(root, &["/usr/sbin/y2-bt-observe"], 3.0, 262_144, false);
     let output = answer.output.unwrap_or_default();
     if let Ok(Value::Object(observed)) = serde_json::from_str::<Value>(&output) {
@@ -633,10 +633,5 @@ pub fn bluetooth(root: &Root) -> Result<Value, Failure> {
             }
         }
     }
-    Ok(
-        json!({"state": "Unavailable", "reason": "dbus_observation_unavailable",
-              "adapter": null, "selected_peer": null, "transport": null,
-              "negotiated_codec": null, "pcm": null, "reconnect_owner": "y2-bt-reconnect",
-              "reconnect": root.json("/run/y2/bt-reconnect.json")}),
-    )
+    Ok(Section::new(root, Value::Null, None))
 }

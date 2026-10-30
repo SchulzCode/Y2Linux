@@ -31,8 +31,8 @@ struct Battery {
 
 /// The `power` section (in this key order).
 #[derive(Serialize)]
-struct Power {
-    supplies: Vec<Supply>,
+pub struct Power {
+    pub supplies: Vec<Supply>,
     units: Units,
     battery: Map<String, Value>,
     measured_current_ua: Value,
@@ -43,18 +43,18 @@ struct Power {
     unavailable_reason: &'static str,
     normal_boot: Option<i64>,
     low_battery: Map<String, Value>,
-    sleep: Map<String, Value>,
+    pub sleep: Map<String, Value>,
 }
 
 #[derive(Serialize)]
-struct Units {
+pub struct Units {
     voltage: &'static str,
     configured_current: &'static str,
 }
 
 /// One power supply's attributes (null where a file is missing), then its name.
 #[derive(Serialize)]
-struct Supply {
+pub struct Supply {
     #[serde(rename = "type")]
     kind: Option<String>,
     status: Option<String>,
@@ -96,7 +96,7 @@ impl Supply {
     }
 }
 
-pub fn power(root: &Root) -> Result<Value, Failure> {
+pub fn power(root: &Root) -> Result<Power, Failure> {
     let supplies = root
         .glob("/sys/class/power_supply/*")
         .iter()
@@ -133,7 +133,7 @@ pub fn power(root: &Root) -> Result<Value, Failure> {
         Err(error @ Failure::Value(_)) => return Err(error),
         Err(_) => return Err(invalid_sleep_receipt()),
     };
-    let section = Power {
+    Ok(Power {
         supplies,
         units: Units {
             voltage: "uV",
@@ -149,8 +149,7 @@ pub fn power(root: &Root) -> Result<Value, Failure> {
         normal_boot: root.integer("/sys/firmware/y2_boot/normal_boot"),
         low_battery: policy,
         sleep,
-    };
-    serde_json::to_value(section).map_err(|_| Failure::value("power_section_unserializable"))
+    })
 }
 
 /// A sleep receipt whose product the snapshot cannot show: no object and no list of pairs, a key
@@ -230,9 +229,13 @@ pub fn printable(value: &Map<String, Value>) -> Result<(), Failure> {
     Ok(())
 }
 
-/// `printable` for the power section alone.
-pub fn printable_section(power: &Value) -> Result<(), Failure> {
-    if holds_non_text_key(power) {
+/// `printable` for the power section alone (its sleep product).
+pub fn printable_section(power: &Power) -> Result<(), Failure> {
+    if power
+        .sleep
+        .iter()
+        .any(|(k, v)| k.starts_with(NON_TEXT_KEY) || holds_non_text_key(v))
+    {
         return Err(invalid_sleep_receipt());
     }
     Ok(())

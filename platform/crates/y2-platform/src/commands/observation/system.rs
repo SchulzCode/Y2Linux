@@ -379,7 +379,7 @@ fn time_status(root: &Root) -> Result<Value, Failure> {
 }
 
 /// The `system` section.
-pub fn system(root: &Root) -> Result<Value, Failure> {
+pub fn system(root: &Root) -> Result<System, Failure> {
     let clock = time_status(root)?;
     // The SSH supervisor's record while it is renewed (every few seconds) this boot.
     let mut ssh = root.json_object("/run/y2/ssh.json");
@@ -470,7 +470,7 @@ pub fn system(root: &Root) -> Result<Value, Failure> {
         .map(|p| name(p))
         .collect();
     let crng = clock.get("entropy_ready").cloned().unwrap_or(Value::Null);
-    let section = System {
+    Ok(System {
         uptime_seconds: uptime,
         versions: root.json("/etc/y2linux/versions.json"),
         boot_history: root.json("/data/system/platform/boot.json"),
@@ -496,13 +496,12 @@ pub fn system(root: &Root) -> Result<Value, Failure> {
         update: update_status(root),
         radio_firmware: radiofw_state(root),
         reborn_supervisor: root.json("/data/reborn/logs/supervisor-last.json"),
-    };
-    serde_json::to_value(section).map_err(|_| Failure::value("system_section_unserializable"))
+    })
 }
 
 /// The `system` section, in this key order (the reset cause's fields where it is flattened).
 #[derive(Serialize)]
-struct System {
+pub struct System {
     uptime_seconds: Option<String>,
     versions: Option<Value>,
     boot_history: Option<Value>,
@@ -517,19 +516,19 @@ struct System {
     radio_core: Option<String>,
     watchdogs: Vec<Watchdog>,
     pstore_files: Vec<String>,
-    rtc: Vec<Rtc>,
+    pub rtc: Vec<Rtc>,
     time: Value,
     ssh: Object,
     entropy_available_bits: Option<i64>,
     crng_ready: Value,
-    usb: Usb,
-    update: Value,
+    pub usb: Usb,
+    pub update: Value,
     radio_firmware: Value,
     reborn_supervisor: Option<Value>,
 }
 
 #[derive(Serialize)]
-struct Watchdog {
+pub struct Watchdog {
     identity: Option<String>,
     state: Option<String>,
     bootstatus: Option<String>,
@@ -538,7 +537,7 @@ struct Watchdog {
 }
 
 #[derive(Serialize)]
-struct Rtc {
+pub struct Rtc {
     name: Option<String>,
     date: Option<String>,
     time: Option<String>,
@@ -548,9 +547,9 @@ struct Rtc {
 
 /// The USB controller: its UDCs, DMA counters and file-transfer record, then the diagnostics.
 #[derive(Serialize)]
-struct Usb {
+pub struct Usb {
     mode: &'static str,
-    udcs: Vec<Value>,
+    pub udcs: Vec<Value>,
     dma: Value,
     file_transfer: Map<String, Value>,
     #[serde(flatten)]

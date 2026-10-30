@@ -14,8 +14,8 @@ pub fn clock_value(value: Option<&Value>) -> Option<f64> {
 /// What Wi-Fi looks like now (`status wifi`'s observation; network.json and the DNS probe's
 /// before/after look). An odd record reads as empty: the daemons that call this keep running.
 pub fn wifi(root: &Root, signal_cache: Option<&Object>) -> Object {
-    match observe(root, signal_cache, Odd::Empty) {
-        Ok(Value::Object(map)) => map,
+    match observe(root, signal_cache, Odd::Empty).map(serde_json::to_value) {
+        Ok(Ok(Value::Object(map))) => map,
         _ => Object::new(),
     }
 }

@@ -5,7 +5,7 @@ use super::{
     fd::{cname, fstat, fstatvfs, openat},
     Error, Result,
 };
-use crate::commands::observation::snapshot::{device_instance, storage};
+use crate::commands::observation::snapshot::{device_instance, storage, Storage};
 use crate::reply::Failure;
 use serde_json::{json, Value};
 use std::{
@@ -63,11 +63,11 @@ impl<'a> Scratch<'a> {
         };
         scratch.initial = scratch.identity()?;
         let observed = observe_storage(root)?;
-        let item = observed["volumes"]
-            .as_array()
-            .and_then(|v| v.iter().find(|v| v["path"] == volume))
-            .cloned()
-            .unwrap_or(Value::Null);
+        let item = observed
+            .volumes
+            .iter()
+            .find(|v| v.path() == volume)
+            .map_or(Value::Null, |v| json!(v));
         if item["state"] != "Ready" || item["space_state"] != "Normal" {
             return Err(Error::value("healthy_identity_verified_volume_required"));
         }
@@ -255,7 +255,7 @@ impl<'a> Scratch<'a> {
 
 /// `storage(ctx)` inside a benchmark: a refused observation (an `int()` of odd sysfs text) is the
 /// benchmark's failure.
-pub(super) fn observe_storage(root: &Root) -> Result<Value> {
+pub(super) fn observe_storage(root: &Root) -> Result<Storage> {
     storage(root).map_err(|error| match error {
         Failure::Os { text, class } => Error {
             class: class.into(),

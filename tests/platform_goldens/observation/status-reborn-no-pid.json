@@ -51,12 +51,22 @@
    "qualified_profile": null
   },
   "bluetooth": {
+   "actual_bitrate_bps": null,
    "adapter": null,
+   "codec_inventory": null,
+   "codec_settings": null,
+   "mutually_usable": null,
    "negotiated_codec": null,
+   "packet_loss": null,
    "pcm": null,
+   "preferred_codec": null,
    "reason": "dbus_observation_unavailable",
    "reconnect": null,
    "reconnect_owner": "y2-bt-reconnect",
+   "remote_advertised": null,
+   "remote_advertised_reason": "API_exposes_mutual_subset_only",
+   "requested_codec": null,
+   "runtime_enabled": null,
    "selected_peer": null,
    "state": "Unavailable",
    "transport": null
@@ -429,18 +439,24 @@
      "uuid": null
     },
     {
+     "controller_valid": false,
      "generation": null,
      "path": "/media/sd",
      "reason": "not_uniquely_mounted",
+     "source_instance": null,
      "space_state": "Unavailable",
-     "state": "Unavailable"
+     "state": "Unavailable",
+     "uuid": null
     },
     {
+     "controller_valid": false,
      "generation": null,
      "path": "/media/internal",
      "reason": "not_uniquely_mounted",
+     "source_instance": null,
      "space_state": "Unavailable",
-     "state": "Unavailable"
+     "state": "Unavailable",
+     "uuid": null
     }
    ]
   },

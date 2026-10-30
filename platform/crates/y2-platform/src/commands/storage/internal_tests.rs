@@ -472,11 +472,11 @@ fn storage_reports_the_fourth_volume_and_rejects_the_wrong_uuid() {
     player.provisioned();
     player.fixture.put("/proc/self/mountinfo", MOUNT_LINE);
     player.fixture.mkdir("/media/internal");
-    let volumes = snapshot::storage(player.root()).unwrap()["volumes"].clone();
+    let volumes = serde_json::json!(snapshot::storage(player.root()).unwrap())["volumes"].clone();
     assert_eq!(volumes.as_array().unwrap().len(), 4);
     assert_eq!(volumes[3]["path"], "/media/internal");
     player.set(|f| f.everything = Some(answer(true, None, Some("something-else"))));
-    let volumes = snapshot::storage(player.root()).unwrap()["volumes"].clone();
+    let volumes = serde_json::json!(snapshot::storage(player.root()).unwrap())["volumes"].clone();
     assert_eq!(volumes[3]["reason"], "filesystem_identity_invalid");
 }
 

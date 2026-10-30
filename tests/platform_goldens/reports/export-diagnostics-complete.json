@@ -259,12 +259,20 @@
          "qualified_profile": null
         },
         "bluetooth": {
+         "actual_bitrate_bps": null,
          "adapter": null,
+         "codec_inventory": null,
+         "codec_settings": null,
+         "mutually_usable": null,
          "negotiated_codec": null,
+         "packet_loss": null,
          "pcm": null,
+         "preferred_codec": null,
          "reason": "[redacted]",
          "reconnect": null,
          "reconnect_owner": "[redacted]",
+         "requested_codec": null,
+         "runtime_enabled": null,
          "selected_peer": null,
          "state": "Unavailable",
          "transport": null

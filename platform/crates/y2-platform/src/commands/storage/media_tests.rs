@@ -236,7 +236,7 @@ impl Card {
     }
 
     fn storage(&self) -> Value {
-        snapshot::storage(self.root()).unwrap()
+        serde_json::json!(snapshot::storage(self.root()).unwrap())
     }
 
     /// Whether each run of `program` keeps its output when it fails.

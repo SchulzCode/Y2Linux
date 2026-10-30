@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use crate::commands::observation::util::{self, int, name, read};
 use serde::Serialize;
-use serde_json::Value;
 use std::path::Path;
 use y2p_core::Root;
 
@@ -16,16 +15,16 @@ fn stem(name: &str) -> &str {
 
 /// One thermal zone with its trip points.
 #[derive(Serialize)]
-struct Zone {
-    name: String,
+pub struct Zone {
+    pub name: String,
     #[serde(rename = "type")]
-    kind: Option<String>,
-    temperature_millicelsius: Option<i64>,
-    trips: Vec<Trip>,
+    pub kind: Option<String>,
+    pub temperature_millicelsius: Option<i64>,
+    pub trips: Vec<Trip>,
 }
 
 #[derive(Serialize)]
-struct Trip {
+pub struct Trip {
     name: String,
     temperature_millicelsius: Option<i64>,
     #[serde(rename = "type")]
@@ -33,7 +32,7 @@ struct Trip {
 }
 
 #[derive(Serialize)]
-struct Cooling {
+pub struct Cooling {
     name: String,
     #[serde(rename = "type")]
     kind: Option<String>,
@@ -43,9 +42,9 @@ struct Cooling {
 
 /// The `thermal` section (in this key order).
 #[derive(Serialize)]
-struct Thermal {
-    zones: Vec<Zone>,
-    cooling: Vec<Cooling>,
+pub struct Thermal {
+    pub zones: Vec<Zone>,
+    pub cooling: Vec<Cooling>,
     /// No qualified pack sensor: always null.
     battery_temperature: Option<i64>,
     battery_temperature_reason: &'static str,
@@ -56,7 +55,7 @@ fn integer(path: &Path) -> Option<i64> {
     read(path).as_deref().and_then(int)
 }
 
-pub fn thermal(root: &Root) -> Value {
+pub fn thermal(root: &Root) -> Thermal {
     let zones = root
         .glob("/sys/class/thermal/thermal_zone*")
         .iter()
@@ -87,11 +86,10 @@ pub fn thermal(root: &Root) -> Value {
             max_state: integer(&p.join("max_state")),
         })
         .collect();
-    let thermal = Thermal {
+    Thermal {
         zones,
         cooling,
         battery_temperature: None,
         battery_temperature_reason: "no_qualified_pack_sensor",
-    };
-    serde_json::to_value(thermal).unwrap_or_default()
+    }
 }

@@ -5,6 +5,7 @@ use crate::commands::observation::util;
 use crate::{regex, reply::Failure};
 use serde::Serialize;
 use serde_json::{json, Value};
+use y2p_core::volume::{SpaceState, VolumeState};
 
 /// What a subsystem's state means for the product.
 #[derive(Serialize, Clone, Copy)]
@@ -35,12 +36,9 @@ struct Section {
 
 pub(super) fn readiness(status: &Snapshot) -> Result<Value, Failure> {
     let item = |state: Readiness, reason: Value| Item { state, reason };
-    let empty = Vec::new();
-    let volumes = status.storage["volumes"].as_array().unwrap_or(&empty);
-    let first: Vec<&Value> = volumes.iter().take(2).collect();
-    let all_ready = first.iter().all(|v| v["state"] == "Ready");
-    let storage_state = if all_ready {
-        if first.iter().all(|v| v["space_state"] == "Normal") {
+    let first = status.storage.volumes.iter().take(2);
+    let storage_state = if first.clone().all(|v| v.state == VolumeState::Ready) {
+        if first.clone().all(|v| v.space_state == SpaceState::Normal) {
             Readiness::Ready
         } else {
             Readiness::Degraded
@@ -49,13 +47,11 @@ pub(super) fn readiness(status: &Snapshot) -> Result<Value, Failure> {
         Readiness::Failed
     };
     let storage_reason = first
-        .iter()
-        .find(|v| v["state"] != "Ready")
-        .map_or(Value::Null, |v| {
-            v.get("reason").cloned().unwrap_or(Value::Null)
-        });
+        .clone()
+        .find(|v| v.state != VolumeState::Ready)
+        .map_or(Value::Null, |v| json!(v.reason));
     let wifi = &status.wifi;
-    let wifi_state = match wifi["state"].as_str() {
+    let wifi_state = match Some(wifi.state) {
         Some("Online") => Readiness::Ready,
         Some("Off") => Readiness::Unavailable,
         Some("Failed") => Readiness::Failed,
@@ -79,7 +75,7 @@ pub(super) fn readiness(status: &Snapshot) -> Result<Value, Failure> {
     });
     let cards = status.audio.cards.as_deref().unwrap_or_default();
     let audio = regex!(r"(?m)^\s*\d+\s+\[Y2Audio\s*\]").is_match(cards) && valid;
-    let update = &status.system["update"];
+    let update = &status.system.update;
     let update_state = match update.get("state") {
         Some(Value::Array(_) | Value::Object(_)) => {
             return Err(Failure::value("invalid_update_journal"))
@@ -96,10 +92,10 @@ pub(super) fn readiness(status: &Snapshot) -> Result<Value, Failure> {
     let bluetooth = &status.bluetooth;
     let section = Section {
         storage: item(storage_state, storage_reason),
-        wifi: item(wifi_state, wifi["reason"].clone()),
+        wifi: item(wifi_state, json!(wifi.reason)),
         bluetooth: Item {
-            state: bluetooth["state"].clone(),
-            reason: bluetooth.get("reason").cloned().unwrap_or(Value::Null),
+            state: json!(bluetooth.state),
+            reason: json!(bluetooth.reason),
         },
         audio: item(
             if audio {

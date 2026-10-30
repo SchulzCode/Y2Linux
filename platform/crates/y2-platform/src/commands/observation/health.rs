@@ -8,6 +8,7 @@ use super::{
 use crate::reply::{Failure, Outcome, Reply};
 use serde_json::{json, Map, Value};
 use y2p_contract::CheckState;
+use y2p_core::volume::{SpaceState, VolumeState};
 use y2p_core::{command, Root};
 
 /// The health record: every check and the worst state among them.
@@ -33,27 +34,28 @@ pub fn check_from(
             check.extend(details.unwrap_or_default());
             checks.push(check);
         };
-    let empty = Vec::new();
-    for volume in status.storage["volumes"].as_array().unwrap_or(&empty) {
-        let name = match volume["path"].as_str() {
-            Some("/") => "root",
-            Some("/data") => "data",
-            Some("/media/sd") => "sd",
+    for volume in &status.storage.volumes {
+        let name = match volume.path() {
+            "/" => "root",
+            "/data" => "data",
+            "/media/sd" => "sd",
             _ => "internal_media",
         };
-        let mut state = match volume["state"].as_str() {
-            Some("Ready") => CheckState::Ok,
-            Some("Degraded") => CheckState::Degraded,
-            Some("Failed") => CheckState::Failed,
-            _ => CheckState::Unavailable,
+        let mut state = match volume.state {
+            VolumeState::Ready => CheckState::Ok,
+            VolumeState::Degraded => CheckState::Degraded,
+            VolumeState::Failed => CheckState::Failed,
+            VolumeState::Unavailable => CheckState::Unavailable,
         };
-        let space = &volume["space_state"];
-        if matches!(space.as_str(), Some("LowSpace" | "CriticalSpace")) {
+        if matches!(
+            volume.space_state,
+            SpaceState::LowSpace | SpaceState::CriticalSpace
+        ) {
             state = CheckState::Degraded;
         }
-        let reason = match volume.get("reason") {
-            Some(r @ Value::String(text)) if !text.is_empty() => r.clone(),
-            _ => space.clone(),
+        let reason = match volume.reason {
+            Some(reason) if !reason.is_empty() => json!(reason),
+            _ => json!(volume.space_state),
         };
         add(name, state, reason, None);
     }
@@ -93,19 +95,20 @@ pub fn check_from(
         }),
         Some(details),
     );
-    let non_empty = |v: &Value| v.as_array().is_some_and(|a| !a.is_empty());
-    let thermal = status.thermal["zones"]
-        .as_array()
-        .is_some_and(|z| z.iter().any(|z| !z["temperature_millicelsius"].is_null()));
+    let thermal = status
+        .thermal
+        .zones
+        .iter()
+        .any(|zone| zone.temperature_millicelsius.is_some());
     for (name, present) in [
         ("render_node", !root.glob("/dev/dri/renderD*").is_empty()),
         ("display", !root.glob("/dev/dri/card*").is_empty()),
         ("audio", !root.glob("/dev/snd/pcm*p").is_empty()),
         ("input", !root.glob("/dev/input/event*").is_empty()),
-        ("rtc", non_empty(&status.system["rtc"])),
+        ("rtc", !status.system.rtc.is_empty()),
         ("thermal", thermal),
-        ("power_supply", non_empty(&status.power["supplies"])),
-        ("usb", non_empty(&status.system["usb"]["udcs"])),
+        ("power_supply", !status.power.supplies.is_empty()),
+        ("usb", !status.system.usb.udcs.is_empty()),
     ] {
         add(
             name,

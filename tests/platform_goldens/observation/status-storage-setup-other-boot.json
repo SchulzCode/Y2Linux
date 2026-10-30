@@ -117,18 +117,24 @@
      "uuid": null
     },
     {
+     "controller_valid": false,
      "generation": null,
      "path": "/media/sd",
      "reason": "not_uniquely_mounted",
+     "source_instance": null,
      "space_state": "Unavailable",
-     "state": "Unavailable"
+     "state": "Unavailable",
+     "uuid": null
     },
     {
+     "controller_valid": false,
      "generation": null,
      "path": "/media/internal",
      "reason": "not_uniquely_mounted",
+     "source_instance": null,
      "space_state": "Unavailable",
-     "state": "Unavailable"
+     "state": "Unavailable",
+     "uuid": null
     }
    ]
   }
