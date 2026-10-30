@@ -21,6 +21,29 @@ pub fn application_healthy(app: &Value) -> bool {
         && py::exact_int(app.get("uptime_seconds")).is_some_and(|u| u >= 10)
 }
 
+/// What `rebornctl status --json` answers when it succeeds (exit 0), else `{}`. On the player straight
+/// from Reborn's control socket (the same request, no rebornctl process), with rebornctl's exit rule:
+/// a status whose `overall` is failed or degraded, or that did not pass, is no success. Below a
+/// fixture root the command as before (the goldens record it).
+fn application_status(root: &Root) -> Value {
+    if root.is_real() {
+        use crate::commands::observation::{reborn_control, REBORN_CONTROL};
+        return reborn_control(&root.path(REBORN_CONTROL), "status", 2.0)
+            .filter(|result| {
+                !(result["overall"] == "failed"
+                    || result["passed"] == false
+                    || result["overall"] == "degraded")
+            })
+            .unwrap_or(json!({}));
+    }
+    let answer = command::run(root, &["/usr/bin/rebornctl", "status", "--json"], 2.0);
+    if answer.ok {
+        serde_json::from_str(answer.output.as_deref().unwrap_or("")).unwrap_or(json!({}))
+    } else {
+        json!({})
+    }
+}
+
 /// `[0-9]+(\s+[0-9]+)*` on the stripped text.
 pub(super) fn numbers_only(text: &str) -> bool {
     let space = |c: char| c.is_whitespace() || ('\u{1c}'..='\u{1f}').contains(&c);
@@ -158,12 +181,7 @@ pub(super) fn health_ack(root: &Root) -> Result<Value> {
     if !core_health_ok(root)? {
         return Ok(json!({"state": "PendingHealth", "reason": "core_health_not_OK"}));
     }
-    let answer = command::run(root, &["/usr/bin/rebornctl", "status", "--json"], 2.0);
-    let app = if answer.ok {
-        serde_json::from_str(answer.output.as_deref().unwrap_or("")).unwrap_or(json!({}))
-    } else {
-        json!({})
-    };
+    let app = application_status(root);
     if !application_healthy(&app) {
         return Ok(json!({"state": "PendingHealth", "reason": "application_not_ready"}));
     }

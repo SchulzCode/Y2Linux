@@ -325,44 +325,49 @@ pub fn process_identity(root: &Root, name: &str, expected: &str) -> Option<(i64,
     Some((pid, start))
 }
 
+/// Reborn's control socket (rebornctl's default).
+pub const REBORN_CONTROL: &str = "/run/reborn/control.sock";
+
+/// One request `{"op": op}` to Reborn's control socket with rebornctl's bounds (`timeout` seconds in
+/// all, the answer at most what `command::run` keeps of rebornctl's output plus the reply's
+/// envelope): the result of an `ok` reply, as `rebornctl <op> --json` prints it; None for no answer,
+/// a refusal or an answer too long or not JSON.
+pub fn reborn_control(path: &std::path::Path, op: &str, timeout: f64) -> Option<Value> {
+    use std::io::{Read, Write};
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs_f64(timeout);
+    let left = || {
+        Some(deadline.saturating_duration_since(std::time::Instant::now())).filter(|d| !d.is_zero())
+    };
+    let mut stream = std::os::unix::net::UnixStream::connect(path).ok()?;
+    stream.set_write_timeout(left()).ok()?;
+    let request =
+        serde_json::json!({"version": 1, "id": 1, "command": {"op": op}}).to_string() + "\n";
+    stream.write_all(request.as_bytes()).ok()?;
+    let mut reply = Vec::new();
+    let mut block = [0u8; 4096];
+    while !reply.contains(&b'\n') {
+        stream.set_read_timeout(left()).ok()?;
+        match stream.read(&mut block) {
+            Ok(0) => break,
+            Ok(n) => reply.extend_from_slice(&block[..n]),
+            Err(e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
+            Err(_) => return None,
+        }
+        if reply.len() > command::LIMIT + 1024 {
+            return None;
+        }
+    }
+    let mut reply: Value = serde_json::from_slice(&reply).ok()?;
+    (reply.get("ok") == Some(&Value::Bool(true))).then(|| reply["result"].take())
+}
+
 /// Reborn's own bounded metrics (the object `rebornctl metrics --json` prints), or null. On the
 /// player they come straight from Reborn's control socket, whose control thread answers `metrics`
 /// from its counters: no rebornctl process and no wake of Reborn's UI loop. Below a fixture root the
 /// same command as before is asked (the goldens record it).
 pub fn reborn_metrics(root: &Root) -> Value {
-    /// One `metrics` request with rebornctl's bounds: 1 s in all, the answer at most what
-    /// `command::run` keeps of rebornctl's output (plus the reply's envelope).
-    fn control_metrics(path: &std::path::Path) -> Option<Value> {
-        use std::io::{Read, Write};
-        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(1);
-        let left = || {
-            Some(deadline.saturating_duration_since(std::time::Instant::now()))
-                .filter(|d| !d.is_zero())
-        };
-        let mut stream = std::os::unix::net::UnixStream::connect(path).ok()?;
-        stream.set_write_timeout(left()).ok()?;
-        stream
-            .write_all(b"{\"version\":1,\"id\":1,\"command\":{\"op\":\"metrics\"}}\n")
-            .ok()?;
-        let mut reply = Vec::new();
-        let mut block = [0u8; 4096];
-        while !reply.contains(&b'\n') {
-            stream.set_read_timeout(left()).ok()?;
-            match stream.read(&mut block) {
-                Ok(0) => break,
-                Ok(n) => reply.extend_from_slice(&block[..n]),
-                Err(e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
-                Err(_) => return None,
-            }
-            if reply.len() > command::LIMIT + 1024 {
-                return None;
-            }
-        }
-        let mut reply: Value = serde_json::from_slice(&reply).ok()?;
-        (reply.get("ok") == Some(&Value::Bool(true))).then(|| reply["result"].take())
-    }
     let metrics = if root.is_real() {
-        control_metrics(&root.path("/run/reborn/control.sock"))
+        reborn_control(&root.path(REBORN_CONTROL), "metrics", 1.0)
     } else {
         let answer = command::run(root, &["/usr/bin/rebornctl", "metrics", "--json"], 1.0);
         answer

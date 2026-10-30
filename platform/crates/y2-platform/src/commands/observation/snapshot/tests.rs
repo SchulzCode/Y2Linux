@@ -424,3 +424,47 @@ fn diagnostics_do_not_fabricate_absent_states_or_mask_owners() {
         .unwrap()
         .contains("uart1_gate_after=0"));
 }
+
+#[test]
+fn reborn_control_requests_carry_the_op_and_read_an_ok_result() {
+    use std::io::{BufRead, Write};
+    let dir = Fixture::new();
+    let path = dir.path("/control.sock");
+    let listener = std::os::unix::net::UnixListener::bind(&path).unwrap();
+    let server = std::thread::spawn(move || {
+        let mut seen = Vec::new();
+        for reply in [
+            r#"{"ok":true,"result":{"overall":"ok","healthy":true}}"#,
+            r#"{"ok":false,"error":"busy"}"#,
+        ] {
+            let (stream, _) = listener.accept().unwrap();
+            let mut line = String::new();
+            std::io::BufReader::new(&stream)
+                .read_line(&mut line)
+                .unwrap();
+            seen.push(line);
+            (&stream)
+                .write_all(format!("{reply}\n").as_bytes())
+                .unwrap();
+        }
+        seen
+    });
+    let ok = crate::commands::observation::reborn_control(&path, "status", 2.0);
+    assert_eq!(ok, Some(json!({"overall": "ok", "healthy": true})));
+    assert_eq!(
+        crate::commands::observation::reborn_control(&path, "metrics", 2.0),
+        None
+    );
+    assert_eq!(
+        server.join().unwrap(),
+        [
+            "{\"version\":1,\"id\":1,\"command\":{\"op\":\"status\"}}\n",
+            "{\"version\":1,\"id\":1,\"command\":{\"op\":\"metrics\"}}\n"
+        ]
+    );
+    let gone = dir.path("/none.sock");
+    assert_eq!(
+        crate::commands::observation::reborn_control(&gone, "status", 0.5),
+        None
+    );
+}
