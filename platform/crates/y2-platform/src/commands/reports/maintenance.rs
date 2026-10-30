@@ -21,12 +21,7 @@ use super::{
 };
 use crate::commands::workload::Lease;
 use crate::reply::{atomic_json, private_directory, Failure, Outcome, Reply};
-use std::{
-    ffi::CString,
-    io::Read,
-    os::fd::{AsRawFd, OwnedFd},
-    path::Path,
-};
+use std::{ffi::CString, io::Read, os::fd::OwnedFd, path::Path};
 use y2p_core::json::ObjectExt;
 use y2p_core::{command, Root};
 
@@ -150,11 +145,7 @@ fn inspect(data: &OwnedFd, relative: &str) -> Result<Option<Py>, Failure> {
 }
 
 fn fsync(fd: &OwnedFd) -> Result<(), Failure> {
-    // SAFETY: a valid descriptor.
-    if unsafe { libc::fsync(fd.as_raw_fd()) } != 0 {
-        return Err(Failure::from(std::io::Error::last_os_error()));
-    }
-    Ok(())
+    Ok(y2p_core::sys::fsync(std::os::fd::AsFd::as_fd(fd))?)
 }
 
 fn fsync_path(path: &Path) -> Result<(), Failure> {

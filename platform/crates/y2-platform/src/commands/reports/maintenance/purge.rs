@@ -5,7 +5,6 @@ use super::{
     text, CString, Failure, Lease, OwnedFd, Py, Root,
 };
 use std::os::fd::AsFd;
-use std::os::fd::AsRawFd;
 
 /// The names in a directory, in readdir order (`os.scandir(fd)`).
 fn entries(fd: &OwnedFd) -> Result<Vec<String>, Failure> {
@@ -87,16 +86,11 @@ pub(super) fn purge(root: &Root, token: &str, confirm: Option<&str>) -> Result<P
                 if !complete {
                     return Ok(false);
                 }
-                // SAFETY: a valid fd and name.
-                if unsafe { libc::unlinkat(fd.as_raw_fd(), c.as_ptr(), libc::AT_REMOVEDIR) } != 0 {
-                    return Err(os_name(std::io::Error::last_os_error(), &name));
-                }
+                y2p_core::sys::unlinkat(fd.as_fd(), &c, libc::AT_REMOVEDIR)
+                    .map_err(|e| os_name(e, &name))?;
             } else {
                 // Symlinks inside user content are unlinked, never followed.
-                // SAFETY: a valid fd and name.
-                if unsafe { libc::unlinkat(fd.as_raw_fd(), c.as_ptr(), 0) } != 0 {
-                    return Err(os_name(std::io::Error::last_os_error(), &name));
-                }
+                y2p_core::sys::unlinkat(fd.as_fd(), &c, 0).map_err(|e| os_name(e, &name))?;
             }
             *removed += 1;
         }

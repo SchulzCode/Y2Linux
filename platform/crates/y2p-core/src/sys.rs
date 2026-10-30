@@ -256,6 +256,43 @@ impl Disposition {
     }
 }
 
+/// `unlinkat(dir, name, flags)`: a file (flags 0) or an empty directory (`AT_REMOVEDIR`) by its name
+/// in an open directory; a symlink is removed, never followed.
+pub fn unlinkat(dir: BorrowedFd<'_>, name: &CStr, flags: libc::c_int) -> io::Result<()> {
+    // SAFETY: a NUL-terminated name relative to an open directory.
+    check(unsafe { libc::unlinkat(dir.as_raw_fd(), name.as_ptr(), flags) })
+}
+
+/// `mkdirat(dir, name, mode)`.
+pub fn mkdirat(dir: BorrowedFd<'_>, name: &CStr, mode: libc::mode_t) -> io::Result<()> {
+    // SAFETY: a NUL-terminated name relative to an open directory.
+    check(unsafe { libc::mkdirat(dir.as_raw_fd(), name.as_ptr(), mode) })
+}
+
+/// `renameat(from_dir, from, to_dir, to)`.
+pub fn renameat(
+    from_dir: BorrowedFd<'_>,
+    from: &CStr,
+    to_dir: BorrowedFd<'_>,
+    to: &CStr,
+) -> io::Result<()> {
+    // SAFETY: NUL-terminated names relative to open directories.
+    check(unsafe {
+        libc::renameat(
+            from_dir.as_raw_fd(),
+            from.as_ptr(),
+            to_dir.as_raw_fd(),
+            to.as_ptr(),
+        )
+    })
+}
+
+/// `fsync(fd)`: a file's data and metadata, or a directory's entries, on the device.
+pub fn fsync(fd: BorrowedFd<'_>) -> io::Result<()> {
+    // SAFETY: a plain call on an open descriptor.
+    check(unsafe { libc::fsync(fd.as_raw_fd()) })
+}
+
 /// The names in an open directory in readdir order from its start (`os.scandir(fd)`), without `.`
 /// and `..`, at most `limit`. The directory's own descriptor stays open and unmoved: a duplicate is
 /// read. A failed read is an error, never a shorter list.

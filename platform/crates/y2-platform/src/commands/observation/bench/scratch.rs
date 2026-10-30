@@ -13,7 +13,7 @@ use std::{
     fs::File,
     io,
     os::{
-        fd::{AsRawFd, FromRawFd, OwnedFd, RawFd},
+        fd::{AsFd, AsRawFd, FromRawFd, OwnedFd, RawFd},
         unix::fs::OpenOptionsExt,
     },
 };
@@ -248,15 +248,11 @@ impl<'a> Scratch<'a> {
                 }
             }
             for name in &self.files {
-                let path = cname(name);
-                // SAFETY: a NUL-terminated name relative to the run directory.
-                unsafe { libc::unlinkat(fd.as_raw_fd(), path.as_ptr(), 0) };
+                let _ = y2p_core::sys::unlinkat(fd.as_fd(), &cname(name), 0);
             }
         }
         if let Some(base) = self.base_fd.take() {
-            let run = cname(&self.name);
-            // SAFETY: a NUL-terminated name relative to the base directory.
-            unsafe { libc::unlinkat(base.as_raw_fd(), run.as_ptr(), libc::AT_REMOVEDIR) };
+            let _ = y2p_core::sys::unlinkat(base.as_fd(), &cname(&self.name), libc::AT_REMOVEDIR);
         }
         self.volume_fd = None;
     }
@@ -301,9 +297,7 @@ fn remove_tree(directory: RawFd, name: &str) -> io::Result<()> {
         if is_dir {
             remove_tree(handle.as_raw_fd(), &child)?;
         } else {
-            let child = cname(&child);
-            // SAFETY: a NUL-terminated name relative to the directory.
-            check(unsafe { libc::unlinkat(handle.as_raw_fd(), child.as_ptr(), 0) })?;
+            y2p_core::sys::unlinkat(handle.as_fd(), &cname(&child), 0)?;
         }
     }
     drop(handle);
