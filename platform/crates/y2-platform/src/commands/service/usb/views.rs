@@ -2,39 +2,55 @@
 //! responder's configuration and mount expectations for them.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{
-    internal, json, mounts, py, radiofw, read, setup_status, volume_at, Failure, Mount, Object,
-    Root, Value, NAMES, OLD,
+    internal, json, mounts, radiofw, read, setup_status, volume_at, Failure, Mount, Root, Value,
+    NAMES, OLD,
 };
+use serde::Serialize;
 use y2p_core::py::PyValue;
 
 pub(super) fn name_of(path: &str) -> Option<&'static str> {
     NAMES.iter().find(|(p, _)| *p == path).map(|(_, n)| *n)
 }
 
-pub(super) fn text<'a>(view: &'a Object, key: &str) -> Option<&'a str> {
-    view.get(key).and_then(Value::as_str)
+/// One medium the computer may see: written into usb-transfer.json's `views` (sorted), the
+/// responder's configuration and its mount expectations.
+#[derive(Serialize, Clone, Debug, PartialEq)]
+pub(super) struct View {
+    pub path: &'static str,
+    /// The fixed label of `path` (`NAMES`).
+    pub name: Option<&'static str>,
+    pub mount_id: i64,
+    pub device_id: String,
+    pub uuid: Option<String>,
+    pub filesystem: String,
+    /// `ro` or `rw`.
+    pub access: &'static str,
 }
+
+/// What must stay the same for a pinned root to stay valid: the mount, its device, its filesystem
+/// and the access it was declared with.
+pub(super) type Identity = (i64, String, Option<String>, &'static str);
 
 pub(super) fn view(
     mount: &Mount,
-    path: &str,
-    uuid: Value,
+    path: &'static str,
+    uuid: Option<String>,
     filesystem: &str,
-    access: &str,
-) -> Object {
-    let mut value = Object::new();
-    value.insert("path".into(), json!(path));
-    value.insert("name".into(), json!(name_of(path)));
-    value.insert("mount_id".into(), json!(mount.mount_id));
-    value.insert("device_id".into(), json!(mount.device_id));
-    value.insert("uuid".into(), uuid);
-    value.insert("filesystem".into(), json!(filesystem));
-    value.insert("access".into(), json!(access));
-    value
+    access: &'static str,
+) -> View {
+    View {
+        path,
+        name: name_of(path),
+        mount_id: mount.mount_id,
+        device_id: mount.device_id.clone(),
+        uuid,
+        filesystem: filesystem.to_owned(),
+        access,
+    }
 }
 
 /// `media_views(ctx)`: the host receives user music, never Y2DATA/private/system contents or a LUN.
-pub(super) fn media_views(root: &Root) -> Vec<Object> {
+pub(super) fn media_views(root: &Root) -> Vec<View> {
     let (internal, sd) = (
         volume_at(root, "/media/internal"),
         volume_at(root, "/media/sd"),
@@ -84,7 +100,10 @@ pub(super) fn media_views(root: &Root) -> Vec<Object> {
             .is_ok_and(|m| m.file_type().is_symlink());
         if matches!(state, Some("Ready" | "Degraded")) && folder.is_dir() && !symlink && !nested {
             let access = if mount.read_only() { "ro" } else { "rw" };
-            let uuid = volume.get("uuid").cloned().unwrap_or(Value::Null);
+            let uuid = volume
+                .get("uuid")
+                .and_then(Value::as_str)
+                .map(str::to_owned);
             result.push(view(mount, path, uuid, &mount.filesystem, access));
         }
     }
@@ -101,7 +120,7 @@ pub(super) fn media_views(root: &Root) -> Vec<Object> {
             && old.filesystem == "vfat"
             && setup_status(root).get("state").and_then(Value::as_str) == Some("Waiting")
         {
-            result.push(view(old, OLD, Value::Null, "vfat", "ro"));
+            result.push(view(old, OLD, None, "vfat", "ro"));
         }
     }
     // RELEASE-49: while the radio firmware is missing, one empty folder of Y2DATA is shown as
@@ -113,56 +132,37 @@ pub(super) fn media_views(root: &Root) -> Vec<Object> {
         let _ = radiofw::inbox(root);
     } else if let Some(data) = data.filter(|d| !d.has_option("ro") && !radiofw::present(root)) {
         if radiofw::inbox(root).is_ok() {
-            result.push(view(
-                data,
-                radiofw::INBOX,
-                Value::Null,
-                &data.filesystem,
-                "rw",
-            ));
+            result.push(view(data, radiofw::INBOX, None, &data.filesystem, "rw"));
         }
     }
     result
 }
 
-/// `identity(view)`.
-pub(super) fn identity(view: &Object) -> Value {
-    json!([
-        view.get("mount_id"),
-        view.get("device_id"),
-        view.get("uuid"),
-        view.get("access")
-    ])
-}
-
-/// `str(value)` of a record's field (`'%s'`), a dict's keys sorted as the records are written.
-fn py_text(value: Option<&Value>) -> String {
-    y2p_core::json::sorted(value.cloned().unwrap_or_default()).py_str()
+impl View {
+    /// `identity(view)`.
+    pub(super) fn identity(&self) -> Identity {
+        (
+            self.mount_id,
+            self.device_id.clone(),
+            self.uuid.clone(),
+            self.access,
+        )
+    }
 }
 
 /// `expectations(views)`: the mount identity the responder must find when it pins a root.
-pub(super) fn expectations(views: &[Object]) -> String {
+pub(super) fn expectations(views: &[View]) -> String {
     views
         .iter()
-        .filter(|v| {
-            v.get("device_id").is_some_and(py::truthy)
-                && !v.get("mount_id").is_none_or(Value::is_null)
-        })
-        .map(|v| {
-            format!(
-                "{} {} {}\n",
-                py_text(v.get("path")),
-                py_text(v.get("device_id")),
-                py_text(v.get("mount_id"))
-            )
-        })
+        .filter(|v| !v.device_id.is_empty())
+        .map(|v| format!("{} {} {}\n", v.path, v.device_id, v.mount_id))
         .collect()
 }
 
 /// `config(views)`: only fixed paths and labels reach the responder parser. Both views are always
 /// declared, in fixed slots (stable MTP storage IDs); a view that is not currently available is
 /// declared `notmounted` and joins or leaves the live session later without a USB re-enumeration.
-pub(super) fn config(views: &[Object]) -> Result<String, Failure> {
+pub(super) fn config(views: &[View]) -> Result<String, Failure> {
     let mut lines: Vec<String> = [
         "loop_on_disconnect 1",
         "manufacturer \"Y2Linux\"",
@@ -190,11 +190,11 @@ pub(super) fn config(views: &[Object]) -> Result<String, Failure> {
     ]
     .map(str::to_owned)
     .to_vec();
-    let mut present: Vec<(&str, &Object)> = Vec::new();
+    let mut present: Vec<(&str, &View)> = Vec::new();
     for v in views {
-        let path = text(v, "path").unwrap_or_default();
-        let named = name_of(path).is_some_and(|n| text(v, "name") == Some(n));
-        if !named || !matches!(text(v, "access"), Some("ro" | "rw")) {
+        let path = v.path;
+        let named = name_of(path).is_some_and(|n| v.name == Some(n));
+        if !named || !matches!(v.access, "ro" | "rw") {
             return Err(Failure::value("unsafe_media_view"));
         }
         match present.iter_mut().find(|(p, _)| *p == path) {
@@ -204,7 +204,7 @@ pub(super) fn config(views: &[Object]) -> Result<String, Failure> {
     }
     for (path, name) in NAMES {
         let v = present.iter().find(|(p, _)| *p == path).map(|(_, v)| *v);
-        let mut options = vec![if v.is_some_and(|v| text(v, "access") == Some("ro")) {
+        let mut options = vec![if v.is_some_and(|v| v.access == "ro") {
             "ro"
         } else {
             "rw"

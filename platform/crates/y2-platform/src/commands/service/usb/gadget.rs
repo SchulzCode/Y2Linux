@@ -1,8 +1,8 @@
 //! The configfs USB gadget: its setup for a mode (with the responder for MTP) and its stop.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{
-    config, expectations, fs, identity, mkdir_parents, mounts, py, selection, text, write_text,
-    Failure, Object, Path, Start, UsbService, Value, GADGET,
+    config, expectations, fs, mkdir_parents, mounts, py, selection, write_text, Failure, Identity,
+    Path, Start, UsbService, View, GADGET,
 };
 use crate::reply::At;
 
@@ -61,7 +61,7 @@ impl UsbService {
         unbind_error.map_or(Ok(()), Err)
     }
 
-    pub(super) fn setup(&mut self, mode: &'static str, views: Vec<Object>) -> Result<(), Failure> {
+    pub(super) fn setup(&mut self, mode: &'static str, views: Vec<View>) -> Result<(), Failure> {
         let functions = selection(mode)?;
         self.stop()?;
         let root = self.root.path(GADGET);
@@ -175,12 +175,12 @@ impl UsbService {
             )?);
         }
         self.mounted = if mode == "mtp" {
-            let mut mounted: Vec<(String, Value)> = Vec::new();
+            let mut mounted: Vec<(String, Identity)> = Vec::new();
             for v in &views {
-                let path = text(v, "path").unwrap_or_default().to_owned();
+                let path = v.path.to_owned();
                 match mounted.iter_mut().find(|(p, _)| *p == path) {
-                    Some(entry) => entry.1 = identity(v),
-                    None => mounted.push((path, identity(v))),
+                    Some(entry) => entry.1 = v.identity(),
+                    None => mounted.push((path, v.identity())),
                 }
             }
             mounted

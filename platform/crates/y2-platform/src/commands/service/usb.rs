@@ -8,7 +8,7 @@ use super::radiofw;
 use crate::commands::storage::{
     internal, media,
     observe::{setup_status, volume_at},
-    sys::{mounts, read, Mount, Object},
+    sys::{mounts, read, Mount},
 };
 use crate::reply::{atomic_json, mkdir_parents, write_text, Failure};
 use serde_json::{json, Value};
@@ -59,7 +59,7 @@ struct Transfer<'a> {
     mode: Option<&'static str>,
     cable: &'a Option<String>,
     functions: &'static [&'static str],
-    views: &'a [Object],
+    views: &'a [View],
     filesystem_owner: &'static str,
     block_export: bool,
     refresh_generation: u64,
@@ -110,7 +110,7 @@ pub struct UsbService {
     root: Root,
     child: Option<Child>,
     mode: Option<&'static str>,
-    views: Option<Vec<Object>>,
+    views: Option<Vec<View>>,
     bound: bool,
     failures: i64,
     started: f64,
@@ -119,10 +119,10 @@ pub struct UsbService {
     refresh_generation: u64,
     last_record: Option<Value>,
     signature: Option<Signature>,
-    cached_views: Vec<Object>,
+    cached_views: Vec<View>,
     terminal: bool,
     /// path -> identity, in insertion order (a dict).
-    mounted: Vec<(String, Value)>,
+    mounted: Vec<(String, Identity)>,
     sd_window: f64,
     /// This boot's id, read for the first record: it cannot change while the service runs.
     boot_id: Option<Option<String>>,
@@ -438,12 +438,16 @@ mod usb_tests;
 mod tests {
     use super::*;
 
-    fn view_of(path: &str, access: &str) -> Object {
-        json!({"path": path, "name": name_of(path), "mount_id": 31, "device_id": "179:8",
-               "uuid": null, "access": access})
-        .as_object()
-        .cloned()
-        .unwrap()
+    fn view_of(path: &'static str, access: &'static str) -> View {
+        View {
+            path,
+            name: name_of(path),
+            mount_id: 31,
+            device_id: "179:8".into(),
+            uuid: None,
+            filesystem: "vfat".into(),
+            access,
+        }
     }
 
     #[test]
@@ -458,7 +462,7 @@ mod tests {
         ));
         assert_eq!(expectations(&views), "/media/sd 179:8 31\n");
         let mut odd = view_of("/media/sd", "rw");
-        odd.insert("name".into(), json!("Card"));
+        odd.name = Some("Card");
         assert_eq!(config(&[odd]).err().unwrap().message(), "unsafe_media_view");
     }
 }

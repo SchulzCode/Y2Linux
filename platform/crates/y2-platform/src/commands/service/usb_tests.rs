@@ -137,7 +137,7 @@ impl Usb {
         assert!(child.wait(2.0));
     }
 
-    fn internal_view(&self) -> Object {
+    fn internal_view(&self) -> View {
         self.service.views.clone().unwrap()[0].clone()
     }
 }
@@ -148,12 +148,16 @@ impl Drop for Usb {
     }
 }
 
-fn sd_view() -> Object {
-    json!({"path": "/media/sd", "name": "SD Card", "access": "rw", "mount_id": 9,
-           "device_id": "179:9", "uuid": "u"})
-    .as_object()
-    .cloned()
-    .unwrap()
+fn sd_view() -> View {
+    View {
+        path: "/media/sd",
+        name: Some("SD Card"),
+        mount_id: 9,
+        device_id: "179:9".into(),
+        uuid: Some("u".into()),
+        filesystem: "vfat".into(),
+        access: "rw",
+    }
 }
 
 fn paths(record: &Value) -> Vec<&str> {
@@ -207,15 +211,19 @@ fn no_block_export_or_triple_function_selection() {
         );
     }
     assert_eq!(selection("developer").unwrap(), ["acm.usb0", "ecm.usb0"]);
+    let named = |path: &'static str| View {
+        path,
+        name: Some("Internal Storage"),
+        mount_id: 5,
+        device_id: String::new(),
+        uuid: None,
+        filesystem: "ext4".into(),
+        access: "rw",
+    };
     for path in ["/", "/data", "/dev/mmcblk0", "/data/reborn", "/data/ssh"] {
-        let view = json!({"path": path, "name": "Internal Storage", "access": "rw"});
-        assert!(
-            config(&[view.as_object().cloned().unwrap()]).is_err(),
-            "{path}"
-        );
+        assert!(config(&[named(path)]).is_err(), "{path}");
     }
-    let view = json!({"path": INTERNAL, "name": "Internal Storage", "access": "rw", "mount_id": 5});
-    assert!(config(&[view.as_object().cloned().unwrap()])
+    assert!(config(&[named(INTERNAL)])
         .unwrap()
         .contains("storage \"/media/internal/music\" \"Internal Storage\" \"rw\""));
 }
@@ -330,14 +338,20 @@ fn gadget_requests_validated_bus_powered_500ma_allocation() {
 
 #[test]
 fn both_views_declared_in_fixed_slots_missing_sd_is_notmounted() {
-    let internal =
-        json!({"path": INTERNAL, "name": "Internal Storage", "access": "rw", "mount_id": 5});
-    let internal = internal.as_object().cloned().unwrap();
+    let internal = View {
+        path: INTERNAL,
+        name: Some("Internal Storage"),
+        mount_id: 5,
+        device_id: String::new(),
+        uuid: None,
+        filesystem: "ext4".into(),
+        access: "rw",
+    };
     let text = config(std::slice::from_ref(&internal)).unwrap();
     assert!(text.contains("storage \"/media/internal/music\" \"Internal Storage\" \"rw\""));
     assert!(text.contains("storage \"/media/sd\" \"SD Card\" \"rw,removable,notmounted\""));
     let mut sd = sd_view();
-    sd.insert("access".into(), json!("ro"));
+    sd.access = "ro";
     let text = config(&[internal, sd]).unwrap();
     assert!(text.contains("storage \"/media/sd\" \"SD Card\" \"ro,removable\""));
     assert!(text.find("Internal Storage") < text.find("SD Card"));
@@ -407,7 +421,7 @@ fn unacknowledged_unmount_falls_back_to_stopping_the_responder() {
     let sd = sd_view();
     usb.service
         .mounted
-        .push(("/media/sd".into(), identity(&sd)));
+        .push(("/media/sd".into(), sd.identity()));
     usb.service.views = Some(vec![usb.internal_view(), sd]);
     // The responder takes the command but never drops the root.
     let launch: Instead = Box::new(|argv| {
@@ -427,7 +441,7 @@ fn media_identity_change_stops_old_responder_before_new_view() {
     usb.ready();
     let old = usb.pid();
     let mut remounted = usb.internal_view();
-    remounted.insert("mount_id".into(), json!(6));
+    remounted.mount_id = 6;
     usb.service.cached_views = vec![remounted];
     usb.tick();
     assert!(!alive(old));
@@ -499,11 +513,11 @@ fn views_fixture() -> Fixture {
 }
 
 /// `media_views` with `blkid` answering `uuid` for Y2Media.
-fn views_with(fixture: &Fixture, uuid: &str) -> Vec<Object> {
+fn views_with(fixture: &Fixture, uuid: &str) -> Vec<View> {
     media_views(&fixture.root.clone().with_answers(answers(uuid)))
 }
 
-fn views(fixture: &Fixture) -> Vec<Object> {
+fn views(fixture: &Fixture) -> Vec<View> {
     views_with(fixture, UUID)
 }
 
@@ -515,7 +529,7 @@ fn mountinfo(fixture: &Fixture) -> String {
 fn missing_sd_never_exposes_empty_mountpoint() {
     let fixture = views_fixture();
     let views = views(&fixture);
-    let found: Vec<_> = views.iter().map(|v| text(v, "path").unwrap()).collect();
+    let found: Vec<_> = views.iter().map(|v| v.path).collect();
     assert_eq!(found, [INTERNAL]);
 }
 
@@ -537,7 +551,7 @@ fn readonly_superblock_is_never_advertised_writable() {
         "/proc/self/mountinfo",
         "5 1 179:2 / /media/internal rw - ext4 /dev/mmcblk0p8 ro",
     );
-    assert_eq!(text(&views(&fixture)[0], "access"), Some("ro"));
+    assert_eq!(views(&fixture)[0].access, "ro");
 }
 
 #[test]
@@ -589,13 +603,7 @@ fn old_storage_is_read_only_and_only_while_the_setup_waits() {
     let found = views(&fixture);
     let found_views: Vec<_> = found
         .iter()
-        .map(|v| {
-            (
-                text(v, "path").unwrap(),
-                text(v, "name").unwrap(),
-                text(v, "access").unwrap(),
-            )
-        })
+        .map(|v| (v.path, v.name.unwrap(), v.access))
         .collect();
     assert_eq!(found_views, [("/run/y2/old-storage", "Old Storage", "ro")]);
     assert!(config(&found)
@@ -617,10 +625,7 @@ fn with_internal_storage_there_is_no_separate_firmware_drive() {
         &format!("{MOUNT}\n7 1 179:7 / /data rw - ext4 /dev/mmcblk0p7 rw"),
     );
     let paths = |fixture: &Fixture| -> Vec<String> {
-        views(fixture)
-            .iter()
-            .map(|v| text(v, "path").unwrap().to_owned())
-            .collect()
+        views(fixture).iter().map(|v| v.path.to_owned()).collect()
     };
     // Internal Storage not recorded Ready (internal_media.ready is false).
     assert!(paths(&fixture).contains(&"/data/firmware/inbox".to_owned()));

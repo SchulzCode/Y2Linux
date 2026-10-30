@@ -2,8 +2,8 @@
 //! re-enumeration, acknowledged by the roots it pins (`mtp-roots.json`).
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{
-    expectations, identity, json, name_of, text, thread, write_text, Child, Duration, Failure,
-    Object, Start, UsbService, Value,
+    expectations, json, name_of, thread, write_text, Child, Duration, Failure, Start, UsbService,
+    Value, View,
 };
 use y2p_core::py::PyValue;
 
@@ -39,10 +39,10 @@ impl UsbService {
     }
 
     /// `reconcile(views)`: change the live MTP view without touching the USB gadget.
-    pub(super) fn reconcile(&mut self, views: Vec<Object>) -> Result<(), Failure> {
-        let mut desired: Vec<(String, &Object)> = Vec::new();
+    pub(super) fn reconcile(&mut self, views: Vec<View>) -> Result<(), Failure> {
+        let mut desired: Vec<(String, &View)> = Vec::new();
         for v in &views {
-            let path = text(v, "path").unwrap_or_default().to_owned();
+            let path = v.path.to_owned();
             match desired.iter_mut().find(|(p, _)| *p == path) {
                 Some(entry) => entry.1 = v,
                 None => desired.push((path, v)),
@@ -50,7 +50,7 @@ impl UsbService {
         }
         for (path, mounted) in self.mounted.clone() {
             let view = desired.iter().find(|(p, _)| *p == path).map(|(_, v)| *v);
-            if view.is_some_and(|v| mounted.py_eq(&identity(v))) {
+            if view.is_some_and(|v| mounted == v.identity()) {
                 continue;
             }
             // Leaving view: the responder drops its pinned root and open files before the platform
@@ -69,7 +69,7 @@ impl UsbService {
             if self.mounted.iter().any(|(p, _)| p == path) {
                 continue;
             }
-            let verb = if text(view, "access") == Some("ro") {
+            let verb = if view.access == "ro" {
                 "mountro:"
             } else {
                 "mount:"
@@ -78,7 +78,7 @@ impl UsbService {
             if !(self.command(&format!("{verb}{name}")) && self.await_root(path, true)) {
                 return Err(Failure::os_message("responder_mount_timeout"));
             }
-            self.mounted.push((path.clone(), identity(view)));
+            self.mounted.push((path.clone(), view.identity()));
         }
         self.views = Some(views);
         self.refresh_generation = self.root.clock().monotonic_ns();
