@@ -37,11 +37,11 @@ fn an_unreadable_record_is_a_named_refusal_and_other_errors_keep_their_class() {
     assert_eq!(reply.code, 1);
     assert_eq!(
         reply.stdout,
-        r#"{"failure": "report_failed", "reason": "report_state_unreadable"}"#
+        r#"{"failure":"report_failed","reason":"report_state_unreadable"}"#
     );
     let reply = report(&fixture.root, "save", None, None).unwrap();
     assert_eq!(
         (reply.code, reply.stdout.as_str()),
-        (1, r#"{"failure": "report_failed", "reason": "ValueError"}"#)
+        (1, r#"{"failure":"report_failed","reason":"ValueError"}"#)
     );
 }

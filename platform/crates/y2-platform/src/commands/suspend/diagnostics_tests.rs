@@ -208,11 +208,11 @@ fn write_failure_is_counted_never_raised() {
 
 #[test]
 fn oversized_kernel_tail_is_trimmed_not_dropped() {
-    // Python's test lowered ROW_LIMIT to 6000; here 80 kept lines of non-ASCII text (six bytes per
-    // character in the row's JSON) pass the real 64 KiB limit.
+    // Python's test lowered ROW_LIMIT to 6000; here 80 kept lines of 240 four-byte characters
+    // (UTF-8 in the row's JSON) pass the real 64 KiB limit.
     let fixture = player();
     let kmsg: String = (0..100)
-        .map(|n| format!("6,{n},5000000,-;Y2USB {}\n", "\u{e9}".repeat(300)))
+        .map(|n| format!("6,{n},5000000,-;Y2USB {}\n", "\u{1f600}".repeat(300)))
         .collect();
     fixture.put("/dev/kmsg", &kmsg);
     assert_eq!(kernel_tail(&fixture.root, 80, 240).unwrap().len(), 80);

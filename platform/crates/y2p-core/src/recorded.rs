@@ -23,9 +23,22 @@ pub fn text(manifest: &str, name: &str) -> String {
     String::from_utf8(bytes(manifest, name)).expect("recorded text is UTF-8")
 }
 
-/// `actual` must be the recording `name`. With `Y2_RECORD_GOLDENS=1` it becomes the recording (after an
-/// intended change; review the diff). The first recordings were made while the Python oracles still
-/// agreed with these outputs.
+/// Two recorded lines say the same: the same text, or both JSON with equal values (outputs are no longer
+/// kept byte-identical to Python's `json.dumps`: spacing and key order do not count).
+fn same_line(want: &str, got: &str) -> bool {
+    want == got
+        || matches!(
+            (
+                serde_json::from_str::<serde_json::Value>(want),
+                serde_json::from_str::<serde_json::Value>(got),
+            ),
+            (Ok(a), Ok(b)) if a == b
+        )
+}
+
+/// `actual` must be the recording `name`, line by line (a JSON line by its value). With
+/// `Y2_RECORD_GOLDENS=1` it becomes the recording (after an intended change; review the diff). The first
+/// recordings were made while the Python oracles still agreed with these outputs.
 pub fn check(manifest: &str, name: &str, actual: &[u8]) {
     let path = path(manifest, name);
     if std::env::var_os("Y2_RECORD_GOLDENS").is_some() {
@@ -34,12 +47,18 @@ pub fn check(manifest: &str, name: &str, actual: &[u8]) {
         return;
     }
     let expected = bytes(manifest, name);
-    if expected != actual {
-        let (want, got) = (
-            String::from_utf8_lossy(&expected),
-            String::from_utf8_lossy(actual),
-        );
-        let line = want.lines().zip(got.lines()).position(|(a, b)| a != b);
+    let (want, got) = (
+        String::from_utf8_lossy(&expected),
+        String::from_utf8_lossy(actual),
+    );
+    let same = want.lines().count() == got.lines().count()
+        && want.lines().zip(got.lines()).all(|(a, b)| same_line(a, b));
+    if !same {
+        let line = want
+            .lines()
+            .zip(got.lines())
+            .position(|(a, b)| !same_line(a, b))
+            .or(Some(want.lines().count().min(got.lines().count())));
         panic!(
             "{name} differs from its recording (line {}): recorded {:?}, now {:?}; \
              Y2_RECORD_GOLDENS=1 records an intended change",

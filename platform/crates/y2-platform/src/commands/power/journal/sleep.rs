@@ -33,8 +33,8 @@ mod tests {
         let text = |o: &Object| dumps(o, Separators::Spaced).unwrap();
         assert_eq!(
             text(&sleep_status(&parse("{}"), Some("b")).unwrap()),
-            "{\"state\": \"idle\", \"reason\": null, \"request_boot_id\": null, \"kernel_completed\": false, \
-             \"wake_reason\": \"unknown\", \"schema\": \"org.y2linux.sleep/v1\", \"boot_id\": \"b\", \"same_boot\": null}"
+            "{\"state\":\"idle\",\"reason\":null,\"request_boot_id\":null,\"kernel_completed\":false,\
+             \"wake_reason\":\"unknown\",\"schema\":\"org.y2linux.sleep/v1\",\"boot_id\":\"b\",\"same_boot\":null}"
         );
         let other = parse(r#"{"product": {"state": "sleeping", "request_boot_id": "a"}}"#);
         let status = sleep_status(&other, Some("b")).unwrap();

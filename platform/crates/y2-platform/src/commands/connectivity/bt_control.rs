@@ -138,7 +138,7 @@ mod tests {
         let reply = command(&root, "on").unwrap();
         assert_eq!(
             reply.stdout,
-            "{\"ok\": false, \"reason\": \"platform_bluetooth_operation_in_progress\"}"
+            "{\"ok\":false,\"reason\":\"platform_bluetooth_operation_in_progress\"}"
         );
         assert_eq!(reply.code, 1);
         drop(held);

@@ -85,9 +85,9 @@ mod tests {
         };
         assert_eq!(
             text(Some("phase=CONSTANT_CURRENT active=1 stop_error=0"), true),
-            "{\"category\": \"charging_active\", \"usb_present\": true, \"phase\": \"CONSTANT_CURRENT\", \
-             \"charging_active\": true, \"stop_error\": false, \"battery_status\": \"Charging\", \
-             \"expect_refusal\": true, \"phase_consistent\": true}"
+            "{\"category\":\"charging_active\",\"usb_present\":true,\"phase\":\"CONSTANT_CURRENT\",\
+             \"charging_active\":true,\"stop_error\":false,\"battery_status\":\"Charging\",\
+             \"expect_refusal\":true,\"phase_consistent\":true}"
         );
         assert!(text(Some("phase=HOLD active=0"), true).contains("\"charger_hold\""));
         assert!(text(Some("phase=IDLE active=0 stop_error=-5"), false)

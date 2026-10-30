@@ -277,8 +277,8 @@ mod tests {
         );
         assert_eq!(
             dumps(&Failure::value("unknown_boot_stage").record(), Separators::Spaced).unwrap(),
-            "{\"schema\": \"org.y2linux.error/v1\", \"state\": \"Failed\", \"reason\": \"unknown_boot_stage\", \
-             \"type\": \"ValueError\"}"
+            "{\"schema\":\"org.y2linux.error/v1\",\"state\":\"Failed\",\"reason\":\"unknown_boot_stage\",\
+             \"type\":\"ValueError\"}"
         );
     }
 }

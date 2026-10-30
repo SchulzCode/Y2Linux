@@ -511,7 +511,7 @@ CASES += [
     ('boot-evidence-log-directory', ['boot-evidence'], {'volatile': TIMING, 'files': {
         '/data/logs/system.log/x': ''}}),
     ('boot-evidence-bounded', ['boot-evidence'], {'volatile': TIMING, 'files': {
-        '/data/logs/system.log.0': ('é' * 600 + '\n') * 40, '/data/logs/system.log': ('ü' * 600 + '\n') * 33}}),
+        '/data/logs/system.log.0': ('😀' * 600 + '\n') * 40, '/data/logs/system.log': ('🎵' * 600 + '\n') * 33}}),
 ]
 
 # ---- network-check, collect, bench ---------------------------------------------------------------------------

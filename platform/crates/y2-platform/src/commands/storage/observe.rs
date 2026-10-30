@@ -11,12 +11,7 @@ use serde_json::{json, Value};
 use std::{cell::OnceCell, path::Path};
 use y2p_core::py::PyValue;
 use y2p_core::volume::{controller, expected_uuid, SpaceState};
-use y2p_core::{
-    command,
-    json::{dumps_sorted, Separators},
-    storage_media::sha256_hex,
-    Root,
-};
+use y2p_core::{command, json::Separators, storage_media::sha256_hex, Root};
 
 pub const MEDIA_MOUNT: &str = "/run/y2/media-mount.json";
 pub const MEDIA_STATE: &str = "/run/y2/media.json";
@@ -53,8 +48,8 @@ pub fn media_identity(entry: &Path, filesystem: &str, uuid: Option<&str>) -> Opt
     );
     identity.insert("filesystem".into(), json!(filesystem));
     identity.insert("uuid".into(), json!(uuid));
-    // Sorted keys and the spaced separators: claims made by earlier versions keep their id.
-    let encoded = dumps_sorted(&identity, Separators::Spaced).ok()?;
+    // Python's sorted, spaced json.dumps: cards admitted by earlier versions keep their id.
+    let encoded = y2p_core::json::python_dumps_sorted(&identity, Separators::Spaced).ok()?;
     identity.insert("id".into(), json!(sha256_hex(encoded.as_bytes())));
     Some(identity)
 }

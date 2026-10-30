@@ -81,7 +81,7 @@ mod tests {
         let result = rpc(&fixture.root, &request);
         assert_eq!(
             daemon.join().unwrap(),
-            "{\"action\": \"poweroff\", \"reason\": \"user\"}\n"
+            "{\"action\":\"poweroff\",\"reason\":\"user\"}\n"
         );
         result
     }

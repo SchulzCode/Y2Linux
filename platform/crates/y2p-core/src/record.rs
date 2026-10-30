@@ -1,9 +1,6 @@
 //! `common.atomic_json` and `boot.private_directory`: how the platform publishes its records.
 // SPDX-License-Identifier: GPL-2.0-only
-use crate::{
-    clock,
-    json::{dumps_sorted, Separators},
-};
+use crate::clock;
 use serde::Serialize;
 use std::{
     fs::{self, File, OpenOptions, Permissions},
@@ -16,13 +13,19 @@ use std::{
 /// same directory and renamed over `path`. `durable` adds fsync of the file and then of the directory.
 /// The temporary name is `.<name>.<pid>.<monotonic_ns>.tmp`, without randomness: the kernel's random
 /// pool may not be ready early in boot (`test_platform_records_do_not_need_the_random_pool`).
+/// A record's text as `atomic_json` writes it: compact JSON (serde_json; keys in the value's own order)
+/// and a newline. Whoever needs the exact bytes of a record (a digest of it) takes them from here.
+pub fn encode<T: Serialize + ?Sized>(value: &T) -> serde_json::Result<String> {
+    Ok(serde_json::to_string(value)? + "\n")
+}
+
 pub fn atomic_json<T: Serialize + ?Sized>(
     path: &Path,
     value: &T,
     durable: bool,
     mode: u32,
 ) -> io::Result<()> {
-    let text = dumps_sorted(value, Separators::Compact).map_err(io::Error::other)? + "\n";
+    let text = encode(value).map_err(io::Error::other)?;
     let parent = path
         .parent()
         .filter(|p| !p.as_os_str().is_empty())
@@ -97,7 +100,7 @@ mod tests {
     use std::os::unix::fs::MetadataExt;
 
     #[test]
-    fn records_are_written_as_python_writes_them() {
+    fn records_are_compact_json_in_their_own_order() {
         let dir = Dir::new();
         let path = dir.path().join("power.json");
         atomic_json(
@@ -107,10 +110,9 @@ mod tests {
             0o600,
         )
         .unwrap();
-        // python3: atomic_json(path, {...}, durable=True)
         assert_eq!(
             fs::read_to_string(&path).unwrap(),
-            "{\"boot_id\":\"b\",\"monotonic_ns\":5,\"state\":\"Normal\",\"v\":4.2}\n"
+            "{\"state\":\"Normal\",\"boot_id\":\"b\",\"monotonic_ns\":5,\"v\":4.2}\n"
         );
         assert_eq!(fs::metadata(&path).unwrap().mode() & 0o7777, 0o600);
         atomic_json(&path, &json!([]), false, 0o644).unwrap();

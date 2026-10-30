@@ -235,15 +235,27 @@ pub fn sorted_object(map: &Object) -> Object {
     }
 }
 
-/// `json.dumps(value)` with the given separators.
+/// The value as compact JSON (serde_json). The separators no longer matter: outputs are not kept
+/// byte-identical to Python's `json.dumps` any more (PLATFORM-RUST-IDIOMATIC-PLAN.md); the parameter goes
+/// with the callers' clean-up.
 pub fn dumps<T: Serialize + ?Sized>(
+    value: &T,
+    _separators: Separators,
+) -> serde_json::Result<String> {
+    serde_json::to_string(value)
+}
+
+/// Python's `json.dumps(value, sort_keys=True)` byte for byte (its separators, `ensure_ascii`, float
+/// `repr`): **only for text that is hashed into an identity kept across builds** (the SD card's media
+/// identity in sd-admissions.json and the mount claims), where a different spelling would be a different card.
+pub fn python_dumps_sorted<T: Serialize + ?Sized>(
     value: &T,
     separators: Separators,
 ) -> serde_json::Result<String> {
     let mut out = Vec::new();
     let mut serializer =
         serde_json::Serializer::with_formatter(&mut out, PythonFormatter::new(separators));
-    value.serialize(&mut serializer)?;
+    sorted(serde_json::to_value(value)?).serialize(&mut serializer)?;
     Ok(String::from_utf8(out).expect("ensure_ascii output is ASCII"))
 }
 
@@ -348,20 +360,14 @@ mod tests {
     }
 
     #[test]
-    fn output_matches_json_dumps() {
+    fn output_is_compact_serde_json() {
         let value = json!({"schema": "org.y2linux.status/v1", "b": [1, 2.0, null, true], "a": "é\u{7f}\u{1f600}\"\n\t/",
                            "n": {"z": 0.00001, "y": -3}});
-        // python3 -c 'import json; print(json.dumps(v, sort_keys=True))'
+        // Compact, UTF-8 as it is, serde_json's floats; dumps_sorted sorts every object.
         assert_eq!(
             dumps_sorted(&value, Separators::Spaced).unwrap(),
-            "{\"a\": \"\\u00e9\\u007f\\ud83d\\ude00\\\"\\n\\t/\", \"b\": [1, 2.0, null, true], \
-                    \"n\": {\"y\": -3, \"z\": 1e-05}, \"schema\": \"org.y2linux.status/v1\"}"
-        );
-        // json.dump(v, sort_keys=True, separators=(',', ':'))
-        assert_eq!(
-            dumps_sorted(&value, Separators::Compact).unwrap(),
-            "{\"a\":\"\\u00e9\\u007f\\ud83d\\ude00\\\"\\n\\t/\",\"b\":[1,2.0,null,true],\
-                    \"n\":{\"y\":-3,\"z\":1e-05},\"schema\":\"org.y2linux.status/v1\"}"
+            "{\"a\":\"é\u{7f}\u{1f600}\\\"\\n\\t/\",\"b\":[1,2.0,null,true],\
+                    \"n\":{\"y\":-3,\"z\":0.00001},\"schema\":\"org.y2linux.status/v1\"}"
         );
         // json.dumps(v): the insertion order of the literal.
         assert_eq!(
@@ -382,7 +388,7 @@ mod tests {
         value.set("state", "Failed").set("monotonic_s", 1.5);
         assert_eq!(
             dumps(&value, Separators::Spaced).unwrap(),
-            "{\"state\": \"Failed\", \"boot_id\": \"b\", \"monotonic_s\": 1.5}"
+            "{\"state\":\"Failed\",\"boot_id\":\"b\",\"monotonic_s\":1.5}"
         );
     }
 
@@ -399,11 +405,11 @@ mod tests {
         };
         assert_eq!(
             dumps(&value, Separators::Spaced).unwrap(),
-            "{\"state\": \"Ready\", \"boot_id\": \"b\"}"
+            "{\"state\":\"Ready\",\"boot_id\":\"b\"}"
         );
         assert_eq!(
             dumps_sorted(&value, Separators::Spaced).unwrap(),
-            "{\"boot_id\": \"b\", \"state\": \"Ready\"}"
+            "{\"boot_id\":\"b\",\"state\":\"Ready\"}"
         );
     }
 }

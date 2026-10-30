@@ -925,7 +925,7 @@ fn records_that_cannot_be_read_are_refused() {
         (reply.code, reply.stdout.as_str()),
         (
             1,
-            r#"{"state": "Failed", "failure": "update_channel_unreadable"}"#
+            r#"{"state":"Failed","failure":"update_channel_unreadable"}"#
         )
     );
     assert!(!fixture.exists("/data/updates/download.json"));
@@ -951,7 +951,7 @@ fn records_that_cannot_be_read_are_refused() {
         (reply.code, reply.stdout.as_str()),
         (
             1,
-            r#"{"state": "Failed", "failure": "update_health_record_unreadable"}"#
+            r#"{"state":"Failed","failure":"update_health_record_unreadable"}"#
         )
     );
     // What another group's helper cannot read.

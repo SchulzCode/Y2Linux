@@ -99,7 +99,7 @@ fn running_clock_is_remembered_hourly_only_when_set() {
     remembered(&fixture, 10.0);
     let reply = time::remember(&fixture.root).unwrap();
     assert!(
-        reply.stdout.contains("\"source\": \"manual\""),
+        reply.stdout.contains("\"source\":\"manual\""),
         "{}",
         reply.stdout
     );
@@ -108,7 +108,7 @@ fn running_clock_is_remembered_hourly_only_when_set() {
     fixture.put("/proc/sys/kernel/random/boot_id", "boot-two");
     remembered(&fixture, 10.0);
     let reply = time::remember(&fixture.root).unwrap();
-    assert_eq!(reply.stdout, "{\"state\": \"Unchanged\"}");
+    assert_eq!(reply.stdout, "{\"state\":\"Unchanged\"}");
     assert!(!current(&fixture));
 }
 

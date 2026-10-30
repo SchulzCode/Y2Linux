@@ -4,8 +4,8 @@
 use super::{
     atomic_json, busy, command, confirmation, data_volume, free, fstat, fsync, fsync_path,
     identity, inspect, json_dict, open_at, open_data, os, os_name, parent_fd, private_directory,
-    pyjson, pyops, regular_bytes, rename_between, sha256_hex, stat_at, text, volume, Failure,
-    OwnedFd, Path, Py, Root, Style, DIRECTORY, SCOPES, SETTINGS,
+    pyops, regular_bytes, rename_between, sha256_hex, stat_at, text, volume, Failure, OwnedFd,
+    Path, Py, Root, DIRECTORY, SCOPES, SETTINGS,
 };
 use crate::commands::reports::pyops::OrRefuse;
 use crate::commands::service::update::JournalState;
@@ -300,7 +300,7 @@ fn reset_settings(
         body.set("settings", settings); // an object with settings (body_ok)
     }
     // atomic_json's exact canonical encoding, including its newline.
-    let result = pyjson::dumps_strict(&model, Style::Compact).map_err(Failure::Value)? + "\n";
+    let result = y2p_core::record::encode(&model).map_err(Failure::value)?;
     atomic_json(
         &location.join("settings-result.json"),
         &Py::dict().with("sha256", Py::Str(sha256_hex(result.as_bytes()))),

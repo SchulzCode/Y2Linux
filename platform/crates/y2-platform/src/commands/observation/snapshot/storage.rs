@@ -9,7 +9,7 @@ use crate::{regex, reply::Failure};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
 use std::{collections::BTreeMap, path::Path};
-use y2p_core::json::{dumps_sorted, Object, ObjectExt, Separators};
+use y2p_core::json::{Object, ObjectExt, Separators};
 use y2p_core::py::PyValue;
 use y2p_core::volume::{
     controller, expected_uuid, SpaceState, VolumeState, EMMC_CONTROLLER, SD_CONTROLLER,
@@ -125,7 +125,9 @@ fn media_identity(entry: &Path, filesystem: &Value, uuid: &Value) -> Value {
     let mut identity = json!({"cid": cid, "geometry": {"partition": partition, "start": start, "size": size},
                               "filesystem": filesystem, "uuid": uuid});
     // Texts and nulls only: nothing here a JSON text cannot hold.
-    let encoded = dumps_sorted(&identity, Separators::Spaced).expect("identity");
+    // Python's sorted, spaced json.dumps: cards admitted by earlier versions keep their id.
+    let encoded =
+        y2p_core::json::python_dumps_sorted(&identity, Separators::Spaced).expect("identity");
     identity["id"] = json!(y2p_core::digest::sha256_hex(encoded.as_bytes()));
     identity
 }

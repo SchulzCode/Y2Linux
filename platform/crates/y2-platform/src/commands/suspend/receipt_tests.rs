@@ -284,7 +284,7 @@ fn a_product_that_is_no_object_is_a_refusal_record() {
         assert_eq!(reply.code, 1);
         assert_eq!(
             reply.stdout,
-            format!("{{\"failure\": \"{failure}\", \"state\": \"Failed\"}}")
+            format!("{{\"failure\":\"{failure}\",\"state\":\"Failed\"}}")
         );
     }
 }
