@@ -30,7 +30,7 @@ pub type Command = Box<dyn FnOnce(&Root) -> Outcome>;
 /// The Rust implementation of these exact arguments, if there is one.
 /// The installed build's versions.json (none when it is missing or does not read).
 pub fn versions(root: &y2p_core::Root) -> Option<y2p_contract::Versions> {
-    serde_json::from_value(root.json(y2p_contract::Versions::PATH)?).ok()
+    serde_json::from_value(root.json("/etc/y2linux/versions.json")?).ok()
 }
 
 pub fn route(args: &[&str]) -> Option<Command> {
