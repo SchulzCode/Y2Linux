@@ -8,7 +8,7 @@ use super::radiofw;
 use crate::commands::storage::{
     internal, media,
     observe::{setup_status, volume_at},
-    sys::{mounts, read, Mount},
+    sys::{emmc_entry, mounts, read, Mount},
 };
 use crate::reply::{atomic_json, mkdir_parents, write_text, Failure};
 use serde_json::{json, Value};
@@ -311,9 +311,11 @@ impl UsbService {
             .iter()
             .map(|f| root.read(f))
             .collect(),
+            // The SD card's entries: the eMMC's never change while the player runs.
             cards: root
                 .glob("/sys/class/block/mmcblk*")
                 .iter()
+                .filter(|p| !emmc_entry(p))
                 .map(|p| {
                     (
                         p.file_name()
