@@ -39,7 +39,7 @@ mod apply;
 mod check;
 mod health;
 mod journal;
-pub(crate) use journal::state as journal_state;
+pub(crate) use journal::{state as journal_state, JournalState};
 mod source;
 mod staging;
 
@@ -56,7 +56,6 @@ const FILES: [&str; 5] = [
     "bootimg.img.gz",
     "recovery.img.gz",
 ];
-const TERMINAL: [&str; 4] = ["Idle", "Acknowledged", "RolledBack", "Failed"];
 /// `update check/stage` while another one holds .stage.lock.
 const IN_PROGRESS: &str = "update_in_progress";
 const RESERVE: i128 = 96 * 1024 * 1024;
@@ -148,11 +147,6 @@ type Result<T> = std::result::Result<T, Raise>;
 /// A record's string field (any other value is no string).
 fn string(value: Option<&Value>) -> Option<&str> {
     value.and_then(Value::as_str)
-}
-
-/// Whether the record's `state` is one of `choices`.
-fn state_is(map: &Map<String, Value>, choices: &[&str]) -> bool {
-    string(map.get("state")).is_some_and(|state| choices.contains(&state))
 }
 
 /// The first `limit` characters of `text`: a failure kept in a record stays short.

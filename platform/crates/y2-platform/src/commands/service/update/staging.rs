@@ -2,11 +2,11 @@
 //! package queued with the core; SIGTERM cancels until the commit point.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{
-    atomic_json, channel, copy_stream, core, download, fs, installed_release, json, lock, pathlib,
-    private_directory, py, set_signal, shortened, signal_disposition, state_is, status, storage,
+    atomic_json, channel, copy_stream, core, download, fs, installed_release, journal_state, json,
+    lock, pathlib, private_directory, py, set_signal, shortened, signal_disposition, storage,
     string, truthy, wait_online, Disposition, File, Handler, Io, Map, Net, OpenOptions, Ordering,
     Path, PathBuf, Progress, Raise, Result, Root, Source, Value, BACKUPS, CANCELLED,
-    CHECK_PROGRESS, FILES, IN_PROGRESS, KEPT_LOGS, MANIFEST_ATTEMPTS, RESERVE, TERMINAL,
+    CHECK_PROGRESS, FILES, IN_PROGRESS, KEPT_LOGS, MANIFEST_ATTEMPTS, RESERVE,
 };
 use std::ops::ControlFlow;
 use std::os::fd::AsFd;
@@ -357,7 +357,7 @@ impl Staging<'_> {
             Ok(false) => return Err(Raise::Os(py::os_error(&lock::would_block(), None).0)),
             Err(e) => return Err(Raise::from(e)),
         }
-        if !state_is(&status(root), &TERMINAL) {
+        if !journal_state(root).terminal() {
             return Err(Raise::value("update_already_pending"));
         }
         // An earlier interrupted download is disposable; bounded, named cleanup.

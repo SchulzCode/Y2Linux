@@ -2,8 +2,8 @@
 //! lease, the core's request and the restart through the power daemon.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{
-    core, json, json_error, py, remove_package, sorted, state_is, status, truthy, Duration, Object,
-    Raise, Result, Root, Value, MINIMUM_PERCENT,
+    core, journal_state, json, json_error, py, remove_package, sorted, truthy, Duration,
+    JournalState, Object, Raise, Result, Root, Value, MINIMUM_PERCENT,
 };
 use crate::commands::power::published::{Battery, PowerState};
 use std::io::Read;
@@ -104,7 +104,7 @@ pub(super) fn maintenance<T>(root: &Root, function: impl FnOnce() -> Result<T>) 
 /// request on the restart (or, with the owner's override, on the next Power press).
 pub(super) fn apply(root: &Root, rollback: bool) -> Result<Value> {
     maintenance(root, || {
-        if !rollback && !state_is(&status(root), &["Queued"]) {
+        if !rollback && journal_state(root) != JournalState::Queued {
             return Err(Raise::value("no_verified_queued_update"));
         }
         // Before the core's rollback: a battery refusal must leave the journal as it was, not

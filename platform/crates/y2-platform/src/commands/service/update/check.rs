@@ -1,9 +1,8 @@
 //! `update auto-check`: the service's daily look for a release (never a download).
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{
-    atomic_json, channel, download_record, json, private_directory, shortened, stage, state_is,
-    status, truthy, Io, Map, Raise, Result, Root, Value, CHECK_INTERVAL, IN_PROGRESS, LAST_CHECK,
-    TERMINAL,
+    atomic_json, channel, download_record, journal_state, json, private_directory, shortened,
+    stage, truthy, Io, Map, Raise, Result, Root, Value, CHECK_INTERVAL, IN_PROGRESS, LAST_CHECK,
 };
 use crate::commands::connectivity::published::Published;
 
@@ -32,7 +31,7 @@ pub(super) fn automatic_check(root: &Root, io: &dyn Io) -> Result<Value> {
     attempt.insert("schema".into(), json!(1));
     attempt.insert("attempt".into(), json!(now));
     atomic_json(&directory.join("last-check.json"), &attempt, false)?;
-    if !state_is(&status(root), &TERMINAL) {
+    if !journal_state(root).terminal() {
         return Ok(skipped("update_pending"));
     }
     // `not channel(ctx).get('manifest_url')`: truthiness only; its type matters at the check below.

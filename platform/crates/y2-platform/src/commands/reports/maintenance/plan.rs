@@ -3,8 +3,9 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{
     atomic_json, data_volume, inspect, open_data, os, private_directory, pyjson, sha256_hex, uuid4,
-    volume, Failure, Py, Root, Style, LASTFM, SCOPES, SETTINGS, TERMINAL,
+    volume, Failure, Py, Root, Style, LASTFM, SCOPES, SETTINGS,
 };
+use crate::commands::service::update::JournalState;
 use std::io::Read;
 
 fn services(scope: &str) -> Vec<Py> {
@@ -184,7 +185,7 @@ pub(super) fn plan(root: &Root, scope: Option<&str>) -> Result<Py, Failure> {
         .filter(|s| SCOPES.contains(s))
         .ok_or_else(|| Failure::value("unknown_reset_scope"))?;
     let volume = data_volume(root)?;
-    if !TERMINAL.contains(&volume::update_state(root)?.as_str()) {
+    if !JournalState::named(Some(&volume::update_state(root)?)).terminal() {
         return Err(Failure::value("update_in_progress"));
     }
     if root

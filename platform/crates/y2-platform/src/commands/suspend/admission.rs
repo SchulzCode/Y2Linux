@@ -239,11 +239,7 @@ pub fn battery_and_cable(root: &Root) -> Result<(), E> {
 }
 
 pub fn operation_state(root: &Root, workloads: bool) -> Result<(), E> {
-    let state = crate::commands::service::update::journal_state(root);
-    if !["Idle", "Acknowledged", "RolledBack", "Failed"]
-        .iter()
-        .any(|t| is_text(Some(&state), t))
-    {
+    if !crate::commands::service::update::journal_state(root).terminal() {
         return Err(refused("firmware_update"));
     }
     if root

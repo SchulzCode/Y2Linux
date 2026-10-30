@@ -122,16 +122,80 @@ pub(super) fn installed_release(root: &Root) -> Value {
         .unwrap_or(Value::Null)
 }
 
+/// The update journal's `state`, as the native core and this platform write it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum JournalState {
+    /// No update: none yet on a ready /data, or the last one ended.
+    Idle,
+    /// No journal and no ready /data.
+    Unavailable,
+    /// Staged and verified, waiting for `update apply`.
+    Queued,
+    /// The first boot of an installed update, until `health-ack`.
+    PendingHealth,
+    RollbackPending,
+    Acknowledged,
+    RolledBack,
+    /// Also a journal of another schema, or no readable journal.
+    Failed,
+    /// A text no version writes.
+    Other(String),
+    /// A journal of a known schema without a text state.
+    Absent,
+}
+
+impl JournalState {
+    /// The state a journal's `state` text names (`None`: no text).
+    pub fn named(text: Option<&str>) -> JournalState {
+        match text {
+            Some("Idle") => JournalState::Idle,
+            Some("Unavailable") => JournalState::Unavailable,
+            Some("Queued") => JournalState::Queued,
+            Some("PendingHealth") => JournalState::PendingHealth,
+            Some("RollbackPending") => JournalState::RollbackPending,
+            Some("Acknowledged") => JournalState::Acknowledged,
+            Some("RolledBack") => JournalState::RolledBack,
+            Some("Failed") => JournalState::Failed,
+            Some(other) => JournalState::Other(other.to_owned()),
+            None => JournalState::Absent,
+        }
+    }
+
+    /// No update runs: a new check, stage, maintenance or sleep may start (`TERMINAL`).
+    pub fn terminal(&self) -> bool {
+        matches!(
+            self,
+            JournalState::Idle
+                | JournalState::Acknowledged
+                | JournalState::RolledBack
+                | JournalState::Failed
+        )
+    }
+
+    /// An installed update is between its restart and its verdict.
+    pub fn installing(&self) -> bool {
+        matches!(
+            self,
+            JournalState::Queued | JournalState::PendingHealth | JournalState::RollbackPending
+        )
+    }
+}
+
 /// The update journal's state as other work gates on it (`Idle` when there is no journal yet on a
 /// ready /data, `Unavailable` without one, `Failed` for a journal of another schema; the core writes
-/// schema 2 since OTA-35, BOOTIMG and root). Null when a journal of a known schema has no state.
-pub(crate) fn state(root: &Root) -> Value {
+/// schema 2 since OTA-35, BOOTIMG and root); the same state `update status` shows, without the
+/// download, lock and channel reads that status adds.
+pub(crate) fn state(root: &Root) -> JournalState {
     let path = root.path("/data/updates/state.json");
-    let mut value = root.json("/data/updates/state.json");
+    let value = root.json("/data/updates/state.json");
     if value.is_none() && !path.exists() && path.symlink_metadata().is_err() {
         let ready = root.read("/data/.y2data-schema").as_deref() == Some("1")
             && root.path("/data/updates").is_dir();
-        value = Some(json!({"schema": 1, "state": if ready { "Idle" } else { "Unavailable" }}));
+        return if ready {
+            JournalState::Idle
+        } else {
+            JournalState::Unavailable
+        };
     }
     match value {
         Some(Value::Object(map))
@@ -139,8 +203,8 @@ pub(crate) fn state(root: &Root) -> Value {
                 .get("schema")
                 .is_some_and(|s| s.py_eq(&json!(1)) || s.py_eq(&json!(2))) =>
         {
-            map.get("state").cloned().unwrap_or(Value::Null)
+            JournalState::named(string(map.get("state")))
         }
-        _ => json!("Failed"),
+        _ => JournalState::Failed,
     }
 }

@@ -5,9 +5,10 @@ use super::{
     atomic_json, busy, command, confirmation, data_volume, free, fstat, fsync, fsync_path,
     identity, inspect, json_dict, open_at, open_data, os, os_name, parent_fd, private_directory,
     pyjson, pyops, regular_bytes, rename_between, sha256_hex, stat_at, text, volume, Failure,
-    OwnedFd, Path, Py, Root, Style, DIRECTORY, SCOPES, SETTINGS, TERMINAL,
+    OwnedFd, Path, Py, Root, Style, DIRECTORY, SCOPES, SETTINGS,
 };
 use crate::commands::reports::pyops::OrRefuse;
+use crate::commands::service::update::JournalState;
 use std::io::Write;
 use std::os::unix::fs::DirBuilderExt;
 use std::os::unix::fs::OpenOptionsExt;
@@ -145,7 +146,7 @@ pub(super) fn execute(
     if changed {
         return Err(Failure::value("reset_data_generation_changed"));
     }
-    if !TERMINAL.contains(&volume::update_state(root)?.as_str()) {
+    if !JournalState::named(Some(&volume::update_state(root)?)).terminal() {
         return Err(Failure::value("update_in_progress"));
     }
     let data = open_data(root)?;

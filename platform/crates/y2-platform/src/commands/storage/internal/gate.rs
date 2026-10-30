@@ -104,11 +104,7 @@ fn load_profile(root: &Root) -> Option<Vec<(i64, i64)>> {
 
 /// Why the setup must not start on its own now (it runs at a later start).
 pub(super) fn automatic_blocked(root: &Root) -> Option<&'static str> {
-    let update = crate::commands::service::update::journal_state(root);
-    if ["Queued", "PendingHealth", "RollbackPending"]
-        .iter()
-        .any(|s| update.as_str() == Some(s))
-    {
+    if crate::commands::service::update::journal_state(root).installing() {
         return Some("update_in_progress"); // 180 s health window: never a long step here
     }
     let battery = root.path("/sys/class/power_supply/BAT0");

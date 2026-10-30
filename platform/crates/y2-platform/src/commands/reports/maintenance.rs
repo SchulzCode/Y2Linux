@@ -29,7 +29,6 @@ const SETTINGS: &str = "reborn/state/session.json";
 /// The Last.fm sign-in and the plays waiting for it are settings too: a settings reset forgets them
 /// (quarantined like other reset targets).
 const LASTFM: [&str; 2] = ["reborn/state/lastfm.json", "reborn/state/scrobbles.jsonl"];
-const TERMINAL: [&str; 4] = ["Idle", "Acknowledged", "RolledBack", "Failed"];
 const DIRECTORY: i32 = libc::O_RDONLY | libc::O_DIRECTORY | libc::O_NOFOLLOW | libc::O_CLOEXEC;
 
 mod execute;

@@ -2,8 +2,8 @@
 //! answers, or asks for the rollback after 180 s.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{
-    atomic_json, command, core, fs, is_true, json, object, private_directory, py, remove_package,
-    state_is, status, Map, Raise, Result, Root, Value, RUNNING_PANIC_SECONDS,
+    atomic_json, command, core, fs, is_true, journal_state, json, object, private_directory, py,
+    remove_package, status, JournalState, Map, Raise, Result, Root, Value, RUNNING_PANIC_SECONDS,
 };
 
 /// Reborn's own verdict (`healthy`, Beta 8): drawing, database working,
@@ -116,9 +116,8 @@ fn same_number(read: Option<i64>, recorded: Option<&Value>) -> bool {
 /// The first boot of an installed update confirms itself once Reborn draws and
 /// answers, or asks for the rollback after 180 s.
 pub(super) fn health_ack(root: &Root) -> Result<Value> {
-    let pending = status(root);
-    if !state_is(&pending, &["PendingHealth"]) {
-        return Ok(Value::Object(pending));
+    if journal_state(root) != JournalState::PendingHealth {
+        return Ok(Value::Object(status(root)));
     }
     let runtime = root.path("/run/y2");
     private_directory(&runtime)?;
