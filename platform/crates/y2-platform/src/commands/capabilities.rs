@@ -2,74 +2,43 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use super::codec;
 use crate::reply::{Failure, Outcome, Reply};
-use serde_json::{json, Map, Value};
-use y2p_core::{
-    json::{Object, ObjectExt},
-    Root,
-};
+use serde_json::{json, Value};
+use y2p_contract::Capabilities;
+use y2p_core::Root;
 
-/// The installed template is broken: its capabilities, or one of the entries this fills in, are no
-/// object.
+/// The installed template is broken: no capability template of the contract's shape.
 fn invalid_template() -> Failure {
     Failure::value("invalid_capabilities_template")
 }
 
-/// The entry `caps[name]` as an object to fill in; one that is anything else (a JSON null too)
-/// refuses the template.
-fn entry<'a>(
-    caps: &'a mut Map<String, Value>,
-    name: &str,
-) -> Result<Option<&'a mut Map<String, Value>>, Failure> {
-    match caps.get_mut(name) {
-        None => Ok(None),
-        Some(Value::Object(map)) => Ok(Some(map)),
-        Some(_) => Err(invalid_template()),
-    }
-}
-
+/// `y2-platform capabilities`: the installed template (`/etc/y2linux/capabilities.json`) with the
+/// running release's identity, the owner's Wi-Fi/Bluetooth switches and what this build's codecs,
+/// power save and DVFS ceiling allow. Without a template: only `schema`, `state` and
+/// `platform_version`.
 pub fn run(root: &Root) -> Outcome {
     let mut result = match root.json("/etc/y2linux/capabilities.json") {
-        Some(Value::Object(map)) => map,
-        _ => Object::new()
-            .with("schema", y2p_contract::schema::CAPABILITIES)
-            .with("state", "Unavailable"),
+        Some(template @ Value::Object(_)) => {
+            serde_json::from_value::<Capabilities>(template).map_err(|_| invalid_template())?
+        }
+        _ => Capabilities {
+            schema: y2p_contract::schema::CAPABILITIES.into(),
+            platform_version: None,
+            state: Some("Unavailable".into()),
+            api_version: None,
+            feature_contract_version: None,
+            qualification_scope: None,
+            capabilities: None,
+        },
     };
-    let version = root
+    // Runtime identity always comes from the installed release, never the template.
+    result.platform_version = root
         .json_object("/etc/y2linux/versions.json")
         .get("release_version")
-        .cloned()
-        .unwrap_or(Value::Null);
-    result.insert("platform_version".into(), version.clone());
-    let mut caps = match result.shift_remove("capabilities") {
-        None => None,
-        Some(Value::Object(map)) => Some(map),
-        // Capabilities that are no object refuse the template. A list or text naming neither radio is
-        // read only after the codec policy, whose own refusal comes first then.
-        Some(other) => {
-            let names_a_radio = ["wifi", "bluetooth"].iter().any(|name| match &other {
-                Value::Array(items) => items.iter().any(|item| item.as_str() == Some(name)),
-                Value::String(text) => text.contains(name),
-                _ => true,
-            });
-            if !names_a_radio {
-                codec::requested(root)?;
-            }
-            return Err(invalid_template());
-        }
-    };
-    if let Some(caps) = caps.as_mut() {
-        for (name, path) in [
-            ("wifi", "/data/network/enabled"),
-            ("bluetooth", "/data/bluetooth/enabled"),
-        ] {
-            if let Some(cap) = entry(caps, name)? {
-                cap.insert("enabled".into(), json!(root.integer(path) == Some(1)));
-            }
-        }
-    }
+        .and_then(Value::as_str)
+        .map(str::to_owned);
     let inventory = codec::Inventory::read(root)?;
     let policy = codec::requested(root)?;
-    if let Some(caps) = caps.as_mut() {
+    if let Some(caps) = result.capabilities.as_mut() {
         for (key, name) in [
             ("sbc", "SBC"),
             ("aac", "AAC"),
@@ -77,65 +46,46 @@ pub fn run(root: &Root) -> Outcome {
             ("aptx_hd", "aptX-HD"),
             ("ldac", "LDAC"),
         ] {
-            // `cap = caps.get(...)`; `if cap is None: continue` (also for a JSON null).
-            if caps
-                .get(&format!("bluetooth_{key}"))
-                .is_none_or(Value::is_null)
-            {
-                continue;
-            }
-            let actual = inventory.codec(name);
-            let Some(cap) = entry(caps, &format!("bluetooth_{key}"))? else {
+            let Some(cap) = caps.get_mut(&format!("bluetooth_{key}")) else {
                 continue;
             };
-            let implemented = actual.compiled_locally;
-            let enabled = implemented && (name == "SBC" || inventory.eligible(name, &policy));
-            cap.insert("implemented".into(), json!(implemented));
-            cap.insert("enabled".into(), json!(enabled));
-            cap.insert("qualified".into(), json!(actual.platform_qualified));
-            cap.insert(
+            let actual = inventory.codec(name);
+            cap.implemented = actual.compiled_locally;
+            cap.enabled =
+                actual.compiled_locally && (name == "SBC" || inventory.eligible(name, &policy));
+            cap.qualified = actual.platform_qualified;
+            cap.details.insert(
                 "enablement_scope".into(),
                 json!("daemon policy; active PCM reported separately"),
             );
         }
-        if let Some(cap) = entry(caps, "bluetooth_sbc_xq")? {
-            let xq = policy.experimental && matches!(policy.sbc_quality.as_str(), "xq" | "xq+");
-            cap.insert("enabled".into(), json!(xq));
+        if let Some(cap) = caps.get_mut("bluetooth_sbc_xq") {
+            cap.enabled =
+                policy.experimental && matches!(policy.sbc_quality.as_str(), "xq" | "xq+");
         }
-        if let Some(cap) = entry(caps, "wifi_power_save")? {
-            cap.insert(
-                "enabled".into(),
-                json!(
-                    super::connectivity::radio_policy::WifiPower::read(root).enabled == Some(true)
-                ),
-            );
+        if let Some(cap) = caps.get_mut("wifi_power_save") {
+            cap.enabled =
+                super::connectivity::radio_policy::WifiPower::read(root).enabled == Some(true);
         }
-        if let Some(cap) = entry(caps, "dvfs")? {
+        if let Some(cap) = caps.get_mut("dvfs") {
             let maximum = root.integer("/sys/module/cpu_dvfs/parameters/qualification_max_khz");
-            cap.insert(
+            cap.details.insert(
                 "stock_high_opp_enabled".into(),
                 json!(maximum.is_some_and(|m| m > 1_040_000)),
             );
-            cap.insert("runtime_ceiling_khz".into(), json!(maximum));
+            cap.details
+                .insert("runtime_ceiling_khz".into(), json!(maximum));
         }
-        // cli.main: a root overlay may retain an older capability template. Runtime identity always
-        // comes from the installed release, never the template; the owner's switches as text.
+        // The owner's switches (a root overlay may retain an older template).
         for (name, path) in [
             ("wifi", "/data/network/enabled"),
             ("bluetooth", "/data/bluetooth/enabled"),
         ] {
-            if let Some(cap) = entry(caps, name)? {
-                cap.insert(
-                    "enabled".into(),
-                    json!(root.read(path).as_deref() == Some("1")),
-                );
+            if let Some(cap) = caps.get_mut(name) {
+                cap.enabled = root.read(path).as_deref() == Some("1");
             }
         }
     }
-    if let Some(caps) = caps {
-        result.insert("capabilities".into(), Value::Object(caps));
-    }
-    result.insert("platform_version".into(), version);
     Reply::sorted(&result, 0)
 }
 

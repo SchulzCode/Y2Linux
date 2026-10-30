@@ -5,7 +5,7 @@
  "calls": [],
  "exit": 1,
  "stdout": {
-  "reason": "invalid_codec_inventory",
+  "reason": "invalid_capabilities_template",
   "schema": "org.y2linux.error/v1",
   "state": "Failed",
   "type": "ValueError"
