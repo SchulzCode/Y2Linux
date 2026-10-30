@@ -19,7 +19,6 @@ use std::{
     path::{Path, PathBuf},
     time::{SystemTime, UNIX_EPOCH},
 };
-use y2p_core::mounts::mounts_at;
 use y2p_core::{
     command,
     digest::sha256_hex,

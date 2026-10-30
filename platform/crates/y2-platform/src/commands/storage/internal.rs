@@ -15,17 +15,22 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use super::records::Properties;
 use super::sys::{
-    device_instance, get, get_eq, lock_now, mkdir, name, object, read, resolve, to_object, Mount,
-    Object,
+    device_instance, lock_now, mkdir, name, object, read, resolve, to_object, Mount, Object,
 };
 use crate::reply::{atomic_json, Failure};
-use serde::Serialize;
-use serde_json::{json, Value};
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::{
     fs::File,
     path::{Path, PathBuf},
 };
-use y2p_core::{command, mounts::mounts_at, Root};
+use y2p_core::{
+    command,
+    lenient::{self, BootId},
+    mounts::mounts_at,
+    py::PyValue,
+    Root,
+};
 
 mod gate;
 mod provision;
@@ -206,15 +211,49 @@ fn lock_runtime(root: &Root) -> Result<File, Failure> {
     lock_now(&runtime.join("internal-media.lock"))
 }
 
+/// What a reader of internal-media.json checks: the claim's state and the mount it names. Read
+/// leniently and compared strictly (owner decision 2026-10-30: the strictest rule that keeps every
+/// golden): texts for state, device and boot id; a JSON number for the mount id, equal as Python
+/// compares numbers (`41.0` names mount 41, a golden case holds that), never a bool (the four copies
+/// of this check before also took `true` for mount 1). A field of another type matches nothing.
+#[derive(Deserialize, Default)]
+#[serde(default)]
+pub struct Claim {
+    #[serde(deserialize_with = "lenient::text")]
+    state: Option<String>,
+    boot_id: BootId,
+    #[serde(deserialize_with = "lenient::json_number")]
+    mount_id: Option<serde_json::Number>,
+    #[serde(deserialize_with = "lenient::text")]
+    device_id: Option<String>,
+}
+
+impl Claim {
+    /// The claim at internal-media.json (all absent when it is missing or no object).
+    pub fn read(root: &Root) -> Claim {
+        lenient::read(object(root, MARKER))
+    }
+
+    /// Whether Y2Media is ready: recorded Ready this boot, and the claim's mount is still the only,
+    /// live mount at /media/internal (the same mount and device id).
+    pub fn ready(&self, root: &Root) -> bool {
+        let current = mounts_at(root, PATH);
+        let [mount] = &current[..] else {
+            return false;
+        };
+        self.state.as_deref() == Some("Ready")
+            && self.boot_id.is(root.boot_id().as_deref())
+            && self
+                .mount_id
+                .clone()
+                .is_some_and(|id| Value::Number(id).py_eq(&Value::from(mount.mount_id)))
+            && self.device_id.as_deref() == Some(mount.device_id.as_str())
+    }
+}
+
 /// True only while the recorded mount is still the live, exact Y2Media mount.
-fn ready(root: &Root) -> bool {
-    let claim = object(root, MARKER);
-    let current = mounts_at(root, PATH);
-    get(&claim, "state").as_str() == Some("Ready")
-        && current.len() == 1
-        && get_eq(&claim, "boot_id", &Value::from(root.boot_id()))
-        && get_eq(&claim, "mount_id", &json!(current[0].mount_id))
-        && get_eq(&claim, "device_id", &json!(current[0].device_id))
+pub fn ready(root: &Root) -> bool {
+    Claim::read(root).ready(root)
 }
 
 pub fn mount(root: &Root) -> Result<Object, Failure> {

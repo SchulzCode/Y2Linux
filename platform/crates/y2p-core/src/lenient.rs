@@ -82,6 +82,16 @@ pub fn is_true<'de, D: Deserializer<'de>>(deserializer: D) -> Result<bool, D::Er
     Ok(crate::py::is_true(Some(&Value::deserialize(deserializer)?)))
 }
 
+/// A JSON number as it is (no bool); anything else none.
+pub fn json_number<'de, D: Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Option<serde_json::Number>, D::Error> {
+    Ok(match Value::deserialize(deserializer)? {
+        Value::Number(number) => Some(number),
+        _ => None,
+    })
+}
+
 /// A record's `boot_id` field, compared with this boot's id as Python's `==` did: a missing or null
 /// field equals an unreadable boot id, a text equals the same text, anything else equals nothing.
 #[derive(Debug, Default, Clone, PartialEq)]

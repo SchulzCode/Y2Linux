@@ -6,6 +6,7 @@ use super::{provision::*, setup::*, *};
 use crate::commands::observation::snapshot;
 use crate::commands::storage::{observe::setup_status, sys::statvfs};
 use crate::testing::{Fixture, Outcome};
+use serde_json::json;
 use std::{
     cell::Cell,
     fs::{self, FileTimes},

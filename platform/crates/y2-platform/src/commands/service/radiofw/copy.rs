@@ -2,9 +2,9 @@
 //! scan that takes it, or deletes a later one once the firmware is in place.
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{
-    from_system_image, fs, install, installed, json, media, mounts_at, os_path, present, py,
-    record, start, Map, Object, Path, PathBuf, Result, Reviewed, Root, SystemTime, Value, ENOSPC,
-    FOLDER, INBOX, INTERNAL_INBOX, README, SD_INBOX, SOURCE, STATE, UNIX_EPOCH,
+    from_system_image, fs, install, installed, json, media, os_path, present, py, record, start,
+    Map, Object, Path, PathBuf, Result, Reviewed, Root, SystemTime, Value, ENOSPC, FOLDER, INBOX,
+    INTERNAL_INBOX, README, SD_INBOX, SOURCE, STATE, UNIX_EPOCH,
 };
 use std::os::unix::fs::DirBuilderExt;
 use std::os::unix::fs::MetadataExt;
@@ -30,13 +30,7 @@ fn get_or_null<'a>(map: &'a Map<String, Value>, key: &str) -> &'a Value {
 
 /// True only while the recorded mount is still the live, exact Y2Media mount.
 pub fn internal(root: &Root) -> bool {
-    let claim = root.json_object("/run/y2/internal-media.json");
-    let current = mounts_at(root, "/media/internal");
-    claim.get("state") == Some(&json!("Ready"))
-        && current.len() == 1
-        && *get_or_null(&claim, "boot_id") == Value::from(root.boot_id())
-        && py::eq_int(claim.get("mount_id"), current[0].mount_id)
-        && claim.get("device_id") == Some(&json!(current[0].device_id))
+    crate::commands::storage::internal::ready(root)
 }
 
 /// `Path.mkdir(mode, exist_ok=True)`.

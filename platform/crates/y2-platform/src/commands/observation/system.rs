@@ -13,7 +13,7 @@ use serde_json::{json, Map, Value};
 use y2p_core::{
     command,
     json::{Object, ObjectExt},
-    py::{truthy, PyValue},
+    py::truthy,
     Root,
 };
 
@@ -126,28 +126,10 @@ pub fn setup_status(root: &Root) -> Value {
     }
 }
 
-/// `/run/y2/internal-media.json`: the Y2Media mount the platform made (storage group).
-#[derive(Deserialize, Default)]
-#[serde(default)]
-struct InternalClaim {
-    state: Value,
-    boot_id: Value,
-    mount_id: Value,
-    device_id: Value,
-}
-
 /// Whether Y2Media is mounted as recorded: the claim's mount is still the only, live mount at
 /// /media/internal.
 pub fn internal_ready(root: &Root) -> bool {
-    let claim: InternalClaim = record_fields(root, "/run/y2/internal-media.json");
-    let current = y2p_core::mounts::mounts_at(root, "/media/internal");
-    let [mount] = &current[..] else {
-        return false;
-    };
-    claim.state.as_str() == Some("Ready")
-        && claim.boot_id.py_eq(&Value::from(root.boot_id()))
-        && claim.mount_id.py_eq(&json!(mount.mount_id))
-        && claim.device_id.py_eq(&json!(mount.device_id))
+    crate::commands::storage::internal::ready(root)
 }
 
 /// The update download's record (download.json), with a download or check whose process is gone shown as
