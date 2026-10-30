@@ -16,17 +16,12 @@
 use super::records::Properties;
 use super::sys::{device_instance, lock_now, mkdir, name, read, resolve, Mount};
 use crate::reply::{atomic_json, Failure};
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use std::{
     fs::File,
     path::{Path, PathBuf},
 };
-use y2p_core::{
-    command,
-    lenient::{self, BootId},
-    mounts::mounts_at,
-    Root,
-};
+use y2p_core::{command, lenient, mounts::mounts_at, Root};
 
 mod gate;
 mod provision;
@@ -205,101 +200,26 @@ fn lock_runtime(root: &Root) -> Result<File, Failure> {
     lock_now(&runtime.join("internal-media.lock"))
 }
 
-/// internal-media.json as a reader checks it: the claim's state and the mount it names, with the
-/// types the claim is written in: texts for state, device and boot id, an integer for the mount id. A
-/// field of another type matches nothing (and is not shown).
-#[derive(Serialize, Deserialize, Default)]
-#[serde(default)]
-pub struct Claim {
-    #[serde(
-        skip_serializing_if = "Option::is_none",
-        deserialize_with = "lenient::integer"
-    )]
-    schema: Option<i64>,
-    #[serde(
-        skip_serializing_if = "Option::is_none",
-        deserialize_with = "lenient::text"
-    )]
-    state: Option<String>,
-    #[serde(
-        skip_serializing_if = "Option::is_none",
-        deserialize_with = "lenient::text"
-    )]
-    reason: Option<String>,
-    #[serde(
-        skip_serializing_if = "Option::is_none",
-        deserialize_with = "lenient::text"
-    )]
-    path: Option<String>,
-    #[serde(
-        skip_serializing_if = "Option::is_none",
-        deserialize_with = "lenient::there"
-    )]
-    boot_id: Option<BootId>,
-    #[serde(
-        skip_serializing_if = "Option::is_none",
-        deserialize_with = "lenient::text"
-    )]
-    filesystem: Option<String>,
-    #[serde(
-        skip_serializing_if = "Option::is_none",
-        deserialize_with = "lenient::text"
-    )]
-    label: Option<String>,
-    #[serde(
-        skip_serializing_if = "Option::is_none",
-        deserialize_with = "lenient::text"
-    )]
-    serial: Option<String>,
-    #[serde(
-        skip_serializing_if = "Option::is_none",
-        deserialize_with = "lenient::integer"
-    )]
-    mount_id: Option<i64>,
-    #[serde(
-        skip_serializing_if = "Option::is_none",
-        deserialize_with = "lenient::text"
-    )]
-    device_id: Option<String>,
-    #[serde(
-        skip_serializing_if = "Option::is_none",
-        deserialize_with = "lenient::text"
-    )]
-    uuid: Option<String>,
-    #[serde(
-        skip_serializing_if = "Option::is_none",
-        deserialize_with = "lenient::text"
-    )]
-    source_instance: Option<String>,
+pub use y2p_contract::storage::Y2MediaClaim as Claim;
+
+/// The claim at internal-media.json (all absent when it is missing or no object).
+fn read_claim(root: &Root) -> Claim {
+    lenient::read(root.json_object(MARKER))
 }
 
-impl Claim {
-    /// The claim at internal-media.json (all absent when it is missing or no object).
-    pub fn read(root: &Root) -> Claim {
-        lenient::read(root.json_object(MARKER))
-    }
-
-    /// Whether Y2Media is ready: recorded Ready this boot, and the claim's mount is still the only,
-    /// live mount at /media/internal (the same mount and device id).
-    pub fn ready(&self, root: &Root) -> bool {
-        let current = mounts_at(root, PATH);
-        let [mount] = &current[..] else {
-            return false;
-        };
-        self.state.as_deref() == Some("Ready")
-            && self
-                .boot_id
-                .as_ref()
-                .unwrap_or(&BootId::Null)
-                .is(root.boot_id().as_deref())
-            && self.mount_id == Some(mount.mount_id)
-            && self.device_id.as_deref() == Some(mount.device_id.as_str())
-    }
+/// Whether Y2Media is ready: recorded Ready this boot, and the claim's mount is still the only, live
+/// mount at /media/internal (the same mount and device id).
+fn claim_ready(claim: &Claim, root: &Root) -> bool {
+    let current = mounts_at(root, PATH);
+    let [mount] = &current[..] else {
+        return false;
+    };
+    claim.ready_on(root.boot_id().as_deref(), mount.mount_id, &mount.device_id)
 }
 
 /// True only while the recorded mount is still the live, exact Y2Media mount.
 pub fn ready(root: &Root) -> bool {
-    Claim::read(root).ready(root)
+    claim_ready(&read_claim(root), root)
 }
 
 pub fn mount(root: &Root) -> Result<Marker, Failure> {
@@ -394,7 +314,7 @@ pub struct Status {
 pub fn status(root: &Root) -> Status {
     let entry = partition(root);
     let props = entry.as_ref().map(|e| probe(root, e)).unwrap_or_default();
-    let marker = Claim::read(root);
+    let marker = read_claim(root);
     Status {
         schema: 1,
         path: PATH,
@@ -404,7 +324,7 @@ pub fn status(root: &Root) -> Status {
         uuid: props.text("UUID"),
         identity_valid: valid(&props),
         mounted: !mounts_at(root, PATH).is_empty(),
-        ready: marker.ready(root),
+        ready: claim_ready(&marker, root),
         marker,
     }
 }

@@ -6,6 +6,7 @@ use crate::commands::observation::util::{
     self, findall_map, int, name, read, read_limited, realpath,
 };
 use crate::commands::storage::observe::Identity;
+use crate::commands::storage::records::OnPlayer;
 use crate::commands::storage::records::{MediaRecord, ReadOnly};
 use crate::{regex, reply::Failure};
 use serde::Serialize;

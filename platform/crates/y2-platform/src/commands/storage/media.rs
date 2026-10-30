@@ -9,6 +9,7 @@ use super::sys::{
     device_instance, emmc_entry, exists, is_symlink, lock_now, mkdir, name, read, release_sd,
     resolve, Mount,
 };
+use crate::commands::storage::records::OnPlayer;
 use crate::reply::{atomic_json, unlink_missing_ok, Failure};
 use std::{
     fs,
@@ -26,7 +27,6 @@ pub use change::change_card;
 pub use check::verify;
 use check::{fallback_filesystem, read_only_check, remember_admission, CHECK_SECONDS};
 pub use repair::repair;
-pub(crate) use repair::RepairRun;
 use window::{protect, PROTECT_OFF};
 pub use window::{window_expired, write_window, write_window_within};
 

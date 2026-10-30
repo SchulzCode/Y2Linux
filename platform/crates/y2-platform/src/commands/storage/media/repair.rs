@@ -5,6 +5,7 @@ use super::super::sys::{maintenance, mkdir_io, statvfs, try_lock, wall_seconds};
 use super::change::detach_for_change;
 use super::{candidates, milliseconds, operation, owned_mount, prefix, runtime, Card, SD};
 use crate::commands::power::published::{Battery, PowerState};
+use crate::commands::storage::records::OnPlayer;
 use crate::reply::{atomic_json, Failure};
 use serde::Serialize;
 use serde_json::Value;
@@ -256,7 +257,7 @@ fn repair_locked(root: &Root) -> Result<(MediaRecord, Option<RepairRecord>), Fai
         backup,
         elapsed_ms: milliseconds(started),
     };
-    state.repair = Some(run.clone());
+    state.repair = serde_json::to_value(&run).ok();
     if result.reason.as_deref() == Some("command_timeout") {
         state.set_state("Failed", Some("repair_timed_out"));
     }

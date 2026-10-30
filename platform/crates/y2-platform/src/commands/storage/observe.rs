@@ -18,26 +18,7 @@ pub const MEDIA_MOUNT: &str = "/run/y2/media-mount.json";
 pub const MEDIA_STATE: &str = "/run/y2/media.json";
 pub const SETUP_STATUS: &str = "/run/y2/internal-media-setup.json";
 
-/// A card's identity (`identity` of the SD records): what names it across insertions, and `id`, the
-/// hash of the rest. Only exactly this shape reads as one.
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
-#[serde(deny_unknown_fields)]
-pub struct Identity {
-    pub cid: Option<String>,
-    pub geometry: Geometry,
-    pub filesystem: String,
-    pub uuid: Option<String>,
-    pub id: String,
-}
-
-/// Where the filesystem sits on the card (sysfs texts).
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
-#[serde(deny_unknown_fields)]
-pub struct Geometry {
-    pub partition: Option<String>,
-    pub start: Option<String>,
-    pub size: Option<String>,
-}
+pub use y2p_contract::storage::{Geometry, Identity};
 
 /// A card's identity: CID/partition geometry supplies identity when a legal FAT UUID is absent;
 /// `None` when neither can.

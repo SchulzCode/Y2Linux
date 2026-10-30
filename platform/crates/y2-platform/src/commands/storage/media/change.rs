@@ -3,6 +3,7 @@
 use super::super::records::MediaRecord;
 use super::super::sys::{exists, isdigit, lock_now, name, read, release_sd, resolve};
 use super::{candidates, operation, owned_mount, runtime, CONTROLLER, SD};
+use crate::commands::storage::records::OnPlayer;
 use crate::reply::{atomic_json, Failure};
 use std::{
     fs::{File, OpenOptions},
