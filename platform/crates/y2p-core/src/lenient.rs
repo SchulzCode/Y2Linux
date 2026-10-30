@@ -3,7 +3,7 @@
 //! reads as absent instead of failing the whole record.
 // SPDX-License-Identifier: GPL-2.0-only
 use crate::json::Object;
-use serde::{de::DeserializeOwned, Deserialize, Deserializer};
+use serde::{de::DeserializeOwned, Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::Value;
 
 /// A text field: a JSON string, anything else (null, a number, missing) none.
@@ -167,6 +167,52 @@ impl<'de> Deserialize<'de> for BootId {
             Value::Null => BootId::Null,
             Value::String(text) => BootId::Text(text),
             _ => BootId::Other,
+        })
+    }
+}
+
+/// A record's own id written back as it reads (`null` for none or another shape).
+impl Serialize for BootId {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        match self {
+            BootId::Text(text) => serializer.serialize_str(text),
+            BootId::Null | BootId::Other => serializer.serialize_none(),
+        }
+    }
+}
+
+impl From<Option<String>> for BootId {
+    fn from(boot: Option<String>) -> BootId {
+        boot.map_or(BootId::Null, BootId::Text)
+    }
+}
+
+/// A part of a record that is a JSON object read as `T`, or anything else, kept as it was (written
+/// back unchanged).
+#[derive(Debug, Clone, PartialEq)]
+pub enum Shaped<T> {
+    Is(T),
+    Odd(Value),
+}
+
+impl<T: Serialize> Serialize for Shaped<T> {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        match self {
+            Shaped::Is(value) => value.serialize(serializer),
+            Shaped::Odd(value) => value.serialize(serializer),
+        }
+    }
+}
+
+impl<'de, T: DeserializeOwned> Deserialize<'de> for Shaped<T> {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let value = Value::deserialize(deserializer)?;
+        Ok(match value {
+            Value::Object(_) => match T::deserialize(&value) {
+                Ok(read) => Shaped::Is(read),
+                Err(_) => Shaped::Odd(value),
+            },
+            other => Shaped::Odd(other),
         })
     }
 }

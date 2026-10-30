@@ -1,9 +1,8 @@
 //! `media format` and `media grow`: the owner changes the removable card he names.
 // SPDX-License-Identifier: GPL-2.0-only
-use super::super::sys::{exists, isdigit, lock_now, name, read, release_sd, resolve, Object};
-use super::{
-    begin, candidates, operation, owned_mount, runtime, set, set_state, state_is, CONTROLLER, SD,
-};
+use super::super::records::MediaRecord;
+use super::super::sys::{exists, isdigit, lock_now, name, read, release_sd, resolve};
+use super::{candidates, operation, owned_mount, runtime, CONTROLLER, SD};
 use crate::reply::{atomic_json, Failure};
 use std::{
     fs::{File, OpenOptions},
@@ -54,25 +53,24 @@ pub(super) fn mbr_for(sectors: u64) -> Vec<u8> {
 }
 
 /// Release the card from MTP and unmount it, for an explicit owner command.
-pub(super) fn detach_for_change(root: &Root, state: &mut Object) -> Result<bool, Failure> {
+pub(super) fn detach_for_change(root: &Root, state: &mut MediaRecord) -> Result<bool, Failure> {
     let old = mounts_at(root, SD);
     if old.is_empty() {
         return Ok(true);
     }
     if old.len() > 1 || old.iter().any(|m| !owned_mount(root, m)) {
-        set_state(state, "Failed", "ambiguous_or_foreign_mount");
+        state.set_state("Failed", Some("ambiguous_or_foreign_mount"));
         return Ok(false);
     }
     if !release_sd(root, old[0].mount_id, true)? {
-        set_state(state, "Failed", "usb_release_failed");
+        state.set_state("Failed", Some("usb_release_failed"));
         return Ok(false);
     }
     let result = command::run(root, &["umount", SD], 10.0);
     if !result.ok || !mounts_at(root, SD).is_empty() {
-        set_state(
-            state,
+        state.set_state(
             "Failed",
-            result.reason.unwrap_or_else(|| "unmount_busy".into()),
+            Some(result.reason.as_deref().unwrap_or("unmount_busy")),
         );
         return Ok(false);
     }
@@ -96,7 +94,7 @@ pub fn change_card(
     root: &Root,
     action: &str,
     confirm_cid: Option<&str>,
-) -> Result<Object, Failure> {
+) -> Result<MediaRecord, Failure> {
     change_card_with(root, action, confirm_cid, &blkrrpart)
 }
 
@@ -106,15 +104,15 @@ pub(super) fn change_card_with(
     action: &str,
     confirm_cid: Option<&str>,
     reread: Reread,
-) -> Result<Object, Failure> {
+) -> Result<MediaRecord, Failure> {
     if action != "format" && action != "grow" {
         return Err(Failure::value("unknown_media_change"));
     }
     let mut state = apply_change(root, action, confirm_cid, reread)?;
-    if state_is(&state, "Starting") {
+    if state.state_is("Starting") {
         // Mount through the normal admission path, after the change released the media lock.
-        state.extend(operation(root, "mount")?);
-        set(&mut state, "action", action);
+        state.absorb(operation(root, "mount")?);
+        state.action = Some(action.into());
     }
     Ok(state)
 }
@@ -124,10 +122,10 @@ fn apply_change(
     action: &str,
     confirm_cid: Option<&str>,
     reread: Reread,
-) -> Result<Object, Failure> {
+) -> Result<MediaRecord, Failure> {
     let runtime = runtime(root)?;
     let _lock = lock_now(&runtime.join("media.lock"))?;
-    let mut state = begin(root, action);
+    let mut state = MediaRecord::begin(root, action);
     let disk = sd_disk(root);
     let cid = disk.as_ref().and_then(|d| read(&d.join("device/cid")));
     let sectors = disk.as_ref().and_then(|d| read(&d.join("size")));
@@ -140,15 +138,15 @@ fn apply_change(
             let sectors: u64 = sectors.parse().unwrap_or(u64::MAX);
             if action == "format" && confirm_cid != Some(cid) {
                 // The owner must name the card: a wrong or swapped card is never formatted.
-                set_state(&mut state, "Failed", "cid_confirmation_mismatch");
-                set(&mut state, "cid", cid);
+                state.set_state("Failed", Some("cid_confirmation_mismatch"));
+                state.cid = Some(cid.into());
             } else if sectors < MIN_CARD_SECTORS {
-                set_state(&mut state, "Failed", "card_too_small");
+                state.set_state("Failed", Some("card_too_small"));
             } else {
                 let device = format!("/dev/{}", name(disk));
-                set(&mut state, "cid", cid);
-                set(&mut state, "sectors", sectors);
-                set(&mut state, "device", device.clone());
+                state.cid = Some(cid.into());
+                state.sectors = Some(sectors);
+                state.device = Some(device.clone());
                 if detach_for_change(root, &mut state)? {
                     if action == "format" {
                         format_steps(root, &mut state, &device, sectors, reread);
@@ -158,9 +156,9 @@ fn apply_change(
                 }
             }
         }
-        _ => set_state(&mut state, "Unavailable", "no_unique_card"),
+        _ => state.set_state("Unavailable", Some("no_unique_card")),
     }
-    if !state_is(&state, "Starting") {
+    if !state.state_is("Starting") {
         atomic_json(&runtime.join("media.json"), &state, false)?;
     }
     Ok(state)
@@ -168,7 +166,7 @@ fn apply_change(
 
 pub(super) fn format_steps(
     root: &Root,
-    state: &mut Object,
+    state: &mut MediaRecord,
     device: &str,
     sectors: u64,
     reread: Reread,
@@ -179,7 +177,7 @@ pub(super) fn format_steps(
         .custom_flags(libc::O_SYNC | libc::O_CLOEXEC)
         .open(root.path(device))
     else {
-        set_state(state, "Failed", "card_not_writable");
+        state.set_state("Failed", Some("card_not_writable"));
         return;
     };
     // The old table, boot sector and a stale GPT backup must not survive.
@@ -192,13 +190,13 @@ pub(super) fn format_steps(
         card.sync_all()
     };
     if let Err(error) = wipe() {
-        set_state(state, "Failed", "card_write_failed");
-        set(state, "errno", error.raw_os_error());
+        state.set_state("Failed", Some("card_write_failed"));
+        state.errno = error.raw_os_error();
         return;
     }
     if let Err(error) = reread(&card) {
-        set_state(state, "Failed", "partition_reread_failed");
-        set(state, "errno", error.raw_os_error());
+        state.set_state("Failed", Some("partition_reread_failed"));
+        state.errno = error.raw_os_error();
         return;
     }
     drop(card);
@@ -226,30 +224,30 @@ pub(super) fn format_steps(
     let result = command::run(root, &argv, 180.0);
     if !result.ok {
         let reason = result.reason.as_deref().unwrap_or("None");
-        set_state(state, "Failed", format!("mkfs_failed:{reason}"));
+        state.set_state("Failed", Some(&format!("mkfs_failed:{reason}")));
     }
 }
 
-fn grow_steps(root: &Root, state: &mut Object) {
+fn grow_steps(root: &Root, state: &mut MediaRecord) {
     let available = candidates(root);
     let [card] = &available[..] else {
-        set_state(state, "Failed", "grow_requires_one_ext4_card");
+        state.set_state("Failed", Some("grow_requires_one_ext4_card"));
         return;
     };
     if card.filesystem != "ext4" {
-        set_state(state, "Failed", "grow_requires_one_ext4_card");
+        state.set_state("Failed", Some("grow_requires_one_ext4_card"));
         return;
     }
     let device = card.device.as_str();
     // Only a clean (or safely auto-corrected) filesystem is resized.
     if !command::run(root, &["e2fsck", "-f", "-p", device], 300.0).ok {
-        set_state(state, "Failed", "filesystem_check_failed");
+        state.set_state("Failed", Some("filesystem_check_failed"));
         return;
     }
     let result = command::run(root, &["resize2fs", device], 300.0);
     if !result.ok {
         let reason = result.reason.as_deref().unwrap_or("None");
-        set_state(state, "Failed", format!("resize_failed:{reason}"));
+        state.set_state("Failed", Some(&format!("resize_failed:{reason}")));
     }
 }
 

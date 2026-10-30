@@ -45,11 +45,6 @@ pub fn to_object<T: serde::Serialize>(value: &T) -> Object {
     }
 }
 
-/// An optional text as a record keeps it (`null` when missing).
-pub fn text(value: &Option<String>) -> Value {
-    value.clone().map_or(Value::Null, Value::String)
-}
-
 /// Only ASCII digits, at least one (sysfs numbers).
 pub fn isdigit(text: &str) -> bool {
     !text.is_empty() && text.chars().all(|c| c.is_ascii_digit())

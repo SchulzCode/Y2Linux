@@ -2,18 +2,20 @@
 //! its check had not finished (F49); what each check found is remembered across boots (F12).
 // SPDX-License-Identifier: GPL-2.0-only
 use super::super::observe::MEDIA_MOUNT;
-use super::super::records::ReadOnly;
-use super::super::sys::{exists, get, lock_within, mkdir, object, to_object, wall_seconds, Object};
+pub(super) use super::super::records::Check;
+use super::super::records::{MediaRecord, ReadOnly};
+use super::super::sys::{exists, lock_within, mkdir, wall_seconds};
 use super::window::{sd_state, PROTECT_OFF};
-use super::{candidates, milliseconds, prefix, set, set_state, Card, SD};
+use super::{candidates, milliseconds, prefix, Card, SD};
 use crate::reply::{atomic_json, Failure};
-use serde::Serialize;
-use serde_json::{json, Value};
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::time::Instant;
 use y2p_core::{
     command,
+    lenient::Shaped,
     mounts::mounts_at,
-    py::{truthy, PyValue},
+    py::truthy,
     storage_media::{fat_benign_only, fat_findings, fat_other_shapes},
     Root,
 };
@@ -35,39 +37,6 @@ const READ_ONLY_FALLBACK: [&str; 2] = ["vfat", "exfat"];
 
 pub(super) fn fallback_filesystem(filesystem: &str) -> bool {
     READ_ONLY_FALLBACK.contains(&filesystem)
-}
-
-/// What a filesystem check found (`filesystem_check` of the records). The checker's output is kept
-/// only from a run that passed: a failed one can name files.
-#[derive(Clone, Debug, Serialize)]
-pub(super) struct Check {
-    pub(super) ok: bool,
-    pub(super) reason: Option<String>,
-    output: Option<String>,
-    elapsed_ms: u64,
-    /// The classes of what it reported: `timeout`, the FAT line classes, or `other`.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    findings: Option<Vec<String>>,
-    /// What FAT's unclassified lines said, without names.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    other: Option<Value>,
-    /// Why a FAT check that failed passed anyway: `unclean_unmount` (#44) or `benign`.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    finding: Option<&'static str>,
-    /// Run by `verify` after the card was admitted read-only.
-    #[serde(skip_serializing_if = "std::ops::Not::not")]
-    background: bool,
-}
-
-impl Check {
-    /// The checker ran out of time; that is not damage (F49).
-    pub(super) fn timed_out(&self) -> bool {
-        self.findings.as_ref().is_some_and(|f| f == &["timeout"])
-    }
-
-    pub(super) fn value(&self) -> Value {
-        Value::Object(to_object(self))
-    }
 }
 
 /// The admission check, never a repair. Benign findings pass with `finding`, and every run names
@@ -123,11 +92,14 @@ pub(super) fn read_only_check(
         if fat_benign_only(output) {
             // 'unclean_unmount' is the #44 name for the dirty bit alone.
             check.ok = true;
-            check.finding = Some(if only_dirty {
-                "unclean_unmount"
-            } else {
-                "benign"
-            });
+            check.finding = Some(
+                if only_dirty {
+                    "unclean_unmount"
+                } else {
+                    "benign"
+                }
+                .into(),
+            );
         }
     } else if !result.ok {
         check.findings = Some(vec!["other".into()]);
@@ -135,7 +107,7 @@ pub(super) fn read_only_check(
     check
 }
 
-/// One entry of sd-admissions.json.
+/// One entry of sd-admissions.json (/data: entries earlier versions wrote are kept as they are).
 #[derive(Serialize)]
 struct Admission<'a> {
     time: i64,
@@ -143,7 +115,7 @@ struct Admission<'a> {
     filesystem: &'a str,
     ok: bool,
     reason: &'a Option<String>,
-    finding: Option<&'static str>,
+    finding: &'a Option<String>,
     findings: &'a [String],
     elapsed_ms: u64,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -152,15 +124,36 @@ struct Admission<'a> {
     background: bool,
 }
 
+/// sd-admissions.json: its entries (objects; anything else in the list is left out).
+#[derive(Deserialize)]
+struct Admissions {
+    #[serde(default = "no_entries", deserialize_with = "entries")]
+    admissions: Option<Vec<Value>>,
+}
+
+/// A record without the list starts one.
+fn no_entries() -> Option<Vec<Value>> {
+    Some(Vec::new())
+}
+
+/// A list's objects; a text or an object holds no entries; a number, a flag or `null` is no list at
+/// all.
+fn entries<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Option<Vec<Value>>, D::Error> {
+    Ok(match Value::deserialize(deserializer)? {
+        Value::Array(items) => Some(items.into_iter().filter(Value::is_object).collect()),
+        Value::String(_) | Value::Object(_) => Some(Vec::new()),
+        _ => None,
+    })
+}
+
 pub(super) fn remember_admission(root: &Root, card: &Card, check: &Check) {
-    let old = object(root, ADMISSIONS);
-    let mut entries: Vec<Value> = match old.get("admissions") {
-        None => Vec::new(),
-        Some(Value::Array(items)) => items.iter().filter(|e| e.is_object()).cloned().collect(),
-        // A text or an object holds no entries; a number or a flag is no list at all: the record
-        // is left as it is rather than replaced.
-        Some(Value::String(_)) | Some(Value::Object(_)) => Vec::new(),
-        Some(_) => return,
+    let old: Option<Admissions> =
+        serde_json::from_value(Value::Object(root.json_object(ADMISSIONS))).ok();
+    // A record whose list is a number or a flag is left as it is rather than replaced.
+    let Some(mut entries) = old.map_or(Some(Vec::new()), |old| old.admissions) else {
+        return;
     };
     let entry = Admission {
         time: wall_seconds(),
@@ -168,13 +161,16 @@ pub(super) fn remember_admission(root: &Root, card: &Card, check: &Check) {
         filesystem: card.filesystem,
         ok: check.ok,
         reason: &check.reason,
-        finding: check.finding,
+        finding: &check.finding,
         findings: check.findings.as_deref().unwrap_or_default(),
         elapsed_ms: check.elapsed_ms,
         other: check.other.as_ref().filter(|o| truthy(o)),
         background: check.background,
     };
-    entries.push(Value::Object(to_object(&entry)));
+    let Ok(entry) = serde_json::to_value(&entry) else {
+        return;
+    };
+    entries.push(entry);
     let path = root.path(ADMISSIONS);
     let Some(directory) = path.parent() else {
         return;
@@ -183,7 +179,11 @@ pub(super) fn remember_admission(root: &Root, card: &Card, check: &Check) {
         return;
     }
     let kept = entries.split_off(entries.len().saturating_sub(ADMISSIONS_KEPT));
-    let _ = atomic_json(&path, &json!({"schema": 1, "admissions": kept}), false);
+    let _ = atomic_json(
+        &path,
+        &serde_json::json!({"schema": 1, "admissions": kept}),
+        false,
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -198,39 +198,26 @@ fn slept_ns(root: &Root) -> i128 {
     i128::from(clock.boottime_ns()) - i128::from(clock.monotonic_ns())
 }
 
-/// The id of a record's card identity (`null` without one); an identity that is not an object is
-/// refused.
-pub(super) fn identity_id(identity: &Value) -> Result<Value, Failure> {
-    match identity {
-        Value::Object(identity) => Ok(get(identity, "id").clone()),
-        other if truthy(other) => Err(Failure::value("card_identity_invalid")),
-        _ => Ok(Value::Null),
-    }
-}
-
 /// The one candidate is the card a record names by identity id and block instance.
-fn same_card(cards: &[Card], id: &Value, instance: &Value) -> bool {
+fn same_card(cards: &[Card], id: Option<&str>, instance: Option<&str>) -> bool {
     match cards {
-        [card] => json!(card.id()).py_eq(id) && json!(card.source_instance).py_eq(instance),
+        [card] => Some(card.id()) == id && Some(card.source_instance.as_str()) == instance,
         _ => false,
     }
 }
 
-pub fn verify(root: &Root) -> Result<Object, Failure> {
-    let mut state = Object::new();
-    set(&mut state, "schema", 1);
-    set(&mut state, "action", "verify");
-    set_state(&mut state, "Starting", Value::Null);
+pub fn verify(root: &Root) -> Result<MediaRecord, Failure> {
+    let mut state = MediaRecord::begin(root, "verify");
     let (claim, mount) = sd_state(root);
     if mount.is_none() || claim.read_only() != Some(ReadOnly::Checking) {
-        set_state(&mut state, "Unavailable", "nothing_to_check");
+        state.set_state("Unavailable", Some("nothing_to_check"));
         return Ok(state);
     }
-    let id = identity_id(claim.get("identity"))?;
-    let instance = claim.get("source_instance");
+    let id = claim.identity_id()?;
+    let instance = claim.source_instance.as_deref();
     let available = candidates(root);
-    if !same_card(&available, &id, instance) {
-        set_state(&mut state, "Failed", "card_changed");
+    if !same_card(&available, id, instance) {
+        state.set_state("Failed", Some("card_changed"));
         return Ok(state);
     }
     let card = &available[0];
@@ -239,25 +226,24 @@ pub fn verify(root: &Root) -> Result<Object, Failure> {
     check.background = true;
     if !check.ok && slept_ns(root) - slept > 1_000_000_000 {
         // A check read across a system sleep is no verdict; the service runs it again.
-        set_state(&mut state, "Failed", "slept_during_check");
+        state.set_state("Failed", Some("slept_during_check"));
         return Ok(state);
     }
     remember_admission(root, card, &check);
     let runtime = root.path("/run/y2");
     let Some(_lock) = lock_within(&runtime.join("media.lock"), 30.0)? else {
-        set_state(&mut state, "Failed", "media_operation_in_progress");
+        state.set_state("Failed", Some("media_operation_in_progress"));
         return Ok(state);
     };
-    let (now, mount) = sd_state(root);
+    let (mut now, mount) = sd_state(root);
     if mount.is_none()
-        || !now.get("mount_id").py_eq(claim.get("mount_id"))
+        || now.mount_id != claim.mount_id
         || now.read_only() != Some(ReadOnly::Checking)
-        || !same_card(&candidates(root), &id, instance)
+        || !same_card(&candidates(root), id, instance)
     {
-        set_state(&mut state, "Failed", "card_changed");
+        state.set_state("Failed", Some("card_changed"));
         return Ok(state);
     }
-    let mut now = now.into_object();
     if check.ok {
         let mut read_only = ReadOnly::Protected;
         if exists(&root.path(PROTECT_OFF)) {
@@ -267,8 +253,8 @@ pub fn verify(root: &Root) -> Result<Object, Failure> {
                 read_only = ReadOnly::ReadWrite;
             }
         }
-        set_state(&mut now, "Ready", Value::Null);
-        set(&mut now, "read_only", read_only.value());
+        now.set_state("Ready", None);
+        now.set_read_only(read_only);
     } else {
         // Errors found, or still unfinished after CHECK_SECONDS: Repair is offered.
         let read_only = if check.timed_out() {
@@ -276,13 +262,13 @@ pub fn verify(root: &Root) -> Result<Object, Failure> {
         } else {
             ReadOnly::FilesystemErrors
         };
-        set_state(&mut now, "Degraded", "read_only");
-        set(&mut now, "read_only", read_only.value());
+        now.set_state("Degraded", Some("read_only"));
+        now.set_read_only(read_only);
     }
-    set(&mut now, "filesystem_check", check.value());
+    now.filesystem_check = Some(Shaped::Is(check));
     atomic_json(&root.path(MEDIA_MOUNT), &now, false)?;
     atomic_json(&runtime.join("media.json"), &now, false)?;
-    state.extend(now);
-    set(&mut state, "action", "verify");
+    state.absorb(now);
+    state.action = Some("verify".into());
     Ok(state)
 }

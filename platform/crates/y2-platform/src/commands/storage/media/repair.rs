@@ -1,20 +1,13 @@
 //! `media repair`: the owner repairs the card the player marked, after a copy of its tables.
 // SPDX-License-Identifier: GPL-2.0-only
-use super::super::observe::{refused_card, MEDIA_STATE};
-use super::super::records::{Claim, ReadOnly};
-use super::super::sys::{
-    get, maintenance, mkdir_io, object, statvfs, to_object, try_lock, wall_seconds, Object,
-};
+use super::super::records::{MediaRecord, ReadOnly};
+use super::super::sys::{maintenance, mkdir_io, statvfs, try_lock, wall_seconds};
 use super::change::detach_for_change;
-use super::check::identity_id;
-use super::{
-    begin, candidates, milliseconds, operation, owned_mount, prefix, runtime, set, set_state,
-    state_is, Card, SD,
-};
+use super::{candidates, milliseconds, operation, owned_mount, prefix, runtime, Card, SD};
 use crate::commands::power::published::{Battery, PowerState};
 use crate::reply::{atomic_json, Failure};
 use serde::Serialize;
-use serde_json::{json, Value};
+use serde_json::Value;
 use std::{
     fs::{self, File, OpenOptions},
     io::{self, Read, Seek, SeekFrom, Write},
@@ -25,7 +18,6 @@ use y2p_core::py::strerror;
 use y2p_core::{
     command,
     mounts::mounts_at,
-    py::{truthy, PyValue},
     storage_media::{repair_summary, tables_bytes},
     Root,
 };
@@ -54,18 +46,18 @@ fn repairer(filesystem: &str) -> Option<&'static [&'static str]> {
 
 /// The card the player marked: mounted read-only by us after its check (the claim), or refused
 /// and still inserted (the last operation record).
-pub(super) fn marked_for_repair(root: &Root) -> Option<Object> {
+pub(super) fn marked_for_repair(root: &Root) -> Option<MediaRecord> {
     let old = mounts_at(root, SD);
-    let claim = Claim::load(root);
+    let claim = MediaRecord::claim(root);
     if old.len() == 1
         && owned_mount(root, &old[0])
-        && claim.get("mount_id").py_eq(&json!(old[0].mount_id))
+        && claim.mount_id == Some(old[0].mount_id)
         && ReadOnly::damaged(claim.read_only())
     {
-        return Some(claim.into_object());
+        return Some(claim);
     }
-    if old.is_empty() && !refused_card(root).is_empty() {
-        return Some(object(root, MEDIA_STATE));
+    if old.is_empty() && MediaRecord::refused(root).is_some() {
+        return Some(MediaRecord::last(root));
     }
     None
 }
@@ -91,7 +83,7 @@ fn read_up_to(file: &mut File, n: usize) -> io::Result<Vec<u8>> {
 
 /// The copy of a card's tables taken before its repair (`backup` of the repair record).
 #[derive(Clone, Debug, Serialize)]
-struct Backup {
+pub(crate) struct Backup {
     saved: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     reason: Option<String>,
@@ -176,7 +168,7 @@ fn save_tables(root: &Root, card: &Card) -> Backup {
 
 /// One repair run (`repair` of the printed record, and part of sd-repair-last.json).
 #[derive(Clone, Debug, Serialize)]
-struct RepairRun {
+pub(crate) struct RepairRun {
     ok: bool,
     reason: Option<String>,
     changed: Value,
@@ -192,13 +184,13 @@ struct RepairRecord {
     boot_id: Option<String>,
     card: String,
     filesystem: &'static str,
-    findings_before: Value,
+    findings_before: Option<Vec<String>>,
     #[serde(flatten)]
     run: RepairRun,
 }
 
 /// Owner command: repair the marked card, then admit it again.
-pub fn repair(root: &Root) -> Result<Object, Failure> {
+pub fn repair(root: &Root) -> Result<MediaRecord, Failure> {
     let mut state = {
         let _lease = maintenance(root)?;
         let (state, record) = repair_locked(root)?;
@@ -207,33 +199,30 @@ pub fn repair(root: &Root) -> Result<Object, Failure> {
         }
         state
     };
-    if state_is(&state, "Starting") {
+    if state.state_is("Starting") {
         // Admission after the repair: a clean check mounts it read-write.
-        state.extend(operation(root, "mount")?);
-        set(&mut state, "action", "repair");
+        state.absorb(operation(root, "mount")?);
+        state.action = Some("repair".into());
     }
     Ok(state)
 }
 
 /// The repair under the media lock: its state, and its record once the repairer ran.
-fn repair_locked(root: &Root) -> Result<(Object, Option<RepairRecord>), Failure> {
+fn repair_locked(root: &Root) -> Result<(MediaRecord, Option<RepairRecord>), Failure> {
     let runtime = runtime(root)?;
     let lock = try_lock(&runtime.join("media.lock"));
     let (time, boot_id) = (wall_seconds(), root.boot_id());
+    let mut state = MediaRecord::begin(root, "repair");
     let Some(_lock) = lock? else {
-        let mut state = Object::new();
-        set(&mut state, "schema", 1);
-        set(&mut state, "action", "repair");
-        set_state(&mut state, "Failed", "media_operation_in_progress");
+        state.set_state("Failed", Some("media_operation_in_progress"));
         return Ok((state, None));
     };
-    let mut state = begin(root, "repair");
     let Some(before) = marked_for_repair(root) else {
-        set_state(&mut state, "Failed", "card_not_marked_for_repair");
+        state.set_state("Failed", Some("card_not_marked_for_repair"));
         return Ok((state, None));
     };
     if !battery_allows_repair(root)? {
-        set_state(&mut state, "Failed", "repair_needs_charger_or_battery");
+        state.set_state("Failed", Some("repair_needs_charger_or_battery"));
         return Ok((state, None));
     }
     if !detach_for_change(root, &mut state)? {
@@ -242,23 +231,19 @@ fn repair_locked(root: &Root) -> Result<(Object, Option<RepairRecord>), Failure>
     let available = candidates(root);
     // An identity or check that cannot be read stops here, after the card was detached and
     // before a repair record exists.
-    let identity = identity_id(get(&before, "identity"))?;
+    let identity = before.identity_id()?.map(str::to_owned);
     let card = match &available[..] {
-        [card] if json!(card.id()).py_eq(&identity) => card,
+        [card] if identity.as_deref() == Some(card.id()) => card,
         _ => {
-            set_state(&mut state, "Failed", "card_changed");
+            state.set_state("Failed", Some("card_changed"));
             return Ok((state, None));
         }
     };
     let Some(repairer) = repairer(card.filesystem) else {
-        set_state(&mut state, "Failed", "filesystem_not_repairable");
+        state.set_state("Failed", Some("filesystem_not_repairable"));
         return Ok((state, None));
     };
-    let findings_before = match before.get("filesystem_check") {
-        Some(Value::Object(check)) => get(check, "findings").clone(),
-        Some(other) if truthy(other) => return Err(Failure::value("filesystem_check_invalid")),
-        _ => Value::Null,
-    };
+    let findings_before = before.findings()?;
     let backup = save_tables(root, card);
     let started = Instant::now();
     let mut argv = repairer.to_vec();
@@ -271,15 +256,15 @@ fn repair_locked(root: &Root) -> Result<(Object, Option<RepairRecord>), Failure>
         backup,
         elapsed_ms: milliseconds(started),
     };
-    set(&mut state, "repair", Value::Object(to_object(&run)));
+    state.repair = Some(run.clone());
     if result.reason.as_deref() == Some("command_timeout") {
-        set_state(&mut state, "Failed", "repair_timed_out");
+        state.set_state("Failed", Some("repair_timed_out"));
     }
     let record = RepairRecord {
         schema: 1,
         time,
         boot_id,
-        card: prefix(identity.as_str().unwrap_or_default()),
+        card: prefix(identity.as_deref().unwrap_or_default()),
         filesystem: card.filesystem,
         findings_before,
         run,

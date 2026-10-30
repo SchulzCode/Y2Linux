@@ -3,7 +3,8 @@
 //! and this boot's Y2Media setup state. `status` (group observation) reports the volumes too, with
 //! the controllers and block devices.
 // SPDX-License-Identifier: GPL-2.0-only
-use super::sys::{device_instance, get, isdigit, read, resolve, text, Object};
+use super::sys::{isdigit, read, resolve, Object};
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::path::Path;
 use y2p_core::{json::Separators, storage_media::sha256_hex, Root};
@@ -12,9 +13,30 @@ pub const MEDIA_MOUNT: &str = "/run/y2/media-mount.json";
 pub const MEDIA_STATE: &str = "/run/y2/media.json";
 pub const SETUP_STATUS: &str = "/run/y2/internal-media-setup.json";
 
-/// A card's identity, its `id` the hash of the rest: CID/partition geometry supplies identity when a
-/// legal FAT UUID is absent; `None` when neither can.
-pub fn media_identity(entry: &Path, filesystem: &str, uuid: Option<&str>) -> Option<Object> {
+/// A card's identity (`identity` of the SD records): what names it across insertions, and `id`, the
+/// hash of the rest. Only exactly this shape reads as one.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct Identity {
+    pub cid: Option<String>,
+    pub geometry: Geometry,
+    pub filesystem: String,
+    pub uuid: Option<String>,
+    pub id: String,
+}
+
+/// Where the filesystem sits on the card (sysfs texts).
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct Geometry {
+    pub partition: Option<String>,
+    pub start: Option<String>,
+    pub size: Option<String>,
+}
+
+/// A card's identity: CID/partition geometry supplies identity when a legal FAT UUID is absent;
+/// `None` when neither can.
+pub fn media_identity(entry: &Path, filesystem: &str, uuid: Option<&str>) -> Option<Identity> {
     let mut device = resolve(entry);
     let partition = read(&entry.join("partition"));
     if partition.is_some() {
@@ -35,55 +57,21 @@ pub fn media_identity(entry: &Path, filesystem: &str, uuid: Option<&str>) -> Opt
     {
         return None;
     }
-    let mut identity = Object::new();
-    identity.insert("cid".into(), text(&cid));
-    identity.insert(
-        "geometry".into(),
-        json!({"partition": partition, "start": start, "size": size}),
-    );
-    identity.insert("filesystem".into(), json!(filesystem));
-    identity.insert("uuid".into(), json!(uuid));
+    let geometry = Geometry {
+        partition,
+        start,
+        size,
+    };
+    let hashed = json!({"cid": cid, "geometry": geometry, "filesystem": filesystem, "uuid": uuid});
     // Python's sorted, spaced json.dumps: cards admitted by earlier versions keep their id.
-    let encoded = y2p_core::json::python_dumps_sorted(&identity, Separators::Spaced).ok()?;
-    identity.insert("id".into(), json!(sha256_hex(encoded.as_bytes())));
-    Some(identity)
-}
-
-/// The card still inserted that the last mount refused (its check failed),
-/// so the player can say so instead of "no card" (issue #44); {} otherwise. A removed or reinserted
-/// card has another disk sequence number.
-pub fn refused_card(root: &Root) -> Object {
-    let Some(Value::Object(last)) = root.json(MEDIA_STATE) else {
-        return Object::new();
-    };
-    if get(&last, "reason").as_str() != Some("filesystem_check_failed") {
-        return Object::new();
-    }
-    let instance = get(&last, "source_instance").as_str().unwrap_or_default();
-    let parts: Vec<&str> = if get(&last, "source_instance").is_string() {
-        instance.split(':').collect()
-    } else {
-        Vec::new()
-    };
-    if parts.len() != 5
-        || device_instance(root, &parts[1..3].join(":")).as_deref() != Some(instance)
-    {
-        return Object::new();
-    }
-    let check = match last.get("filesystem_check") {
-        Some(Value::Object(check)) => check.clone(),
-        _ => Object::new(),
-    };
-    // ['timeout'] for a card too slow to check in 60 s, not one that needs repair (F12).
-    let mut value = Object::new();
-    value.insert("state".into(), json!("Degraded"));
-    value.insert("reason".into(), json!("filesystem_check_failed"));
-    value.insert("filesystem".into(), get(&last, "filesystem").clone());
-    value.insert(
-        "findings".into(),
-        check.get("findings").cloned().unwrap_or(json!([])),
-    );
-    value
+    let encoded = y2p_core::json::python_dumps_sorted(&hashed, Separators::Spaced).ok()?;
+    Some(Identity {
+        cid,
+        geometry,
+        filesystem: filesystem.to_owned(),
+        uuid: uuid.map(str::to_owned),
+        id: sha256_hex(encoded.as_bytes()),
+    })
 }
 
 /// This boot's Y2Media setup state (no file names), else `{"state": "Unknown"}`.

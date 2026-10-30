@@ -6,6 +6,7 @@ use super::{change::*, check::*, repair::*, *};
 use crate::commands::storage::{observe::MEDIA_STATE, sys::statvfs};
 use crate::commands::{observation::snapshot, reports::media::can_write};
 use crate::testing::{Fixture, Outcome};
+use serde_json::{json, Value};
 use std::{
     cell::Cell,
     fs::{File, FileTimes},
@@ -210,7 +211,7 @@ impl Card {
     }
 
     fn operation(&self, action: &str) -> Value {
-        Value::Object(operation(self.root(), action).unwrap())
+        json!(operation(self.root(), action).unwrap())
     }
 
     /// The partition-table re-read format asks for, counted.
@@ -224,15 +225,15 @@ impl Card {
 
     fn change_card(&self, action: &str, cid: Option<&str>) -> Value {
         let reread = |card: &File| self.reread(card);
-        Value::Object(change_card_with(self.root(), action, cid, &reread).unwrap())
+        json!(change_card_with(self.root(), action, cid, &reread).unwrap())
     }
 
     fn verify(&self) -> Value {
-        Value::Object(verify(self.root()).unwrap())
+        json!(verify(self.root()).unwrap())
     }
 
     fn window(&self, holder: &str, seconds: i64, release: bool) -> Value {
-        Value::Object(write_window(self.root(), holder, seconds, release).unwrap())
+        json!(write_window(self.root(), holder, seconds, release).unwrap())
     }
 
     fn storage(&self) -> Value {
@@ -877,7 +878,7 @@ fn removed_card_can_be_unmounted_only_with_its_retained_claim() {
 #[test]
 fn automatic_mount_runs_once_per_insertion_and_failed_eject_is_bounded() {
     let card = Card::new("exfat");
-    let reconcile = || Value::Object(reconcile(card.root()).unwrap());
+    let reconcile = || json!(reconcile(card.root()).unwrap());
     assert_eq!(reconcile()["state"], "Ready");
     assert_eq!(reconcile()["attempts"], 1);
     fs::remove_file(card.path("/sys/class/block/mmcblk1p1")).unwrap();
@@ -944,10 +945,10 @@ fn the_usb_tick_never_waits_for_the_card_lock() {
     let answer = write_window_within(card.root(), "usb", 30, false, 0.0).unwrap();
     // A test build retries a busy lock for 0.2 s (lock::settle); the CLI's wait is 5 s.
     assert!(started.elapsed() < std::time::Duration::from_secs(2));
-    assert_eq!(answer["reason"], "media_operation_in_progress");
+    assert_eq!(answer.reason, Some("media_operation_in_progress"));
     drop(held);
     let answer = write_window_within(card.root(), "usb", 30, false, 0.0).unwrap();
-    assert_eq!(answer["state"], "Ready");
+    assert_eq!(answer.state, "Ready");
 }
 
 #[test]
@@ -1022,7 +1023,7 @@ fn repair_fixture(damaged: bool, percent: i64, charging: bool) -> Card {
 
 impl Card {
     fn repair(&self) -> Value {
-        Value::Object(repair(self.root()).unwrap())
+        json!(repair(self.root()).unwrap())
     }
 
     fn fixed(&self) -> bool {
@@ -1163,8 +1164,10 @@ fn large_cards_get_a_bounded_journal() {
         .unwrap()
         .set_len(big * 512)
         .unwrap();
-    let mut state = Object::new();
-    set(&mut state, "state", "Starting");
+    let mut state = crate::commands::storage::records::MediaRecord {
+        state: Some("Starting".into()),
+        ..Default::default()
+    };
     format_steps(card.root(), &mut state, "/dev/mmcblk1", big, &|_| Ok(()));
     let mkfs = card
         .argvs()

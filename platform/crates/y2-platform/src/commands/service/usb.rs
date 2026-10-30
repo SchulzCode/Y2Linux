@@ -212,19 +212,14 @@ impl UsbService {
             // tick (the window is renewed well before it ends).
             let answer =
                 media::write_window_within(&self.root, "usb", SD_WINDOW_SECONDS, false, 0.0);
-            if answer.is_ok_and(|answer| {
-                answer
-                    .get("holders")
-                    .and_then(Value::as_object)
-                    .is_some_and(|holders| !holders.is_empty())
-            }) {
+            if answer.is_ok_and(|answer| answer.holders.is_some_and(|holders| !holders.is_empty()))
+            {
                 self.sd_window = now;
             }
         } else if !host
             && self.sd_window != 0.0
-            && media::write_window_within(&self.root, "usb", 60, true, 0.0).is_ok_and(|answer| {
-                answer.get("reason") != Some(&json!("media_operation_in_progress"))
-            })
+            && media::write_window_within(&self.root, "usb", 60, true, 0.0)
+                .is_ok_and(|answer| answer.reason != Some("media_operation_in_progress"))
         {
             self.sd_window = 0.0;
         }

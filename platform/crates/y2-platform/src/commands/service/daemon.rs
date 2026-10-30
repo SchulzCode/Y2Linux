@@ -27,13 +27,7 @@ use crate::reply::At;
 use crate::reply::{atomic_json, private_directory, Failure, Outcome};
 use serde_json::{json, Map, Value};
 use std::{env, sync::atomic::Ordering};
-use y2p_core::{
-    command,
-    json::ObjectExt,
-    py::{self, is_true, truthy},
-    root::read,
-    Root,
-};
+use y2p_core::{command, json::ObjectExt, py::is_true, root::read, Root};
 
 mod coexistence;
 mod jobs;

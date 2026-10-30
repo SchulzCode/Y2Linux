@@ -3,26 +3,19 @@
 //! controller offers, their admission and the insertion/removal work; the filesystem checks and
 //! `verify` in `check`, write windows in `window`, `format`/`grow` in `change`, `repair` in `repair`.
 // SPDX-License-Identifier: GPL-2.0-only
-use super::observe::{media_identity, MEDIA_MOUNT};
-use super::records::{Claim, Properties, ReadOnly};
+use super::observe::{media_identity, Identity, MEDIA_MOUNT};
+use super::records::{Inserted, MediaRecord, Properties, ReadOnly};
 use super::sys::{
-    device_instance, emmc_entry, exists, get, is_symlink, lock_now, mkdir, name, object, read,
-    release_sd, resolve, to_object, Mount, Object,
+    device_instance, emmc_entry, exists, is_symlink, lock_now, mkdir, name, read, release_sd,
+    resolve, Mount,
 };
 use crate::reply::{atomic_json, unlink_missing_ok, Failure};
-use serde::Serialize;
-use serde_json::{json, Value};
 use std::{
     fs,
     path::{Path, PathBuf},
     time::Instant,
 };
-use y2p_core::{
-    command,
-    mounts::mounts_at,
-    py::{exact_int, truthy, PyValue},
-    Root,
-};
+use y2p_core::{command, lenient::Shaped, mounts::mounts_at, Root};
 
 mod change;
 mod check;
@@ -33,6 +26,7 @@ pub use change::change_card;
 pub use check::verify;
 use check::{fallback_filesystem, read_only_check, remember_admission, CHECK_SECONDS};
 pub use repair::repair;
+pub(crate) use repair::RepairRun;
 use window::{protect, PROTECT_OFF};
 pub use window::{window_expired, write_window, write_window_within};
 
@@ -47,19 +41,6 @@ pub fn can_write(root: &Root) -> bool {
 
 const SD: &str = "/media/sd";
 const CONTROLLER: &str = "/11240000.mmc/";
-
-fn set(map: &mut Object, key: &str, value: impl Into<Value>) {
-    map.insert(key.into(), value.into());
-}
-
-fn set_state(map: &mut Object, state: &str, reason: impl Into<Value>) {
-    set(map, "state", state);
-    set(map, "reason", reason);
-}
-
-fn state_is(map: &Object, state: &str) -> bool {
-    get(map, "state").as_str() == Some(state)
-}
 
 /// The first 12 characters of an id: records name a card by this prefix, never by its CID.
 fn prefix(id: &str) -> String {
@@ -76,32 +57,32 @@ fn runtime(root: &Root) -> Result<PathBuf, Failure> {
     Ok(runtime)
 }
 
-/// The start of every operation record.
-fn begin(root: &Root, action: &str) -> Object {
-    let mut state = Object::new();
-    set(&mut state, "schema", 1);
-    set(&mut state, "action", action);
-    set_state(&mut state, "Starting", Value::Null);
-    set(&mut state, "boot_id", Value::from(root.boot_id()));
-    state
-}
-
 /// One card the SD controller offers: a supported filesystem with a stable identity (its fields
 /// start the operation record of the action that found it).
-#[derive(Clone, Debug, PartialEq, Serialize)]
+#[derive(Clone, Debug, PartialEq)]
 pub(crate) struct Card {
     pub device: String,
     pub filesystem: &'static str,
     pub uuid: Option<String>,
     pub cid: Option<String>,
-    pub identity: Object,
+    pub identity: Identity,
     pub source_instance: String,
 }
 
 impl Card {
     /// The identity hash (`identity.id`).
     fn id(&self) -> &str {
-        get(&self.identity, "id").as_str().unwrap_or_default()
+        &self.identity.id
+    }
+
+    /// The card's fields into the operation record.
+    fn into_record(self, record: &mut MediaRecord) {
+        record.device = Some(self.device);
+        record.filesystem = Some(self.filesystem.into());
+        record.uuid = self.uuid;
+        record.cid = self.cid;
+        record.identity = Some(Shaped::Is(self.identity));
+        record.source_instance = Some(self.source_instance);
     }
 }
 
@@ -151,7 +132,7 @@ pub(crate) fn candidates(root: &Root) -> Vec<Card> {
             device,
             filesystem,
             uuid: uuid.map(str::to_owned),
-            cid: get(&identity, "cid").as_str().map(str::to_owned),
+            cid: identity.cid.clone(),
             identity,
             source_instance,
         });
@@ -164,12 +145,12 @@ fn owned_mount(root: &Root, mounted: &Mount) -> bool {
     if exists(&device) {
         return resolve(&device).to_string_lossy().contains(CONTROLLER);
     }
-    let claim = Claim::load(root);
+    let claim = MediaRecord::claim(root);
     // Removed cards no longer have a sysfs controller path. The retained claim
     // permits only the exact mount we created, never an arbitrary mountpoint.
     claim.holds(root, mounted.mount_id)
-        && claim.get("device_id").py_eq(&json!(mounted.device_id))
-        && claim.get("device").py_eq(&json!(mounted.source))
+        && claim.device_id.as_deref() == Some(mounted.device_id.as_str())
+        && claim.device.as_deref() == Some(mounted.source.as_str())
 }
 
 /// SD presence by stable kernel identity, never by kernfs inode/ctime.
@@ -178,7 +159,7 @@ fn owned_mount(root: &Root, mounted: &Mount) -> bool {
 /// recreated inode is not a new card. dev_t and the disk sequence number stay
 /// fixed for one gendisk; every re-enumeration allocates a new diskseq, which
 /// also distinguishes a reinserted identical card (same CID).
-pub(crate) fn inventory(root: &Root) -> Value {
+pub(crate) fn inventory(root: &Root) -> Vec<Inserted> {
     let mut result = Vec::new();
     for entry in root.glob("/sys/class/block/mmcblk*") {
         if emmc_entry(&entry) {
@@ -191,172 +172,177 @@ pub(crate) fn inventory(root: &Root) -> Value {
             } else {
                 device
             };
-            result.push(json!([
+            result.push((
                 name(&entry),
                 read(&entry.join("dev")),
                 read(&disk.join("diskseq")),
-                read(&disk.join("device/cid"))
-            ]));
+                read(&disk.join("device/cid")),
+            ));
         }
     }
-    Value::Array(result)
+    result
+}
+
+/// media-lifecycle.json: what reconcile last did.
+pub(crate) fn lifecycle(root: &Root) -> MediaRecord {
+    y2p_core::lenient::read(root.json_object("/run/y2/media-lifecycle.json"))
+}
+
+/// Whether reconcile returns its last record as it is: the same cards, and no retry due.
+pub(crate) fn settled(previous: &MediaRecord, current: &[Inserted]) -> bool {
+    previous.inventory.as_deref() == Some(current) && !previous.retry.unwrap_or(false)
 }
 
 /// Insertion/removal work; no automatic retry storm or remount after eject.
-pub fn reconcile(root: &Root) -> Result<Object, Failure> {
+pub fn reconcile(root: &Root) -> Result<MediaRecord, Failure> {
     let runtime = runtime(root)?;
     let current = inventory(root);
-    let previous = object(root, "/run/y2/media-lifecycle.json");
-    let same = get(&previous, "inventory").py_eq(&current);
-    if same && !truthy(get(&previous, "retry")) {
+    let previous = lifecycle(root);
+    let same = previous.inventory.as_ref() == Some(&current);
+    if settled(&previous, &current) {
         protect(root)?;
         return Ok(previous);
     }
     let attempts = if same {
-        // A flag counts as 0 or 1, anything else that is no integer as 0.
-        match previous.get("attempts") {
-            Some(Value::Bool(b)) => i64::from(*b),
-            other => exact_int(other).unwrap_or(0),
-        }
+        previous.attempts.unwrap_or(0)
     } else {
         0
     };
-    let mut result = Object::new();
-    set(&mut result, "schema", 1);
-    set(&mut result, "inventory", current.clone());
-    set(&mut result, "attempts", attempts + 1);
-    set(&mut result, "retry", false);
+    let empty = current.is_empty();
+    let mut result = MediaRecord {
+        schema: Some(1),
+        inventory: Some(current),
+        attempts: Some(attempts + 1),
+        retry: Some(false),
+        boot_id: Some(root.boot_id().into()),
+        ..MediaRecord::default()
+    };
     let lifecycle = runtime.join("media-lifecycle.json");
     if !mounts_at(root, SD).is_empty() {
-        result.extend(operation(root, "unmount")?);
+        result.absorb(operation(root, "unmount")?);
         if !mounts_at(root, SD).is_empty() {
-            set(&mut result, "retry", attempts < 4);
-            set(&mut result, "reason", "source_change_unmount_failed");
+            result.retry = Some(attempts < 4);
+            result.reason = Some("source_change_unmount_failed".into());
             atomic_json(&lifecycle, &result, false)?;
             return Ok(result);
         }
     }
-    if current.as_array().is_some_and(|c| !c.is_empty()) {
-        result.extend(operation(root, "mount")?);
+    if !empty {
+        result.absorb(operation(root, "mount")?);
     } else {
-        set_state(&mut result, "Unavailable", "no_card");
+        result.set_state("Unavailable", Some("no_card"));
     }
     atomic_json(&lifecycle, &result, false)?;
     Ok(result)
 }
 
-pub fn operation(root: &Root, action: &str) -> Result<Object, Failure> {
-    if action == "status" {
-        let volume = crate::commands::observation::snapshot::volume_at(root, "/media/sd")?;
-        return match serde_json::to_value(volume).map_err(Failure::value)? {
-            Value::Object(volume) => Ok(volume),
-            _ => Err(Failure::value("storage_section_unserializable")),
-        };
-    }
+/// `media status`'s answer: the card as the status reports it.
+pub fn status(root: &Root) -> Result<crate::commands::observation::snapshot::Volume, Failure> {
+    crate::commands::observation::snapshot::volume_at(root, SD)
+}
+
+pub fn operation(root: &Root, action: &str) -> Result<MediaRecord, Failure> {
     let runtime = runtime(root)?;
     let _lock = lock_now(&runtime.join("media.lock"))?;
     let record = runtime.join("media.json");
-    let mut state = begin(root, action);
+    let mut state = MediaRecord::begin(root, action);
     let old = mounts_at(root, SD);
     if !old.is_empty() && old.iter().any(|m| !owned_mount(root, m)) {
-        set_state(&mut state, "Failed", "mounted_source_not_sd");
+        state.set_state("Failed", Some("mounted_source_not_sd"));
         atomic_json(&record, &state, false)?;
         return Ok(state);
     }
     if action == "unmount" {
         if old.len() > 1 {
-            set_state(&mut state, "Failed", "ambiguous_mount_stack");
+            state.set_state("Failed", Some("ambiguous_mount_stack"));
         } else if let Some(mounted) = old.first() {
             if !release_sd(root, mounted.mount_id, false)? {
-                set_state(&mut state, "Failed", "usb_transfer_connected_or_busy");
+                state.set_state("Failed", Some("usb_transfer_connected_or_busy"));
                 atomic_json(&record, &state, false)?;
                 return Ok(state);
             }
             let result = command::run(root, &["umount", SD], 3.0);
             if !result.ok || !mounts_at(root, SD).is_empty() {
-                set_state(
-                    &mut state,
-                    "Failed",
-                    result.reason.unwrap_or_else(|| "unmount_busy".into()),
-                );
+                let reason = result.reason.as_deref().unwrap_or("unmount_busy");
+                state.set_state("Failed", Some(reason));
             } else {
-                set_state(&mut state, "Unavailable", "ejected");
+                state.set_state("Unavailable", Some("ejected"));
             }
         } else {
-            set_state(&mut state, "Unavailable", "not_mounted");
+            state.set_state("Unavailable", Some("not_mounted"));
         }
     } else if !old.is_empty() {
         // Never check/repair an active filesystem or stack a new card on it.
-        set_state(
-            &mut state,
+        state.set_state(
             "Failed",
-            if action == "check" {
+            Some(if action == "check" {
                 "already_mounted"
             } else {
                 "mount_requires_unmounted_path"
-            },
+            }),
         );
     } else {
         let available = candidates(root);
         if let [card] = &available[..] {
-            state.extend(to_object(card));
+            card.clone().into_record(&mut state);
             if action == "check" {
                 let check = read_only_check(root, card, true, Some(CHECK_SECONDS));
-                set(&mut state, "filesystem_check", check.value());
                 if check.ok {
-                    set_state(&mut state, "Ready", "read_only_check_passed");
+                    state.set_state("Ready", Some("read_only_check_passed"));
                 } else {
-                    set_state(&mut state, "Degraded", check.reason);
+                    state.set_state("Degraded", check.reason.as_deref());
                 }
-            } else if let Some(early) = admit(root, &mut state, card, &available, &record)? {
-                return Ok(early);
+                state.filesystem_check = Some(Shaped::Is(check));
+            } else if admit(root, &mut state, card, &available, &record)? {
+                return Ok(state);
             }
         } else {
-            set_state(&mut state, "Unavailable", "no_unique_supported_filesystem");
+            state.set_state("Unavailable", Some("no_unique_supported_filesystem"));
         }
     }
     atomic_json(&record, &state, false)?;
     Ok(state)
 }
 
-/// The mount branch of `operation` after the unique card was found; `Some` when it returns early
+/// The mount branch of `operation` after the unique card was found; true when it returns early
 /// (its record already written).
 fn admit(
     root: &Root,
-    state: &mut Object,
+    state: &mut MediaRecord,
     card: &Card,
     available: &[Card],
     record: &Path,
-) -> Result<Option<Object>, Failure> {
+) -> Result<bool, Failure> {
     let filesystem = card.filesystem;
     let device = card.device.as_str();
     // Read-only admission never authorizes checker repairs.
     // Large/unhealthy media may time out;
     // the owner must see that failure rather than a RW mount.
     let check = read_only_check(root, card, false, None);
-    set(state, "filesystem_check", check.value());
     remember_admission(root, card, &check);
+    let (timed_out, passed) = (check.timed_out(), check.ok);
+    state.filesystem_check = Some(Shaped::Is(check));
     let mut read_only = ReadOnly::ReadWrite;
-    if check.timed_out() && fallback_filesystem(filesystem) {
+    if timed_out && fallback_filesystem(filesystem) {
         // Not finished is not damaged (F49): it plays read-only
         // now and `verify` finishes the check in the background.
         read_only = ReadOnly::Checking;
-    } else if !check.ok {
-        set_state(state, "Degraded", "filesystem_check_failed");
+    } else if !passed {
+        state.set_state("Degraded", Some("filesystem_check_failed"));
         // FAT/exFAT with a finding mounts read-only: reading never changes a card,
         // writing into a damaged table can overwrite another file.
         // The music plays; Repair (or a computer) makes it writable.
         // ext4 stays out: even a read-only mount replays its journal.
         if !fallback_filesystem(filesystem) {
             atomic_json(record, state, false)?;
-            return Ok(Some(state.clone()));
+            return Ok(true);
         }
         read_only = ReadOnly::FilesystemErrors;
     }
     if candidates(root) != available {
-        set_state(state, "Failed", "source_changed_during_check");
+        state.set_state("Failed", Some("source_changed_during_check"));
         atomic_json(record, state, false)?;
-        return Ok(Some(state.clone()));
+        return Ok(true);
     }
     let target = root.path(SD);
     if is_symlink(&target) {
@@ -395,22 +381,16 @@ fn admit(
     match &current[..] {
         [mounted] if result.ok && mounted.source == device => {
             let damaged = read_only == ReadOnly::FilesystemErrors;
-            set(state, "state", if damaged { "Degraded" } else { "Ready" });
-            set(state, "mount_id", mounted.mount_id);
-            set(state, "device_id", mounted.device_id.clone());
-            set(state, "read_only", read_only.value());
-            set(
-                state,
-                "reason",
-                if damaged { Some("read_only") } else { None },
+            state.set_state(
+                if damaged { "Degraded" } else { "Ready" },
+                damaged.then_some("read_only"),
             );
-            set(
-                state,
-                "source_instance",
-                device_instance(root, &mounted.device_id),
-            );
+            state.mount_id = Some(mounted.mount_id);
+            state.device_id = Some(mounted.device_id.clone());
+            state.set_read_only(read_only);
+            state.source_instance = device_instance(root, &mounted.device_id);
             if candidates(root) != available {
-                set_state(state, "Failed", "source_changed_during_mount");
+                state.set_state("Failed", Some("source_changed_during_mount"));
             } else {
                 atomic_json(&root.path(MEDIA_MOUNT), state, false)?;
                 // The kernel recycles mount ids, so a release marker for a card that was
@@ -418,15 +398,12 @@ fn admit(
                 unlink_missing_ok(&root.path("/run/y2/usb-release-sd.json"))?;
             }
         }
-        _ => set_state(
-            state,
+        _ => state.set_state(
             "Failed",
-            result
-                .reason
-                .unwrap_or_else(|| "mount_identity_failed".into()),
+            Some(result.reason.as_deref().unwrap_or("mount_identity_failed")),
         ),
     }
-    Ok(None)
+    Ok(false)
 }
 
 #[cfg(test)]

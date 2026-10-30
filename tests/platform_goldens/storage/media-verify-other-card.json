@@ -18,6 +18,7 @@
  "exit": 1,
  "stdout": {
   "action": "verify",
+  "boot_id": "boot-a",
   "reason": "card_changed",
   "schema": 1,
   "state": "Failed"

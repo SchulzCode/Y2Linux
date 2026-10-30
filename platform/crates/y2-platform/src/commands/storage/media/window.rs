@@ -1,13 +1,15 @@
 //! Write windows on a protected card (`media write`) and the reconcile tick that ends them.
 // SPDX-License-Identifier: GPL-2.0-only
-use super::super::records::{Claim, ReadOnly};
-use super::super::sys::{get_eq, lock_within, object, to_object, try_lock, Mount, Object};
+use super::super::records::{MediaRecord, ReadOnly};
+use super::super::sys::{lock_within, try_lock, Mount};
 use super::{owned_mount, runtime, SD};
 use crate::reply::{atomic_json, Failure};
-use serde::Serialize;
-use serde_json::{json, Value};
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
+use std::collections::BTreeMap;
 use y2p_core::{
     command,
+    lenient::{self, BootId},
     mounts::mounts_at,
     py::{python_number, truthy},
     Root,
@@ -26,18 +28,51 @@ pub(super) const SD_WRITE: &str = "/run/y2/sd-write.json";
 const WRITE_HOLD_MAX: i64 = 600;
 const WRITE_HOLDERS: [&str; 4] = ["usb", "reborn", "report", "radiofw"];
 
-/// sd-write.json: the open write windows of one mount, holder → monotonic end time.
+/// Holder → monotonic end time.
+type Holders = BTreeMap<String, f64>;
+
+/// sd-write.json: the open write windows of one mount.
 #[derive(Serialize)]
 struct Windows<'a> {
     schema: u8,
     boot_id: Option<String>,
     mount_id: i64,
-    holders: &'a Object,
+    holders: &'a Holders,
+}
+
+/// sd-write.json as read back.
+#[derive(Deserialize, Default)]
+#[serde(default)]
+struct Written {
+    boot_id: BootId,
+    #[serde(deserialize_with = "lenient::integer")]
+    mount_id: Option<i64>,
+    /// `None` for holders that are something else than an object (and not empty).
+    #[serde(default = "no_holders", deserialize_with = "holders")]
+    holders: Option<Holders>,
+}
+
+fn no_holders() -> Option<Holders> {
+    Some(Holders::new())
+}
+
+/// The holders with a number for an end time (`true` counts as 1).
+fn holders<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Result<Option<Holders>, D::Error> {
+    Ok(match Value::deserialize(deserializer)? {
+        Value::Object(holders) => Some(
+            holders
+                .into_iter()
+                .filter_map(|(holder, end)| Some((holder, python_number(Some(&end))?)))
+                .collect(),
+        ),
+        other if truthy(&other) => None,
+        _ => Some(Holders::new()),
+    })
 }
 
 /// (claim, mount) of our current SD mount, else (claim, None).
-pub(super) fn sd_state(root: &Root) -> (Claim, Option<Mount>) {
-    let claim = Claim::load(root);
+pub(super) fn sd_state(root: &Root) -> (MediaRecord, Option<Mount>) {
+    let claim = MediaRecord::claim(root);
     let mut old = mounts_at(root, SD);
     if old.len() == 1 && owned_mount(root, &old[0]) && claim.holds(root, old[0].mount_id) {
         return (claim, old.pop());
@@ -46,29 +81,23 @@ pub(super) fn sd_state(root: &Root) -> (Claim, Option<Mount>) {
 }
 
 /// The live windows of `mount` (a holder whose end time has passed is left out).
-fn writers(root: &Root, mount: &Mount) -> Result<Object, Failure> {
-    let value = object(root, SD_WRITE);
-    if !root.is_this_boot(value.get("boot_id"))
-        || !get_eq(&value, "mount_id", &json!(mount.mount_id))
-    {
-        return Ok(Object::new());
+fn writers(root: &Root, mount: &Mount) -> Result<Holders, Failure> {
+    let written: Written = lenient::read(root.json_object(SD_WRITE));
+    if !written.boot_id.is(root.boot_id().as_deref()) || written.mount_id != Some(mount.mount_id) {
+        return Ok(Holders::new());
     }
-    let holders = match value.get("holders") {
-        Some(Value::Object(holders)) => holders.clone(),
-        Some(other) if truthy(other) => return Err(Failure::value("sd_write_holders_invalid")),
-        _ => Object::new(),
-    };
+    let holders = written
+        .holders
+        .ok_or_else(|| Failure::value("sd_write_holders_invalid"))?;
     let now = root.clock().monotonic();
     Ok(holders
         .into_iter()
-        .filter(|(k, v)| {
-            WRITE_HOLDERS.contains(&k.as_str()) && python_number(Some(v)).is_some_and(|v| v > now)
-        })
+        .filter(|(holder, end)| WRITE_HOLDERS.contains(&holder.as_str()) && *end > now)
         .collect())
 }
 
 /// Remount to match the holders; records them. Returns writable now.
-fn apply_window(root: &Root, mount: &Mount, holders: &Object) -> Result<bool, Failure> {
+fn apply_window(root: &Root, mount: &Mount, holders: &Holders) -> Result<bool, Failure> {
     let windows = Windows {
         schema: 1,
         boot_id: root.boot_id(),
@@ -87,23 +116,28 @@ fn apply_window(root: &Root, mount: &Mount, holders: &Object) -> Result<bool, Fa
 }
 
 /// What `write` prints (with `holders` once a window changed).
-#[derive(Serialize)]
-struct WindowAnswer {
-    state: &'static str,
-    reason: Option<&'static str>,
-    writable: bool,
+#[derive(Serialize, Debug)]
+pub struct WindowAnswer {
+    pub state: &'static str,
+    pub reason: Option<&'static str>,
+    pub writable: bool,
+    /// The windows open after this one changed (sorted).
     #[serde(skip_serializing_if = "Option::is_none")]
-    holders: Option<Vec<String>>,
+    pub holders: Option<Vec<String>>,
+    /// What Reborn reads from a refused window.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub failure: Option<&'static str>,
 }
 
 /// An answer before any window changed.
-fn answer(state: &'static str, reason: Option<&'static str>, writable: bool) -> Object {
-    to_object(&WindowAnswer {
+fn answer(state: &'static str, reason: Option<&'static str>, writable: bool) -> WindowAnswer {
+    WindowAnswer {
         state,
         reason,
         writable,
         holders: None,
-    })
+        failure: None,
+    }
 }
 
 /// Open (or end) the named holder's window on a protected card, waiting up to 5 s for a check or a
@@ -113,7 +147,7 @@ pub fn write_window(
     holder: &str,
     seconds: i64,
     release: bool,
-) -> Result<Object, Failure> {
+) -> Result<WindowAnswer, Failure> {
     write_window_within(root, holder, seconds, release, 5.0)
 }
 
@@ -125,7 +159,7 @@ pub fn write_window_within(
     seconds: i64,
     release: bool,
     wait: f64,
-) -> Result<Object, Failure> {
+) -> Result<WindowAnswer, Failure> {
     if !WRITE_HOLDERS.contains(&holder) {
         return Err(Failure::value("unknown_write_holder"));
     }
@@ -148,21 +182,20 @@ pub fn write_window_within(
     }
     let mut holders = writers(root, &mount)?;
     if release {
-        holders.shift_remove(holder);
+        holders.remove(holder);
     } else {
         let hold = seconds.clamp(1, WRITE_HOLD_MAX);
-        holders.insert(holder.into(), json!(root.clock().monotonic() + hold as f64));
+        holders.insert(holder.into(), root.clock().monotonic() + hold as f64);
     }
     let writable = apply_window(root, &mount, &holders)?;
     let ok = writable == !holders.is_empty() || release;
-    let mut names: Vec<String> = holders.keys().cloned().collect();
-    names.sort();
-    Ok(to_object(&WindowAnswer {
+    Ok(WindowAnswer {
         state: if ok { "Ready" } else { "Failed" },
         reason: (!ok).then_some("remount_failed"),
         writable,
-        holders: Some(names),
-    }))
+        holders: Some(holders.into_keys().collect()),
+        failure: None,
+    })
 }
 
 /// Whether `protect` has work: a protected card still mounted read-write with no live window. The
@@ -177,7 +210,7 @@ pub fn window_expired(root: &Root) -> bool {
     if !mount.has_option("rw") {
         return false;
     }
-    let claim = Claim::load(root);
+    let claim = MediaRecord::claim(root);
     claim.read_only() == Some(ReadOnly::Protected)
         && claim.holds(root, mount.mount_id)
         && owned_mount(root, mount)
@@ -209,6 +242,7 @@ mod tests {
     use super::*;
     use crate::commands::storage::observe::MEDIA_MOUNT;
     use crate::testing::Fixture;
+    use serde_json::json;
 
     const NOW: f64 = 1000.0;
 

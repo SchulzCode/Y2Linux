@@ -27,13 +27,7 @@ pub use crate::commands::storage::media::can_write;
 /// is no window: no card of ours, a card that is not protected, or a check or repair holding it).
 fn write_window(root: &Root, seconds: i64, release: bool) -> Result<Vec<String>, Failure> {
     let answer = crate::commands::storage::media::write_window(root, "report", seconds, release)?;
-    Ok(match answer.get("holders") {
-        Some(serde_json::Value::Array(names)) => names
-            .iter()
-            .filter_map(|n| n.as_str().map(str::to_owned))
-            .collect(),
-        _ => Vec::new(),
-    })
+    Ok(answer.holders.unwrap_or_default())
 }
 
 /// `_write_into(mount, top, data, stamp)`: write data as top/FOLDER/y2linux-report-<stamp>.tar.gz

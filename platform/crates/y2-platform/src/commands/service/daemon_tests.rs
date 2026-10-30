@@ -199,7 +199,7 @@ fn media_reconcile_spawns_only_when_its_own_noop_is_false() {
     assert!(media_reconcile_needed(&fixture.root)); // first run
     card(&fixture, true);
     let current = inventory(&fixture.root);
-    assert_eq!(current.as_array().unwrap().len(), 1);
+    assert_eq!(current.len(), 1);
     lifecycle(
         &fixture,
         json!({"schema": 1, "inventory": current, "retry": false}),
@@ -305,13 +305,11 @@ fn inventory_skips_emmc_entries_by_their_link_alone() {
     let card = fixture.path("/sys/class/block/mmcblk1");
     assert!(crate::commands::storage::sys::emmc_entry(&emmc));
     assert!(!crate::commands::storage::sys::emmc_entry(&card));
-    let names: Vec<Value> = inventory(&fixture.root)
-        .as_array()
-        .unwrap()
-        .iter()
-        .map(|entry| entry[0].clone())
+    let names: Vec<String> = inventory(&fixture.root)
+        .into_iter()
+        .map(|entry| entry.0)
         .collect();
-    assert_eq!(names, [json!("mmcblk1"), json!("mmcblk1p1")]);
+    assert_eq!(names, ["mmcblk1", "mmcblk1p1"]);
 }
 
 #[test]
@@ -321,7 +319,7 @@ fn kernfs_reclaim_is_not_a_media_change() {
     sd_card(&fixture, "17", cid);
     let before = inventory(&fixture.root);
     assert_eq!(
-        before,
+        json!(before),
         json!([
             ["mmcblk1", "179:24", "17", cid],
             ["mmcblk1p1", "179:25", "17", cid]

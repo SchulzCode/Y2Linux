@@ -18,7 +18,7 @@ use super::Command;
 use crate::reply::{Outcome, Reply};
 use serde_json::{json, Value};
 use std::collections::BTreeMap;
-use sys::{get, Object};
+use sys::get;
 
 /// The parsed tokens of one subcommand: positionals, options with their value, flags.
 struct Parsed<'a> {
@@ -173,117 +173,73 @@ struct MediaRequest {
     confirm_cid: Option<String>,
 }
 
-/// The exit code of a `media` action. `status` reports the card in any state (a Degraded card
-/// mounted read-only is an answer, not a failure); `write` fails whenever it sets `failure`
-/// (not_mounted included), so Reborn's window call sees a refusal as one. A lifecycle record
-/// without `state` (an unchanged media-lifecycle.json that has none) is no answer: exit 1.
-fn media_exit(action: &str, result: &Object) -> u8 {
-    let failed = match result.get("state") {
+/// The exit code of a `media` action. `write` fails whenever it sets `failure` (not_mounted
+/// included), so Reborn's window call sees a refusal as one; `status` reports the card in any state
+/// (a Degraded card mounted read-only is an answer, not a failure). A lifecycle record without
+/// `state` (an unchanged media-lifecycle.json that has none) is no answer: exit 1.
+fn media_exit(action: &str, state: Option<&str>) -> u8 {
+    let failed = match state {
         None => true,
-        Some(_) if action == "status" => false,
-        Some(_) if action == "write" => result.contains_key("failure"),
         Some(state) => {
-            let state = state.as_str();
-            matches!(state, Some("Failed" | "Degraded"))
-                || (["mount", "format", "grow", "repair"].contains(&action)
-                    && state != Some("Ready"))
+            matches!(state, "Failed" | "Degraded")
+                || (["mount", "format", "grow", "repair"].contains(&action) && state != "Ready")
         }
     };
     u8::from(failed)
 }
 
-/// A record's field as non-empty text.
-fn text<'a>(result: &'a Object, key: &str) -> Option<&'a str> {
-    get(result, key).as_str().filter(|text| !text.is_empty())
-}
-
 fn media_command(root: &y2p_core::Root, request: &MediaRequest) -> Outcome {
     let action = request.action;
-    let result: Object = match action {
-        "format" | "grow" => media::change_card(root, action, request.confirm_cid.as_deref())?,
-        "repair" => {
-            let mut result = media::repair(root)?;
-            if text(&result, "state") != Some("Ready") {
-                // Reborn reads only `failure` from a refused command (client.rs matches it).
-                let failure = if text(&result, "state") == Some("Degraded")
-                    && text(&result, "read_only").is_some()
-                {
-                    "errors_left"
-                } else {
-                    text(&result, "reason").unwrap_or("repair_failed")
-                };
-                result.insert("failure".into(), json!(failure));
-            }
-            result
-        }
+    let mut result = match action {
+        "status" => return Reply::sorted(&media::status(root)?, 0),
         "write" => {
-            let mut result =
+            let mut answer =
                 media::write_window(root, &request.holder, request.seconds, request.release)?;
-            if text(&result, "state") != Some("Ready") {
-                let failure = text(&result, "reason").unwrap_or("write_window_failed");
-                result.insert("failure".into(), json!(failure));
+            if answer.state != "Ready" {
+                answer.failure = Some(
+                    answer
+                        .reason
+                        .filter(|r| !r.is_empty())
+                        .unwrap_or("write_window_failed"),
+                );
             }
-            result
+            return Reply::sorted(&answer, u8::from(answer.failure.is_some()));
         }
+        "format" | "grow" => media::change_card(root, action, request.confirm_cid.as_deref())?,
+        "repair" => media::repair(root)?,
         "verify" => media::verify(root)?,
         "reconcile" => media::reconcile(root)?,
         _ => media::operation(root, action)?,
     };
-    let code = media_exit(action, &result);
-
-    Reply::sorted(&result, code)
+    let state = result.state.clone().filter(|s| !s.is_empty());
+    if action == "repair" && state.as_deref() != Some("Ready") {
+        // Reborn reads only `failure` from a refused command (client.rs matches it).
+        let errors_left = state.as_deref() == Some("Degraded")
+            && result
+                .read_only()
+                .is_some_and(|r| r != records::ReadOnly::ReadWrite);
+        result.failure = Some(if errors_left {
+            "errors_left".into()
+        } else {
+            result
+                .reason
+                .clone()
+                .filter(|r| !r.is_empty())
+                .unwrap_or_else(|| "repair_failed".into())
+        });
+    }
+    Reply::sorted(&result, media_exit(action, result.state.as_deref()))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    fn record(value: serde_json::Value) -> Object {
-        value.as_object().unwrap().clone()
-    }
-
-    #[test]
-    fn status_answers_for_every_card_state() {
-        for state in ["Ready", "Unavailable", "Degraded", "Failed"] {
-            assert_eq!(
-                media_exit("status", &record(json!({"state": state}))),
-                0,
-                "{state}"
-            );
-        }
-    }
-
-    #[test]
-    fn a_refused_write_window_exits_1() {
-        let refused =
-            json!({"state": "Unavailable", "reason": "not_mounted", "failure": "not_mounted"});
-        assert_eq!(media_exit("write", &record(refused)), 1);
-        let degraded =
-            json!({"state": "Degraded", "reason": "card_has_errors", "failure": "card_has_errors"});
-        assert_eq!(media_exit("write", &record(degraded)), 1);
-        assert_eq!(
-            media_exit(
-                "write",
-                &record(json!({"state": "Ready", "writable": true}))
-            ),
-            0
-        );
-    }
-
     #[test]
     fn lifecycle_actions_keep_their_rules() {
-        assert_eq!(
-            media_exit("reconcile", &record(json!({"state": "Degraded"}))),
-            1
-        );
-        assert_eq!(
-            media_exit("reconcile", &record(json!({"state": "Unavailable"}))),
-            0
-        );
-        assert_eq!(
-            media_exit("mount", &record(json!({"state": "Unavailable"}))),
-            1
-        );
-        assert_eq!(media_exit("verify", &record(json!({}))), 1);
+        assert_eq!(media_exit("reconcile", Some("Degraded")), 1);
+        assert_eq!(media_exit("reconcile", Some("Unavailable")), 0);
+        assert_eq!(media_exit("mount", Some("Unavailable")), 1);
+        assert_eq!(media_exit("verify", None), 1);
     }
 }

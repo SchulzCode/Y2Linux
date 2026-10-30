@@ -178,11 +178,7 @@ fn remove(root: &Root, source: &Path) {
         return;
     };
     let _ = fs::remove_file(source);
-    if answer
-        .get("holders")
-        .and_then(Value::as_object)
-        .is_some_and(|holders| !holders.is_empty())
-    {
+    if answer.holders.is_some_and(|holders| !holders.is_empty()) {
         let _ = media::write_window(root, "radiofw", 30, true);
     }
 }

@@ -21,7 +21,7 @@ fn zero_uuid_whole_card_uses_cid_and_zero_start() {
     let disk = "/sys/devices/platform/11240000.mmc/block/mmcblk1";
     fixture.put(&format!("{disk}/device/cid"), "whole-card-cid");
     fixture.put(&format!("{disk}/size"), "1000000");
-    let identity = media_identity(&fixture.path(disk), "vfat", None).unwrap();
+    let identity = serde_json::json!(media_identity(&fixture.path(disk), "vfat", None).unwrap());
     assert_eq!(identity["geometry"]["start"], "0");
     assert!(identity["geometry"]["partition"].is_null());
     assert_eq!(identity["cid"], "whole-card-cid");
