@@ -41,35 +41,73 @@ pub(super) struct Run {
     pub(super) retry_at: f64,
 }
 
+/// What became of a job's child since the last pass.
+#[derive(Debug, PartialEq)]
+pub(super) enum Slot {
+    /// None was running.
+    Empty,
+    /// Still running within its limit: it is kept.
+    Running,
+    /// It ended by itself.
+    Ended,
+    /// It ran past its limit: its whole tree was killed.
+    Overrun,
+}
+
+/// Look at a job's child: keep it while it runs within `limit` seconds of its start (no limit: it
+/// bounds itself), kill it once it ran longer, forget it once it ended.
+pub(super) fn poll(process: &mut Option<(Child, f64)>, now: f64, limit: Option<f64>) -> Slot {
+    let Some((mut child, started)) = process.take() else {
+        return Slot::Empty;
+    };
+    if !child.running() {
+        return Slot::Ended;
+    }
+    if limit.is_some_and(|limit| now - started >= limit) {
+        kill(child);
+        return Slot::Overrun;
+    }
+    *process = Some((child, started));
+    Slot::Running
+}
+
+/// A periodic deadline of the loop (maintenance, NTP, the radio policy): due once `now` reaches it,
+/// then again `period` later.
+#[derive(Default)]
+pub(super) struct Timer(f64);
+
+impl Timer {
+    pub(super) fn due(&mut self, now: f64, period: f64) -> bool {
+        let due = now >= self.0;
+        if due {
+            self.0 = now + period;
+        }
+        due
+    }
+}
+
 /// SD insertion/removal work (`media reconcile`) in its own process. It used to run inside this loop
 /// with a 7 s deadline: a card whose check took longer was never mounted, and every pass started
 /// another checker while the orphaned ones kept running (V1 code review B5).
 pub(super) fn media_reconcile(root: &Root, run: Run, now: f64) -> Run {
     let mut run = run;
-    if let Some((mut child, started)) = run.process.take() {
-        if child.running() {
-            if now - started < RECONCILE_LIMIT_S {
-                run.process = Some((child, started));
-                return run;
-            }
-            kill(child);
-            return Run {
-                process: None,
-                retry_at: now + RECONCILE_BACKOFF_S,
-            };
+    match poll(&mut run.process, now, Some(RECONCILE_LIMIT_S)) {
+        Slot::Running => return run,
+        Slot::Overrun => {
+            run.retry_at = now + RECONCILE_BACKOFF_S;
+            return run;
         }
-        run = Run::default();
+        Slot::Ended => run.retry_at = 0.0,
+        Slot::Empty => {}
     }
     if now < run.retry_at || !media_reconcile_needed(root) {
         return run;
     }
-    match start(root, &["media", "reconcile"]) {
-        Ok(child) => Run {
-            process: Some((child, now)),
-            retry_at: 0.0,
-        },
-        Err(_) => Run::default(),
-    }
+    run.retry_at = 0.0;
+    run.process = start(root, &["media", "reconcile"])
+        .ok()
+        .map(|child| (child, now));
+    run
 }
 
 pub(super) fn media_verify_needed(root: &Root) -> bool {
@@ -80,29 +118,19 @@ pub(super) fn media_verify_needed(root: &Root) -> bool {
 /// checker itself (media.CHECK_SECONDS).
 pub(super) fn media_verify(root: &Root, run: Run, now: f64) -> Run {
     let mut run = run;
-    if let Some((mut child, started)) = run.process.take() {
-        if child.running() {
-            run.process = Some((child, started));
-            return run;
-        }
-        run = Run {
-            process: None,
-            retry_at: now + VERIFY_RETRY_S,
-        };
+    match poll(&mut run.process, now, None) {
+        Slot::Running => return run,
+        Slot::Ended | Slot::Overrun => run.retry_at = now + VERIFY_RETRY_S,
+        Slot::Empty => {}
     }
     if now < run.retry_at || !media_verify_needed(root) {
         return run;
     }
     match start(root, &["media", "verify"]) {
-        Ok(child) => Run {
-            process: Some((child, now)),
-            retry_at: 0.0,
-        },
-        Err(_) => Run {
-            process: None,
-            retry_at: now + VERIFY_RETRY_S,
-        },
+        Ok(child) => (run.process, run.retry_at) = (Some((child, now)), 0.0),
+        Err(_) => run.retry_at = now + VERIFY_RETRY_S,
     }
+    run
 }
 
 /// True once health-ack reports a non-pending state for this boot.
@@ -205,14 +233,8 @@ pub(super) fn error_reports(
         send_after: None,
         process: None,
     });
-    if let Some((mut child, started)) = run.process.take() {
-        if child.running() {
-            if now - started < REPORT_LIMIT_S {
-                run.process = Some((child, started));
-                return Ok(run);
-            }
-            kill(child);
-        }
+    if poll(&mut run.process, now, Some(REPORT_LIMIT_S)) == Slot::Running {
+        return Ok(run);
     }
     if reports::upload_key(root).is_none()
         || !matches!(reports::state(root).get("enabled"), Some(Py::Bool(true)))

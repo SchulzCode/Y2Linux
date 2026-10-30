@@ -121,10 +121,10 @@ impl Service {
         let runtime = root.path("/run/y2");
         let wake = SignalWake::new()?;
         let mut dns_schedule = DnsProbeSchedule::new();
-        let (mut next_maintenance, mut next_ntp) = (0.0, 0.0);
+        let (mut maintenance_timer, mut ntp_timer) = (Timer::default(), Timer::default());
         let mut associating_since: Option<f64> = None;
         let mut coexistence = Coexistence::default();
-        let mut next_radio_policy = 0.0;
+        let mut radio_policy_timer = Timer::default();
         let mut settled = false;
         // It cannot change while the service runs.
         let boot_id = root.boot_id();
@@ -182,10 +182,9 @@ impl Service {
             };
             atomic_json(&runtime.join("network.json"), &record, false)?;
             let activity = coexistence.observe(root, &value, before)?;
-            if before >= next_radio_policy
-                && value.get("association").and_then(Value::as_str) == Some("COMPLETED")
+            if value.get("association").and_then(Value::as_str) == Some("COMPLETED")
+                && radio_policy_timer.due(before, 30.0)
             {
-                next_radio_policy = before + 30.0;
                 wifi_policy(root, Some(&activity))?;
             }
             atomic_json(
@@ -195,17 +194,16 @@ impl Service {
             )?;
             reconcile = media_reconcile(root, reconcile, before);
             verify = media_verify(root, verify, before);
-            if value.get("state").and_then(Value::as_str) == Some("Online") && before >= next_ntp {
-                next_ntp = before + 60.0;
-                if !ntp_running(root) {
-                    command::run(root, &["/etc/init.d/S43y2-time", "start"], 1.0);
-                }
+            if value.get("state").and_then(Value::as_str) == Some("Online")
+                && ntp_timer.due(before, 60.0)
+                && !ntp_running(root)
+            {
+                command::run(root, &["/etc/init.d/S43y2-time", "start"], 1.0);
             }
-            let due = before >= next_maintenance;
+            let due = maintenance_timer.due(before, maintenance);
             (firmware_scan, firmware_ready) =
                 radio_firmware(root, firmware_scan, firmware_ready, due);
             if due {
-                next_maintenance = before + maintenance;
                 // The space policy and its bounded cleanup (64 files, 8 MiB) look at Y2DATA only, which
                 // this daemon reads every pass anyway: in process, no y2-platform start each pass.
                 // The SD card (whose statvfs can hang in D state) is not touched.

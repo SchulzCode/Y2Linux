@@ -268,7 +268,7 @@ fn service_loop_uses_gated_reconcile_and_cadence() {
     let helper = &jobs
         [jobs.find("fn media_reconcile(").unwrap()..jobs.find("fn media_verify_needed(").unwrap()];
     assert!(helper.contains("!media_reconcile_needed(root)"));
-    assert!(loop_.contains("next_maintenance = before + maintenance;"));
+    assert!(loop_.contains("maintenance_timer.due(before, maintenance)"));
     assert!(loop_.contains("interval - (root.clock().monotonic() - before)"));
 }
 
