@@ -235,12 +235,10 @@ fn usb_diagnostics(root: &Root, udcs: &[Udc], link: Counted) -> Result<UsbDiagno
     // rtnetlink (connectivity::direct), below a fixture root the recorded command as before.
     let ipv4 = if root.is_real() {
         let answer = crate::commands::connectivity::direct::ipv4_addresses(root, "usb0", 0.5);
-        answer.ok.then(|| {
-            let parsed: Value =
-                serde_json::from_str(answer.output.as_deref().unwrap_or("[]")).unwrap_or_default();
-            let first = &parsed[0]["addr_info"][0];
-            match (first["local"].as_str(), first["prefixlen"].as_u64()) {
-                (Some(local), Some(prefix)) => Some(format!("{local}/{prefix}")),
+        answer.ok().map(|links| {
+            let first = links.first().and_then(|link| link.addr_info.first());
+            match first.map(|a| (a.local.as_deref(), a.prefixlen)) {
+                Some((Some(local), Some(prefix))) => Some(format!("{local}/{prefix}")),
                 _ => None,
             }
         })

@@ -315,11 +315,11 @@
  "record": {
   "boot_id": "boot-a",
   "build_id": "fixture-build",
-  "collection_duration_ns": 19449159,
+  "collection_duration_ns": 18267307,
   "evidence_level": "IMPLEMENTED",
   "failure": null,
   "kernel": "6.18.0-fixture",
-  "monotonic_ns": 101476223529872,
+  "monotonic_ns": 102201336176005,
   "parameters": {},
   "reborn_commit": "reborn",
   "result": "observed",
@@ -327,7 +327,7 @@
   "units": {
    "collection_duration": "ns"
   },
-  "wall_timestamp": "2026-10-30T13:27:00.124548+00:00",
+  "wall_timestamp": "2026-10-30T13:39:05.237194+00:00",
   "workload": "observation",
   "y2linux_commit": "linux-commit"
  },
@@ -347,7 +347,7 @@
   "volumes": [
    {
     "available_bytes": 11726012416,
-    "available_inodes": 3934850,
+    "available_inodes": 3934848,
     "controller_valid": false,
     "device_id": "179:2",
     "filesystem": "ext4",
@@ -372,7 +372,7 @@
    },
    {
     "available_bytes": 11726012416,
-    "available_inodes": 3934850,
+    "available_inodes": 3934848,
     "controller_valid": false,
     "device_id": "179:9",
     "filesystem": "ext4",
@@ -497,7 +497,7 @@
    "build_epoch": 1788000000,
    "clock_sane": true,
    "entropy_ready": null,
-   "epoch": 1793366820.1248686,
+   "epoch": 1793367545.2375238,
    "ntp_authenticated": false,
    "reason": "clock_not_established",
    "rtc_retention_qualified": false,

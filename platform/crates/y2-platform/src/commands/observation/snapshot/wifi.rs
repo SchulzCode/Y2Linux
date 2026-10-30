@@ -1,6 +1,7 @@
 //! The `wifi` section: supplicant state, addresses, route, DNS readiness and signal.
 // SPDX-License-Identifier: GPL-2.0-only
 use crate::commands::connectivity::direct;
+use crate::commands::connectivity::direct::{Link, Route};
 use crate::commands::observation::util::{fields, key_values, name, number, read, record_fields};
 use crate::reply::Failure;
 use serde::{Deserialize, Serialize};
@@ -144,58 +145,14 @@ pub(crate) fn wifi_state(
     ("Online", None)
 }
 
-/// The global addresses of `ip -j -4 addr`: Ok(None) for output that is no JSON, no list, an
-/// `addr_info` that is no list or a global address without `local` (no addresses then); a link or
-/// address entry that is no object refuses the snapshot (`invalid_ip_output`).
-fn addresses(output: Option<&str>) -> Result<Option<Vec<Value>>, Failure> {
-    let text = output.filter(|o| !o.is_empty()).unwrap_or("[]");
-    let Ok(parsed) = serde_json::from_str::<Value>(text) else {
-        return Ok(None);
-    };
-    let Some(links) = entries(&parsed)? else {
-        return Ok(None);
-    };
-    let mut found = Vec::new();
-    for link in links {
-        let Value::Object(link) = link else {
-            return Err(invalid_ip_output());
-        };
-        let infos = match link.get("addr_info") {
-            None => &[][..],
-            Some(value) => match entries(value)? {
-                Some(items) => items,
-                None => return Ok(None),
-            },
-        };
-        for info in infos {
-            let Value::Object(info) = info else {
-                return Err(invalid_ip_output());
-            };
-            if info.get("scope").and_then(Value::as_str) == Some("global") {
-                match info.get("local") {
-                    Some(local) => found.push(local.clone()),
-                    None => return Ok(None),
-                }
-            }
-        }
-    }
-    Ok(Some(found))
-}
-
-fn invalid_ip_output() -> Failure {
-    Failure::value("invalid_ip_output")
-}
-
-/// The entries of a list in `ip -j`'s output. An empty object or text holds none; a non-empty one
-/// holds keys or characters, which are no entries (refused); any other value is no list (`None`).
-fn entries(value: &Value) -> Result<Option<&[Value]>, Failure> {
-    match value {
-        Value::Array(items) => Ok(Some(items)),
-        Value::Object(map) if map.is_empty() => Ok(Some(&[])),
-        Value::String(text) if text.is_empty() => Ok(Some(&[])),
-        Value::Object(_) | Value::String(_) => Err(invalid_ip_output()),
-        _ => Ok(None),
-    }
+/// The global IPv4 addresses of the links.
+fn global_addresses(links: &[Link]) -> Vec<String> {
+    links
+        .iter()
+        .flat_map(|link| &link.addr_info)
+        .filter(|address| address.scope.as_deref() == Some("global"))
+        .filter_map(|address| address.local.clone())
+        .collect()
 }
 
 /// How an odd record (an `ip -j` entry or a network.json signal stamp of the wrong shape) is read:
@@ -246,27 +203,18 @@ pub fn observe(
             failed_network = credential.network_id;
         }
     }
-    let (ip, routes) = if radio {
-        (
-            direct::ipv4_addresses(root, "wlan0", command::TIMEOUT).output,
-            direct::default_route(root, "wlan0", command::TIMEOUT).output,
-        )
-    } else {
-        (None, None)
-    };
-    let found = match addresses(ip.as_deref()) {
-        Err(refusal) if odd == Odd::Refuse => return Err(refusal),
-        Err(_) => None,
-        Ok(found) => found,
-    };
-    let (addresses, default_route) = match found {
-        Some(found) => match serde_json::from_str::<Value>(
-            routes.as_deref().filter(|r| !r.is_empty()).unwrap_or("[]"),
+    // Addresses and the default route from one look; an unreadable answer is neither.
+    let (addresses, default_route) = if radio {
+        match (
+            direct::ipv4_addresses(root, "wlan0", command::TIMEOUT),
+            direct::default_route(root, "wlan0", command::TIMEOUT),
         ) {
-            Ok(route) => (found, route),
-            Err(_) => (Vec::new(), json!([])),
-        },
-        None => (Vec::new(), json!([])),
+            (Ok(links), Ok(routes)) => (global_addresses(&links), routes),
+            (Ok(links), Err(_)) => (global_addresses(&links), Vec::new()),
+            (Err(_), _) => (Vec::new(), Vec::new()),
+        }
+    } else {
+        (Vec::new(), Vec::new())
     };
     // A probe of this lease (boot, network epoch, address, access point), not configuration alone,
     // makes DNS ready.
@@ -277,20 +225,14 @@ pub fn observe(
         && dns.boot_id.is(boot)
         && epoch.is_some()
         && dns.epoch == epoch
-        && dns
-            .address
-            .as_ref()
-            .is_some_and(|a| addresses.contains(&Value::String(a.clone())))
+        && dns.address.as_ref().is_some_and(|a| addresses.contains(a))
         && dns.bssid == bssid
         && fresh(root, dns.monotonic_s, DNS_FRESH_S);
     let dhcp: DhcpAnswer = record_fields(root, "/run/y2/dhcp.json");
     let dhcp_error = dhcp
         .error
         .filter(|_| dhcp.boot_id.is(boot) && dhcp.epoch == epoch);
-    let has_route = match &default_route {
-        Value::Array(routes) => !routes.is_empty(),
-        _ => false,
-    };
+    let has_route = !default_route.is_empty();
     let (state, reason) = wifi_state(
         radio,
         &properties,
@@ -394,8 +336,8 @@ pub struct Wifi {
     supplicant_observation: SupplicantObservation,
     association: Option<String>,
     association_id: Option<String>,
-    ip_addresses: Vec<Value>,
-    default_route: Value,
+    pub ip_addresses: Vec<String>,
+    pub default_route: Vec<Route>,
     dns_ready: bool,
     rssi_dbm: Value,
     signal_observation: Value,

@@ -128,6 +128,7 @@
         {
           "dev": "wlan0",
           "dst": "default",
+          "flags": [],
           "gateway": "192.168.1.1"
         }
       ],
@@ -181,6 +182,7 @@
         {
           "dev": "wlan0",
           "dst": "default",
+          "flags": [],
           "gateway": "192.168.1.1"
         }
       ],

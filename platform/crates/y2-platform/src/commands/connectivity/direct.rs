@@ -5,7 +5,7 @@
 //! fixture root each stays the fixture command it was (same argv and timeout), as the DNS probe's
 //! `getaddrinfo` does, so goldens, recordings and tests see the same requests.
 // SPDX-License-Identifier: GPL-2.0-only
-use serde_json::{json, Map, Value};
+use serde::{Deserialize, Serialize};
 use std::{
     ffi::CString,
     io,
@@ -39,16 +39,16 @@ pub fn wpa_cli(root: &Root, command: &str, timeout: f64) -> Outcome {
 }
 
 /// `ip -j -4 addr show dev <dev>`: the interface's IPv4 addresses as `ip -j` lists them (one link
-/// with `ifindex`, `ifname` and `addr_info` entries of `family`, `local`, `prefixlen`, `scope` and
-/// `label`; `[]` without addresses). The link's own fields (flags, mtu, …) and the address
-/// lifetimes are left out: the callers read only `ifname`, `local`, `prefixlen` and `scope`.
-pub fn ipv4_addresses(root: &Root, dev: &str, timeout: f64) -> Outcome {
+/// with `ifindex`, `ifname` and `addr_info`; none without addresses). The link's own fields (flags,
+/// mtu, …) and the address lifetimes are left out. Err is the reason the query failed
+/// (`command_failed`, `command_timeout`, or `invalid_ip_output` for a fixture's odd output).
+pub fn ipv4_addresses(root: &Root, dev: &str, timeout: f64) -> Result<Vec<Link>, String> {
     if root.is_real() {
         netlink_answer(dev, RTM_NEWADDR, timeout, |index, dump| {
-            addresses_json(dev, index, dump)
+            addresses(dev, index, dump)
         })
     } else {
-        y2p_core::command::run(
+        fixture_answer(
             root,
             &["ip", "-j", "-4", "addr", "show", "dev", dev],
             timeout,
@@ -57,17 +57,82 @@ pub fn ipv4_addresses(root: &Root, dev: &str, timeout: f64) -> Outcome {
 }
 
 /// `ip -j -4 route show default dev <dev>`: the main table's default routes through `dev`, each
-/// printed with the keys and order iproute2 gives them (`ip/iproute.c` print_route).
-pub fn default_route(root: &Root, dev: &str, timeout: f64) -> Outcome {
+/// with the fields iproute2 prints (`ip/iproute.c` print_route).
+pub fn default_route(root: &Root, dev: &str, timeout: f64) -> Result<Vec<Route>, String> {
     if root.is_real() {
-        netlink_answer(dev, RTM_NEWROUTE, timeout, routes_json)
+        netlink_answer(dev, RTM_NEWROUTE, timeout, routes)
     } else {
-        y2p_core::command::run(
+        fixture_answer(
             root,
             &["ip", "-j", "-4", "route", "show", "default", "dev", dev],
             timeout,
         )
     }
+}
+
+/// Below a fixture root: the recorded `ip -j` command's output read as `T` (empty output is none).
+fn fixture_answer<T: serde::de::DeserializeOwned + Default>(
+    root: &Root,
+    argv: &[&str],
+    timeout: f64,
+) -> Result<T, String> {
+    let answer = y2p_core::command::run(root, argv, timeout);
+    if !answer.ok {
+        return Err(answer.reason.unwrap_or_else(|| "command_failed".into()));
+    }
+    match answer.output.as_deref().map(str::trim) {
+        None | Some("") => Ok(T::default()),
+        Some(text) => serde_json::from_str(text).map_err(|_| "invalid_ip_output".into()),
+    }
+}
+
+/// One link of `ip -j -4 addr` with its IPv4 addresses.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Default)]
+pub struct Link {
+    #[serde(default)]
+    pub ifindex: Option<u32>,
+    #[serde(default)]
+    pub ifname: Option<String>,
+    #[serde(default)]
+    pub addr_info: Vec<Address>,
+}
+
+/// One address of a link (`local` is IFA_LOCAL, else IFA_ADDRESS, as ip prints it).
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Default)]
+#[serde(default)]
+pub struct Address {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub family: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub local: Option<String>,
+    pub prefixlen: Option<u8>,
+    pub scope: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub label: Option<String>,
+}
+
+/// One route as `ip -j route` prints it (a field ip leaves out is absent).
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Default)]
+#[serde(default)]
+pub struct Route {
+    #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
+    pub kind: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub dst: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub gateway: Option<String>,
+    /// Printed by ip only without a `dev` filter (never by the netlink read).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub dev: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub protocol: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub scope: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub prefsrc: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub metric: Option<u32>,
+    pub flags: Vec<String>,
 }
 
 fn failed(reason: &str) -> Outcome {
@@ -552,30 +617,26 @@ fn interface_index(dev: &str) -> Option<u32> {
 /// A dump of `kind` (RTM_NEWADDR or RTM_NEWROUTE) messages, printed as `ip -j` would: no such interface or a failed dump
 /// is `command_failed` (ip exits 1 or 2), a dump that does not end within `timeout` is
 /// `command_timeout` (the runner's deadline).
-fn netlink_answer(
+fn netlink_answer<T>(
     dev: &str,
     kind: u16,
     timeout: f64,
-    print: impl FnOnce(u32, Vec<Vec<u8>>) -> Value,
-) -> Outcome {
+    read: impl FnOnce(u32, Vec<Vec<u8>>) -> T,
+) -> Result<T, String> {
     let Some(index) = interface_index(dev) else {
-        return failed("command_failed");
+        return Err("command_failed".into());
     };
     match dump(kind, timeout) {
-        Ok(payloads) => Outcome {
-            ok: true,
-            reason: None,
-            output: Some(print(index, payloads).to_string()),
-        },
-        Err(DumpError::Timeout) => failed("command_timeout"),
-        Err(DumpError::Failed) => failed("command_failed"),
+        Ok(payloads) => Ok(read(index, payloads)),
+        Err(DumpError::Timeout) => Err("command_timeout".into()),
+        Err(DumpError::Failed) => Err("command_failed".into()),
     }
 }
 
 /// `ip -j -4 addr show dev <dev>` from an RTM_NEWADDR dump: the addresses of interface `index`, in
 /// the kernel's order. `local` is IFA_LOCAL, else IFA_ADDRESS (as ip prints it); `scope` is
 /// iproute2's name of ifa_scope (`global`, `site`, `link`, `host`, `nowhere`, else the number).
-pub(crate) fn addresses_json(dev: &str, index: u32, dump: Vec<Vec<u8>>) -> Value {
+pub(crate) fn addresses(dev: &str, index: u32, dump: Vec<Vec<u8>>) -> Vec<Link> {
     let mut found = Vec::new();
     for body in &dump {
         if body.len() < IFADDRMSG
@@ -588,23 +649,25 @@ pub(crate) fn addresses_json(dev: &str, index: u32, dump: Vec<Vec<u8>>) -> Value
         let local = attribute(&attributes, IFA_LOCAL)
             .or_else(|| attribute(&attributes, IFA_ADDRESS))
             .and_then(ipv4);
-        let mut entry = Map::new();
-        entry.insert("family".into(), json!("inet"));
-        if let Some(local) = local {
-            entry.insert("local".into(), json!(local));
-        }
-        entry.insert("prefixlen".into(), json!(body[1]));
-        entry.insert("scope".into(), json!(scope_name(body[3])));
-        if let Some(label) = attribute(&attributes, IFA_LABEL) {
-            let label = label.split(|&b| b == 0).next().unwrap_or_default();
-            entry.insert("label".into(), json!(String::from_utf8_lossy(label)));
-        }
-        found.push(Value::Object(entry));
+        found.push(Address {
+            family: Some("inet".into()),
+            local: local.map(|l| l.to_string()),
+            prefixlen: Some(body[1]),
+            scope: Some(scope_name(body[3])),
+            label: attribute(&attributes, IFA_LABEL).map(|label| {
+                let label = label.split(|&b| b == 0).next().unwrap_or_default();
+                String::from_utf8_lossy(label).into_owned()
+            }),
+        });
     }
     if found.is_empty() {
-        return json!([]);
+        return Vec::new();
     }
-    json!([{"ifindex": index, "ifname": dev, "addr_info": found}])
+    vec![Link {
+        ifindex: Some(index),
+        ifname: Some(dev.into()),
+        addr_info: found,
+    }]
 }
 
 /// `ip -j -4 route show default dev <dev>` from an RTM_NEWROUTE dump (ip/iproute.c filter_nlmsg and
@@ -616,7 +679,7 @@ pub(crate) fn addresses_json(dev: &str, index: u32, dump: Vec<Vec<u8>>) -> Value
 /// Not printed (the route dhcp-event installs, `ip -4 route replace default via <gw> dev wlan0
 /// metric 100`, never has them): `tos`, `from`, `nhid`, `via`, `encap`, `newdst`, `mark`, `realms`,
 /// `uid`, `metrics`, `pref`, `iif`, `cache`; a multipath route (no RTA_OIF) is not listed.
-pub(crate) fn routes_json(index: u32, dump: Vec<Vec<u8>>) -> Value {
+pub(crate) fn routes(index: u32, dump: Vec<Vec<u8>>) -> Vec<Route> {
     let mut found = Vec::new();
     for body in &dump {
         if body.len() < RTMSG || body[0] != libc::AF_INET as u8 {
@@ -636,34 +699,27 @@ pub(crate) fn routes_json(index: u32, dump: Vec<Vec<u8>>) -> Value {
         {
             continue;
         }
-        let mut route = Map::new();
-        if kind != RTN_UNICAST {
-            route.insert("type".into(), json!(type_name(kind)));
-        }
         let dst = match attribute(&attributes, RTA_DST).and_then(ipv4) {
             Some(address) => format!("{address}/{dst_len}"),
             None => "default".into(),
         };
-        route.insert("dst".into(), json!(dst));
-        if let Some(gateway) = attribute(&attributes, RTA_GATEWAY).and_then(ipv4) {
-            route.insert("gateway".into(), json!(gateway));
-        }
-        if protocol != RTPROT_BOOT {
-            route.insert("protocol".into(), json!(protocol_name(protocol)));
-        }
-        if scope != 0 {
-            route.insert("scope".into(), json!(scope_name(scope)));
-        }
-        if let Some(source) = attribute(&attributes, RTA_PREFSRC).and_then(ipv4) {
-            route.insert("prefsrc".into(), json!(source));
-        }
-        if let Some(metric) = attribute(&attributes, RTA_PRIORITY).and_then(u32_of) {
-            route.insert("metric".into(), json!(metric));
-        }
-        route.insert("flags".into(), json!(flag_names(flags)));
-        found.push(Value::Object(route));
+        found.push(Route {
+            kind: (kind != RTN_UNICAST).then(|| type_name(kind).to_string()),
+            dst: Some(dst),
+            gateway: attribute(&attributes, RTA_GATEWAY)
+                .and_then(ipv4)
+                .map(|a| a.to_string()),
+            dev: None,
+            protocol: (protocol != RTPROT_BOOT).then(|| protocol_name(protocol).to_string()),
+            scope: (scope != 0).then(|| scope_name(scope)),
+            prefsrc: attribute(&attributes, RTA_PREFSRC)
+                .and_then(ipv4)
+                .map(|a| a.to_string()),
+            metric: attribute(&attributes, RTA_PRIORITY).and_then(u32_of),
+            flags: flag_names(flags).into_iter().map(String::from).collect(),
+        });
     }
-    Value::Array(found)
+    found
 }
 
 /// iproute2's rt_scopes names.

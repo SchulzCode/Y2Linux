@@ -54,8 +54,10 @@ fn probe_rejects_peer_disappearance_and_reports_auth_reason_without_ssid() {
     let fixture = steps.attach(player());
     wifi_event(&fixture.root, "CONNECTED").unwrap();
     fixture.mkdir("/sys/class/net/wlan0");
-    let before = ordered(json!({"ip_addresses": ["192.0.2.2"], "default_route": [{}],
-                                "association_id": "peer-one"}));
+    let before = ordered(
+        json!({"ip_addresses": ["192.0.2.2"], "default_route": [{"flags": []}],
+                                "association_id": "peer-one"}),
+    );
     // What the look after the lookup sees.
     let after = |bssid: &str, route: &str| {
         vec![

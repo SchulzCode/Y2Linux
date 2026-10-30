@@ -220,6 +220,7 @@
      "default_route": [
       {
        "dst": "default",
+       "flags": [],
        "gateway": "192.168.1.1"
       }
      ],

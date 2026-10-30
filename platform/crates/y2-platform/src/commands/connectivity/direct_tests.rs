@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use super::*;
 use crate::testing::{ok, Fixture};
+use serde_json::{json, Value};
 use std::{os::unix::net::UnixDatagram, thread, time::Instant};
 
 /// A fake wpa_supplicant on `<fixture>/wlan0`: each request answered by `answer` (None: never),
@@ -168,18 +169,12 @@ fn below_a_fixture_root_the_commands_stay() {
         wpa_cli(root, "signal_poll", 3.0).output.as_deref(),
         Some("RSSI=-60")
     );
+    assert_eq!(ipv4_addresses(root, "wlan0", 1.0), Ok(Vec::new()));
     assert_eq!(
-        ipv4_addresses(root, "wlan0", 1.0).output.as_deref(),
-        Some("[]")
+        json!(default_route(root, "wlan0", 1.0).unwrap()).to_string(),
+        r#"[{"dst":"default","flags":[]}]"#
     );
-    assert_eq!(
-        default_route(root, "wlan0", 1.0).output.as_deref(),
-        Some(r#"[{"dst":"default"}]"#)
-    );
-    assert_eq!(
-        ipv4_addresses(root, "usb0", 1.0).output.as_deref(),
-        Some("[]")
-    );
+    assert_eq!(ipv4_addresses(root, "usb0", 1.0), Ok(Vec::new()));
     let argv = |a: &[&str]| a.iter().map(|s| s.to_string()).collect::<Vec<_>>();
     assert_eq!(
         fixture.calls(),
@@ -326,13 +321,13 @@ fn addresses_are_printed_as_ip_lists_them() {
             &[ip_attr(IFA_ADDRESS, [169, 254, 7, 9]), label("wlan0:1")],
         ),
     ];
-    let printed = addresses_json("wlan0", 3, dump.clone());
+    let printed = json!(addresses("wlan0", 3, dump.clone()));
     assert_eq!(
         printed.to_string(),
         r#"[{"ifindex":3,"ifname":"wlan0","addr_info":[{"family":"inet","local":"192.168.1.40","prefixlen":24,"scope":"global","label":"wlan0"},{"family":"inet","local":"169.254.7.9","prefixlen":16,"scope":"link","label":"wlan0:1"}]}]"#
     );
     // No address on the interface: no link listed (ip's `[{}]` or `[]` read the same).
-    assert_eq!(addresses_json("usb0", 9, dump), json!([]));
+    assert!(addresses("usb0", 9, dump).is_empty());
 }
 
 #[test]
@@ -347,7 +342,7 @@ fn usb0_owner_address_reads_as_ip_printed_it() {
         ],
     )];
     assert_eq!(
-        addresses_json("usb0", 6, dump),
+        json!(addresses("usb0", 6, dump)),
         json!([{"ifindex": 6, "ifname": "usb0",
                 "addr_info": [{"family": "inet", "local": "10.42.0.1", "prefixlen": 24, "scope": "global"}]}])
     );
@@ -373,7 +368,7 @@ fn the_default_route_is_printed_as_ip_prints_it() {
         ],
     );
     assert_eq!(
-        routes_json(3, vec![dhcp_event.clone()]).to_string(),
+        json!(routes(3, vec![dhcp_event.clone()])).to_string(),
         r#"[{"dst":"default","gateway":"192.168.123.1","metric":100,"flags":[]}]"#
     );
     // Carrier lost before the lease was taken down.
@@ -390,7 +385,7 @@ fn the_default_route_is_printed_as_ip_prints_it() {
         ],
     );
     assert_eq!(
-        routes_json(3, vec![linkdown]).to_string(),
+        json!(routes(3, vec![linkdown])).to_string(),
         r#"[{"dst":"default","gateway":"192.168.123.1","flags":["linkdown"]}]"#
     );
     // A DHCP client's route with a preferred source (as a desktop's NetworkManager adds it).
@@ -409,7 +404,7 @@ fn the_default_route_is_printed_as_ip_prints_it() {
         ],
     );
     assert_eq!(
-        routes_json(3, vec![desktop]).to_string(),
+        json!(routes(3, vec![desktop])).to_string(),
         r#"[{"dst":"default","gateway":"192.168.123.1","protocol":"dhcp","prefsrc":"192.168.123.204","metric":100,"flags":[]}]"#
     );
     // Not listed: the subnet route, another interface's default, another table's, a cloned one, a
@@ -458,14 +453,11 @@ fn the_default_route_is_printed_as_ip_prints_it() {
         0,
         std::slice::from_ref(&main),
     );
-    assert_eq!(
-        routes_json(3, vec![subnet, usb0, other_table, cloned, multipath]),
-        json!([])
-    );
+    assert!(routes(3, vec![subnet, usb0, other_table, cloned, multipath]).is_empty());
     // An unusual type and scope print as ip names them.
     let odd = route(0, 99, 200, 7, 4, &[main, wlan0]);
     assert_eq!(
-        routes_json(3, vec![odd, dhcp_event]).to_string(),
+        json!(routes(3, vec![odd, dhcp_event])).to_string(),
         r#"[{"type":"unreachable","dst":"default","protocol":"openr","scope":"site","flags":["onlink"]},{"dst":"default","gateway":"192.168.123.1","metric":100,"flags":[]}]"#
     );
 }
@@ -475,78 +467,47 @@ fn the_default_route_is_printed_as_ip_prints_it() {
 #[test]
 #[ignore]
 fn direct_reads_equal_ip_on_this_host() {
+    /// An address as compared: link name, local, prefix length, scope.
+    type Shown = (Option<String>, Option<String>, Option<u8>, Option<String>);
     let root = Root::new("/");
+    let ip = |argv: &[&str]| -> Value {
+        let answer = y2p_core::command::run(&root, argv, 1.0);
+        serde_json::from_str(answer.output.as_deref().unwrap_or("[]")).unwrap_or(json!([]))
+    };
     for entry in std::fs::read_dir("/sys/class/net").unwrap() {
         let dev = entry.unwrap().file_name().into_string().unwrap();
-        let ip = y2p_core::command::run(
-            &root,
-            &["ip", "-j", "-4", "route", "show", "default", "dev", &dev],
-            1.0,
-        );
-        let direct = default_route(&root, &dev, 1.0);
-        assert_eq!(
-            direct
-                .output
-                .as_deref()
-                .map(|o| serde_json::from_str::<Value>(o).unwrap()),
-            ip.output
-                .as_deref()
-                .map(|o| serde_json::from_str::<Value>(o).unwrap()),
-            "{dev}: route"
-        );
-        assert_eq!(direct.output, ip.output, "{dev}: route text");
-        let ip =
-            y2p_core::command::run(&root, &["ip", "-j", "-4", "addr", "show", "dev", &dev], 1.0);
-        let shown = |output: Option<&str>| -> Vec<(Value, Value, Value, Value)> {
-            let links: Value = serde_json::from_str(output.unwrap_or("[]")).unwrap();
-            let mut found = Vec::new();
-            for link in links.as_array().unwrap() {
-                for info in link["addr_info"].as_array().into_iter().flatten() {
-                    found.push((
-                        link["ifname"].clone(),
-                        info["local"].clone(),
-                        info["prefixlen"].clone(),
-                        info["scope"].clone(),
-                    ));
-                }
-            }
-            found
+        let routes: Vec<Route> = serde_json::from_value(ip(&[
+            "ip", "-j", "-4", "route", "show", "default", "dev", &dev,
+        ]))
+        .unwrap();
+        assert_eq!(default_route(&root, &dev, 1.0), Ok(routes), "{dev}: route");
+        let shown = |links: Vec<Link>| -> Vec<Shown> {
+            links
+                .into_iter()
+                .flat_map(|link| {
+                    let name = link.ifname.clone();
+                    link.addr_info
+                        .into_iter()
+                        .map(move |a| (name.clone(), a.local, a.prefixlen, a.scope))
+                })
+                .collect()
         };
-        let direct = ipv4_addresses(&root, &dev, 1.0);
-        assert_eq!(direct.ok, ip.ok, "{dev}: addresses ok");
+        let links: Vec<Link> =
+            serde_json::from_value(ip(&["ip", "-j", "-4", "addr", "show", "dev", &dev])).unwrap();
         assert_eq!(
-            shown(direct.output.as_deref()),
-            shown(ip.output.as_deref()),
+            ipv4_addresses(&root, &dev, 1.0).map(shown),
+            Ok(shown(links)),
             "{dev}: addresses"
         );
-        eprintln!(
-            "{dev}: {:?} / {:?}",
-            direct.output,
-            default_route(&root, &dev, 1.0).output
-        );
     }
-    let missing = default_route(&root, "y2-no-such-dev", 1.0);
-    let ip = y2p_core::command::run(
-        &root,
-        &[
-            "ip",
-            "-j",
-            "-4",
-            "route",
-            "show",
-            "default",
-            "dev",
-            "y2-no-such-dev",
-        ],
-        1.0,
+    assert_eq!(
+        default_route(&root, "y2-no-such-dev", 1.0),
+        Err("command_failed".into())
     );
-    assert_eq!(missing, ip);
-    let ip = y2p_core::command::run(
-        &root,
-        &["ip", "-j", "-4", "addr", "show", "dev", "y2-no-such-dev"],
-        1.0,
+    assert_eq!(
+        ipv4_addresses(&root, "y2-no-such-dev", 1.0),
+        Err("command_failed".into())
     );
-    assert_eq!(ipv4_addresses(&root, "y2-no-such-dev", 1.0), ip);
 }
 
 /// The generic netlink family lookup as genetlink expects it: a request header, the controller's

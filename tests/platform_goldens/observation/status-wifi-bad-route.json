@@ -110,12 +110,14 @@
     "real_disconnects": 0
    },
    "failed_network_id": null,
-   "ip_addresses": [],
+   "ip_addresses": [
+    "192.168.1.40"
+   ],
    "power_save": {
     "enabled": true
    },
    "radio_present": true,
-   "reason": "no_address",
+   "reason": "no_default_route",
    "reconnect_owner": "wpa_supplicant",
    "rssi_dbm": null,
    "signal_observation": {
@@ -125,7 +127,7 @@
     "ok": false,
     "reason": "fixture"
    },
-   "state": "AcquiringIP",
+   "state": "Authenticated",
    "supplicant_observation": {
     "duration_ns": "<volatile>",
     "ok": true,

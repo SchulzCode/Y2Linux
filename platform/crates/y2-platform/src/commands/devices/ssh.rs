@@ -10,7 +10,6 @@
 use crate::reply::At;
 use crate::reply::{atomic_json, private_directory, Failure, Outcome};
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use std::{
     io::{self, Write},
     os::{
@@ -26,8 +25,7 @@ use wake::{AddressEvents, Signals, RUNNING};
 use y2p_core::{
     json::Object,
     lenient::{self, BootId},
-    py::{self, eq_int},
-    Root,
+    py, Root,
 };
 
 const DROPBEAR: &str = "/usr/sbin/dropbear";
@@ -55,46 +53,24 @@ mod wake;
 /// Whether usb0 carries the owner address, or the reason it does not yet.
 type Address = Result<(), &'static str>;
 
-/// usb0 carries exactly 10.42.0.1/24 (`ip -j` JSON); an answer that is not the expected shape is
-/// `usb_interface_not_ready`.
+/// usb0 carries exactly 10.42.0.1/24; a failed or unreadable query is `usb_interface_not_ready`.
 fn usb_address(root: &Root) -> Address {
-    let result = crate::commands::connectivity::direct::ipv4_addresses(root, "usb0", 1.0);
-    let parsed: Option<Value> = serde_json::from_str(result.output.as_deref().unwrap_or("")).ok();
-    match parsed.as_ref().map(configured) {
-        Some(Ok(true)) => Ok(()),
-        Some(Ok(false)) => Err("usb_address_not_ready"),
-        _ => Err("usb_interface_not_ready"),
+    match crate::commands::connectivity::direct::ipv4_addresses(root, "usb0", 1.0) {
+        Ok(links) if configured(&links) => Ok(()),
+        Ok(_) => Err("usb_address_not_ready"),
+        Err(_) => Err("usb_interface_not_ready"),
     }
 }
 
-/// The items of a JSON list; `Err` for anything else.
-fn items(value: &Value) -> Result<Vec<Value>, ()> {
-    value.as_array().cloned().ok_or(())
-}
-
-/// Whether an interface named usb0 has the address 10.42.0.1 with prefix length 24. The interfaces
-/// are read in order and the first match ends the search; an interface or address that is not an
-/// object, or `addr_info` without items, before a match makes the answer malformed (`Err`).
-fn configured(interfaces: &Value) -> Result<bool, ()> {
-    for interface in items(interfaces)? {
-        let interface = interface.as_object().ok_or(())?;
-        if interface.get("ifname").and_then(Value::as_str) != Some("usb0") {
-            continue;
-        }
-        let addresses = match interface.get("addr_info") {
-            None => Vec::new(),
-            Some(value) => items(value)?,
-        };
-        for address in addresses {
-            let address = address.as_object().ok_or(())?;
-            if address.get("local").and_then(Value::as_str) == Some("10.42.0.1")
-                && eq_int(address.get("prefixlen"), 24)
-            {
-                return Ok(true);
-            }
-        }
-    }
-    Ok(false)
+/// Whether an interface named usb0 has the address 10.42.0.1 with prefix length 24.
+fn configured(links: &[crate::commands::connectivity::direct::Link]) -> bool {
+    links
+        .iter()
+        .filter(|link| link.ifname.as_deref() == Some("usb0"))
+        .flat_map(|link| &link.addr_info)
+        .any(|address| {
+            address.local.as_deref() == Some("10.42.0.1") && address.prefixlen == Some(24)
+        })
 }
 
 /// What SSH waits for, in order: the owner's key, the CRNG, the usb0 address, a verified /data.
@@ -379,27 +355,21 @@ mod tests {
     use serde_json::json;
 
     #[test]
-    fn addresses_are_read_in_order_until_the_first_match() {
-        let ok =
-            json!([{"ifname": "usb0", "addr_info": [{"local": "10.42.0.1", "prefixlen": 24}]}]);
-        assert_eq!(configured(&ok), Ok(true));
-        let wrong =
-            json!([{"ifname": "usb0", "addr_info": [{"local": "10.42.0.2", "prefixlen": 24}]}]);
-        assert_eq!(configured(&wrong), Ok(false));
-        assert_eq!(
-            configured(&json!([{"ifname": "wlan0", "addr_info": 3}])),
-            Ok(false)
-        );
-        assert_eq!(
-            configured(&json!([{"ifname": "usb0", "addr_info": 3}])),
-            Err(())
-        );
-        assert_eq!(configured(&json!({"a": 1})), Err(()));
-        assert_eq!(configured(&json!({})), Err(()));
-        assert_eq!(configured(&json!(null)), Err(()));
-        // The first match ends the search before a later malformed entry.
-        let early =
-            json!([{"ifname": "usb0", "addr_info": [{"local": "10.42.0.1", "prefixlen": 24}]}, 5]);
-        assert_eq!(configured(&early), Ok(true));
+    fn only_usb0_with_the_owner_address_counts() {
+        let link = |name: &str, local: &str, prefixlen: u8| {
+            serde_json::from_value::<crate::commands::connectivity::direct::Link>(json!(
+                {"ifname": name, "addr_info": [{"local": local, "prefixlen": prefixlen}]}
+            ))
+            .unwrap()
+        };
+        assert!(configured(&[link("usb0", "10.42.0.1", 24)]));
+        assert!(!configured(&[link("usb0", "10.42.0.2", 24)]));
+        assert!(!configured(&[link("usb0", "10.42.0.1", 16)]));
+        assert!(!configured(&[link("wlan0", "10.42.0.1", 24)]));
+        assert!(configured(&[
+            link("wlan0", "10.42.0.1", 24),
+            link("usb0", "10.42.0.1", 24)
+        ]));
+        assert!(!configured(&[]));
     }
 }

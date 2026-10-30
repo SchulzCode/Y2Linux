@@ -101,7 +101,14 @@
    "coexistence": {
     "bt": 1
    },
-   "default_route": [],
+   "default_route": [
+    {
+     "dev": "wlan0",
+     "dst": "default",
+     "flags": [],
+     "gateway": "192.168.1.1"
+    }
+   ],
    "dns_ready": false,
    "events": {
     "boot_id": "boot-a",

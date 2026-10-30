@@ -618,15 +618,15 @@ REFUSALS = {
     'status-system-update-dict-state': 'invalid_update_journal',
     'status-wifi-signal-list': 'invalid_network_record',
     'status-wifi-signal-text': 'invalid_network_record',
-    'status-wifi-ip-text': 'invalid_ip_output',
-    'status-wifi-ip-number-link': 'invalid_ip_output',
-    'status-wifi-ip-info-dict': 'invalid_ip_output',
-    'status-wifi-ip-object': 'invalid_ip_output',
 }
 # A broken previous-boot evidence record leaves the snapshot readable: only its section says why.
 UNREADABLE_EVIDENCE = ['status-system-evidence-bad-logs', 'status-system-evidence-text-logs',
                        'status-system-evidence-null-logs', 'status-system-evidence-list-log']
-EXTRA_CASES = [case for case in CASES if case[0] in REFUSALS or case[0] in UNREADABLE_EVIDENCE or (
+# Odd `ip -j` output reads as no address (the snapshot stays readable).
+UNREADABLE_IP = ['status-wifi-ip-text', 'status-wifi-ip-number-link', 'status-wifi-ip-info-dict',
+                 'status-wifi-ip-object']
+EXTRA_CASES = [case for case in CASES if case[0] in REFUSALS or case[0] in UNREADABLE_EVIDENCE
+               or case[0] in UNREADABLE_IP or (
     case[1] == ['boot-evidence'] and case[0] not in ('boot-evidence-again', 'boot-evidence-missed-boundary',
                                                      'boot-evidence-no-data', 'boot-evidence-wrong-mount',
                                                      'boot-evidence-no-boot-id'))]
