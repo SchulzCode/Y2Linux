@@ -4,11 +4,11 @@
 use super::{
     atomic_json, channel, copy_stream, core, download, fs, installed_release, journal_state, json,
     lock, pathlib, private_directory, py, set_signal, shortened, signal_disposition, storage,
-    string, truthy, wait_online, Disposition, File, Handler, Io, Map, Net, OpenOptions, Ordering,
-    Path, PathBuf, Progress, Raise, Result, Root, Source, Value, BACKUPS, CANCELLED,
-    CHECK_PROGRESS, FILES, IN_PROGRESS, KEPT_LOGS, MANIFEST_ATTEMPTS, RESERVE,
+    truthy, wait_online, Disposition, File, Handler, Io, Map, Net, OpenOptions, Ordering, Path,
+    PathBuf, Progress, Raise, Result, Root, Source, Value, BACKUPS, CANCELLED, CHECK_PROGRESS,
+    FILES, IN_PROGRESS, KEPT_LOGS, MANIFEST_ATTEMPTS, RESERVE,
 };
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::ops::ControlFlow;
 use std::os::fd::AsFd;
 use std::os::unix::fs::DirBuilderExt;
@@ -242,7 +242,7 @@ pub(super) struct Staging<'a> {
     live: Option<Progress>,
     /// What download.json says once the manifest is checked; a cancel restores it (`null` before).
     summary: Option<Download>,
-    previous: Value,
+    previous: Option<Download>,
 }
 
 /// A core answer without the manifest's fields (only a broken core gives one).
@@ -258,11 +258,13 @@ struct Payload {
 }
 
 /// download.json, what the Software Update page shows (written sorted; a field is left out where
-/// its state has none).
-#[derive(Serialize, Default)]
-struct Download {
-    schema: u8,
-    state: &'static str,
+/// its state has none). Read back by `update status`, a later check and a failed check (which keeps
+/// what the page offered).
+#[derive(Serialize, Deserialize, Default, Clone, Debug)]
+#[serde(default)]
+pub(crate) struct Download {
+    pub(crate) schema: u8,
+    pub(crate) state: String,
     /// The token of the check or download that runs (Checking, Staging).
     #[serde(skip_serializing_if = "Option::is_none")]
     id: Option<String>,
@@ -284,24 +286,40 @@ struct Download {
     #[serde(skip_serializing_if = "Option::is_none")]
     reborn_version: Option<Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    backup_budget: Option<&'static str>,
+    backup_budget: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     reserve_bytes: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     cleaned_bytes: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    failure: Option<String>,
+    pub(crate) failure: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     needed_bytes: Option<i64>,
+    /// A check that failed after one had offered a release: why (the offer stays).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    last_check_failure: Option<String>,
 }
 
 impl Download {
-    fn state(state: &'static str) -> Download {
+    pub(crate) fn state(state: &str) -> Download {
         Download {
             schema: 1,
-            state,
+            state: state.to_owned(),
             ..Download::default()
         }
+    }
+
+    /// The record at /data/updates/download.json; none when missing or of another shape.
+    /// A download or check that ended without its own record.
+    pub(crate) fn failed(failure: &str) -> Download {
+        Download {
+            failure: Some(failure.into()),
+            ..Download::state("Failed")
+        }
+    }
+
+    pub(crate) fn read(root: &Root) -> Option<Download> {
+        serde_json::from_str(&root.read("/data/updates/download.json")?).ok()
     }
 }
 
@@ -447,9 +465,7 @@ impl Staging<'_> {
         // still find the release (OTA-46).
         let cleaned = make_room(root, io, file, 64 * 1024)?;
         // What the Software Update page showed: a failed check keeps it.
-        self.previous = root
-            .json("/data/updates/download.json")
-            .unwrap_or(Value::Null);
+        self.previous = Download::read(root);
         fs::DirBuilder::new()
             .mode(0o700)
             .create(&self.incoming)
@@ -674,7 +690,8 @@ impl Staging<'_> {
                 release_version: Some(manifest.release.clone()),
                 notes: Some(manifest.notes()),
                 backup_budget: Some(
-                    "recovery captures the compressed previous root and BOOTIMG before any write",
+                    "recovery captures the compressed previous root and BOOTIMG before any write"
+                        .into(),
                 ),
                 reserve_bytes: Some(RESERVE as i64),
                 cleaned_bytes: Some(cleaned as i64),
@@ -737,7 +754,7 @@ pub(super) fn stage(
         check_only,
         live: None,
         summary: None,
-        previous: Value::Null,
+        previous: None,
     };
     let result = staging.run(&file, url, source, &volume);
     let download = staging.directory.join("download.json");
@@ -760,13 +777,16 @@ pub(super) fn stage(
                 }
                 _ => None,
             };
-            if check_only && string(staging.previous.get("state")) == Some("Checked") {
+            let offered = staging
+                .previous
+                .clone()
+                .filter(|previous| check_only && previous.state == "Checked");
+            if let Some(mut kept) = offered {
                 // A check that couldn't reach the server keeps the release the page already offered
                 // (Update Now stays); the error goes to the caller.
-                let mut kept = staging.previous.as_object().cloned().unwrap_or_default();
-                kept.insert("last_check_failure".into(), json!(shortened(&text, 120)));
-                if let Some(needed) = needed {
-                    kept.insert("needed_bytes".into(), json!(needed));
+                kept.last_check_failure = Some(shortened(&text, 120));
+                if needed.is_some() {
+                    kept.needed_bytes = needed;
                 }
                 atomic_json(&download, &kept, true)?;
             } else {

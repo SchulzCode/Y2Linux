@@ -69,10 +69,14 @@ pub(super) fn automatic_check(root: &Root, io: &dyn Io) -> Result<Value> {
             // that holds it keeps its record.
             let path = root.path("/data/updates/download.json");
             let busy = error.text() == IN_PROGRESS;
-            if !busy && previous.is_null() {
-                let _ = crate::reply::unlink_missing_ok(&path);
-            } else if !busy {
-                let _ = atomic_json(&path, &previous, true);
+            match (&previous, busy) {
+                (_, true) => {}
+                (None, false) => {
+                    let _ = crate::reply::unlink_missing_ok(&path);
+                }
+                (Some(previous), false) => {
+                    let _ = atomic_json(&path, previous, true);
+                }
             }
         }
     }

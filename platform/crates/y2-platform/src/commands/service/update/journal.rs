@@ -1,6 +1,7 @@
 //! The records an update reads besides its payloads: the native core's journal and answers
 //! (`status`, `core`) and download.json as the Software Update page sees it.
 // SPDX-License-Identifier: GPL-2.0-only
+use super::staging::Download;
 use super::{
     channel, command, fs, json, py, sorted, string, truthy, Map, Path, Raise, Result, Root, Value,
 };
@@ -19,16 +20,14 @@ pub(super) fn object(value: Option<Value>) -> Map<String, Value> {
 /// a download writes first stays `Staging` when the download dies without reaching its own handler
 /// (power loss, a kill), and that page offered neither Cancel nor Check for Updates; a restart kept
 /// it (it is on /data).
-pub(super) fn download_record(root: &Root) -> Value {
-    let record = root
-        .json("/data/updates/download.json")
-        .unwrap_or(Value::Null);
-    if matches!(string(record.get("state")), Some("Staging" | "Checking"))
+pub(crate) fn download_record(root: &Root) -> Option<Download> {
+    let record = Download::read(root)?;
+    if matches!(record.state.as_str(), "Staging" | "Checking")
         && !lock_held(root, &root.path("/data/updates/.stage.lock"))
     {
-        return json!({"schema": 1, "state": "Failed", "failure": "download_interrupted"});
+        return Some(Download::failed("download_interrupted"));
     }
-    record
+    Some(record)
 }
 
 /// `update status`: the core's journal (Idle on a ready Y2DATA without one, Unavailable without a
@@ -58,7 +57,7 @@ pub fn status(root: &Root) -> Map<String, Value> {
             ))
         }
     };
-    value.insert("download".into(), download_record(root));
+    value.insert("download".into(), json!(download_record(root)));
     value.insert(
         "last_check".into(),
         root.json("/data/updates/last-check.json")
