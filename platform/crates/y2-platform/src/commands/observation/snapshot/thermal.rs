@@ -1,7 +1,9 @@
 //! The `thermal` section: thermal zones with their trip points and cooling devices.
 // SPDX-License-Identifier: GPL-2.0-only
-use crate::commands::observation::util::{self, name, number, read};
-use serde_json::{json, Value};
+use crate::commands::observation::util::{self, int, name, read};
+use serde::Serialize;
+use serde_json::Value;
+use std::path::Path;
 use y2p_core::Root;
 
 /// `PurePath.stem` (Python 3.14: a trailing dot is a suffix too; a leading one is not).
@@ -12,30 +14,84 @@ fn stem(name: &str) -> &str {
     }
 }
 
+/// One thermal zone with its trip points.
+#[derive(Serialize)]
+struct Zone {
+    name: String,
+    #[serde(rename = "type")]
+    kind: Option<String>,
+    temperature_millicelsius: Option<i64>,
+    trips: Vec<Trip>,
+}
+
+#[derive(Serialize)]
+struct Trip {
+    name: String,
+    temperature_millicelsius: Option<i64>,
+    #[serde(rename = "type")]
+    kind: Option<String>,
+}
+
+#[derive(Serialize)]
+struct Cooling {
+    name: String,
+    #[serde(rename = "type")]
+    kind: Option<String>,
+    state: Option<i64>,
+    max_state: Option<i64>,
+}
+
+/// The `thermal` section (in this key order).
+#[derive(Serialize)]
+struct Thermal {
+    zones: Vec<Zone>,
+    cooling: Vec<Cooling>,
+    /// No qualified pack sensor: always null.
+    battery_temperature: Option<i64>,
+    battery_temperature_reason: &'static str,
+}
+
+/// A sysfs integer (`int(text)`), none when unreadable or no integer.
+fn integer(path: &Path) -> Option<i64> {
+    read(path).as_deref().and_then(int)
+}
+
 pub fn thermal(root: &Root) -> Value {
-    let mut zones = Vec::new();
-    for path in root.glob("/sys/class/thermal/thermal_zone*") {
-        let mut trips = Vec::new();
-        for trip in util::glob_dir(&path, "trip_point_*_temp") {
-            let trip_name = name(&trip);
-            trips.push(json!({"name": stem(&trip_name), "temperature_millicelsius": number(read(&trip).as_deref()),
-                              "type": read(&trip.with_file_name(trip_name.replace("_temp", "_type")))}));
-        }
-        zones.push(
-            json!({"name": name(&path), "type": read(&path.join("type")),
-                          "temperature_millicelsius": number(read(&path.join("temp")).as_deref()),
-                          "trips": trips}),
-        );
-    }
-    let cooling: Vec<Value> = root
-        .glob("/sys/class/thermal/cooling_device*")
+    let zones = root
+        .glob("/sys/class/thermal/thermal_zone*")
         .iter()
-        .map(|p| {
-            json!({"name": name(p), "type": read(&p.join("type")),
-                   "state": number(read(&p.join("cur_state")).as_deref()),
-                   "max_state": number(read(&p.join("max_state")).as_deref())})
+        .map(|path| Zone {
+            name: name(path),
+            kind: read(&path.join("type")),
+            temperature_millicelsius: integer(&path.join("temp")),
+            trips: util::glob_dir(path, "trip_point_*_temp")
+                .iter()
+                .map(|trip| {
+                    let trip_name = name(trip);
+                    Trip {
+                        name: stem(&trip_name).to_owned(),
+                        temperature_millicelsius: integer(trip),
+                        kind: read(&trip.with_file_name(trip_name.replace("_temp", "_type"))),
+                    }
+                })
+                .collect(),
         })
         .collect();
-    json!({"zones": zones, "cooling": cooling, "battery_temperature": null,
-           "battery_temperature_reason": "no_qualified_pack_sensor"})
+    let cooling = root
+        .glob("/sys/class/thermal/cooling_device*")
+        .iter()
+        .map(|p| Cooling {
+            name: name(p),
+            kind: read(&p.join("type")),
+            state: integer(&p.join("cur_state")),
+            max_state: integer(&p.join("max_state")),
+        })
+        .collect();
+    let thermal = Thermal {
+        zones,
+        cooling,
+        battery_temperature: None,
+        battery_temperature_reason: "no_qualified_pack_sensor",
+    };
+    serde_json::to_value(thermal).unwrap_or_default()
 }
