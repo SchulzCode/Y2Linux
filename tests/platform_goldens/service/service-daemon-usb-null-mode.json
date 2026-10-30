@@ -5,6 +5,16 @@
  "calls": [
   {
    "argv": [
+    "mount",
+    "-t",
+    "functionfs",
+    "mtp",
+    "/dev/ffs-mtp"
+   ],
+   "timeout": 1.0
+  },
+  {
+   "argv": [
     "/usr/sbin/y2-platform",
     "media",
     "reconcile"
@@ -32,6 +42,29 @@
  "stdout": [],
  "tree": {
   "added": {
+   "/data/firmware": {
+    "mode": "0o700",
+    "type": "dir"
+   },
+   "/data/firmware/inbox": {
+    "mode": "0o700",
+    "type": "dir"
+   },
+   "/data/firmware/inbox/README.txt": {
+    "content": [
+     "Wi-Fi and Bluetooth need the radio firmware from the Innioasis Y2 firmware package.",
+     "Copy (do not move) the file system.img from that package into this folder (about",
+     "520 MB). The player checks it, keeps the five small radio files and deletes the copy.",
+     "A larger system.img (about 860 MB) is an unpacked copy: if there is not enough space",
+     "here, put it into a folder named Firmware on the SD card instead."
+    ],
+    "mode": "0o644",
+    "type": "file"
+   },
+   "/dev/ffs-mtp": {
+    "mode": "0o755",
+    "type": "dir"
+   },
    "/run/y2/coexistence.json": {
     "content": {
      "bluetooth_link": {},
@@ -211,7 +244,7 @@
      "filesystem_owner": "linux",
      "functions": [],
      "mode": null,
-     "reason": "unsupported_usb_mode",
+     "reason": "functionfs_mount_failed",
      "refresh_generation": 0,
      "restarts": 1,
      "schema": "org.y2linux.usb-transfer/v1",
@@ -219,6 +252,178 @@
      "views": []
     },
     "mode": "0o600",
+    "type": "file"
+   },
+   "/sys/kernel/config/usb_gadget/y2": {
+    "mode": "0o755",
+    "type": "dir"
+   },
+   "/sys/kernel/config/usb_gadget/y2/bDeviceClass": {
+    "content": 0,
+    "mode": "0o644",
+    "type": "file"
+   },
+   "/sys/kernel/config/usb_gadget/y2/bDeviceProtocol": {
+    "content": 0,
+    "mode": "0o644",
+    "type": "file"
+   },
+   "/sys/kernel/config/usb_gadget/y2/bDeviceSubClass": {
+    "content": 0,
+    "mode": "0o644",
+    "type": "file"
+   },
+   "/sys/kernel/config/usb_gadget/y2/bcdDevice": {
+    "content": [
+     "0x0100"
+    ],
+    "mode": "0o644",
+    "type": "file"
+   },
+   "/sys/kernel/config/usb_gadget/y2/bcdUSB": {
+    "content": [
+     "0x0200"
+    ],
+    "mode": "0o644",
+    "type": "file"
+   },
+   "/sys/kernel/config/usb_gadget/y2/configs": {
+    "mode": "0o755",
+    "type": "dir"
+   },
+   "/sys/kernel/config/usb_gadget/y2/configs/c.1": {
+    "mode": "0o755",
+    "type": "dir"
+   },
+   "/sys/kernel/config/usb_gadget/y2/configs/c.1/MaxPower": {
+    "content": 500,
+    "mode": "0o644",
+    "type": "file"
+   },
+   "/sys/kernel/config/usb_gadget/y2/configs/c.1/bmAttributes": {
+    "content": [
+     "0x80"
+    ],
+    "mode": "0o644",
+    "type": "file"
+   },
+   "/sys/kernel/config/usb_gadget/y2/configs/c.1/ecm.usb0": {
+    "target": "<root>/sys/kernel/config/usb_gadget/y2/functions/ecm.usb0",
+    "type": "symlink"
+   },
+   "/sys/kernel/config/usb_gadget/y2/configs/c.1/ffs.mtp": {
+    "target": "<root>/sys/kernel/config/usb_gadget/y2/functions/ffs.mtp",
+    "type": "symlink"
+   },
+   "/sys/kernel/config/usb_gadget/y2/configs/c.1/strings": {
+    "mode": "0o755",
+    "type": "dir"
+   },
+   "/sys/kernel/config/usb_gadget/y2/configs/c.1/strings/0x409": {
+    "mode": "0o755",
+    "type": "dir"
+   },
+   "/sys/kernel/config/usb_gadget/y2/configs/c.1/strings/0x409/configuration": {
+    "content": [
+     "Music Transfer"
+    ],
+    "mode": "0o644",
+    "type": "file"
+   },
+   "/sys/kernel/config/usb_gadget/y2/functions": {
+    "mode": "0o755",
+    "type": "dir"
+   },
+   "/sys/kernel/config/usb_gadget/y2/functions/ecm.usb0": {
+    "mode": "0o755",
+    "type": "dir"
+   },
+   "/sys/kernel/config/usb_gadget/y2/functions/ecm.usb0/dev_addr": {
+    "content": [
+     "02:42:00:00:00:01"
+    ],
+    "mode": "0o644",
+    "type": "file"
+   },
+   "/sys/kernel/config/usb_gadget/y2/functions/ecm.usb0/host_addr": {
+    "content": [
+     "02:42:00:00:00:02"
+    ],
+    "mode": "0o644",
+    "type": "file"
+   },
+   "/sys/kernel/config/usb_gadget/y2/functions/ffs.mtp": {
+    "mode": "0o755",
+    "type": "dir"
+   },
+   "/sys/kernel/config/usb_gadget/y2/idProduct": {
+    "content": [
+     "0xa4aa"
+    ],
+    "mode": "0o644",
+    "type": "file"
+   },
+   "/sys/kernel/config/usb_gadget/y2/idVendor": {
+    "content": [
+     "0x0525"
+    ],
+    "mode": "0o644",
+    "type": "file"
+   },
+   "/sys/kernel/config/usb_gadget/y2/os_desc": {
+    "mode": "0o755",
+    "type": "dir"
+   },
+   "/sys/kernel/config/usb_gadget/y2/os_desc/b_vendor_code": {
+    "content": [
+     "0x20"
+    ],
+    "mode": "0o644",
+    "type": "file"
+   },
+   "/sys/kernel/config/usb_gadget/y2/os_desc/c.1": {
+    "target": "<root>/sys/kernel/config/usb_gadget/y2/configs/c.1",
+    "type": "symlink"
+   },
+   "/sys/kernel/config/usb_gadget/y2/os_desc/qw_sign": {
+    "content": [
+     "MSFT100"
+    ],
+    "mode": "0o644",
+    "type": "file"
+   },
+   "/sys/kernel/config/usb_gadget/y2/os_desc/use": {
+    "content": 1,
+    "mode": "0o644",
+    "type": "file"
+   },
+   "/sys/kernel/config/usb_gadget/y2/strings": {
+    "mode": "0o755",
+    "type": "dir"
+   },
+   "/sys/kernel/config/usb_gadget/y2/strings/0x409": {
+    "mode": "0o755",
+    "type": "dir"
+   },
+   "/sys/kernel/config/usb_gadget/y2/strings/0x409/manufacturer": {
+    "content": [
+     "Y2Linux"
+    ],
+    "mode": "0o644",
+    "type": "file"
+   },
+   "/sys/kernel/config/usb_gadget/y2/strings/0x409/product": {
+    "content": [
+     "Y2"
+    ],
+    "mode": "0o644",
+    "type": "file"
+   },
+   "/sys/kernel/config/usb_gadget/y2/strings/0x409/serialnumber": {
+    "content": [
+     "Y2LINUX-DEV-01"
+    ],
+    "mode": "0o644",
     "type": "file"
    }
   },

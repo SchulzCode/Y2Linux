@@ -11,6 +11,7 @@ use crate::commands::storage::{
     sys::{emmc_entry, mounts, read, Mount},
 };
 use crate::reply::{atomic_json, mkdir_parents, write_text, Failure};
+use serde::Deserialize;
 use serde_json::{json, Value};
 use std::{fs, path::Path, thread, time::Duration};
 use y2p_core::{py, Root};
@@ -49,31 +50,38 @@ fn selection(mode: &str) -> Result<&'static [&'static str], Failure> {
 
 /// /run/y2/usb-transfer.json (org.y2linux.usb-transfer/v1): what Reborn's USB screen and the
 /// storage commands read of the connection.
-#[derive(serde::Serialize)]
-struct Transfer<'a> {
+#[derive(serde::Serialize, Clone, Debug, PartialEq)]
+pub struct Transfer {
     schema: &'static str,
     boot_id: Option<String>,
-    state: &'a str,
-    reason: Option<&'a str>,
-    mode: Option<&'static str>,
-    cable: &'a Option<String>,
+    pub state: String,
+    pub reason: Option<String>,
+    pub mode: Option<&'static str>,
+    cable: Option<String>,
     functions: &'static [&'static str],
-    views: &'a [View],
+    views: Vec<View>,
     filesystem_owner: &'static str,
     block_export: bool,
     refresh_generation: u64,
     active: bool,
-    error: &'a Value,
+    /// The responder's last copy error (an errno: 28 for a copy that did not fit).
+    error: Option<i64>,
     restarts: i64,
 }
 
 /// What the running responder reports in /run/y2/mtp-events.json (a record of another responder
-/// counts as none): a copy in progress, its last error (28: a copy that did not fit) and how many
-/// changes to the library it made (an integer; a bool counts as one).
-#[derive(Default)]
+/// counts as none): a copy in progress, its last error and how many changes to the library it made.
+/// Each field reads leniently.
+#[derive(Deserialize, Default)]
+#[serde(default)]
 struct Activity {
+    #[serde(deserialize_with = "y2p_core::lenient::or_none")]
+    pid: Option<i64>,
+    #[serde(deserialize_with = "y2p_core::lenient::or_default")]
     active: bool,
-    error: Value,
+    #[serde(deserialize_with = "y2p_core::lenient::or_none")]
+    error: Option<i64>,
+    #[serde(deserialize_with = "y2p_core::lenient::or_none")]
     generation: Option<i64>,
 }
 
@@ -82,19 +90,22 @@ impl Activity {
         let Some(pid) = responder else {
             return Self::default();
         };
-        let record = root.json_object("/run/y2/mtp-events.json");
-        if *record.get("pid").unwrap_or(&Value::Null) != json!(pid) {
+        let record: Activity = root
+            .read("/run/y2/mtp-events.json")
+            .and_then(|text| serde_json::from_str(&text).ok())
+            .unwrap_or_default();
+        if record.pid != Some(i64::from(pid)) {
             return Self::default();
         }
-        Self {
-            active: record.get("active") == Some(&Value::Bool(true)),
-            error: record.get("error").cloned().unwrap_or(Value::Null),
-            generation: match record.get("generation") {
-                Some(Value::Bool(b)) => Some(i64::from(*b)),
-                other => other.and_then(Value::as_i64),
-            },
-        }
+        record
     }
+}
+
+/// The owner's USB mode (`usb-mode`'s record): `mtp` unless it names another.
+#[derive(Deserialize, Default)]
+#[serde(default)]
+struct ModeRecord {
+    mode: Option<Value>,
 }
 
 /// What `tick` compares to reuse validated views until identity/options change.
@@ -116,7 +127,7 @@ pub struct UsbService {
     previous_cable: Option<String>,
     seen_generation: i64,
     refresh_generation: u64,
-    last_record: Option<Value>,
+    last_record: Option<Transfer>,
     signature: Option<Signature>,
     cached_views: Vec<View>,
     terminal: bool,
@@ -164,31 +175,30 @@ impl UsbService {
         reason: Option<&str>,
         cable: &Option<String>,
         activity: &Activity,
-    ) -> Result<Value, Failure> {
+    ) -> Result<Transfer, Failure> {
         let root = &self.root;
         let boot_id = self.boot_id.get_or_insert_with(|| root.boot_id()).clone();
         let record = Transfer {
             schema: SCHEMA,
             boot_id,
-            state,
-            reason,
+            state: state.to_owned(),
+            reason: reason.map(str::to_owned),
             mode: self.mode,
-            cable,
+            cable: cable.clone(),
             functions: self.mode.map_or(Ok(&[][..]), selection)?,
-            views: self.views.as_deref().unwrap_or_default(),
+            views: self.views.clone().unwrap_or_default(),
             filesystem_owner: "linux",
             block_export: false,
             refresh_generation: self.refresh_generation,
             active: activity.active,
-            error: &activity.error,
+            error: activity.error,
             restarts: self.failures,
         };
-        let value = serde_json::to_value(&record).map_err(Failure::value)?;
-        if self.last_record.as_ref() != Some(&value) {
-            atomic_json(&self.root.path("/run/y2/usb-transfer.json"), &value, false)?;
-            self.last_record = Some(value.clone());
+        if self.last_record.as_ref() != Some(&record) {
+            atomic_json(&self.root.path("/run/y2/usb-transfer.json"), &record, false)?;
+            self.last_record = Some(record.clone());
         }
-        Ok(value)
+        Ok(record)
     }
 
     /// A connected computer may write to the SD card: its window is renewed while the host has the
@@ -221,7 +231,7 @@ impl UsbService {
     }
 
     /// One pass: the record `/run/y2/usb-transfer.json` shows (written only when it changed).
-    pub fn tick(&mut self) -> Result<Value, Failure> {
+    pub fn tick(&mut self) -> Result<Transfer, Failure> {
         mkdir_parents(&self.root.path("/run/y2"), 0o777)?;
         let udcs = self.root.glob("/sys/class/udc/*");
         if udcs.len() != 1 {
@@ -244,12 +254,12 @@ impl UsbService {
             );
         }
         // Anything but a mode's name is refused by `attempt` (unsupported_usb_mode).
-        let requested = self
-            .root
-            .json_object("/data/system/platform/usb-mode.json")
-            .get("mode")
-            .cloned()
-            .unwrap_or_else(|| json!("mtp"));
+        let requested = serde_json::from_value::<ModeRecord>(Value::Object(
+            self.root.json_object("/data/system/platform/usb-mode.json"),
+        ))
+        .unwrap_or_default()
+        .mode
+        .unwrap_or_else(|| json!("mtp"));
         let name = udc
             .file_name()
             .map(|n| n.to_string_lossy().into_owned())
@@ -286,7 +296,7 @@ impl UsbService {
         requested: Value,
         cable: &Option<String>,
         udc: &str,
-    ) -> Result<Value, Failure> {
+    ) -> Result<Transfer, Failure> {
         let requested_text = requested.as_str().unwrap_or_default();
         selection(requested_text).map_err(|e| {
             if requested.is_string() {

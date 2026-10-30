@@ -103,7 +103,7 @@ impl Usb {
     }
 
     fn tick(&mut self) -> Value {
-        self.service.tick().unwrap()
+        serde_json::json!(self.service.tick().unwrap())
     }
 
     fn descriptors(&self) {
@@ -318,11 +318,14 @@ fn readiness_restart_unbinds_its_existing_gadget_before_setup() {
     });
     let mut restarted = UsbService::new(&usb.fixture.root);
     restarted.launch = stand_in(launch);
-    let value = restarted.tick().unwrap();
+    let value = serde_json::json!(restarted.tick().unwrap());
     assert_eq!(*seen.borrow(), ["\n"]);
     assert_eq!(usb.gadget("UDC"), "musb");
     assert_eq!(value["filesystem_owner"], "linux");
-    assert_eq!(restarted.tick().unwrap()["filesystem_owner"], "linux");
+    assert_eq!(
+        serde_json::json!(restarted.tick().unwrap())["filesystem_owner"],
+        "linux"
+    );
     restarted.stop().unwrap();
 }
 
