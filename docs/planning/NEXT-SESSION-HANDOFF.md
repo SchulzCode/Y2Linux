@@ -1,6 +1,17 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.4 candidate (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-30, late afternoon): TEST BUILD 180 ON THE OWNER'S PLAYER; IDIOMATIC PLAN P0–P4 DONE, P5/P6 NEXT.**
+> **START HERE (2026-10-30, evening): TEST BUILD 181 ON THE OWNER'S PLAYER; IDIOMATIC PLAN P0–P7 DONE FOR NON-CRITICAL CODE.**
+> [PLATFORM-RUST-IDIOMATIC-PLAN.md](PLATFORM-RUST-IDIOMATIC-PLAN.md) P5 (typed `Snapshot`, 01c484d2), P6 (reports
+> without `Py`, 76675310/585566fa), P7 (`y2p_core::pyjson` deleted, ASCII kernel numbers, ffd6ff52), CONTRACT.md
+> stdout rule (67254a08); Reborn 717f038 (contract data). 181 (seq 11260) Acknowledged, application_ready 37.5 s,
+> device check OK (health: Bluetooth UNAVAILABLE = radio off). **Left (plan §3 notes):** section functions returning
+> their structs (readiness/health still read inside sections by key), reports.json as a struct, P4 leftovers
+> (storage volume map, wifi internals, evidence, system); `Value` mentions 2,189 (reports moved Py → Value). Flaky
+> test: y2p-core `power_journal::wifi_rows_append_rotate_once_and_skip_a_busy_lock` (forked child holds the flock
+> until exec; give it the power test's retry). **Owner:** hardware checks owed since 169, event-source/dark-wake
+> checks, boot-profile decisions. Next free label 182, sequence above 11260.
+>
+> Previous entry: **START HERE (2026-10-30, late afternoon): TEST BUILD 180 ON THE OWNER'S PLAYER; IDIOMATIC PLAN P0–P4 DONE, P5/P6 NEXT.**
 > [PLATFORM-RUST-IDIOMATIC-PLAN.md](PLATFORM-RUST-IDIOMATIC-PLAN.md): P0 (tools: semantic gate, Reborn contract
 > test, record-compat, golden-diff), P1 (one serde writer), P2 (one argument reading), P3 (Rust types instead of
 > Python comparisons outside critical code), P4 partly (Bluetooth typed), P7 started. 180 (seq 11250) Acknowledged,
