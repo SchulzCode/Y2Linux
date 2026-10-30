@@ -3,10 +3,38 @@
 use super::{section, Snapshot};
 use crate::commands::observation::util::{self, get_eq};
 use crate::{regex, reply::Failure};
+use serde::Serialize;
 use serde_json::{json, Value};
 
+/// What a subsystem's state means for the product.
+#[derive(Serialize, Clone, Copy)]
+enum Readiness {
+    Ready,
+    Degraded,
+    Starting,
+    Unavailable,
+    Failed,
+}
+
+/// One subsystem's readiness and why.
+#[derive(Serialize)]
+struct Item<S> {
+    state: S,
+    reason: Value,
+}
+
+/// The `readiness` section (in this key order); Bluetooth's state is its section's own.
+#[derive(Serialize)]
+struct Section {
+    storage: Item<Readiness>,
+    wifi: Item<Readiness>,
+    bluetooth: Item<Value>,
+    audio: Item<Readiness>,
+    update: Item<Readiness>,
+}
+
 pub(super) fn readiness(status: &Snapshot) -> Result<Value, Failure> {
-    let item = |state: &str, reason: Value| json!({"state": state, "reason": reason});
+    let item = |state: Readiness, reason: Value| Item { state, reason };
     let empty = Vec::new();
     let volumes = section(status, "storage")["volumes"]
         .as_array()
@@ -15,12 +43,12 @@ pub(super) fn readiness(status: &Snapshot) -> Result<Value, Failure> {
     let all_ready = first.iter().all(|v| v["state"] == "Ready");
     let storage_state = if all_ready {
         if first.iter().all(|v| v["space_state"] == "Normal") {
-            "Ready"
+            Readiness::Ready
         } else {
-            "Degraded"
+            Readiness::Degraded
         }
     } else {
-        "Failed"
+        Readiness::Failed
     };
     let storage_reason = first
         .iter()
@@ -30,11 +58,11 @@ pub(super) fn readiness(status: &Snapshot) -> Result<Value, Failure> {
         });
     let wifi = section(status, "wifi");
     let wifi_state = match wifi["state"].as_str() {
-        Some("Online") => "Ready",
-        Some("Off") => "Unavailable",
-        Some("Failed") => "Failed",
-        Some("Authenticated") => "Degraded",
-        _ => "Starting",
+        Some("Online") => Readiness::Ready,
+        Some("Off") => Readiness::Unavailable,
+        Some("Failed") => Readiness::Failed,
+        Some("Authenticated") => Readiness::Degraded,
+        _ => Readiness::Starting,
     };
     let profile = &section(status, "audio")["qualified_profile"];
     let valid = profile.as_object().is_some_and(|p| {
@@ -61,20 +89,34 @@ pub(super) fn readiness(status: &Snapshot) -> Result<Value, Failure> {
             return Err(Failure::value("invalid_update_journal"))
         }
         Some(Value::String(s)) => match s.as_str() {
-            "Idle" | "Acknowledged" => "Ready",
-            "RolledBack" | "RollbackPending" => "Degraded",
-            "Queued" | "PendingHealth" => "Starting",
-            "Failed" | "RescueRequired" => "Failed",
-            _ => "Unavailable",
+            "Idle" | "Acknowledged" => Readiness::Ready,
+            "RolledBack" | "RollbackPending" => Readiness::Degraded,
+            "Queued" | "PendingHealth" => Readiness::Starting,
+            "Failed" | "RescueRequired" => Readiness::Failed,
+            _ => Readiness::Unavailable,
         },
-        _ => "Unavailable",
+        _ => Readiness::Unavailable,
     };
     let bluetooth = section(status, "bluetooth");
-    Ok(json!({
-        "storage": item(storage_state, storage_reason),
-        "wifi": item(wifi_state, wifi["reason"].clone()),
-        "bluetooth": {"state": bluetooth["state"], "reason": bluetooth.get("reason").cloned().unwrap_or(Value::Null)},
-        "audio": item(if audio { "Ready" } else { "Unavailable" }, json!("profile_does_not_imply_current_physical_acceptance")),
-        "update": item(update_state, update.get("failure").cloned().unwrap_or(Value::Null)),
-    }))
+    let section = Section {
+        storage: item(storage_state, storage_reason),
+        wifi: item(wifi_state, wifi["reason"].clone()),
+        bluetooth: Item {
+            state: bluetooth["state"].clone(),
+            reason: bluetooth.get("reason").cloned().unwrap_or(Value::Null),
+        },
+        audio: item(
+            if audio {
+                Readiness::Ready
+            } else {
+                Readiness::Unavailable
+            },
+            json!("profile_does_not_imply_current_physical_acceptance"),
+        ),
+        update: item(
+            update_state,
+            update.get("failure").cloned().unwrap_or(Value::Null),
+        ),
+    };
+    serde_json::to_value(section).map_err(Failure::value)
 }
