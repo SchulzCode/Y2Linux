@@ -361,6 +361,9 @@ Indexed pages: **341**. Explicit scope notices: **228**.
 | [Y2Linux 1.0 Beta 8.42 report](validation/Y2-LINUX-1.0-BETA-8.42.md) | Beta 8.42 (Baseline 163): sleep without relighting, large SD cards, quick scan, error report fixes F17 F23 F34 F39 F50–F57, #62 empty factory partitions |
 | [Y2Linux 1.0 Beta 8.41 report](validation/Y2-LINUX-1.0-BETA-8.41.md) | Beta 8.41 (Baseline 159): internal speaker, headphone detection, haptic feedback |
 | [Platform Rust port plan](planning/PLATFORM-RUST-PORT-PLAN.md) | Port of the Python platform service to Rust in phases, then Python removed from the player; inventory, contract, tests, gates |
+| [Platform Rust port handoff](planning/PLATFORM-RUST-PORT-HANDOFF.md) | State of the Rust platform after the port: measurements, where everything lives, build/test/install, what is owed |
+| [Platform Rust refactor plan](planning/PLATFORM-RUST-REFACTOR-PLAN.md) | Refactor of the ported platform: contract, phases, quick wins, duplication pass, next pass P1–P9 and what still follows Python |
+| [Platform Rust next-agent handoff](planning/PLATFORM-RUST-NEXT-AGENT-HANDOFF.md) | The remaining Rust-logic, refactor and duplication work for one agent: order, method, owner decisions, build/verify |
 | [Speaker and haptics plan](planning/SPEAKER-HAPTICS-PLAN.md) | Stock REA of the vibrator, AW87559 and CS43131 speaker route; plan and device checks |
 | [Y2Linux 1.0 Beta 8.39 report](validation/Y2-LINUX-1.0-BETA-8.39.md) | Beta 8.39 (Baseline 153): Folders by file name, Shuffle Albums, playlist Sort, a 120 000-song card measured and made fast |
 | [Y2Linux 1.0 Beta 8.38 report](validation/Y2-LINUX-1.0-BETA-8.38.md) | Beta 8.38 (Baseline 146): Bluetooth sound after Pause → Play (F43), a smooth wave that moves with the music |
