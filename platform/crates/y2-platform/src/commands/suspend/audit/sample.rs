@@ -4,7 +4,7 @@
 use super::super::{
     as_map, int_literal, journal::plain, monotonic, process_time, receipt, wall, E,
 };
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{
     fs,
@@ -235,8 +235,46 @@ pub(super) enum Application {
     },
 }
 
+/// Reborn's `status` as the audit reads it: four sections (a missing one is empty) and whether its
+/// screen is off, each value as Reborn gave it.
+#[derive(Deserialize, Default)]
+#[serde(default)]
+struct RebornStatus {
+    screen_off: Value,
+    playback: Section,
+    library: Section,
+    audio: Section,
+    graphics: Section,
+}
+
+/// A status section: its fields, or `None` when it is no object.
+#[derive(Debug)]
+struct Section(Option<serde_json::Map<String, Value>>);
+
+impl Default for Section {
+    fn default() -> Section {
+        Section(Some(serde_json::Map::new()))
+    }
+}
+
+impl<'de> Deserialize<'de> for Section {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Section, D::Error> {
+        Ok(Section(match Value::deserialize(deserializer)? {
+            Value::Object(fields) => Some(fields),
+            _ => None,
+        }))
+    }
+}
+
+impl Section {
+    fn field(&self, key: &str) -> Option<Value> {
+        let fields = self.0.as_ref()?;
+        Some(plain(fields.get(key).cloned().unwrap_or(Value::Null)))
+    }
+}
+
 pub(super) fn application(root: &Root) -> Application {
-    let status = match receipt::application_rpc(root, "status", false) {
+    let status: RebornStatus = match receipt::application_rpc(root, "status", false) {
         Ok(status) => status,
         Err(error) => {
             return Application::Unavailable {
@@ -244,28 +282,20 @@ pub(super) fn application(root: &Root) -> Application {
             }
         }
     };
-    let empty = Value::Object(serde_json::Map::new());
-    let section = |key: &str| status.get(key).unwrap_or(&empty);
     // A section that is not an object has no fields: the whole status is unavailable.
-    let field = |key: &str, inner: &str| -> Option<Value> {
-        let Value::Object(map) = section(key) else {
-            return None;
-        };
-        Some(plain(map.get(inner).cloned().unwrap_or(Value::Null)))
-    };
     let graphics = ["backend", "frames", "context_losses"]
         .into_iter()
-        .map(|k| field("graphics", k).map(|v| (k, v)))
+        .map(|k| status.graphics.field(k).map(|v| (k, v)))
         .collect::<Option<Vec<_>>>();
     match (
-        field("playback", "state"),
-        field("library", "scanning"),
-        field("audio", "state"),
+        status.playback.field("state"),
+        status.library.field("scanning"),
+        status.audio.field("state"),
         graphics,
     ) {
         (Some(playback_state), Some(scanning), Some(audio_state), Some(graphics)) => {
             Application::Status {
-                screen_off: plain(status.get("screen_off").cloned().unwrap_or(Value::Null)),
+                screen_off: plain(status.screen_off),
                 playback_state,
                 scanning,
                 audio_state,

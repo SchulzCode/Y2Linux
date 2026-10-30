@@ -6,10 +6,10 @@
  "calls": [],
  "exit": 1,
  "stdout": {
-  "reason": "Expecting value: line 1 column 1 (char 0)",
+  "reason": "reborn_sleep_answer_unreadable",
   "schema": "org.y2linux.error/v1",
   "state": "Failed",
-  "type": "JSONDecodeError"
+  "type": "ValueError"
  },
  "tree": {
   "added": {
@@ -70,7 +70,7 @@
      "sleep": {
       "boot_id": "boot-a",
       "kernel_completed": false,
-      "reason": "Expecting value: line 1 column 1 (char 0)",
+      "reason": "reborn_sleep_answer_unreadable",
       "request_boot_id": "boot-a",
       "same_boot": true,
       "schema": "org.y2linux.sleep/v1",
@@ -84,7 +84,7 @@
       "first_entry": null,
       "maintenance_wakes": null,
       "mode": null,
-      "reason": "Expecting value: line 1 column 1 (char 0)",
+      "reason": "reborn_sleep_answer_unreadable",
       "resume": null,
       "stage": "refused_reborn_preparation",
       "suspended_seconds": null
@@ -143,7 +143,7 @@
      "product": {
       "boot_id": "boot-a",
       "kernel_completed": false,
-      "reason": "Expecting value: line 1 column 1 (char 0)",
+      "reason": "reborn_sleep_answer_unreadable",
       "request_boot_id": "boot-a",
       "same_boot": true,
       "schema": "org.y2linux.sleep/v1",

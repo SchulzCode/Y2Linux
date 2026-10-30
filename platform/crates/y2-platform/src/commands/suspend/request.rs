@@ -18,7 +18,7 @@ use std::{
     process::{Command, Stdio},
 };
 use y2p_core::lock;
-use y2p_core::{py::is_true, Root};
+use y2p_core::Root;
 
 /// The error record of a lock or state directory that cannot be used (an OS error, or a value error
 /// for a state directory that is no private directory).
@@ -44,9 +44,9 @@ pub fn prepare_owned(root: &Root) -> Result<Map<String, Value>, E> {
 
 /// Reborn's acknowledgement that the screen is off and it is ready to sleep; a refusal or no answer
 /// is recorded (`refused_reborn_preparation`) and returned.
-pub fn acknowledge_prepare(root: &Root) -> Result<Map<String, Value>, E> {
-    let ack = application_rpc(root, "sleep_prepare", false).and_then(|ack| {
-        if !is_true(ack.get("sleep_ready")) || !is_true(ack.get("screen_off")) {
+pub fn acknowledge_prepare(root: &Root) -> Result<receipt::SleepAck, E> {
+    let ack = application_rpc(root, "sleep_prepare", false).and_then(|ack: receipt::SleepAck| {
+        if !ack.ready() || ack.screen_off != Some(true) {
             return Err(E::value("reborn_sleep_preparation_failed"));
         }
         Ok(ack)

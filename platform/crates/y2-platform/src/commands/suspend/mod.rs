@@ -19,7 +19,6 @@ pub mod audit;
 pub mod diagnostics;
 pub mod helper;
 pub mod journal;
-pub mod pyjson;
 pub mod receipt;
 pub mod request;
 pub mod scripts;

@@ -1,11 +1,15 @@
 //! Reborn's control socket (`/run/reborn/control.sock`): one bounded request and its
 //! acknowledgement, never just process liveness.
 // SPDX-License-Identifier: GPL-2.0-only
-use super::super::{interrupted, pyjson, E};
-use serde_json::{json, Map, Value};
+use super::super::{interrupted, E};
+use serde::{de::DeserializeOwned, Deserialize};
+use serde_json::Value;
 use std::os::fd::{AsFd, AsRawFd};
-use y2p_core::py::PyValue;
-use y2p_core::{json::dumps, py::is_true, Root};
+use y2p_core::{
+    json::dumps,
+    lenient::{self, Shaped},
+    Root,
+};
 
 const RESPONSE_LIMIT: usize = 131_072;
 const RPC_TIMEOUT_MS: i32 = 5000;
@@ -43,7 +47,11 @@ fn last_error() -> std::io::Error {
 
 /// `application_rpc(ctx, operation, **fields)`: a bounded explicit application acknowledgement over
 /// Reborn's control socket, never just process liveness. `dark` adds `"dark": true` (F47).
-pub fn application_rpc(root: &Root, operation: &str, dark: bool) -> Result<Map<String, Value>, E> {
+pub fn application_rpc<T: DeserializeOwned>(
+    root: &Root,
+    operation: &str,
+    dark: bool,
+) -> Result<T, E> {
     let op = dumps(&operation).map_err(|e| E::value(e.to_string()))?;
     let request = format!(
         "{{\"version\": 1, \"id\": 6582, \"command\": {{\"op\": {op}{}}}}}\n",
@@ -120,24 +128,65 @@ pub fn application_rpc(root: &Root, operation: &str, dark: bool) -> Result<Map<S
         return Err(E::value("reborn_sleep_response_too_large"));
     }
     let line = response.split(|b| *b == b'\n').next().unwrap_or_default();
-    let answer = pyjson::loads(line).map_err(|e| E::Value {
-        class: e.class,
-        text: e.text,
-    })?;
-    let Value::Object(answer) = answer else {
-        return Err(E::value("reborn_sleep_acknowledgement_failed"));
+    // An answer that is no JSON object is no answer.
+    let answer: Answer<T> = match serde_json::from_slice(line) {
+        Ok(Value::Object(answer)) => serde_json::from_value(Value::Object(answer))
+            .map_err(|_| E::value("reborn_sleep_answer_unreadable"))?,
+        _ => return Err(E::value("reborn_sleep_answer_unreadable")),
     };
-    if !answer.get("id").is_some_and(|id| id.py_eq(&json!(6582))) {
+    if answer.id != Some(6582.0) {
         return Err(E::value("reborn_sleep_acknowledgement_failed"));
     }
-    if !is_true(answer.get("ok")) {
-        return Err(E::value(match answer.get("error") {
-            Some(Value::String(error)) if error.chars().count() <= 256 => error.clone(),
-            _ => "reborn_sleep_acknowledgement_failed".into(),
-        }));
+    if !answer.ok {
+        return Err(E::value(
+            answer
+                .error
+                .filter(|error| error.chars().count() <= 256)
+                .unwrap_or_else(|| "reborn_sleep_acknowledgement_failed".into()),
+        ));
     }
-    match answer.get("result") {
-        Some(Value::Object(result)) => Ok(result.clone()),
+    match answer.result {
+        Some(Shaped::Is(result)) => Ok(result),
         _ => Err(E::value("reborn_sleep_acknowledgement_invalid")),
+    }
+}
+
+/// Reborn's answer line (`{"id", "ok", "error" | "result"}`).
+#[derive(Deserialize)]
+#[serde(bound = "T: DeserializeOwned")]
+struct Answer<T> {
+    #[serde(default, deserialize_with = "lenient::number")]
+    id: Option<f64>,
+    #[serde(default, deserialize_with = "lenient::is_true")]
+    ok: bool,
+    #[serde(default, deserialize_with = "lenient::text")]
+    error: Option<String>,
+    #[serde(default = "none")]
+    result: Option<Shaped<T>>,
+}
+
+fn none<T>() -> Option<T> {
+    None
+}
+
+/// Reborn's acknowledgement of `sleep_prepare`/`sleep_restore`: ready for the sleep (or back from
+/// it), and whether its screen is off.
+#[derive(Deserialize, Default, Debug, Clone, PartialEq)]
+#[serde(default)]
+pub struct SleepAck {
+    #[serde(deserialize_with = "lenient::or_none")]
+    pub sleep_ready: Option<bool>,
+    #[serde(deserialize_with = "lenient::or_none")]
+    pub screen_off: Option<bool>,
+}
+
+impl SleepAck {
+    /// An answer naming neither (asked again).
+    pub fn is_empty(&self) -> bool {
+        self.sleep_ready.is_none() && self.screen_off.is_none()
+    }
+
+    pub fn ready(&self) -> bool {
+        self.sleep_ready == Some(true)
     }
 }

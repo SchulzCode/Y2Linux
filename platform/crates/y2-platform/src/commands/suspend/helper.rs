@@ -365,7 +365,11 @@ impl Run {
                     // The completion record asks Reborn again when the early restore got no
                     // answer; one that failed may have stopped before it asked.
                     if !answered {
-                        let _ = receipt::application_rpc(root, "sleep_restore", dark);
+                        let _ = receipt::application_rpc::<receipt::SleepAck>(
+                            root,
+                            "sleep_restore",
+                            dark,
+                        );
                     }
                     keep(&mut first, Err(error));
                 }
@@ -481,7 +485,7 @@ fn wait_for_application(
 
 /// Ask Reborn to restore before the radios are; `dark` keeps the screen off (a refused sleep nobody
 /// woke, F47). `None` without an acknowledgement (the completion record asks again).
-fn screen_first(root: &Root, dark: bool) -> Option<Map<String, Value>> {
+fn screen_first(root: &Root, dark: bool) -> Option<receipt::SleepAck> {
     receipt::application_rpc(root, "sleep_restore", dark).ok()
 }
 

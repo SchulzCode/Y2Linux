@@ -5,7 +5,7 @@
 mod rpc;
 mod transition;
 
-pub use rpc::application_rpc;
+pub use rpc::{application_rpc, SleepAck};
 pub use transition::{raised, transition, transition_keys};
 use transition::{set, state};
 
@@ -154,7 +154,7 @@ pub struct Stage<'a> {
     pub reason: Option<String>,
     pub reborn_ack: Option<bool>,
     pub mode: Option<&'a str>,
-    pub restore_ack: Option<Map<String, Value>>,
+    pub restore_ack: Option<SleepAck>,
     pub dark: bool,
 }
 
@@ -323,9 +323,7 @@ pub fn record(root: &Root, s: Stage) -> Result<Receipt, E> {
             None => application_rpc(root, "sleep_restore", s.dark),
         };
         let restored = match acknowledgement {
-            Ok(ack) => {
-                is_true(ack.get("sleep_ready")) && ack.get("screen_off") == Some(&json!(s.dark))
-            }
+            Ok(ack) => ack.ready() && ack.screen_off == Some(s.dark),
             Err(error) if error.is_os() || error.is_value() => false,
             Err(error) => return Err(error),
         };

@@ -1348,8 +1348,11 @@ fn early_screen_restore_is_reused_and_a_failed_one_retried() {
     );
     let ack = screen_first(root, false);
     assert_eq!(
-        ack.clone().map(Value::Object),
-        Some(json!({"sleep_ready": true, "screen_off": false}))
+        ack.clone(),
+        Some(crate::commands::suspend::receipt::SleepAck {
+            sleep_ready: Some(true),
+            screen_off: Some(false)
+        })
     );
     drop(reborn);
     assert_eq!(screen_first(root, false), None);
