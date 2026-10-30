@@ -572,3 +572,46 @@ fn the_nl80211_family_lookup_is_laid_out_as_genetlink_expects() {
     );
     assert_eq!(genl_request(28, 62, 1, &[(3, b"abcde")]).len(), 16 + 4 + 12);
 }
+
+#[test]
+fn link_counters_are_the_statistics_files_by_name() {
+    // ifinfomsg (AF_UNSPEC, type, index 3, flags, change), then IFLA_STATS64 with counter i = i + 1
+    // and rx_otherhost_dropped, which has no file.
+    let mut body = vec![0u8, 0, 1, 0];
+    body.extend_from_slice(&3u32.to_ne_bytes());
+    body.extend_from_slice(&[0; 8]);
+    let counters: Vec<u8> = (1..=25u64).flat_map(u64::to_ne_bytes).collect();
+    body.extend(rtattr(3, b"wlan0\0"));
+    body.extend(rtattr(IFLA_STATS64, &counters));
+    let found = statistics_of(&body).unwrap();
+    assert_eq!(found.len(), 24);
+    assert_eq!(found.first(), Some(&("collisions", 10)));
+    assert_eq!(found.last(), Some(&("tx_window_errors", 21)));
+    assert!(found.contains(&("rx_packets", 1)) && found.contains(&("rx_nohandler", 24)));
+    assert!(found.windows(2).all(|pair| pair[0].0 < pair[1].0));
+    // Too short a block: no counters (the caller reads the files).
+    let mut short = body[..IFINFOMSG].to_vec();
+    short.extend(rtattr(IFLA_STATS64, &counters[..80]));
+    assert_eq!(statistics_of(&short), None);
+}
+
+#[test]
+fn the_players_link_counters_need_the_interface() {
+    assert_eq!(link_statistics("y2-no-such-link", 1.0), Some(Vec::new()));
+}
+
+#[test]
+fn the_kernels_link_counters_are_its_statistics_files() {
+    let files = Path::new("/sys/class/net/lo/statistics");
+    let Some(counters) = link_statistics("lo", 2.0).filter(|_| files.is_dir()) else {
+        return;
+    };
+    assert_eq!(counters.len(), STATS64.len());
+    for (name, value) in counters {
+        assert!(files.join(name).is_file(), "{name}");
+        if name.ends_with("_errors") {
+            let text = std::fs::read_to_string(files.join(name)).unwrap();
+            assert_eq!(text.trim().parse::<u64>().unwrap(), value, "{name}");
+        }
+    }
+}

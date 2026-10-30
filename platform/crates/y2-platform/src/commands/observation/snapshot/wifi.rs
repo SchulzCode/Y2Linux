@@ -282,8 +282,24 @@ pub fn observe(
         &dhcp_error,
     );
     let mut stats = Map::new();
-    for path in root.glob("/sys/class/net/wlan0/statistics/*") {
-        stats.insert(name(&path), number(read(&path).as_deref()));
+    match root
+        .is_real()
+        .then(|| direct::link_statistics("wlan0", 3.0))
+        .flatten()
+    {
+        Some(counters) => {
+            for (counter, value) in counters {
+                stats.insert(
+                    counter.into(),
+                    i64::try_from(value).map_or(Value::Null, Value::from),
+                );
+            }
+        }
+        None => {
+            for path in root.glob("/sys/class/net/wlan0/statistics/*") {
+                stats.insert(name(&path), number(read(&path).as_deref()));
+            }
+        }
     }
     let previous: Published = match signal_cache {
         Some(cache) => fields(cache),

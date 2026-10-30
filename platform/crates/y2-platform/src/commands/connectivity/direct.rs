@@ -173,7 +173,11 @@ pub(crate) const RTM_NEWADDR: u16 = 20;
 const RTM_GETADDR: u16 = 22;
 pub(crate) const RTM_NEWROUTE: u16 = 24;
 const RTM_GETROUTE: u16 = 26;
+pub(crate) const RTM_NEWLINK: u16 = 16;
+const RTM_GETLINK: u16 = 18;
 const IFADDRMSG: usize = 8;
+const IFINFOMSG: usize = 16;
+const IFLA_STATS64: u16 = 23;
 const RTMSG: usize = 12;
 pub(crate) const IFA_ADDRESS: u16 = 1;
 pub(crate) const IFA_LOCAL: u16 = 2;
@@ -189,12 +193,13 @@ pub(crate) const RTN_UNICAST: u8 = 1;
 pub(crate) const RTPROT_BOOT: u8 = 3;
 pub(crate) const RTM_F_CLONED: u32 = 0x200;
 
-/// The request for a dump of `kind` (RTM_GETADDR or RTM_GETROUTE) of the IPv4 family.
+/// The request for a dump of `kind` (RTM_GETADDR or RTM_GETROUTE of the IPv4 family, RTM_GETLINK of
+/// every family).
 fn dump_request(kind: u16, seq: u32) -> Vec<u8> {
-    let body = if kind == RTM_GETADDR {
-        IFADDRMSG
-    } else {
-        RTMSG
+    let (body, family) = match kind {
+        RTM_GETADDR => (IFADDRMSG, libc::AF_INET as u8),
+        RTM_GETLINK => (IFINFOMSG, libc::AF_UNSPEC as u8),
+        _ => (RTMSG, libc::AF_INET as u8),
     };
     let mut request = Vec::with_capacity(NLMSG_HEADER + body);
     request.extend_from_slice(&((NLMSG_HEADER + body) as u32).to_ne_bytes());
@@ -202,7 +207,7 @@ fn dump_request(kind: u16, seq: u32) -> Vec<u8> {
     request.extend_from_slice(&(NLM_F_REQUEST | NLM_F_DUMP).to_ne_bytes());
     request.extend_from_slice(&seq.to_ne_bytes());
     request.extend_from_slice(&0u32.to_ne_bytes());
-    request.push(libc::AF_INET as u8);
+    request.push(family);
     request.resize(NLMSG_HEADER + body, 0);
     request
 }
@@ -220,10 +225,10 @@ fn dump(kind: u16, timeout: f64) -> Result<Vec<Vec<u8>>, DumpError> {
     let sock = y2p_core::sys::netlink_route(0, false).map_err(|_| DumpError::Failed)?;
     let seq = 1;
     let request = dump_request(
-        if kind == RTM_NEWADDR {
-            RTM_GETADDR
-        } else {
-            RTM_GETROUTE
+        match kind {
+            RTM_NEWADDR => RTM_GETADDR,
+            RTM_NEWLINK => RTM_GETLINK,
+            _ => RTM_GETROUTE,
         },
         seq,
     );
@@ -476,6 +481,64 @@ fn ipv4(data: &[u8]) -> Option<String> {
 
 fn u32_of(data: &[u8]) -> Option<u32> {
     Some(u32::from_ne_bytes(data.get(..4)?.try_into().ok()?))
+}
+
+/// `struct rtnl_link_stats64` (linux/if_link.h) in field order: the names its counters have below
+/// `/sys/class/net/<dev>/statistics/` (`rx_otherhost_dropped` has no file there).
+const STATS64: [&str; 24] = [
+    "rx_packets",
+    "tx_packets",
+    "rx_bytes",
+    "tx_bytes",
+    "rx_errors",
+    "tx_errors",
+    "rx_dropped",
+    "tx_dropped",
+    "multicast",
+    "collisions",
+    "rx_length_errors",
+    "rx_over_errors",
+    "rx_crc_errors",
+    "rx_frame_errors",
+    "rx_fifo_errors",
+    "rx_missed_errors",
+    "tx_aborted_errors",
+    "tx_carrier_errors",
+    "tx_fifo_errors",
+    "tx_heartbeat_errors",
+    "tx_window_errors",
+    "rx_compressed",
+    "tx_compressed",
+    "rx_nohandler",
+];
+
+/// The files of `/sys/class/net/<dev>/statistics/` as (name, value), sorted by name, from one
+/// RTM_GETLINK dump's IFLA_STATS64 (the same `dev_get_stats` the files print): empty without the
+/// interface, None when the dump fails or carries no counters for it (the caller reads the files).
+pub fn link_statistics(dev: &str, timeout: f64) -> Option<Vec<(&'static str, u64)>> {
+    let Some(index) = interface_index(dev) else {
+        return Some(Vec::new());
+    };
+    let dump = dump(RTM_NEWLINK, timeout).ok()?;
+    let body = dump
+        .iter()
+        .find(|body| body.len() >= IFINFOMSG && u32_of(&body[4..8]) == Some(index))?;
+    statistics_of(body)
+}
+
+/// The counters of one RTM_NEWLINK payload, as [`link_statistics`] gives them.
+pub(crate) fn statistics_of(body: &[u8]) -> Option<Vec<(&'static str, u64)>> {
+    let data = attribute(&attributes(body, IFINFOMSG), IFLA_STATS64)?;
+    let mut found: Vec<(&'static str, u64)> = STATS64
+        .iter()
+        .enumerate()
+        .map(|(i, name)| {
+            let bytes = data.get(i * 8..i * 8 + 8)?.try_into().ok()?;
+            Some((*name, u64::from_ne_bytes(bytes)))
+        })
+        .collect::<Option<_>>()?;
+    found.sort_by_key(|(name, _)| *name);
+    Some(found)
 }
 
 /// `if_nametoindex` (how ip resolves `dev`): None for no such interface.
