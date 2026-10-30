@@ -59,12 +59,12 @@ fn monitor(
         if ticks.is_some() {
             timeout = 0.0;
         }
-        let readers: Vec<RawFd> = std::iter::once(wake.read.as_raw_fd())
+        let readers: Vec<RawFd> = std::iter::once(wake.fd())
             .chain(pidfds.iter().map(|(_, _, fd)| fd.as_raw_fd()))
             .chain(events.fd())
             .collect();
         let ready = select(&readers, timeout)?;
-        changed = events.wait(0.0, wake.read.as_raw_fd())?;
+        changed = events.wait(0.0, wake.fd())?;
         dead = pidfds
             .iter()
             .any(|(_, _, fd)| ready.contains(&fd.as_raw_fd()));

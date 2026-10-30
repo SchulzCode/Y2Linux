@@ -25,12 +25,7 @@ use crate::commands::{
 use crate::reply::At;
 use crate::reply::{atomic_json, private_directory, Failure, Outcome};
 use serde_json::{json, Map, Value};
-use std::{
-    env, io,
-    os::fd::{OwnedFd, RawFd},
-    sync::atomic::{AtomicBool, AtomicI32, Ordering},
-};
-use y2p_core::sys::{set_signal, Disposition, Handler};
+use std::{env, sync::atomic::Ordering};
 use y2p_core::{
     command,
     json::{Object, ObjectExt},

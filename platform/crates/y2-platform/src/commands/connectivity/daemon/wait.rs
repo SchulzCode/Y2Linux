@@ -5,9 +5,7 @@ use crate::reply::Failure;
 use std::{
     io,
     os::fd::{AsRawFd, FromRawFd, OwnedFd, RawFd},
-    sync::atomic::{AtomicBool, AtomicI32, Ordering},
 };
-use y2p_core::sys::{set_signal, Disposition, Handler};
 use y2p_core::{clock, Root};
 
 /// Readable descriptors among `fds` within `timeout` seconds (a hang-up or error reads as readable,
@@ -54,77 +52,7 @@ pub fn select(fds: &[RawFd], timeout: f64) -> io::Result<Vec<RawFd>> {
 
 // ---- signals ------------------------------------------------------------------------------------
 
-pub(super) static RUNNING: AtomicBool = AtomicBool::new(true);
-static WAKE_FD: AtomicI32 = AtomicI32::new(-1);
-
-extern "C" fn on_signal(signal: libc::c_int) {
-    if signal != libc::SIGUSR1 {
-        RUNNING.store(false, Ordering::SeqCst);
-    }
-    let fd = WAKE_FD.load(Ordering::SeqCst);
-    if fd >= 0 {
-        let byte = signal as u8;
-        // SAFETY: write(2) is async-signal-safe; a full pipe drops the byte (warn_on_full_buffer=False).
-        unsafe { libc::write(fd, (&byte as *const u8).cast(), 1) };
-    }
-}
-
-/// `service.SignalWake`: SIGTERM and SIGINT end the loop, SIGUSR1 only wakes it; each writes to a
-/// non-blocking pipe the loop selects on. The previous handlers come back on drop.
-pub(super) struct SignalWake {
-    pub(super) read: OwnedFd,
-    write: OwnedFd,
-    previous: Vec<(libc::c_int, Disposition)>,
-}
-
-impl SignalWake {
-    pub(super) fn new() -> Result<Self, Failure> {
-        let mut fds = [0; 2];
-        // SAFETY: pipe2 fills two descriptors this struct then owns.
-        if unsafe { libc::pipe2(fds.as_mut_ptr(), libc::O_NONBLOCK | libc::O_CLOEXEC) } != 0 {
-            return Err(Failure::from(io::Error::last_os_error()));
-        }
-        // SAFETY: both descriptors were just created and are owned once.
-        let (read, write) = unsafe { (OwnedFd::from_raw_fd(fds[0]), OwnedFd::from_raw_fd(fds[1])) };
-        WAKE_FD.store(write.as_raw_fd(), Ordering::SeqCst);
-        let mut previous = Vec::new();
-        for signal in [libc::SIGTERM, libc::SIGINT, libc::SIGUSR1] {
-            // SAFETY: a plain handler that only touches atomics and write(2); the old action is kept.
-            if let Ok(old) =
-                unsafe { set_signal(signal, Handler::Call(on_signal), libc::SA_RESTART) }
-            {
-                previous.push((signal, old));
-            }
-        }
-        Ok(Self {
-            read,
-            write,
-            previous,
-        })
-    }
-
-    pub(super) fn drain(&self) {
-        let mut buffer = [0u8; 4096];
-        // SAFETY: reading into a local buffer from our own non-blocking pipe.
-        unsafe {
-            libc::read(
-                self.read.as_raw_fd(),
-                buffer.as_mut_ptr().cast(),
-                buffer.len(),
-            )
-        };
-    }
-}
-
-impl Drop for SignalWake {
-    fn drop(&mut self) {
-        for (signal, old) in &self.previous {
-            old.restore(*signal);
-        }
-        WAKE_FD.store(-1, Ordering::SeqCst);
-        let _ = &self.write;
-    }
-}
+crate::signal_wake::signal_wake!();
 
 // ---- netlink ------------------------------------------------------------------------------------
 
