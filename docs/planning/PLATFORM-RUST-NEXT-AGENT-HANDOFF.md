@@ -4,6 +4,9 @@ One agent works through this alone, in order, without spawning others. Everythin
 Read this file, then §1 and §3 of [PLATFORM-RUST-REFACTOR-PLAN.md](PLATFORM-RUST-REFACTOR-PLAN.md) (the contract
 and what was already done), then start at §4 below.
 
+**Superseded for the next work by [PLATFORM-RUST-IDIOMATIC-PLAN.md](PLATFORM-RUST-IDIOMATIC-PLAN.md)** (owner
+2026-10-30: byte identity dropped; §2–§3 here still apply where that plan does not replace them).
+
 ## 0. Status of this pass (2026-10-30/31, one agent overnight; updated as items finish)
 
 Baseline: byte goldens recorded from 2e68d63e (test build 175's code). Owner decisions for §5 given up front

@@ -1,6 +1,13 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.4 candidate (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-30, midday): TEST BUILD 179 ON THE OWNER'S PLAYER; NOT PUBLISHED.**
+> **START HERE (2026-10-30, afternoon): NEXT WORK IS [PLATFORM-RUST-IDIOMATIC-PLAN.md](PLATFORM-RUST-IDIOMATIC-PLAN.md).**
+> Owner: outputs no longer have to be byte-identical to the Python platform, they must still work; move all code
+> that is not extremely critical from Python behaviour to Rust behaviour; one agent, alone. The plan holds the
+> contract that stays (Reborn, shell consumers, /data records across rollback, the report bundle, hardware
+> behaviour), the critical code left alone, the method (semantic goldens, Reborn contract test, rollback-read) and
+> phases P0–P7 → test builds 180–187. On the player: test build 179 (seq 11240). Next free label 180.
+>
+> Previous entry: **START HERE (2026-10-30, midday): TEST BUILD 179 ON THE OWNER'S PLAYER; NOT PUBLISHED.**
 > 178 + 179 finished the next-agent handoff's code items the agent could do alone (C, D, E, F, item 9, parts of G
 > and J3; what was left on purpose and why: PLATFORM-RUST-NEXT-AGENT-HANDOFF.md §0). Service daemon dark 4.2 s/h;
 > Reborn (764b024, 68af9ac) no longer asks to sleep every minute on the cable; application_ready follows the
