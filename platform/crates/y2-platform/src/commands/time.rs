@@ -72,6 +72,12 @@ pub(crate) fn record(root: &Root) -> Map<String, Value> {
     }
 }
 
+/// Whether the wall clock is good enough for TLS now (`time`'s `tls_ready`).
+pub(crate) fn tls_ready(root: &Root) -> bool {
+    let now = wall();
+    status_at(root, now, json!(now)).tls_ready
+}
+
 /// The clock status at wall time `now`: TLS ready only for a plausible clock whose anchor of this
 /// boot came from the network or a retained RTC and still agrees. `epoch` is `now` as it is printed
 /// (the wall clock's float for `time`, the owner's integer for `time-set`).

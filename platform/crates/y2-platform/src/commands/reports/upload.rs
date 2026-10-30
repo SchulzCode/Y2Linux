@@ -161,12 +161,7 @@ fn upload_blocked(root: &Root) -> Result<Option<&'static str>, Failure> {
     {
         return Ok(Some("offline"));
     }
-    let clock = crate::commands::time::status(root)?;
-    let ready = serde_json::from_str::<serde_json::Value>(&clock.stdout)
-        .ok()
-        .and_then(|v| v.get("tls_ready").and_then(serde_json::Value::as_bool))
-        .unwrap_or(false);
-    if !ready {
+    if !crate::commands::time::tls_ready(root) {
         return Ok(Some("clock_not_ready"));
     }
     let update = or_dict(json_dict(root, "/data/updates/state.json"));
