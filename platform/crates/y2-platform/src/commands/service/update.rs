@@ -31,7 +31,7 @@ use y2p_core::{
     clock, command,
     digest::Sha256,
     json::{sorted, Object, ObjectExt},
-    py::{self, is_true, truthy},
+    py::{self, truthy},
     record, Root,
 };
 
@@ -43,11 +43,9 @@ pub(crate) use journal::{state as journal_state, status as journal_status, Journ
 mod source;
 mod staging;
 
+pub(super) use self::check::{within, LastCheck};
+pub(crate) use self::health::ApplicationReady;
 use self::{apply::*, check::*, health::*, journal::*, source::*, staging::*};
-pub(super) use self::{
-    check::{within, LastCheck},
-    health::ApplicationReady,
-};
 
 const FILES: [&str; 5] = [
     "manifest.json",

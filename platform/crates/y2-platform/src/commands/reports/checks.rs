@@ -356,16 +356,6 @@ pub(super) struct UpdateJournal {
     pub sequence: Option<i64>,
 }
 
-/// Whether Reborn drew its first frame this boot (application-ready.json).
-#[derive(Deserialize, Default)]
-#[serde(default)]
-struct ApplicationReady {
-    #[serde(deserialize_with = "lenient::text")]
-    boot_id: Option<String>,
-    #[serde(deserialize_with = "lenient::or_none")]
-    first_frame: Option<bool>,
-}
-
 /// An update that failed or was rolled back.
 fn update_failure(root: &Root, value: &mut Reports) -> Result<Fired, Failure> {
     let update: UpdateJournal = read_as(json_dict(root, "/data/updates/state.json"));
@@ -472,8 +462,7 @@ fn display_failure(
     // The DSI read lag at boot (a restart through the recovery can leave the SMI gate closed) is
     // worked around by the driver: only a problem when Reborn's first frame never reached the screen.
     // Timeouts later always are.
-    let ready: ApplicationReady = read_as(json_dict(root, "/run/y2/application-ready.json"));
-    let lit = ready.boot_id.as_deref() == Some(boot) && ready.first_frame == Some(true);
+    let lit = crate::commands::service::update::ApplicationReady::read(root).drawn_in(boot);
     let darks: Vec<&str> = dark()
         .find_iter(kernel)
         .map(|m| m.as_str())

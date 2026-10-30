@@ -60,6 +60,17 @@ pub fn or_default<'de, D: Deserializer<'de>, T: DeserializeOwned + Default>(
     Ok(T::deserialize(Value::deserialize(deserializer)?).unwrap_or_default())
 }
 
+/// A part of the record as `T` when it is an object (serde would read a struct from a list too), its
+/// default otherwise.
+pub fn object_or_default<'de, D: Deserializer<'de>, T: DeserializeOwned + Default>(
+    deserializer: D,
+) -> Result<T, D::Error> {
+    Ok(match Value::deserialize(deserializer)? {
+        object @ Value::Object(_) => T::deserialize(object).unwrap_or_default(),
+        _ => T::default(),
+    })
+}
+
 /// An object's entries that read as `T` (the others left out; anything but an object: none).
 pub fn entries<'de, D: Deserializer<'de>, T: DeserializeOwned>(
     deserializer: D,
