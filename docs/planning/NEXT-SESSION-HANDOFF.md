@@ -1,6 +1,18 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.4 candidate (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-30, night): TEST BUILD 182 ON THE OWNER'S PLAYER; FINISHING PLAN Q1+Q2 DONE, Q3 STARTED.**
+> **START HERE (2026-10-30, late night): TEST BUILD 183 ON THE OWNER'S PLAYER; FINISHING Q1–Q3 DONE, Q4 NEXT.**
+> Q3 since 182: codec module, radio firmware, wifi-failure record, typed Wi-Fi look end to end, power-save record,
+> transfer manifest, capabilities on y2p_contract::Capabilities, one volume probe + one SD identity (storage),
+> Wi-Fi events, USB records, readiness reasons, network-check (7a64dcc0 … c8833769). 183 (seq 11280)
+> Acknowledged, device check OK; application_ready 40.0 s on this update boot (181/182: 37.5/37.4; services_started
+> 22.7 vs 19.9 — watch on a plain restart). Q3 leftovers on purpose: bench (developer tool), facts/session/SQLite and
+> other programs' data (boundaries), the power-journal row passthroughs, usb-transfer.json in the system section
+> (View/Transfer hold &'static str), storage sys.rs USB status + the SD mount claim (go with Q4's SD operations).
+> **Next: Q4** (critical: update journal/health/staging/apply, SD operations + claim, internal setup, reset,
+> power coordinator/policy, suspend, sleep.rs, boot.rs, time floor, cpu_idle), then build 184 and the owner's
+> hardware round. Next free label 184, sequence above 11280.
+>
+> Previous entry: **START HERE (2026-10-30, night): TEST BUILD 182 ON THE OWNER'S PLAYER; FINISHING PLAN Q1+Q2 DONE, Q3 STARTED.**
 > [PLATFORM-RUST-IDIOMATIC-PLAN.md](PLATFORM-RUST-IDIOMATIC-PLAN.md) "Finishing (Q1–Q5)" (owner decisions: critical
 > code last with a hardware round, /data rollback-safe, Reborn API may change with Reborn). Q1 (status sections,
 > ObservationRecord, Health, readiness, evidence record, netlink answers, power section) and Q2 (reports.json,
