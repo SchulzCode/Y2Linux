@@ -21,7 +21,6 @@ use super::{
 use crate::reply::{atomic_json, private_directory, unlink_missing_ok, Failure, Outcome};
 use requests::serve_client;
 use serde::Serialize;
-use serde_json::Value;
 use std::{
     io::Write,
     os::unix::fs::FileTypeExt,
@@ -49,7 +48,7 @@ struct PowerRecord<'a> {
     reason: Option<&'a str>,
     thresholds_enabled: bool,
     battery: &'a BatteryStatus,
-    qualification_reference: Option<&'a Value>,
+    qualification_reference: Option<&'a str>,
     shutdown: Option<&'a Object>,
 }
 
@@ -145,7 +144,10 @@ impl Daemon<'_> {
             reason: self.reason,
             thresholds_enabled: self.policy.is_some(),
             battery: &self.battery_status,
-            qualification_reference: self.policy.as_ref().map(|p| &p.qualification_reference),
+            qualification_reference: self
+                .policy
+                .as_ref()
+                .and_then(|p| p.qualification_reference.as_deref()),
             shutdown: self.coordinator.intent.as_ref(),
         };
         let content = Published::of(self);

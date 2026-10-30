@@ -3,19 +3,16 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use super::battery::{BatteryStatus, Confidence};
 use serde::{Deserialize, Serialize};
-use serde_json::{Map, Value};
-use y2p_core::{
-    py::{exact_int, is_true, python_eq_int},
-    Root,
-};
+use serde_json::Value;
+use y2p_core::{lenient, py::python_number, Root};
 
 pub const POLICY: &str = "/data/system/platform/power-policy.json";
 
 /// A qualified policy.
 #[derive(Clone, Debug)]
 pub struct Policy {
-    /// The document's `qualification_reference` as it is (null when missing), for power.json.
-    pub qualification_reference: Value,
+    /// The document's `qualification_reference` (none when it is no text), for power.json.
+    pub qualification_reference: Option<String>,
     pub schema2: bool,
     pub critical_uv: i64,
     pub low_uv: i64,
@@ -27,27 +24,76 @@ pub struct Policy {
     pub shutdown_soc: i64,
 }
 
-/// `ctx.json(name, default)` with a dict default: an object, else the default.
-fn json_dict(root: &Root, name: &str, default: Map<String, Value>) -> Map<String, Value> {
-    match root.json(name) {
-        Some(Value::Object(map)) => map,
-        _ => default,
+/// power-policy.json as stored: integers only where it has integers (a float or a flag is none).
+#[derive(Deserialize, Default)]
+#[serde(default)]
+struct Stored {
+    /// As Python's `==` compared it (`1.0` and `true` count as 1).
+    #[serde(deserialize_with = "number")]
+    schema: Option<f64>,
+    #[serde(deserialize_with = "lenient::is_true")]
+    enabled: bool,
+    #[serde(deserialize_with = "lenient::integer")]
+    critical_uv: Option<i64>,
+    #[serde(deserialize_with = "lenient::integer")]
+    low_uv: Option<i64>,
+    #[serde(deserialize_with = "lenient::integer")]
+    recover_uv: Option<i64>,
+    #[serde(deserialize_with = "lenient::integer")]
+    critical_samples: Option<i64>,
+    #[serde(deserialize_with = "lenient::integer")]
+    grace_seconds: Option<i64>,
+    #[serde(deserialize_with = "lenient::integer")]
+    warning_soc: Option<i64>,
+    #[serde(deserialize_with = "lenient::integer")]
+    critical_soc: Option<i64>,
+    #[serde(deserialize_with = "lenient::integer")]
+    shutdown_soc: Option<i64>,
+    qualification_reference: Option<Reference>,
+    source: Option<Reference>,
+}
+
+fn number<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Result<Option<f64>, D::Error> {
+    Ok(python_number(Some(&Value::deserialize(deserializer)?)))
+}
+
+/// Who or what qualified the policy, as written: a text, or something else (whether Python called
+/// it true).
+#[derive(Clone, Debug)]
+enum Reference {
+    Text(String),
+    Other(bool),
+}
+
+impl<'de> Deserialize<'de> for Reference {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        Ok(match Value::deserialize(deserializer)? {
+            Value::String(text) => Reference::Text(text),
+            other => Reference::Other(y2p_core::py::truthy(&other)),
+        })
+    }
+}
+
+impl Reference {
+    fn truthy(&self) -> bool {
+        match self {
+            Reference::Text(text) => !text.is_empty(),
+            Reference::Other(truthy) => *truthy,
+        }
     }
 }
 
 pub fn load_policy(root: &Root) -> (Option<Policy>, Option<&'static str>) {
-    let value = json_dict(
-        root,
-        POLICY,
-        root.json_object("/etc/y2linux/power-policy.json"),
-    );
+    let value = match root.json(POLICY) {
+        Some(Value::Object(map)) => map,
+        _ => root.json_object("/etc/y2linux/power-policy.json"),
+    };
+    let stored: Stored = lenient::read(value);
     // No derived or fallback voltage thresholds. A reference records who/what
     // qualified the policy; software cannot certify that physical evidence.
-    let schema = value.get("schema");
-    if !(python_eq_int(schema, 1) || python_eq_int(schema, 2)) || !is_true(value.get("enabled")) {
+    if !matches!(stored.schema, Some(1.0 | 2.0)) || !stored.enabled {
         return (None, Some("thresholds_disabled_PHYSICAL_GATE"));
     }
-    let int = |key: &str| exact_int(value.get(key));
     let (
         Some(critical_uv),
         Some(low_uv),
@@ -55,23 +101,22 @@ pub fn load_policy(root: &Root) -> (Option<Policy>, Option<&'static str>) {
         Some(critical_samples),
         Some(grace_seconds),
     ) = (
-        int("critical_uv"),
-        int("low_uv"),
-        int("recover_uv"),
-        int("critical_samples"),
-        int("grace_seconds"),
+        stored.critical_uv,
+        stored.low_uv,
+        stored.recover_uv,
+        stored.critical_samples,
+        stored.grace_seconds,
     )
     else {
         return (None, Some("invalid_policy"));
     };
     // `value.get('qualification_reference') or value.get('source')`.
-    let reference = match value.get("qualification_reference") {
-        Some(v) if y2p_core::py::truthy(v) => Some(v),
-        _ => value.get("source"),
+    let reference = match &stored.qualification_reference {
+        Some(reference) if reference.truthy() => Some(reference),
+        _ => stored.source.as_ref(),
     };
-    let reference_ok = reference
-        .and_then(Value::as_str)
-        .is_some_and(|s| (1..=256).contains(&s.chars().count()));
+    let reference_ok = matches!(reference, Some(Reference::Text(text))
+        if (1..=256).contains(&text.chars().count()));
     if !(0 < critical_uv
         && critical_uv < low_uv
         && low_uv < recover_uv
@@ -81,9 +126,9 @@ pub fn load_policy(root: &Root) -> (Option<Policy>, Option<&'static str>) {
     {
         return (None, Some("invalid_policy"));
     }
-    let schema2 = python_eq_int(schema, 2);
+    let schema2 = stored.schema == Some(2.0);
     let (warning_soc, critical_soc, shutdown_soc) = if schema2 {
-        match (int("warning_soc"), int("critical_soc"), int("shutdown_soc")) {
+        match (stored.warning_soc, stored.critical_soc, stored.shutdown_soc) {
             (Some(w), Some(c), Some(s)) if 0 <= s && s < c && c < w && w <= 50 => (w, c, s),
             _ => return (None, Some("invalid_policy")),
         }
@@ -101,10 +146,10 @@ pub fn load_policy(root: &Root) -> (Option<Policy>, Option<&'static str>) {
             warning_soc,
             critical_soc,
             shutdown_soc,
-            qualification_reference: value
-                .get("qualification_reference")
-                .cloned()
-                .unwrap_or(Value::Null),
+            qualification_reference: match stored.qualification_reference {
+                Some(Reference::Text(text)) => Some(text),
+                _ => None,
+            },
         }),
         None,
     )

@@ -21,8 +21,8 @@ pub struct PowerRecord {
     pub reason: Option<String>,
     pub thresholds_enabled: bool,
     pub battery: super::battery::BatteryStatus,
-    /// The policy document's `qualification_reference` as it is.
-    pub qualification_reference: Option<Value>,
+    /// The policy document's `qualification_reference` (a text).
+    pub qualification_reference: Option<String>,
     /// The shutdown intent the daemon coordinates (its own record).
     pub shutdown: Option<serde_json::Map<String, Value>>,
 }
