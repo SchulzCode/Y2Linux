@@ -548,3 +548,27 @@ fn direct_reads_equal_ip_on_this_host() {
     );
     assert_eq!(ipv4_addresses(&root, "y2-no-such-dev", 1.0), ip);
 }
+
+/// The generic netlink family lookup as genetlink expects it: a request header, the controller's
+/// command 3 (CTRL_CMD_GETFAMILY) version 1, then CTRL_ATTR_FAMILY_NAME "nl80211\0" padded to 4.
+#[test]
+fn the_nl80211_family_lookup_is_laid_out_as_genetlink_expects() {
+    let request = genl_request(16, 3, 7, &[(2, b"nl80211\0")]);
+    let mut expected = Vec::new();
+    expected.extend_from_slice(&32u32.to_ne_bytes());
+    expected.extend_from_slice(&16u16.to_ne_bytes());
+    expected.extend_from_slice(&1u16.to_ne_bytes()); // NLM_F_REQUEST
+    expected.extend_from_slice(&7u32.to_ne_bytes());
+    expected.extend_from_slice(&0u32.to_ne_bytes());
+    expected.extend_from_slice(&[3, 1, 0, 0]);
+    expected.extend_from_slice(&12u16.to_ne_bytes());
+    expected.extend_from_slice(&2u16.to_ne_bytes());
+    expected.extend_from_slice(b"nl80211\0");
+    assert_eq!(request, expected);
+    // A 4-byte attribute (the interface index) needs no padding; a 5-byte one is padded to 8.
+    assert_eq!(
+        genl_request(28, 62, 1, &[(3, &5u32.to_ne_bytes())]).len(),
+        16 + 4 + 8
+    );
+    assert_eq!(genl_request(28, 62, 1, &[(3, b"abcde")]).len(), 16 + 4 + 12);
+}

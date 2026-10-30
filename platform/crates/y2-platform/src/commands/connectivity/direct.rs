@@ -11,7 +11,7 @@ use std::{
     io,
     net::Ipv4Addr,
     os::{
-        fd::AsRawFd,
+        fd::{AsRawFd, OwnedFd},
         linux::net::SocketAddrExt,
         unix::net::{SocketAddr, UnixDatagram},
     },
@@ -227,6 +227,19 @@ fn dump(kind: u16, timeout: f64) -> Result<Vec<Vec<u8>>, DumpError> {
         },
         seq,
     );
+    send(&sock, &request)?;
+    let mut payloads = Vec::new();
+    let mut buffer = vec![0u8; 65_536];
+    loop {
+        let received = receive(&sock, &mut buffer, deadline)?;
+        if messages(&buffer[..received], seq, kind, &mut payloads)? {
+            return Ok(payloads);
+        }
+    }
+}
+
+/// Send one request to the kernel.
+fn send(sock: &OwnedFd, request: &[u8]) -> Result<(), DumpError> {
     // SAFETY: a zeroed sockaddr_nl is the kernel's address; `request` is a valid buffer.
     let sent = unsafe {
         let mut kernel: libc::sockaddr_nl = std::mem::zeroed();
@@ -243,8 +256,11 @@ fn dump(kind: u16, timeout: f64) -> Result<Vec<Vec<u8>>, DumpError> {
     if sent != request.len() as isize {
         return Err(DumpError::Failed);
     }
-    let mut payloads = Vec::new();
-    let mut buffer = vec![0u8; 65_536];
+    Ok(())
+}
+
+/// One datagram from the kernel before `deadline`: its length in `buffer`.
+fn receive(sock: &OwnedFd, buffer: &mut [u8], deadline: Instant) -> Result<usize, DumpError> {
     loop {
         let left = deadline.saturating_duration_since(Instant::now());
         if left.is_zero() {
@@ -270,18 +286,126 @@ fn dump(kind: u16, timeout: f64) -> Result<Vec<Vec<u8>>, DumpError> {
                 0,
             )
         };
-        if received < 0 {
-            match io::Error::last_os_error().kind() {
-                io::ErrorKind::Interrupted => continue,
-                io::ErrorKind::WouldBlock | io::ErrorKind::TimedOut => {
-                    return Err(DumpError::Timeout)
-                }
-                _ => return Err(DumpError::Failed),
-            }
+        if received >= 0 {
+            return Ok(received as usize);
         }
-        if messages(&buffer[..received as usize], seq, kind, &mut payloads)? {
-            return Ok(payloads);
+        match io::Error::last_os_error().kind() {
+            io::ErrorKind::Interrupted => continue,
+            io::ErrorKind::WouldBlock | io::ErrorKind::TimedOut => return Err(DumpError::Timeout),
+            _ => return Err(DumpError::Failed),
         }
+    }
+}
+
+// Generic netlink (linux/genetlink.h) and nl80211 (linux/nl80211.h).
+const GENL_ID_CTRL: u16 = 16;
+const CTRL_CMD_GETFAMILY: u8 = 3;
+const CTRL_ATTR_FAMILY_ID: u16 = 1;
+const CTRL_ATTR_FAMILY_NAME: u16 = 2;
+const GENL_HEADER: usize = 4;
+const NL80211_CMD_GET_POWER_SAVE: u8 = 62;
+const NL80211_ATTR_IFINDEX: u16 = 3;
+const NL80211_ATTR_PS_STATE: u16 = 93;
+
+/// One generic netlink request (`kind` the family id, `command`, attributes) as bytes.
+pub(crate) fn genl_request(
+    kind: u16,
+    command: u8,
+    seq: u32,
+    attributes: &[(u16, &[u8])],
+) -> Vec<u8> {
+    let mut body = vec![command, 1, 0, 0];
+    for (attribute, data) in attributes {
+        let length = 4 + data.len();
+        body.extend_from_slice(&(length as u16).to_ne_bytes());
+        body.extend_from_slice(&attribute.to_ne_bytes());
+        body.extend_from_slice(data);
+        body.resize(align(body.len()), 0);
+    }
+    let mut request = Vec::with_capacity(NLMSG_HEADER + body.len());
+    request.extend_from_slice(&((NLMSG_HEADER + body.len()) as u32).to_ne_bytes());
+    request.extend_from_slice(&kind.to_ne_bytes());
+    request.extend_from_slice(&NLM_F_REQUEST.to_ne_bytes());
+    request.extend_from_slice(&seq.to_ne_bytes());
+    request.extend_from_slice(&0u32.to_ne_bytes());
+    request.extend_from_slice(&body);
+    request
+}
+
+/// The reply (after the netlink header) of a generic netlink request.
+fn genl(
+    sock: &OwnedFd,
+    request: &[u8],
+    seq: u32,
+    kind: u16,
+    deadline: Instant,
+) -> Result<Vec<u8>, DumpError> {
+    send(sock, request)?;
+    let mut buffer = vec![0u8; 16_384];
+    loop {
+        let received = receive(sock, &mut buffer, deadline)?;
+        let mut payloads = Vec::new();
+        let done = messages(&buffer[..received], seq, kind, &mut payloads)?;
+        if let Some(reply) = payloads.into_iter().next() {
+            return Ok(reply);
+        }
+        if done {
+            return Err(DumpError::Failed);
+        }
+    }
+}
+
+/// `iw dev <dev> get power_save`'s answer (`Power save: on|off`) from nl80211's power-save state.
+fn read_power_save(dev: &str, timeout: f64) -> Result<String, DumpError> {
+    let deadline = Instant::now() + Duration::from_secs_f64(timeout.max(0.0));
+    let index = interface_index(dev).ok_or(DumpError::Failed)?;
+    let sock =
+        y2p_core::sys::netlink(libc::NETLINK_GENERIC, 0, false).map_err(|_| DumpError::Failed)?;
+    let ask = genl_request(
+        GENL_ID_CTRL,
+        CTRL_CMD_GETFAMILY,
+        1,
+        &[(CTRL_ATTR_FAMILY_NAME, b"nl80211\0")],
+    );
+    let family = genl(&sock, &ask, 1, GENL_ID_CTRL, deadline)?;
+    let family = attribute(&attributes(&family, GENL_HEADER), CTRL_ATTR_FAMILY_ID)
+        .and_then(|id| Some(u16::from_ne_bytes(id.get(..2)?.try_into().ok()?)))
+        .ok_or(DumpError::Failed)?;
+    let ask = genl_request(
+        family,
+        NL80211_CMD_GET_POWER_SAVE,
+        2,
+        &[(NL80211_ATTR_IFINDEX, &index.to_ne_bytes())],
+    );
+    let reply = genl(&sock, &ask, 2, family, deadline)?;
+    let state = attribute(&attributes(&reply, GENL_HEADER), NL80211_ATTR_PS_STATE)
+        .and_then(u32_of)
+        .ok_or(DumpError::Failed)?;
+    Ok(format!(
+        "Power save: {}",
+        if state == 1 { "on" } else { "off" }
+    ))
+}
+
+/// `iw dev <dev> get power_save`: on the player nl80211 answers in process (the same text, the
+/// same outcomes: no interface or a refused request `command_failed`, no answer in time
+/// `command_timeout`); below a fixture root the fixture command as before.
+pub fn power_save(root: &Root, dev: &str, timeout: f64) -> Outcome {
+    if !root.is_real() {
+        return y2p_core::command::run(
+            root,
+            &["/usr/sbin/iw", "dev", dev, "get", "power_save"],
+            timeout,
+        );
+    }
+    match read_power_save(dev, timeout) {
+        Ok(text) => Outcome {
+            ok: true,
+            reason: None,
+            output: Some(text),
+        },
+        Err(DumpError::Timeout) => failed("command_timeout"),
+        Err(DumpError::Failed) => failed("command_failed"),
     }
 }
 

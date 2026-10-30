@@ -13,11 +13,7 @@ use y2p_core::{
 
 /// `iw dev wlan0 get power_save`: cfg80211's flag, or None, and the answer.
 fn readback(root: &Root) -> (Option<bool>, command::Outcome) {
-    let answer = run(
-        root,
-        &["/usr/sbin/iw", "dev", "wlan0", "get", "power_save"],
-        3.0,
-    );
+    let answer = super::direct::power_save(root, "wlan0", 3.0);
     let actual = if answer.ok {
         match answer.output.as_deref().map(y2p_core::root::python_strip) {
             Some("Power save: on") => Some(true),

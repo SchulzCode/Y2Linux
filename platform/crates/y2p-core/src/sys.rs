@@ -417,10 +417,15 @@ pub fn socket_error(fd: BorrowedFd<'_>) -> io::Result<()> {
 /// An rtnetlink socket (close-on-exec, non-blocking when asked), bound to the multicast `groups`
 /// (`RTMGRP_*`) when there are any; without groups the kernel binds it on its first send.
 pub fn netlink_route(groups: u32, nonblock: bool) -> io::Result<OwnedFd> {
+    netlink(libc::NETLINK_ROUTE, groups, nonblock)
+}
+
+/// A netlink socket of `protocol` (`NETLINK_ROUTE`, `NETLINK_GENERIC`), as [`netlink_route`].
+pub fn netlink(protocol: libc::c_int, groups: u32, nonblock: bool) -> io::Result<OwnedFd> {
     let flags =
         libc::SOCK_RAW | libc::SOCK_CLOEXEC | if nonblock { libc::SOCK_NONBLOCK } else { 0 };
     // SAFETY: a plain socket call; the descriptor is owned right after it is created.
-    let fd = unsafe { libc::socket(libc::AF_NETLINK, flags, libc::NETLINK_ROUTE) };
+    let fd = unsafe { libc::socket(libc::AF_NETLINK, flags, protocol) };
     if fd < 0 {
         return Err(io::Error::last_os_error());
     }
