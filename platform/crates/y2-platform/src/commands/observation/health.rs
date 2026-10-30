@@ -7,32 +7,26 @@ use super::{
 };
 use crate::reply::{Failure, Outcome, Reply};
 use serde_json::{json, Map, Value};
-use y2p_contract::CheckState;
+use y2p_contract::{CheckState, Health, HealthCheck};
 use y2p_core::volume::{SpaceState, VolumeState};
 use y2p_core::{command, Root};
 
 /// The health record: every check and the worst state among them.
-pub fn check(root: &Root, full: bool) -> Result<Map<String, Value>, Failure> {
+pub fn check(root: &Root, full: bool) -> Result<Health, Failure> {
     check_from(root, &snapshot(root, &[], false, 0.0)?, full)
 }
 
 /// The health record of a snapshot the caller already took (diagnostics export takes one for both).
-pub fn check_from(
-    root: &Root,
-    status: &Snapshot,
-    full: bool,
-) -> Result<Map<String, Value>, Failure> {
-    let mut checks: Vec<Map<String, Value>> = Vec::new();
-    let mut states: Vec<CheckState> = Vec::new();
+pub fn check_from(root: &Root, status: &Snapshot, full: bool) -> Result<Health, Failure> {
+    let mut checks: Vec<HealthCheck> = Vec::new();
     let mut add =
         |name: &str, state: CheckState, reason: Value, details: Option<Map<String, Value>>| {
-            let mut check = Map::new();
-            check.insert("name".into(), json!(name));
-            check.insert("state".into(), json!(state));
-            states.push(state);
-            check.insert("reason".into(), reason);
-            check.extend(details.unwrap_or_default());
-            checks.push(check);
+            checks.push(HealthCheck {
+                name: name.into(),
+                state,
+                reason: reason.as_str().map(str::to_owned),
+                details: details.unwrap_or_default(),
+            });
         };
     for volume in &status.storage.volumes {
         let name = match volume.path() {
@@ -178,35 +172,29 @@ pub fn check_from(
         CheckState::Unavailable,
     ]
     .into_iter()
-    .find(|s| states.contains(s))
+    .find(|s| checks.iter().any(|check| check.state == *s))
     .unwrap_or(CheckState::Ok);
     let mut parameters = Map::new();
     parameters.insert("mode".into(), json!(if full { "full" } else { "quick" }));
     let mut record = util::record(root, "health", parameters);
     record.result = json!(state);
-    record.failure = Value::Array(
-        checks
-            .iter()
-            .zip(&states)
-            .filter(|(_, s)| **s == CheckState::Failed)
-            .map(|(c, _)| c["name"].clone())
-            .collect(),
-    );
-    let mut result = Map::new();
-    result.insert("schema".into(), json!(y2p_contract::schema::HEALTH));
-    result.insert("record".into(), json!(record));
-    result.insert("state".into(), json!(state));
-    result.insert(
-        "checks".into(),
-        Value::Array(checks.into_iter().map(Value::Object).collect()),
-    );
-    Ok(result)
+    record.failure = json!(checks
+        .iter()
+        .filter(|check| check.state == CheckState::Failed)
+        .map(|check| check.name.as_str())
+        .collect::<Vec<_>>());
+    Ok(Health {
+        schema: y2p_contract::schema::HEALTH.into(),
+        record,
+        state,
+        checks,
+    })
 }
 
 /// `y2-platform health [--json] [--full]`: exit 1 for FAILED (Reborn reads it as evidence).
 pub fn run(root: &Root, full: bool) -> Outcome {
     let result = check(root, full)?;
-    let failed = result.get("state").is_some_and(|state| state == "FAILED");
+    let failed = result.state == CheckState::Failed;
     Reply::sorted(&result, u8::from(failed))
 }
 

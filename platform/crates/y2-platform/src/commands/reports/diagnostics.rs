@@ -238,7 +238,7 @@ fn platform_state(root: &Root) -> Result<(Value, Value), Failure> {
     use crate::commands::observation::{health, snapshot};
     let status = snapshot::snapshot(root, &[], false, 0.0)?;
     let checks = health::check_from(root, &status, false)?;
-    Ok((Value::Object(status.into_map()?), Value::Object(checks)))
+    Ok((Value::Object(status.into_map()?), serde_json::json!(checks)))
 }
 
 /// The events of a log's tail: walk reviewed data paths with no symlinks; never read arbitrary

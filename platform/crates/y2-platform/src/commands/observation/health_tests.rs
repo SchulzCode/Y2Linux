@@ -30,7 +30,7 @@ fn audio(fixture: &Fixture) -> Value {
 }
 
 fn filesystem_errors(fixture: &Fixture) -> Value {
-    let health = check(&unanswered(fixture), false).unwrap();
+    let health = json!(check(&unanswered(fixture), false).unwrap());
     health["checks"]
         .as_array()
         .unwrap()
@@ -51,7 +51,7 @@ fn record_corruption_and_no_devices_are_not_green() {
     let result = snapshot(&unanswered(&fixture), &[], false, 0.0).unwrap();
     assert_eq!(result.readiness["audio"]["state"], "Unavailable");
     assert!(result.record.y2linux_commit.is_none());
-    let health = check(&unanswered(&fixture), false).unwrap();
+    let health = json!(check(&unanswered(&fixture), false).unwrap());
     assert_ne!(health["state"], "OK");
     assert_eq!(filesystem_errors(&fixture), "UNAVAILABLE");
 }
