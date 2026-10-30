@@ -121,8 +121,7 @@ fn run(root: &Root, args: &Args) -> Result<(), E> {
         .open(path)
         .map_err(|e| E::os(&e, Some(path)))?;
     let text = dumps(&result, Separators::Compact).map_err(|e| E::value(e.to_string()))? + "\n";
-    out.write_all(text.as_bytes())
-        .map_err(|e| E::os(&e, None))?;
+    out.write_all(text.as_bytes())?;
     Ok(())
 }
 

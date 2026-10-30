@@ -116,7 +116,7 @@ pub fn control_write(
                 check()?;
                 continue;
             }
-            Err(error) => return Err(E::os(&error, None)),
+            Err(error) => return Err(E::from(error)),
         };
         if written != data.len() {
             return Err(E::Os {

@@ -46,7 +46,7 @@ fn wait(fd: i32, events: i16, deadline: std::time::Instant) -> Result<(), E> {
         }
         let error = std::io::Error::last_os_error();
         if error.raw_os_error() != Some(libc::EINTR) {
-            return Err(E::os(&error, None));
+            return Err(E::from(error));
         }
         interrupted()?;
     }
@@ -121,7 +121,7 @@ pub fn application_rpc(root: &Root, operation: &str, dark: bool) -> Result<Map<S
                     return Err(E::os(&std::io::Error::from_raw_os_error(code), None));
                 }
             }
-            _ => return Err(E::os(&error, None)),
+            _ => return Err(E::from(error)),
         }
     }
     interrupted()?;
@@ -138,7 +138,7 @@ pub fn application_rpc(root: &Root, operation: &str, dark: bool) -> Result<Map<S
             match error.raw_os_error() {
                 Some(libc::EINTR) => interrupted()?,
                 Some(libc::EAGAIN) => {}
-                _ => return Err(E::os(&error, None)),
+                _ => return Err(E::from(error)),
             }
             continue;
         }
@@ -161,7 +161,7 @@ pub fn application_rpc(root: &Root, operation: &str, dark: bool) -> Result<Map<S
                     continue;
                 }
                 Some(libc::EAGAIN) => continue,
-                _ => return Err(E::os(&error, None)),
+                _ => return Err(E::from(error)),
             }
         }
         if got == 0 {

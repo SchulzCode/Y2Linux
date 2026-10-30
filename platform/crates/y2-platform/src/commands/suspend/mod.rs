@@ -218,6 +218,13 @@ impl E {
 }
 
 /// A journal append failure (y2p_core::power_journal) as the error the suspend path counts.
+/// An `OSError` from a call that names no file.
+impl From<io::Error> for E {
+    fn from(error: io::Error) -> E {
+        E::os(&error, None)
+    }
+}
+
 impl From<y2p_core::power_journal::AppendError> for E {
     fn from(error: y2p_core::power_journal::AppendError) -> E {
         use y2p_core::power_journal::AppendError;

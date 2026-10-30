@@ -387,7 +387,7 @@ pub fn record(root: &Root, s: Stage) -> Result<Receipt, E> {
         .custom_flags(libc::O_DIRECTORY | libc::O_CLOEXEC)
         .open(parent)
         .map_err(|e| E::os(&e, Some(parent)))?;
-    handle.sync_all().map_err(|e| E::os(&e, None))?;
+    handle.sync_all()?;
     Ok(Receipt(value))
 }
 

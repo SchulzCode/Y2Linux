@@ -184,11 +184,11 @@ impl Pm for FakeKernel<'_> {
     fn control(&mut self, root: &Root, name: &str, value: &str) -> Result<(), E> {
         let mut hooks = self.hooks.borrow_mut();
         if let Some(control) = hooks.control.as_mut() {
-            control(root, name, value).map_err(|e| E::os(&e, None))?;
+            control(root, name, value)?;
         }
         if name == "/sys/power/state" {
             if let Some(enter) = hooks.enter.as_mut() {
-                return enter().map_err(|e| E::os(&e, None));
+                return enter().map_err(E::from);
             }
         }
         control_write(root, name, value, &mut write)

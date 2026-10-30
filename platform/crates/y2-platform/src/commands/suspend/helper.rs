@@ -98,7 +98,7 @@ fn inherited(root: &Root, fd: i32) -> Result<(), E> {
     // SAFETY: the descriptor this programme was given stays open until it closes it after the run
     // (one that is not open fails fstat with EBADF).
     let inherited = unsafe { BorrowedFd::borrow_raw(fd) };
-    let meta = y2p_core::sys::fstat(inherited).map_err(|e| E::os(&e, None))?;
+    let meta = y2p_core::sys::fstat(inherited)?;
     let path = root.path("/run/y2/suspend.lock");
     let lock = std::fs::metadata(&path).map_err(|e| E::os(&e, Some(&path)))?;
     if (meta.dev, meta.ino) != (lock.dev(), lock.ino()) {
@@ -107,7 +107,7 @@ fn inherited(root: &Root, fd: i32) -> Result<(), E> {
     match lock::try_fd(inherited, lock::Kind::Exclusive) {
         Ok(true) => Ok(()),
         Ok(false) => Err(E::os(&lock::would_block(), None)),
-        Err(error) => Err(E::os(&error, None)),
+        Err(error) => Err(E::from(error)),
     }
 }
 
@@ -339,7 +339,7 @@ impl Run {
                 .iter()
                 .find(|(owner, _)| *owner == "activity_operation")
             {
-                keep(&mut first, file.unlock().map_err(|e| E::os(&e, None)));
+                keep(&mut first, file.unlock().map_err(E::from));
             }
             // A radio that did not come back is a failed sleep, not a reason to stop restoring.
             if self.restore_radios(root, pm).is_err() {
@@ -405,7 +405,7 @@ fn operation_locks(root: &Root) -> Result<Vec<(&'static str, File)>, E> {
         match lock::try_fd(file.as_fd(), lock::Kind::Exclusive) {
             Ok(true) => held.push((owner, file)),
             Ok(false) => {
-                let meta = file.metadata().map_err(|e| E::os(&e, None))?;
+                let meta = file.metadata()?;
                 let holders = y2p_core::lock::flock_holders(root, &meta);
                 let mut reason = owner.to_owned();
                 if !holders.is_empty() {
@@ -413,7 +413,7 @@ fn operation_locks(root: &Root) -> Result<Vec<(&'static str, File)>, E> {
                 }
                 return Err(E::refused(reason));
             }
-            Err(error) => return Err(E::os(&error, None)),
+            Err(error) => return Err(E::from(error)),
         }
     }
     Ok(held)

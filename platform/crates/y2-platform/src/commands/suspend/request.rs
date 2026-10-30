@@ -108,7 +108,7 @@ pub fn request_with(root: &Root, launcher: Launcher) -> Outcome {
             busy.insert("reason".into(), "sleep_operation_in_progress".into());
             return Reply::sorted(&busy, 0);
         }
-        Err(error) => return cli(Err(E::os(&error, None))),
+        Err(error) => return cli(Err(E::from(error))),
     }
     cli(admit(root, &lock, launcher)
         .and_then(|p| Reply::sorted(&p, 0).map_err(|_| E::value("json"))))
