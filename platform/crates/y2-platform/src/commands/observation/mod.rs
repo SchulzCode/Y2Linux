@@ -7,7 +7,7 @@
 mod bench;
 mod bluetooth;
 mod collect;
-mod evidence;
+pub mod evidence;
 pub(crate) mod health;
 mod network_check;
 pub(crate) mod snapshot;

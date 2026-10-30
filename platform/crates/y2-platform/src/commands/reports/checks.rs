@@ -2,16 +2,17 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{
     build::{rel, Progress},
-    json_dict, or_dict,
+    json_dict,
     pyre::{self, lazy, S},
     sha256_hex,
     state::Reports,
-    HEALTH_UNREADABLE,
 };
-use crate::commands::reports::{filled, loads_text, object, text_of, Value, ValueExt};
+use crate::commands::reports::{filled, Value, ValueExt};
 use crate::reply::Failure;
 use regex::Regex;
+use serde::Deserialize;
 use std::sync::OnceLock;
+use y2p_core::lenient;
 use y2p_core::{command, root::python_strip, Root};
 
 fn crash() -> &'static Regex {
@@ -178,51 +179,71 @@ fn kernel_warning(root: &Root, value: &mut Reports, boot: &str) -> Result<Fired,
 
 /// The previous boot ended without an orderly shutdown (with what the PMIC and loader saw).
 fn unclean_restart(root: &Root, value: &mut Reports, boot: &str) -> Result<Fired, Failure> {
-    let evidence = json_dict(root, "/data/system/platform/previous-boot-evidence.json");
-    if matches!(
-        evidence.get("previous_orderly_shutdown"),
-        Some(Value::Bool(false))
-    ) {
-        let previous = evidence
-            .get("previous_boot_id")
-            .filter(|v| filled(v))
-            .map(text_of)
-            .unwrap_or_else(|| boot.to_owned());
-        if changed(value, "unclean", previous)? {
-            // F56/F57: the PMIC's long-press record tells a held Power from a cut, the loader's warm
-            // start a watchdog reset (or kernel restart) from both.
-            let pmic = evidence
-                .get("pmic")
-                .filter(|p| p.is_object())
-                .cloned()
-                .unwrap_or(object());
-            let loader = evidence
-                .get("loader")
-                .filter(|p| p.is_object())
-                .cloned()
-                .unwrap_or(object());
-            let field = |v: &Value, k: &str| text_of(v.get(k).unwrap_or(&Value::Null));
-            let loader_text = match loader.get("reset") {
-                Some(reset) if filled(reset) => {
-                    format!("{}({})", text_of(reset), field(&loader, "boot_reason"))
-                }
-                _ => "not_observed".into(),
-            };
-            let pmic_text = pmic
-                .get("long_press_reset_reason")
-                .map_or_else(|| "not_observed".into(), text_of);
-            return Ok(Some((
-                "unclean_restart".into(),
-                format!(
-                    "{} {} last stage {} loader {loader_text} pmic {pmic_text}",
-                    field(&evidence, "reset_cause"),
-                    field(&evidence, "reset_cause_reason"),
-                    field(&evidence, "previous_last_stage"),
-                ),
-            )));
-        }
+    let Some(evidence) = crate::commands::observation::evidence::read_record(root) else {
+        return Ok(None);
+    };
+    if evidence.previous_orderly_shutdown != Some(false) {
+        return Ok(None);
     }
-    Ok(None)
+    let previous = evidence
+        .previous_boot_id
+        .clone()
+        .filter(|id| !id.is_empty())
+        .unwrap_or_else(|| boot.to_owned());
+    if !changed(value, "unclean", previous)? {
+        return Ok(None);
+    }
+    // F56/F57: the PMIC's long-press record tells a held Power from a cut, the loader's warm start a
+    // watchdog reset (or kernel restart) from both. Absent values read `None` (the earlier writer's
+    // spelling in these details).
+    let shown = |text: &Option<String>| text.clone().unwrap_or_else(|| "None".into());
+    let loader = &evidence.loader;
+    let loader_text = match loader.reset.as_deref().filter(|r| !r.is_empty()) {
+        Some(reset) => format!(
+            "{reset}({})",
+            loader
+                .boot_reason
+                .map_or_else(|| "None".into(), |r| r.to_string())
+        ),
+        None => "not_observed".into(),
+    };
+    let pmic_text = Some(evidence.pmic.long_press_reset_reason.as_str())
+        .filter(|r| !r.is_empty())
+        .unwrap_or("not_observed");
+    Ok(Some((
+        "unclean_restart".into(),
+        format!(
+            "{} {} last stage {} loader {loader_text} pmic {pmic_text}",
+            shown(&evidence.reset_cause),
+            shown(&evidence.reset_cause_reason),
+            shown(&evidence.previous_last_stage),
+        ),
+    )))
+}
+
+/// A record's fields as `T` (its defaults for a record that is no object).
+fn read_as<T: serde::de::DeserializeOwned + Default>(record: Value) -> T {
+    serde_json::from_value(record).unwrap_or_default()
+}
+
+/// Reborn's panic record (/data/reborn/logs/panic-last.json, written by Reborn): the fields the
+/// signature hashes stay as Reborn wrote them (the signature is stored in `seen`).
+#[derive(Deserialize, Default)]
+#[serde(default)]
+struct PanicRecord {
+    version: Value,
+    location: Value,
+    message: Value,
+    #[serde(deserialize_with = "lenient::or_none")]
+    isolated: Option<bool>,
+}
+
+/// The installed build's Reborn version (release.json, else versions.json).
+#[derive(Deserialize, Default)]
+#[serde(default)]
+struct Installed {
+    #[serde(deserialize_with = "lenient::text")]
+    reborn_version: Option<String>,
 }
 
 /// A new Reborn panic of this release.
@@ -231,17 +252,16 @@ fn reborn_crash(root: &Root, value: &mut Reports) -> Result<Fired, Failure> {
     if panic_path.is_file() {
         // One report per crash, not per rewrite: a crash at every start (playlists.rs:223, #49)
         // rewrote the file each restart, every boot.
-        let record = json_dict(root, "/data/reborn/logs/panic-last.json");
-        let parts: Vec<Value> = ["version", "location", "message"]
-            .iter()
-            .map(|k| record.get(k).cloned().unwrap_or(Value::Null))
-            .collect();
+        let record: PanicRecord = read_as(json_dict(root, "/data/reborn/logs/panic-last.json"));
+        let parts = [
+            record.version.clone(),
+            record.location.clone(),
+            record.message.clone(),
+        ];
         let signature = if parts.iter().any(filled) {
-            let text = y2p_core::json::python_dumps_sorted(
-                &Value::Array(parts),
-                y2p_core::json::Separators::Spaced,
-            )
-            .unwrap_or_default();
+            let text =
+                y2p_core::json::python_dumps_sorted(&parts, y2p_core::json::Separators::Spaced)
+                    .unwrap_or_default();
             sha256_hex(text.as_bytes())[..16].to_owned()
         } else {
             use std::os::unix::fs::MetadataExt;
@@ -252,27 +272,21 @@ fn reborn_crash(root: &Root, value: &mut Reports) -> Result<Fired, Failure> {
         // A panic of an earlier release is not news on this one: a player that updated past 8.12
         // resent its old #49 panic once (19a41489, d48362a7). Its hash is still recorded and the
         // file still goes into any report.
-        let version = record
-            .get("version")
-            .and_then(Value::as_str)
-            .map(str::to_owned);
-        let release = or_dict(json_dict(root, "/etc/y2linux/release.json"));
-        let running = if filled(&release) {
-            release
+        let version = record.version.as_str().map(str::to_owned);
+        let release = json_dict(root, "/etc/y2linux/release.json");
+        let running: Installed = read_as(if release.as_object().is_none_or(|r| r.is_empty()) {
+            json_dict(root, "/etc/y2linux/versions.json")
         } else {
-            or_dict(json_dict(root, "/etc/y2linux/versions.json"))
-        };
-        let running = running
-            .get("reborn_version")
-            .and_then(Value::as_str)
-            .map(str::to_owned);
+            release
+        });
+        let running = running.reborn_version;
         let earlier = match (&version, &running) {
             (Some(v), Some(r)) => !r.is_empty() && v != r && !v.starts_with(&format!("{r}-")),
             _ => false,
         };
         if changed(value, "reborn_panic", signature)? && !earlier {
             // Reborn 8.12 catches a worker's panic, skips that one file and runs on.
-            let isolated = matches!(record.get("isolated"), Some(Value::Bool(true)));
+            let isolated = record.isolated == Some(true);
             return Ok(Some((
                 "reborn_crash".into(),
                 if isolated { "isolated panic" } else { "panic" }.into(),
@@ -282,8 +296,25 @@ fn reborn_crash(root: &Root, value: &mut Reports) -> Result<Fired, Failure> {
     Ok(None)
 }
 
-/// Required Reborn subsystems that failed (Reborn's health answer); an answer that is no object
-/// stops the check.
+/// Reborn's health answer (`rebornctl health --json`): its subsystems by name.
+#[derive(Deserialize, Default)]
+#[serde(default)]
+struct HealthAnswer {
+    #[serde(deserialize_with = "lenient::entries")]
+    subsystems: std::collections::BTreeMap<String, Subsystem>,
+}
+
+#[derive(Deserialize, Default)]
+#[serde(default)]
+struct Subsystem {
+    #[serde(deserialize_with = "lenient::text")]
+    state: Option<String>,
+    #[serde(deserialize_with = "lenient::or_default")]
+    required: bool,
+}
+
+/// Required Reborn subsystems that failed (Reborn's health answer; an answer that does not read has
+/// none).
 fn reborn_failure(root: &Root, value: &mut Reports, boot: &str) -> Result<Fired, Failure> {
     let health = command::run_with(
         root,
@@ -292,28 +323,17 @@ fn reborn_failure(root: &Root, value: &mut Reports, boot: &str) -> Result<Fired,
         262_144,
         false,
     );
-    let output = health.output.unwrap_or_default();
-    let subsystems = loads_text(if output.is_empty() { "{}" } else { &output });
-    // An answer, or its subsystems, that is no object is refused: the check stops here, before
-    // reports.json is saved.
-    let subsystems = match subsystems {
-        None => object(),
-        Some(v @ Value::Object(_)) => v.get("subsystems").cloned().unwrap_or(object()),
-        Some(_) => return Err(Failure::value(HEALTH_UNREADABLE)),
-    };
-    let mut failed: Vec<String> = match &subsystems {
-        Value::Object(items) => items
-            .iter()
-            .filter(|(_, e)| {
-                e.is_object()
-                    && e.get("state").is_some_and(|s| s.eq(&Value::from("failed")))
-                    && e.get("required").is_some_and(filled)
-            })
-            .map(|(k, _)| k.clone())
-            .collect(),
-        _ => return Err(Failure::value(HEALTH_UNREADABLE)),
-    };
-    failed.sort();
+    let answer: HealthAnswer = health
+        .output
+        .as_deref()
+        .and_then(|output| serde_json::from_str(output).ok())
+        .unwrap_or_default();
+    let failed: Vec<String> = answer
+        .subsystems
+        .iter()
+        .filter(|(_, s)| s.state.as_deref() == Some("failed") && s.required)
+        .map(|(name, _)| name.clone())
+        .collect();
     if !failed.is_empty()
         && changed(
             value,
@@ -326,21 +346,41 @@ fn reborn_failure(root: &Root, value: &mut Reports, boot: &str) -> Result<Fired,
     Ok(None)
 }
 
+/// The update journal's fields the update trigger reads (state.json, the update core's).
+#[derive(Deserialize, Default)]
+#[serde(default)]
+struct UpdateJournal {
+    #[serde(deserialize_with = "lenient::text")]
+    state: Option<String>,
+    #[serde(deserialize_with = "lenient::or_none")]
+    sequence: Option<i64>,
+}
+
+/// Whether Reborn drew its first frame this boot (application-ready.json).
+#[derive(Deserialize, Default)]
+#[serde(default)]
+struct ApplicationReady {
+    #[serde(deserialize_with = "lenient::text")]
+    boot_id: Option<String>,
+    #[serde(deserialize_with = "lenient::or_none")]
+    first_frame: Option<bool>,
+}
+
 /// An update that failed or was rolled back.
 fn update_failure(root: &Root, value: &mut Reports) -> Result<Fired, Failure> {
-    let update = json_dict(root, "/data/updates/state.json");
-    let update_state = update.get("state").cloned().unwrap_or(Value::Null);
+    let update: UpdateJournal = read_as(json_dict(root, "/data/updates/state.json"));
+    let update_state = update.state.unwrap_or_default();
     if ["Failed", "RolledBack", "RescueRequired", "RollbackPending"]
-        .iter()
-        .any(|s| update_state.eq(&Value::from(*s)))
+        .contains(&update_state.as_str())
     {
         let marker = format!(
-            "{}:{}",
-            text_of(update.get("sequence").unwrap_or(&Value::Null)),
-            text_of(&update_state)
+            "{}:{update_state}",
+            update
+                .sequence
+                .map_or_else(|| "None".into(), |s| s.to_string())
         );
         if changed(value, "update", marker)? {
-            return Ok(Some(("update_failure".into(), text_of(&update_state))));
+            return Ok(Some(("update_failure".into(), update_state)));
         }
     }
     Ok(None)
@@ -432,11 +472,8 @@ fn display_failure(
     // The DSI read lag at boot (a restart through the recovery can leave the SMI gate closed) is
     // worked around by the driver: only a problem when Reborn's first frame never reached the screen.
     // Timeouts later always are.
-    let ready = or_dict(json_dict(root, "/run/y2/application-ready.json"));
-    let lit = ready
-        .get("boot_id")
-        .is_some_and(|b| b.eq(&Value::from(boot)))
-        && matches!(ready.get("first_frame"), Some(Value::Bool(true)));
+    let ready: ApplicationReady = read_as(json_dict(root, "/run/y2/application-ready.json"));
+    let lit = ready.boot_id.as_deref() == Some(boot) && ready.first_frame == Some(true);
     let darks: Vec<&str> = dark()
         .find_iter(kernel)
         .map(|m| m.as_str())
