@@ -116,12 +116,35 @@ fn int(root: &Root, name: &str) -> Option<i64> {
     root.integer(name)
 }
 
+/// A trigger that fired, as (trigger, detail).
+type Fired = Option<(String, String)>;
+
 /// Every automatic trigger that fired since the last check, as (trigger, detail); what fired is
 /// marked as seen in reports.json.
 pub fn check(root: &Root) -> Result<Vec<(String, String)>, Failure> {
     let mut value = Reports::load(root);
-    let mut fired: Vec<(String, String)> = Vec::new();
+    let value = &mut value;
     let boot = root.boot_id().unwrap_or_default();
+    let mut fired: Vec<(String, String)> = Vec::new();
+    fired.extend(kernel_crash(root, value)?);
+    fired.extend(kernel_warning(root, value, &boot)?);
+    fired.extend(unclean_restart(root, value, &boot)?);
+    fired.extend(reborn_crash(root, value)?);
+    fired.extend(reborn_failure(root, value, &boot)?);
+    fired.extend(update_failure(root, value)?);
+    fired.extend(sleep_failure(root, value, &boot)?);
+    fired.extend(radio_failure(root, value, &boot)?);
+    let kernel = command::run_with(root, &["dmesg"], 5.0, 2 * 1024 * 1024, false)
+        .output
+        .unwrap_or_default();
+    fired.extend(display_failure(root, value, &boot, &kernel)?);
+    fired.extend(storage_error(root, value, &boot, &kernel)?);
+    value.save(root)?;
+    Ok(fired)
+}
+
+/// A kernel crash recorded in pstore that was not reported yet (by its signature).
+fn kernel_crash(root: &Root, value: &mut Reports) -> Result<Fired, Failure> {
     if let Some(crash) = crash_signature(root) {
         let seen_map = value.seen()?;
         let previous = seen_map
@@ -144,15 +167,25 @@ pub fn check(root: &Root) -> Result<Vec<(String, String)>, Failure> {
                 .zip(&seen)
                 .any(|(part, last)| !part.is_empty() && part == last)
         {
-            fired.push(("kernel_crash".into(), "previous boot".into()));
+            return Ok(Some(("kernel_crash".into(), "previous boot".into())));
         }
     }
+    Ok(None)
+}
+
+/// A new kernel taint this boot.
+fn kernel_warning(root: &Root, value: &mut Reports, boot: &str) -> Result<Fired, Failure> {
     let tainted = int(root, "/proc/sys/kernel/tainted");
     if let Some(tainted) = tainted.filter(|t| *t != 0) {
-        if changed(&mut value, "tainted", Py::Str(format!("{boot}:{tainted}")))? {
-            fired.push(("kernel_warning".into(), format!("taint {tainted}")));
+        if changed(value, "tainted", Py::Str(format!("{boot}:{tainted}")))? {
+            return Ok(Some(("kernel_warning".into(), format!("taint {tainted}"))));
         }
     }
+    Ok(None)
+}
+
+/// The previous boot ended without an orderly shutdown (with what the PMIC and loader saw).
+fn unclean_restart(root: &Root, value: &mut Reports, boot: &str) -> Result<Fired, Failure> {
     let evidence = json_dict(root, "/data/system/platform/previous-boot-evidence.json");
     if matches!(
         evidence.get("previous_orderly_shutdown"),
@@ -162,8 +195,8 @@ pub fn check(root: &Root) -> Result<Vec<(String, String)>, Failure> {
             .get("previous_boot_id")
             .filter(|v| v.truthy())
             .map(py_str)
-            .unwrap_or_else(|| boot.clone());
-        if changed(&mut value, "unclean", Py::Str(previous))? {
+            .unwrap_or_else(|| boot.to_owned());
+        if changed(value, "unclean", Py::Str(previous))? {
             // F56/F57: the PMIC's long-press record tells a held Power from a cut, the loader's warm
             // start a watchdog reset (or kernel restart) from both.
             let pmic = evidence
@@ -186,7 +219,7 @@ pub fn check(root: &Root) -> Result<Vec<(String, String)>, Failure> {
             let pmic_text = pmic
                 .get("long_press_reset_reason")
                 .map_or_else(|| "not_observed".into(), py_str);
-            fired.push((
+            return Ok(Some((
                 "unclean_restart".into(),
                 format!(
                     "{} {} last stage {} loader {loader_text} pmic {pmic_text}",
@@ -194,9 +227,14 @@ pub fn check(root: &Root) -> Result<Vec<(String, String)>, Failure> {
                     field(&evidence, "reset_cause_reason"),
                     field(&evidence, "previous_last_stage"),
                 ),
-            ));
+            )));
         }
     }
+    Ok(None)
+}
+
+/// A new Reborn panic of this release.
+fn reborn_crash(root: &Root, value: &mut Reports) -> Result<Fired, Failure> {
     let panic_path = root.path("/data/reborn/logs/panic-last.json");
     if panic_path.is_file() {
         // One report per crash, not per rewrite: a crash at every start (playlists.rs:223, #49)
@@ -236,15 +274,21 @@ pub fn check(root: &Root) -> Result<Vec<(String, String)>, Failure> {
             (Some(v), Some(r)) => !r.is_empty() && v != r && !v.starts_with(&format!("{r}-")),
             _ => false,
         };
-        if changed(&mut value, "reborn_panic", Py::Str(signature))? && !earlier {
+        if changed(value, "reborn_panic", Py::Str(signature))? && !earlier {
             // Reborn 8.12 catches a worker's panic, skips that one file and runs on.
             let isolated = matches!(record.get("isolated"), Some(Py::Bool(true)));
-            fired.push((
+            return Ok(Some((
                 "reborn_crash".into(),
                 if isolated { "isolated panic" } else { "panic" }.into(),
-            ));
+            )));
         }
     }
+    Ok(None)
+}
+
+/// Required Reborn subsystems that failed (Reborn's health answer); an answer that is no object
+/// stops the check.
+fn reborn_failure(root: &Root, value: &mut Reports, boot: &str) -> Result<Fired, Failure> {
     let health = command::run_with(
         root,
         &["rebornctl", "health", "--json"],
@@ -276,13 +320,18 @@ pub fn check(root: &Root) -> Result<Vec<(String, String)>, Failure> {
     failed.sort();
     if !failed.is_empty()
         && changed(
-            &mut value,
+            value,
             "reborn_failed",
             Py::Str(format!("{boot}:{}", failed.join(","))),
         )?
     {
-        fired.push(("reborn_failure".into(), failed.join(",")));
+        return Ok(Some(("reborn_failure".into(), failed.join(","))));
     }
+    Ok(None)
+}
+
+/// An update that failed or was rolled back.
+fn update_failure(root: &Root, value: &mut Reports) -> Result<Fired, Failure> {
     let update = json_dict(root, "/data/updates/state.json");
     let update_state = update.get("state").cloned().unwrap_or(Py::None);
     if ["Failed", "RolledBack", "RescueRequired", "RollbackPending"]
@@ -294,10 +343,15 @@ pub fn check(root: &Root) -> Result<Vec<(String, String)>, Failure> {
             py_str(update.get("sequence").unwrap_or(&Py::None)),
             py_str(&update_state)
         );
-        if changed(&mut value, "update", Py::Str(marker))? {
-            fired.push(("update_failure".into(), py_str(&update_state)));
+        if changed(value, "update", Py::Str(marker))? {
+            return Ok(Some(("update_failure".into(), py_str(&update_state))));
         }
     }
+    Ok(None)
+}
+
+/// A real sleep failure (not a wake event).
+fn sleep_failure(root: &Root, value: &mut Reports, boot: &str) -> Result<Fired, Failure> {
     // A sleep cancelled by a wake event (a button, the charger) is counted as a failure with -EBUSY:
     // routine on a player. Report a failed resume, tasks that would not freeze, or a driver that
     // refused with another error.
@@ -321,7 +375,7 @@ pub fn check(root: &Root) -> Result<Vec<(String, String)>, Failure> {
     let real = resumes != 0 || frozen != 0 || (fails != 0 && code != "0" && code != "-16");
     if real
         && changed(
-            &mut value,
+            value,
             "suspend_fail",
             Py::Str(format!("{boot}:{fails}:{resumes}:{frozen}")),
         )?
@@ -335,7 +389,7 @@ pub fn check(root: &Root) -> Result<Vec<(String, String)>, Failure> {
                 text.to_owned()
             }
         };
-        fired.push((
+        return Ok(Some((
             "sleep_failure".into(),
             format!(
                 "suspend_stats fail {fails} resume {resumes} freeze {frozen} errno {} step {} dev {}",
@@ -343,8 +397,13 @@ pub fn check(root: &Root) -> Result<Vec<(String, String)>, Failure> {
                 or_mark("last_failed_step"),
                 or_mark("last_failed_dev")
             ),
-        ));
+        )));
     }
+    Ok(None)
+}
+
+/// The connectivity chip reported an error.
+fn radio_failure(root: &Root, value: &mut Reports, boot: &str) -> Result<Fired, Failure> {
     // Only the radio itself: wifi-failure.json is rewritten on every Wi-Fi connection and names the
     // network's answers (wrong password, out of range).
     static ERROR: OnceLock<Regex> = OnceLock::new();
@@ -357,33 +416,50 @@ pub fn check(root: &Root) -> Result<Vec<(String, String)>, Failure> {
         .next()
         .map(|c| c[1].to_owned());
     if let Some(error) = error.filter(|e| e != "0") {
-        if changed(&mut value, "conn_error", Py::Str(format!("{boot}:{error}")))? {
-            fired.push((
+        if changed(value, "conn_error", Py::Str(format!("{boot}:{error}")))? {
+            return Ok(Some((
                 "radio_failure".into(),
                 format!("connectivity error={error}"),
-            ));
+            )));
         }
     }
-    let kernel = command::run_with(root, &["dmesg"], 5.0, 2 * 1024 * 1024, false)
-        .output
-        .unwrap_or_default();
+    Ok(None)
+}
+
+/// A display timeout in the kernel log that matters (not the boot-time DSI lag once Reborn drew).
+fn display_failure(
+    root: &Root,
+    value: &mut Reports,
+    boot: &str,
+    kernel: &str,
+) -> Result<Fired, Failure> {
     // The DSI read lag at boot (a restart through the recovery can leave the SMI gate closed) is
     // worked around by the driver: only a problem when Reborn's first frame never reached the screen.
     // Timeouts later always are.
     let ready = or_dict(json_dict(root, "/run/y2/application-ready.json"));
     let lit = ready
         .get("boot_id")
-        .is_some_and(|b| b.py_eq(&Py::str(boot.clone())))
+        .is_some_and(|b| b.py_eq(&Py::str(boot)))
         && matches!(ready.get("first_frame"), Some(Py::Bool(true)));
     let darks: Vec<&str> = dark()
-        .find_iter(&kernel)
+        .find_iter(kernel)
         .map(|m| m.as_str())
         .filter(|m| !(lit && m.starts_with("DSI register")))
         .collect();
-    if !darks.is_empty() && changed(&mut value, "dark", Py::Str(boot.clone()))? {
-        fired.push(("display_failure".into(), darks[0].to_owned()));
+    if !darks.is_empty() && changed(value, "dark", Py::Str(boot.to_owned()))? {
+        return Ok(Some(("display_failure".into(), darks[0].to_owned())));
     }
-    let found = storage().find(&kernel).map(|m| m.as_str().to_owned());
+    Ok(None)
+}
+
+/// A storage error in the kernel log or ext4 error counts.
+fn storage_error(
+    root: &Root,
+    value: &mut Reports,
+    boot: &str,
+    kernel: &str,
+) -> Result<Fired, Failure> {
+    let found = storage().find(kernel).map(|m| m.as_str().to_owned());
     let ext4: i64 = root
         .glob("/sys/fs/ext4/*/errors_count")
         .iter()
@@ -391,7 +467,7 @@ pub fn check(root: &Root) -> Result<Vec<(String, String)>, Failure> {
         .sum();
     if (found.is_some() || ext4 != 0)
         && changed(
-            &mut value,
+            value,
             "storage",
             Py::Str(format!(
                 "{boot}:{}:{ext4}",
@@ -399,13 +475,12 @@ pub fn check(root: &Root) -> Result<Vec<(String, String)>, Failure> {
             )),
         )?
     {
-        fired.push((
+        return Ok(Some((
             "storage_error".into(),
             found.unwrap_or_else(|| format!("ext4 errors_count {ext4}")),
-        ));
+        )));
     }
-    value.save(root)?;
-    Ok(fired)
+    Ok(None)
 }
 
 /// `report check`: queue one report for the triggers fired in this check (when enabled).
