@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{
     atomic_json, channel, download_record, journal_state, json, private_directory, shortened,
-    stage, truthy, Io, Raise, Result, Root, Value, CHECK_INTERVAL, IN_PROGRESS, LAST_CHECK,
+    stage, Io, ManifestUrl, Raise, Result, Root, Value, CHECK_INTERVAL, IN_PROGRESS, LAST_CHECK,
 };
 use crate::commands::connectivity::published::Published;
 use serde::{Deserialize, Serialize};
@@ -11,8 +11,8 @@ use serde::{Deserialize, Serialize};
 /// that is not text (an owner's channel.json naming a number, say).
 pub(super) fn channel_url(root: &Root) -> Result<Option<String>> {
     match channel(root).manifest_url {
-        Some(Value::String(url)) => Ok(Some(url)),
-        Some(value) if truthy(&value) => Err(Raise::value("update_channel_unreadable")),
+        ManifestUrl::Text(url) => Ok(Some(url)),
+        ManifestUrl::Other(true) => Err(Raise::value("update_channel_unreadable")),
         _ => Ok(None),
     }
 }
@@ -38,7 +38,7 @@ pub(super) fn automatic_check(root: &Root, io: &dyn Io) -> Result<Value> {
         return Ok(skipped("update_pending"));
     }
     // `not channel(ctx).get('manifest_url')`: truthiness only; its type matters at the check below.
-    if !channel(root).manifest_url.is_some_and(|url| truthy(&url)) {
+    if !channel(root).manifest_url.set() {
         return Ok(skipped("no_channel"));
     }
     if !Published::read(root).online() {

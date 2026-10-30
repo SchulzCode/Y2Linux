@@ -676,16 +676,15 @@ fn install_restarts_unless_the_owner_chose_power_off() {
 #[test]
 fn channel_override_and_redirect_allowlist() {
     let fixture = policy();
-    assert_eq!(channel(&fixture.root).name, json!("stable"));
+    assert_eq!(channel(&fixture.root).name.as_deref(), Some("stable"));
     fixture.put_json(
         "/data/updates/channel.json",
         &json!({"manifest_url": "https://example.org/x/manifest.json",
                 "allowed_redirect_hosts": ["evil.example"]}),
     );
     let value = channel(&fixture.root);
-    assert_eq!(
-        value.manifest_url,
-        Some(json!("https://example.org/x/manifest.json"))
+    assert!(
+        matches!(value.manifest_url, ManifestUrl::Text(url) if url == "https://example.org/x/manifest.json")
     );
     // Only the shipped list.
     let hosts = value.allowed_redirect_hosts;

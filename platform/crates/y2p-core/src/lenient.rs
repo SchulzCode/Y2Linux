@@ -53,6 +53,12 @@ pub fn or_none<'de, D: Deserializer<'de>, T: DeserializeOwned>(
     Ok(T::deserialize(Value::deserialize(deserializer)?).ok())
 }
 
+/// A field that is there, whatever it holds (`null` too); with `#[serde(default)]` a missing one is
+/// none.
+pub fn present<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Option<Value>, D::Error> {
+    Value::deserialize(deserializer).map(Some)
+}
+
 /// A part of the record as `T`, its default where it has another shape.
 pub fn or_default<'de, D: Deserializer<'de>, T: DeserializeOwned + Default>(
     deserializer: D,

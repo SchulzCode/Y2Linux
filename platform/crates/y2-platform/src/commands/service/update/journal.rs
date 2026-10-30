@@ -49,7 +49,7 @@ pub struct Status {
 pub struct Records {
     pub download: Option<Download>,
     pub last_check: Option<LastCheck>,
-    pub channel: Value,
+    pub channel: Option<String>,
     pub full_system: bool,
     pub physical_qualification: bool,
 }

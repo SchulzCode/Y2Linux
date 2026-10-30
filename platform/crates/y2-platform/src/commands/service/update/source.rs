@@ -7,36 +7,71 @@ use super::{
     NETWORK_WAIT_S, PROGRESS, RETRY_PAUSE,
 };
 use crate::commands::connectivity::published::Published;
+use serde::Deserialize;
 use std::io::Write;
 use std::os::fd::AsFd;
 use std::os::unix::fs::OpenOptionsExt;
+use y2p_core::lenient;
 
 /// The release channel: the shipped one, with the owner's `name` and `manifest_url` from
 /// /data/updates/channel.json where it names them. Redirects go only to the shipped hosts.
 pub(super) struct Channel {
-    /// Shown as `update status`'s `channel` (null without one).
-    pub(super) name: Value,
-    pub(super) manifest_url: Option<Value>,
+    /// Shown as `update status`'s `channel` (none without one).
+    pub(super) name: Option<String>,
+    pub(super) manifest_url: ManifestUrl,
     pub(super) allowed_redirect_hosts: Vec<String>,
 }
 
+/// The channel's `manifest_url` as written.
+pub(super) enum ManifestUrl {
+    Missing,
+    Text(String),
+    /// Anything else (a number, say), and whether Python called it true.
+    Other(bool),
+}
+
+/// update-channel.json (shipped) or /data/updates/channel.json (the owner's).
+#[derive(Deserialize, Default)]
+#[serde(default)]
+struct ChannelFile {
+    #[serde(deserialize_with = "lenient::present")]
+    name: Option<Value>,
+    #[serde(deserialize_with = "lenient::present")]
+    manifest_url: Option<Value>,
+    /// Only a list of names: anything else (an empty or non-string entry too) allows no redirect.
+    #[serde(deserialize_with = "lenient::texts")]
+    allowed_redirect_hosts: Option<Vec<String>>,
+}
+
 pub(super) fn channel(root: &Root) -> Channel {
-    let shipped = root.json_object(CHANNEL);
-    let owner = root.json_object("/data/updates/channel.json");
-    let pick = |key: &str| owner.get(key).or_else(|| shipped.get(key)).cloned();
-    // Only a list of names: anything else (an empty or non-string entry too) allows no redirect.
-    let allowed_redirect_hosts = match shipped.get("allowed_redirect_hosts") {
-        Some(Value::Array(items)) => items
-            .iter()
-            .map(|h| h.as_str().filter(|s| !s.is_empty()).map(str::to_owned))
-            .collect::<Option<Vec<String>>>()
-            .unwrap_or_default(),
-        _ => Vec::new(),
+    let shipped: ChannelFile = lenient::read(root.json_object(CHANNEL));
+    let owner: ChannelFile = lenient::read(root.json_object("/data/updates/channel.json"));
+    let manifest_url = match owner.manifest_url.or(shipped.manifest_url) {
+        None => ManifestUrl::Missing,
+        Some(Value::String(url)) => ManifestUrl::Text(url),
+        Some(other) => ManifestUrl::Other(py::truthy(&other)),
     };
     Channel {
-        name: pick("name").unwrap_or(Value::Null),
-        manifest_url: pick("manifest_url"),
-        allowed_redirect_hosts,
+        name: match owner.name.or(shipped.name) {
+            Some(Value::String(name)) => Some(name),
+            _ => None,
+        },
+        manifest_url,
+        allowed_redirect_hosts: shipped
+            .allowed_redirect_hosts
+            .filter(|hosts| hosts.iter().all(|h| !h.is_empty()))
+            .unwrap_or_default(),
+    }
+}
+
+impl ManifestUrl {
+    /// `not channel(ctx).get('manifest_url')`: truthiness only.
+    pub(super) fn set(&self) -> bool {
+        match self {
+            ManifestUrl::Missing => false,
+            ManifestUrl::Text(url) => !url.is_empty(),
+            ManifestUrl::Other(truthy) => *truthy,
+        }
     }
 }
 
