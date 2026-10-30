@@ -85,7 +85,7 @@ impl Claim {
 
     /// Made by this boot (a missing boot id matches an unreadable one).
     pub fn is_this_boot(&self, root: &Root) -> bool {
-        self.get("boot_id").py_eq(&Value::from(root.boot_id()))
+        root.is_this_boot(Some(self.get("boot_id")))
     }
 
     /// A card of this boot whose admission check `media verify` still has to finish (F49).

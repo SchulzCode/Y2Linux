@@ -343,7 +343,7 @@ pub fn storage(root: &Root) -> Result<Value, Failure> {
         volumes,
         blocks,
         controllers,
-        internal_setup: crate::commands::observation::system::setup_status(root),
+        internal_setup: crate::commands::storage::observe::setup_status(root),
         media: Media {
             last_operation: root.json("/run/y2/media.json"),
             lifecycle: root.json("/run/y2/media-lifecycle.json"),
@@ -365,7 +365,7 @@ struct Storage {
     volumes: Vec<Value>,
     blocks: Vec<Block>,
     controllers: Vec<Controller>,
-    internal_setup: Value,
+    internal_setup: Map<String, Value>,
     media: Media,
     bus_parameters: Option<String>,
     sd_bus_parameters: Option<String>,

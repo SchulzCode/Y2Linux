@@ -6,15 +6,6 @@ use crate::commands::observation::snapshot::wifi::{observe, Odd};
 use serde_json::Value;
 use y2p_core::{json::Object, py::number, Root};
 
-/// `x == text` for a JSON value and a text read from a file (`None` when unreadable).
-pub fn eq_text(value: Option<&Value>, text: Option<&str>) -> bool {
-    match (value, text) {
-        (None | Some(Value::Null), None) => true,
-        (Some(Value::String(a)), Some(b)) => a == b,
-        _ => false,
-    }
-}
-
 /// A clock reading of a record: any number (a bool reads as 0 or 1).
 pub fn clock_value(value: Option<&Value>) -> Option<f64> {
     number(value)

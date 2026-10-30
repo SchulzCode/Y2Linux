@@ -5,8 +5,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use super::records::{Claim, ReadOnly};
 use super::sys::{
-    device_instance, exists, get, get_eq, isdigit, mounts, read, resolve, statvfs, text, Mount,
-    Object,
+    device_instance, exists, get, isdigit, mounts, read, resolve, statvfs, text, Mount, Object,
 };
 use serde_json::{json, Value};
 use std::{cell::OnceCell, path::Path};
@@ -117,7 +116,7 @@ pub fn refused_card(root: &Root) -> Object {
 /// This boot's Y2Media setup state (no file names), else `{"state": "Unknown"}`.
 pub fn setup_status(root: &Root) -> Object {
     match root.json(SETUP_STATUS) {
-        Some(Value::Object(value)) if get_eq(&value, "boot_id", &Value::from(root.boot_id())) => {
+        Some(Value::Object(value)) if root.is_this_boot(value.get("boot_id")) => {
             ["state", "reason", "files", "bytes", "serial", "kept"]
                 .iter()
                 .filter_map(|k| value.get(*k).map(|v| (k.to_string(), v.clone())))

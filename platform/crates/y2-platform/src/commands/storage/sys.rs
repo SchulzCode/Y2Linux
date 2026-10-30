@@ -241,9 +241,7 @@ const USB_SCHEMA: &str = "org.y2linux.usb-transfer/v1";
 /// The USB responder's state this boot; one that did not report this boot is `Unavailable`.
 pub fn usb_status(root: &Root) -> Object {
     let state = object(root, "/run/y2/usb-transfer.json");
-    if !get_eq(&state, "schema", &json!(USB_SCHEMA))
-        || !get_eq(&state, "boot_id", &Value::from(root.boot_id()))
-    {
+    if !get_eq(&state, "schema", &json!(USB_SCHEMA)) || !root.is_this_boot(state.get("boot_id")) {
         let mut value = Object::new();
         value.insert("schema".into(), json!(USB_SCHEMA));
         value.insert("state".into(), json!("Unavailable"));

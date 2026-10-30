@@ -130,6 +130,17 @@ impl Root {
         self.read("/proc/sys/kernel/random/boot_id")
     }
 
+    /// Whether a record's `boot_id` field names this boot: the same text as this boot's id, or no id
+    /// (null or missing) while this boot's id is unreadable; anything else never (as
+    /// `lenient::BootId::is`, and as Python's `record.get('boot_id') == boot_id`).
+    pub fn is_this_boot(&self, field: Option<&Value>) -> bool {
+        match (field, self.boot_id()) {
+            (None | Some(Value::Null), None) => true,
+            (Some(Value::String(text)), Some(boot)) => *text == boot,
+            _ => false,
+        }
+    }
+
     /// `ctx.integer`: Python `int()` of the stripped text.
     pub fn integer(&self, name: &str) -> Option<i64> {
         self.read(name).and_then(|text| python_int(&text))

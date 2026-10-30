@@ -95,8 +95,7 @@ impl ApplicationReady {
 
     /// Whether Reborn drew its first frame in this boot.
     pub(crate) fn drawn(&self, root: &Root) -> bool {
-        self.0.get("boot_id").cloned().unwrap_or(Value::Null) == Value::from(root.boot_id())
-            && is_true(self.0.get("first_frame"))
+        root.is_this_boot(self.0.get("boot_id")) && is_true(self.0.get("first_frame"))
     }
 
     fn pid(&self) -> Option<i64> {

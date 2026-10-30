@@ -36,3 +36,31 @@ fn number_takes_ints_floats_and_bools_only() {
         BootId::Other
     );
 }
+
+#[test]
+fn this_boot_fields_match_as_boot_id_is() {
+    use crate::root::tests::tempdir::Dir;
+    let dir = Dir::new();
+    let root = crate::Root::fixture(dir.path());
+    // Unreadable boot id: only a missing or null field is this boot.
+    assert!(root.is_this_boot(None) && root.is_this_boot(Some(&json!(null))));
+    assert!(!root.is_this_boot(Some(&json!("a"))));
+    std::fs::create_dir_all(dir.path().join("proc/sys/kernel/random")).unwrap();
+    std::fs::write(dir.path().join("proc/sys/kernel/random/boot_id"), "a\n").unwrap();
+    assert!(root.is_this_boot(Some(&json!("a"))));
+    for other in [json!(null), json!("b"), json!(1), json!(true), json!(["a"])] {
+        assert!(!root.is_this_boot(Some(&other)), "{other}");
+    }
+    assert!(!root.is_this_boot(None));
+    for (field, boot) in [
+        (json!("a"), Some("a")),
+        (json!(null), None),
+        (json!(7), Some("a")),
+    ] {
+        let parsed: BootId = serde_json::from_value(field.clone()).unwrap();
+        assert_eq!(
+            parsed.is(boot),
+            field == json!("a") && boot == Some("a") || field.is_null() && boot.is_none()
+        );
+    }
+}

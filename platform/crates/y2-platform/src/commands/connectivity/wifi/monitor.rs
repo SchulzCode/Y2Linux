@@ -1,7 +1,7 @@
 //! The supplicant event monitor: event counts for reports, the failure record with the F52 password
 //! latch Reborn reads, and the scan evidence of a "not found".
 // SPDX-License-Identifier: GPL-2.0-only
-use super::super::observe_wifi::{clock_value, eq_text};
+use super::super::observe_wifi::clock_value;
 use super::journal::round1;
 use super::scan::scan_evidence;
 use super::wpa::{search_value, value_of};
@@ -299,7 +299,7 @@ impl EventMonitor {
         // not forget the first one).
         let valid = match old.get("wrong_key") {
             Some(Value::Object(w)) => {
-                eq_text(w.get("boot_id"), boot.as_deref())
+                root.is_this_boot(w.get("boot_id"))
                     && w.get("count")
                         .is_some_and(|c| c.is_boolean() || c.is_i64() || c.is_u64())
             }
@@ -379,7 +379,7 @@ impl EventMonitor {
             );
         } else if error.is_some() {
             if let Some(Value::Object(credential)) = old.get("credential") {
-                if eq_text(credential.get("boot_id"), boot.as_deref()) {
+                if root.is_this_boot(credential.get("boot_id")) {
                     record.set("credential", Value::Object(credential.clone()));
                 }
             }
@@ -387,7 +387,7 @@ impl EventMonitor {
         if error == Some("ap_unavailable") {
             // wpa_supplicant reports this after every scan: look at most every 30 s.
             let last = clock_value(old.get("scan_monotonic_s"));
-            let cached = eq_text(old.get("boot_id"), boot.as_deref())
+            let cached = root.is_this_boot(old.get("boot_id"))
                 && last.is_some_and(|at| {
                     (0.0..Self::SCAN_EVIDENCE_S).contains(&(root.clock().monotonic() - at))
                 })

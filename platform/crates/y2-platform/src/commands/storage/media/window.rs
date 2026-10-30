@@ -48,7 +48,7 @@ pub(super) fn sd_state(root: &Root) -> (Claim, Option<Mount>) {
 /// The live windows of `mount` (a holder whose end time has passed is left out).
 fn writers(root: &Root, mount: &Mount) -> Result<Object, Failure> {
     let value = object(root, SD_WRITE);
-    if !get_eq(&value, "boot_id", &Value::from(root.boot_id()))
+    if !root.is_this_boot(value.get("boot_id"))
         || !get_eq(&value, "mount_id", &json!(mount.mount_id))
     {
         return Ok(Object::new());

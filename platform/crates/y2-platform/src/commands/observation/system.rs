@@ -111,21 +111,6 @@ pub(crate) fn evidence_status(root: &Root) -> Result<Value, Failure> {
     Ok(Value::Object(result))
 }
 
-/// This boot's internal storage setup (state, files, bytes, …), else Unknown.
-pub fn setup_status(root: &Root) -> Value {
-    match root.json("/run/y2/internal-media-setup.json") {
-        Some(Value::Object(value)) if get_eq(&value, "boot_id", &Value::from(root.boot_id())) => {
-            let picked: Map<String, Value> =
-                ["state", "reason", "files", "bytes", "serial", "kept"]
-                    .iter()
-                    .filter_map(|k| value.get(*k).map(|v| (k.to_string(), v.clone())))
-                    .collect();
-            Value::Object(picked)
-        }
-        _ => json!({"state": "Unknown"}),
-    }
-}
-
 /// Whether Y2Media is mounted as recorded: the claim's mount is still the only, live mount at
 /// /media/internal.
 pub fn internal_ready(root: &Root) -> bool {
