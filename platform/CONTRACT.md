@@ -21,8 +21,7 @@ implementation and the Python platform is deleted (the goldens below were record
 - The Rust side of the contract: `crates/y2p-contract` (types and names, shared with Reborn, checked by its
   `cargo test` against the goldens in `crates/y2p-contract/tests/golden`, first the Python platform's output;
   `tools/development/platform-goldens.py --check` keeps them equal to the suite's goldens, without `--check` it
-  rewrites them from the Rust host build) and `crates/y2p-core` (the shared rules below, implemented byte for
-  byte).
+  rewrites them from the Rust host build) and `crates/y2p-core` (the shared rules below; byte for byte until 2026-10-30, now as the plan's §1 says).
 
 The entries were read from the source by five readers (A observation/boot, B power/sleep/time, C connectivity,
 USB, SSH, D service/media/update/firmware, E reports/diagnostics/maintenance) and spot-checked against the code
@@ -49,13 +48,19 @@ file errors): callers only show or log it, but a port must decide per command wh
 reaches the owner as `operation_failed`, e.g. every busy `media.lock`/`internal-media.lock` and
 `sleep_operation_in_progress` (D). Reborn checks `schema` for status, capabilities, health and sleep.
 
-**stdout.** One line of `json.dumps` with the default separators (`", "`, `": "`), `ensure_ascii=True`, Python
-float repr. Sorted keys for the generic commands (status, health, capabilities, media, internal-media,
-space, bench-*, boot-stage; `allow_nan=False`) and for sleep, boot-evidence, cpu-idle-policy, report, update,
-firmware, transfer, network-check, export-*, reset; **insertion order** (unsorted) for usb-mode, rtc-alarm,
-codec-settings, wifi-power-policy, bluetooth-power, time*, ntp-event, wifi-event, dhcp-event, shutdown.
-`codec-runtime` prints shell tokens (consumed by `usr/libexec/y2/connectivity` under `set -e`); `collect` streams
-lines; daemons print nothing. JSON callers are order-insensitive; shell callers are not (below).
+**stdout.** One line of compact serde JSON (since 2026-10-30, docs/planning/PLATFORM-RUST-IDIOMATIC-PLAN.md P1;
+it was Python's `json.dumps` with `", "`/`": "` and `ensure_ascii=True` before): UTF-8 as it is, serde/ryu float
+spelling. Sorted keys for the generic commands (status, health, capabilities, media, internal-media, space,
+bench-*, boot-stage) and for sleep, boot-evidence, cpu-idle-policy, report, update, firmware, transfer,
+network-check, export-*, reset; struct order for the others. `codec-runtime` prints shell tokens (consumed by
+`usr/libexec/y2/connectivity` under `set -e`); `collect` streams lines; daemons print nothing. JSON callers are
+order- and spacing-insensitive; shell callers that grep JSON accept both spacings (`'"state": ?"Online"'`).
+**Since the idiomatic-Rust plan the contract is that plan's §1** (Reborn's commands, fields, types and reason
+texts; the files it and the shell read; /data records an older build must still read; the report bundle; the
+hardware behaviour). Byte identity is no longer part of it, except the pinned digests: the SD media identity,
+the reports crash signature and the reset plan confirmation hash Python's sorted `json.dumps` bytes
+(`y2p_core::json::python_dumps_sorted`, checked against CPython's output), the reset settings digest hashes
+`record::encode`'s bytes.
 
 **Files.** `common.atomic_json`: temp `.<name>.<pid>.<monotonic_ns>.tmp` in the same directory (no randomness:
 the CRNG may not be ready at boot, `test_platform_records_do_not_need_the_random_pool`), `O_EXCL|O_NOFOLLOW|

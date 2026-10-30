@@ -228,14 +228,32 @@ Built with `json!`/`insert` and read back by key → structs, per the ranking in
 - connectivity/scenarios.rs moves under `#[cfg(test)]` / the test-support module (fixtures, not product code).
 Verify as P3.
 
-### P5. The status snapshot as one type (M) — not started (next)
+### P5. The status snapshot as one type (M) — done 2026-10-30 (01c484d2)
+
+`observation::snapshot::Snapshot` is a struct (schema, record, cpu, memory, thermal, power, storage, wifi,
+bluetooth, system, audio, readiness, reborn_metrics); `audio` is typed, the other sections are the JSON their
+modules build from their own structs. readiness, health, collect, network-check and the diagnostics export read
+fields instead of looking sections up by key; `status <section>` reduces the serialised snapshot as before.
+Not done (smaller next step): the section functions returning their structs (`Power`, `Storage`, `Wifi`, …)
+so readiness/health read typed fields inside the sections too (`storage.volumes[].state`, `wifi.state`,
+`system.update`).
+
+Plan as written:
 
 `observation/snapshot` assembles a `Map<String, Value>` of sections that are now structs; make it
 `struct Snapshot { power: Power, cpu: Cpu, … }` (each section `Option` where `status <section>` builds only one),
 `status <section>` prints that section, readiness and health read typed fields (today ~36 lookups by key),
 diagnostics export serialises the struct. `utilization_percent` becomes a field set by the caller.
 
-### P6. Reports without `Py` (L, after P0.4) — not started
+### P6. Reports without `Py` (L, after P0.4) — done 2026-10-30 (76675310, 585566fa)
+
+`Py`/`pyjson` are gone from the reports group: records are `serde_json::Value` (`pyops` keeps the shape checks a
+record of another shape is refused with), the crash signature and the reset plan confirmation keep CPython's bytes
+(`python_dumps_sorted`), marker text keeps the `None`/`True` spellings (`text_of`), the scrubber finds a known value
+both as serde writes it inside JSON and `\u`-escaped (older records). Not done: reports.json as a typed struct
+(it is a `Value` with shape checks; a struct is the next step, rollback-readable field names/types).
+
+Plan as written:
 
 Size (2026-10-30): ~520 `Py`/`pyops`/`pyjson` uses in 17 files; maintenance/* (reset) is critical and stays; the
 rest (upload 95, build/facts 66, diagnostics 56, state 55, checks 43, build 34, scrub 15, media 15, secrets 14, mod
@@ -249,9 +267,17 @@ and `pyops` go, the bundle is written with serde. The bundle's member names and 
 follows P0.4's answer. `reports/maintenance/execute.rs` is critical: its plan/state records get typed reads with
 identical decisions, nothing more.
 
-### P7. Clean-up (S–M) — started
+### P7. Clean-up (S–M) — done as far as non-critical code goes (ffd6ff52)
 
-Done: `json::{dumps, dumps_sorted}` take only the value (3bcdd46c). The rest waits for P5/P6.
+Done: `json::{dumps, dumps_sorted}` take only the value (3bcdd46c); `y2p_core::pyjson` deleted (694 lines; its
+digest proof is now a test against CPython's bytes); observation's kernel-number parsing is plain ASCII decimal
+(`root::parse_int`, `[0-9]` in the counter regexes: a non-ASCII digit leaves a field unread instead of refusing
+the snapshot); CONTRACT.md's stdout rule points at §1. What stays and why: `y2p_core::py`'s
+`truthy`/`is_true`/`PyValue`/`python_*` (used by the critical code: suspend, power policy/coordinator, SD
+operations, update, boot), `suspend/pyjson.rs` (the receipt RPC), `argparse/python.rs` (the suspend group's
+internal commands `__suspend-record`/`__power-audit` read their own arguments as the Python scripts did, plus
+`repr` for refusal texts), `json::PythonFormatter` (only behind `python_dumps_sorted`), `os_text` (path texts in
+records).
 
 Delete what no longer has users: `y2p_core::pyjson` (except what a pinned output needs), most of `y2p_core::py`,
 `os_text`'s surrogate escapes where no path text is printed, `json::PythonFormatter`, `argparse/`. Update
