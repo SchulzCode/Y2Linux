@@ -60,29 +60,21 @@ pub fn media_identity(entry: &Path, filesystem: &str, uuid: Option<&str>) -> Opt
     Some(identity)
 }
 
-/// Product capacity budget, not electrical thresholds. Never delete user data.
+/// Product capacity budget, not electrical thresholds. Never delete user data. Unavailable without a
+/// statvfs answer.
 pub fn space_state(
     available: Option<u64>,
     total: Option<u64>,
     readonly: bool,
     error: bool,
 ) -> SpaceState {
-    if error {
-        return SpaceState::Failed;
+    match (available, total) {
+        _ if error || readonly => y2p_core::volume::space_state(0, 0, readonly, error),
+        (Some(available), Some(total)) => {
+            y2p_core::volume::space_state(available, total, readonly, error)
+        }
+        _ => SpaceState::Unavailable,
     }
-    if readonly {
-        return SpaceState::ReadOnlyRisk;
-    }
-    let (Some(available), Some(total)) = (available, total) else {
-        return SpaceState::Unavailable;
-    };
-    if available < (32 << 20u64).max(total / 20) {
-        return SpaceState::CriticalSpace;
-    }
-    if available < (96 << 20u64).max(total / 10) {
-        return SpaceState::LowSpace;
-    }
-    SpaceState::Normal
 }
 
 /// The card still inserted that the last mount refused (its check failed),

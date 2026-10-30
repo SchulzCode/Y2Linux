@@ -42,19 +42,11 @@ struct LastOperation {
     filesystem_check: Value,
 }
 
-/// Product capacity budget, not electrical thresholds. Never delete user data.
+/// Product capacity budget, not electrical thresholds. Never delete user data (statvfs byte counts are
+/// never negative).
 pub(super) fn space_state(available: i128, total: i128, readonly: bool, error: bool) -> SpaceState {
-    if error {
-        SpaceState::Failed
-    } else if readonly {
-        SpaceState::ReadOnlyRisk
-    } else if available < (32 * 1024 * 1024).max(total / 20) {
-        SpaceState::CriticalSpace
-    } else if available < (96 * 1024 * 1024).max(total / 10) {
-        SpaceState::LowSpace
-    } else {
-        SpaceState::Normal
-    }
+    let bytes = |n: i128| u64::try_from(n).unwrap_or(if n < 0 { 0 } else { u64::MAX });
+    y2p_core::volume::space_state(bytes(available), bytes(total), readonly, error)
 }
 
 /// The driver's negotiated-mode line as typed fields; absent on older kernels.
