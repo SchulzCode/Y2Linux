@@ -141,16 +141,15 @@ pub fn glob_dir(directory: &Path, pattern: &str) -> Vec<PathBuf> {
 /// The record a measurement carries: when (wall clock, monotonic), which boot and build, the
 /// workload and its parameters; the caller fills in `result` and `failure`.
 pub fn record(root: &Root, workload: &str, parameters: Map<String, Value>) -> ObservationRecord {
-    let versions = root.json_object("/etc/y2linux/versions.json");
-    let version = |key: &str| versions.get(key).and_then(Value::as_str).map(str::to_owned);
+    let versions = crate::commands::versions(root).unwrap_or_default();
     ObservationRecord {
         wall_timestamp: y2p_core::devices_support::utc_isoformat_now(),
         monotonic_ns: root.clock().monotonic_ns(),
         boot_id: root.boot_id(),
-        y2linux_commit: version("build_git_commit"),
-        reborn_commit: version("reborn_source_commit"),
+        y2linux_commit: versions.build_git_commit,
+        reborn_commit: versions.reborn_source_commit,
         kernel: root.read("/proc/sys/kernel/osrelease"),
-        rootfs_release: version("rootfs_version"),
+        rootfs_release: versions.rootfs_version,
         build_id: root.read("/etc/y2linux/build-id"),
         workload: workload.into(),
         parameters,

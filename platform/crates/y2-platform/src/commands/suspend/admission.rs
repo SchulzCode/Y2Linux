@@ -63,10 +63,12 @@ pub struct Identity {
 }
 
 pub fn identity(root: &Root) -> Identity {
-    let versions: Identity = lenient::read(root.json_object("/etc/y2linux/versions.json"));
+    let versions = crate::commands::versions(root).unwrap_or_default();
     Identity {
+        build_id: versions.build_id,
+        build_git_commit: versions.build_git_commit,
+        reborn_source_commit: versions.reborn_source_commit,
         kernel: root.read("/proc/sys/kernel/osrelease"),
-        ..versions
     }
 }
 

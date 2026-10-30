@@ -99,8 +99,7 @@ pub(crate) struct Row<'a, B: BatteryRow> {
     monotonic_s: f64,
     boottime_s: f64,
     boot_id: Option<String>,
-    /// /etc/y2linux/versions.json as it is.
-    build: Value,
+    build: Option<y2p_contract::Versions>,
     state: &'a str,
     battery: &'a B,
     shutdown: Option<&'a Intent>,
@@ -138,9 +137,7 @@ pub(crate) fn row<'a, B: BatteryRow>(
         monotonic_s: now,
         boottime_s: root.clock().boottime_ns() as f64 / 1e9,
         boot_id,
-        build: root
-            .json("/etc/y2linux/versions.json")
-            .unwrap_or(Value::Null),
+        build: crate::commands::versions(root),
         state,
         battery,
         shutdown,

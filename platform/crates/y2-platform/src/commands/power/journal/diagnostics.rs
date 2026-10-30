@@ -5,7 +5,7 @@ use super::state::{features, kernel_tail, Features};
 use super::usb::UsbNet;
 use super::{glob_name, Dropped};
 use crate::commands::time::wall;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use y2p_core::{json::dumps, mounts::data_ready, power_journal::append_bounded, root::read, Root};
 
 const DIAGNOSTICS: &str = "/data/system/platform/sleep-diagnostics.jsonl";
@@ -112,14 +112,6 @@ struct Row<'a> {
     kernel_tail: Option<Vec<String>>,
 }
 
-/// The build a row names (versions.json's `build_id`).
-#[derive(Deserialize, Default)]
-#[serde(default)]
-struct Build {
-    #[serde(deserialize_with = "y2p_core::lenient::text")]
-    build_id: Option<String>,
-}
-
 /// Write one row (on a verified data mount: the caller checks). An oversized row loses the oldest
 /// quarter of its kernel tail at a time, never the row; one still too large is dropped.
 pub(crate) fn write_row(
@@ -129,7 +121,6 @@ pub(crate) fn write_row(
     now: f64,
     golden: bool,
 ) -> Result<(), Dropped> {
-    let build: Build = y2p_core::lenient::read(root.json_object("/etc/y2linux/versions.json"));
     let mut row = Row {
         schema: 1,
         stage,
@@ -138,7 +129,7 @@ pub(crate) fn write_row(
         monotonic_s: now,
         boottime_s: root.clock().boottime_ns() as f64 / 1e9,
         boot_id: root.boot_id(),
-        build_id: build.build_id,
+        build_id: crate::commands::versions(root).and_then(|v| v.build_id),
         features: features(root, golden),
         usb_net: super::usb::usb_net(root).map_err(|_| Dropped)?,
         kernel_pm: root.read_limited("/sys/firmware/y2_pm/state", 8192),

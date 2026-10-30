@@ -130,9 +130,9 @@ pub fn apply(root: &Root, action: &str) -> Outcome {
             }
             Err(e) => return Err(Failure::os(e, &lock)),
         }
-        let versions: Versions = lenient::read(root.json_object("/etc/y2linux/versions.json"));
+        let installed = super::versions(root).and_then(|v| v.kernel_version);
         let osrelease = root.read("/proc/sys/kernel/osrelease");
-        if boot.as_deref().is_none_or(str::is_empty) || versions.kernel_version != osrelease {
+        if boot.as_deref().is_none_or(str::is_empty) || installed != osrelease {
             reasons.push("installed_kernel_identity".into());
         }
         if !kernel_trusted(root) {
@@ -229,14 +229,6 @@ impl Policy {
             _ => None,
         }
     }
-}
-
-/// /etc/y2linux/versions.json: the kernel the build installed.
-#[derive(Deserialize, Default)]
-#[serde(default)]
-struct Versions {
-    #[serde(deserialize_with = "lenient::text")]
-    kernel_version: Option<String>,
 }
 
 fn finish(result: Policy) -> Outcome {

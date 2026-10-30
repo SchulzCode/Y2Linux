@@ -612,8 +612,6 @@ REFUSALS = {
     'status-power-sleep-number': 'invalid_sleep_receipt',
     'status-power-sleep-number-pair': 'invalid_sleep_receipt',
     'status-power-sleep-list-key': 'invalid_sleep_receipt',
-    'status-system-update-unhashable': 'invalid_update_journal',
-    'status-system-update-dict-state': 'invalid_update_journal',
 }
 # A broken previous-boot evidence record leaves the snapshot readable: only its section says why.
 UNREADABLE_EVIDENCE = ['status-system-evidence-bad-logs', 'status-system-evidence-text-logs',

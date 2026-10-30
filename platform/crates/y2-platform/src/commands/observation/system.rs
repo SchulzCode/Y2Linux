@@ -339,7 +339,7 @@ pub fn system(root: &Root) -> Result<System, Failure> {
         .collect();
     Ok(System {
         uptime_seconds: uptime,
-        versions: root.json("/etc/y2linux/versions.json"),
+        versions: crate::commands::versions(root),
         boot_history: root.json("/data/system/platform/boot.json"),
         previous_boot_evidence: evidence_status(root),
         application_readiness: root.json("/run/y2/application-ready.json"),
@@ -370,7 +370,7 @@ pub fn system(root: &Root) -> Result<System, Failure> {
 #[derive(Serialize)]
 pub struct System {
     uptime_seconds: Option<String>,
-    versions: Option<Value>,
+    versions: Option<y2p_contract::Versions>,
     boot_history: Option<Value>,
     previous_boot_evidence: EvidenceStatus,
     application_readiness: Option<Value>,

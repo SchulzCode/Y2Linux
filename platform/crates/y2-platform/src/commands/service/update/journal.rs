@@ -3,19 +3,11 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use super::check::LastCheck;
 use super::staging::Download;
-use super::{
-    channel, command, fs, json, sorted, string, truthy, Map, Path, Raise, Result, Root, Value,
-};
+use super::{channel, command, fs, sorted, string, truthy, Map, Path, Raise, Result, Root, Value};
 use serde::{Deserialize, Serialize};
 pub(super) use y2p_core::json::python_error as json_error;
+use y2p_core::lenient;
 use y2p_core::py::PyValue;
-
-pub(super) fn object(value: Option<Value>) -> Map<String, Value> {
-    match value {
-        Some(Value::Object(map)) => map,
-        _ => Map::new(),
-    }
-}
 
 /// Download.json, with a download or check whose process is gone shown as
 /// interrupted. A user's player (8.17) said "Downloading Update… Keep Wi-Fi on." for a day: the record
@@ -36,9 +28,9 @@ pub(crate) fn download_record(root: &Root) -> Option<Download> {
 /// ready Y2DATA), with the download and check records and the channel's name.
 #[derive(Serialize, Clone, Debug)]
 pub struct Status {
-    /// The core's journal as it wrote it (the platform's stand-in without one).
+    /// The core's journal (the platform's stand-in without one).
     #[serde(flatten)]
-    pub journal: Map<String, Value>,
+    pub journal: CoreJournal,
     /// What a readable journal is shown with.
     #[serde(flatten)]
     pub records: Option<Records>,
@@ -67,7 +59,93 @@ struct Head {
 impl Status {
     /// The journal's failure text (none without one).
     pub fn failure(&self) -> Option<&str> {
-        self.journal.get("failure").and_then(Value::as_str)
+        self.journal.failure()
+    }
+}
+
+/// The native update core's journal (`/data/updates/state.json`, written by y2-update-core): the
+/// fields the platform and Reborn read in their types (a field of another type is not shown); its
+/// install records (backup, timings, outcome, …) as the core wrote them.
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
+#[serde(default)]
+pub struct CoreJournal {
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "lenient::integer"
+    )]
+    pub schema: Option<i64>,
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "lenient::text"
+    )]
+    pub state: Option<String>,
+    /// `null` without a failure.
+    #[serde(skip_serializing_if = "Option::is_none", deserialize_with = "failure")]
+    failure: Option<Option<String>>,
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "lenient::integer"
+    )]
+    pub sequence: Option<i64>,
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "lenient::integer"
+    )]
+    pub previous_sequence: Option<i64>,
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "lenient::text"
+    )]
+    pub release_version: Option<String>,
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "lenient::or_none"
+    )]
+    pub rollback_allowed: Option<bool>,
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "lenient::text"
+    )]
+    pub y2linux_commit: Option<String>,
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "lenient::text"
+    )]
+    pub manifest_sha256: Option<String>,
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "lenient::text"
+    )]
+    pub kept_manifest_sha256: Option<String>,
+    /// The core's install records, as it wrote them.
+    #[serde(flatten)]
+    pub records: Map<String, Value>,
+}
+
+fn failure<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> std::result::Result<Option<Option<String>>, D::Error> {
+    lenient::text(deserializer).map(Some)
+}
+
+impl CoreJournal {
+    /// The platform's stand-in for a journal (no update yet, an unreadable one, no Y2DATA).
+    fn stand_in(state: &str, failure: Option<&str>) -> CoreJournal {
+        CoreJournal {
+            schema: Some(1),
+            state: Some(state.into()),
+            failure: Some(failure.map(str::to_owned)),
+            ..CoreJournal::default()
+        }
+    }
+
+    fn of(map: Map<String, Value>) -> CoreJournal {
+        lenient::read(map)
+    }
+
+    /// The failure text (none without one).
+    pub fn failure(&self) -> Option<&str> {
+        self.failure.as_ref().and_then(Option::as_deref)
     }
 }
 
@@ -89,17 +167,20 @@ pub fn status(root: &Root) -> Status {
     let journal = if missing {
         let ready = root.read("/data/.y2data-schema").as_deref() == Some("1")
             && root.path("/data/updates").is_dir();
-        json!({"schema": 1, "state": if ready { "Idle" } else { "Unavailable" },
-               "failure": if ready { Value::Null } else { json!("data_state_unavailable") }})
+        if ready {
+            CoreJournal::stand_in("Idle", None)
+        } else {
+            CoreJournal::stand_in("Unavailable", Some("data_state_unavailable"))
+        }
     } else {
         match journal(root) {
-            Some(map) => Value::Object(map),
-            None => json!({"schema": 1, "state": "Failed", "failure": "journal_unreadable"}),
+            Some(map) => CoreJournal::of(map),
+            None => CoreJournal::stand_in("Failed", Some("journal_unreadable")),
         }
     };
-    let unreadable = !missing && journal.get("failure") == Some(&json!("journal_unreadable"));
+    let unreadable = !missing && journal.failure() == Some("journal_unreadable");
     Status {
-        journal: object(Some(journal)),
+        journal,
         records: (!unreadable).then(|| Records {
             download: download_record(root),
             last_check: LastCheck::load(root),
@@ -157,10 +238,7 @@ pub fn core(
 }
 
 pub(super) fn installed_release(root: &Root) -> Value {
-    root.json_object("/etc/y2linux/versions.json")
-        .get("release_version")
-        .cloned()
-        .unwrap_or(Value::Null)
+    Value::from(crate::commands::versions(root).and_then(|v| v.release_version))
 }
 
 /// The update journal's `state`, as the native core and this platform write it.

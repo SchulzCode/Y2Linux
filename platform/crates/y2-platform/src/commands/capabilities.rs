@@ -31,11 +31,7 @@ pub fn run(root: &Root) -> Outcome {
         },
     };
     // Runtime identity always comes from the installed release, never the template.
-    result.platform_version = root
-        .json_object("/etc/y2linux/versions.json")
-        .get("release_version")
-        .and_then(Value::as_str)
-        .map(str::to_owned);
+    result.platform_version = super::versions(root).and_then(|v| v.release_version);
     let inventory = codec::Inventory::read(root)?;
     let policy = codec::requested(root)?;
     if let Some(caps) = result.capabilities.as_mut() {

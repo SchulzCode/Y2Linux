@@ -3,7 +3,6 @@
 use super::Snapshot;
 use crate::{regex, reply::Failure};
 use serde::Serialize;
-use serde_json::Value;
 use y2p_core::volume::{SpaceState, VolumeState};
 
 /// What a subsystem's state means for the product.
@@ -105,17 +104,11 @@ pub(super) fn readiness(status: &Snapshot) -> Result<Section, Failure> {
     let cards = status.audio.cards.as_deref().unwrap_or_default();
     let audio = regex!(r"(?m)^\s*\d+\s+\[Y2Audio\s*\]").is_match(cards) && valid;
     let update = &status.system.update;
-    let update_state = match update.journal.get("state") {
-        Some(Value::Array(_) | Value::Object(_)) => {
-            return Err(Failure::value("invalid_update_journal"))
-        }
-        Some(Value::String(s)) => match s.as_str() {
-            "Idle" | "Acknowledged" => Readiness::Ready,
-            "RolledBack" | "RollbackPending" => Readiness::Degraded,
-            "Queued" | "PendingHealth" => Readiness::Starting,
-            "Failed" | "RescueRequired" => Readiness::Failed,
-            _ => Readiness::Unavailable,
-        },
+    let update_state = match update.journal.state.as_deref() {
+        Some("Idle" | "Acknowledged") => Readiness::Ready,
+        Some("RolledBack" | "RollbackPending") => Readiness::Degraded,
+        Some("Queued" | "PendingHealth") => Readiness::Starting,
+        Some("Failed" | "RescueRequired") => Readiness::Failed,
         _ => Readiness::Unavailable,
     };
     let bluetooth = &status.bluetooth;
