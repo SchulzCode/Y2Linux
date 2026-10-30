@@ -5,7 +5,7 @@ use super::observe::MEDIA_MOUNT;
 use super::sys::{get, object, Object};
 use serde_json::{json, Value};
 use std::collections::HashMap;
-use y2p_core::{py::PyValue, storage_media::splitlines, Root};
+use y2p_core::{storage_media::splitlines, Root};
 
 /// Why our SD mount is read-only (`read_only` of the claim and the operation records).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -80,7 +80,7 @@ impl Claim {
 
     /// Made by this boot for mount `mount_id` (the kernel recycles mount ids across boots).
     pub fn holds(&self, root: &Root, mount_id: i64) -> bool {
-        self.get("mount_id").py_eq(&json!(mount_id)) && self.is_this_boot(root)
+        *self.get("mount_id") == json!(mount_id) && self.is_this_boot(root)
     }
 
     /// Made by this boot (a missing boot id matches an unreadable one).

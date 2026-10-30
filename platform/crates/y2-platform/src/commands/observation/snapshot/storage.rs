@@ -10,11 +10,10 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
 use std::{collections::BTreeMap, path::Path};
 use y2p_core::json::{Object, ObjectExt, Separators};
-use y2p_core::py::PyValue;
 use y2p_core::volume::{
     controller, expected_uuid, SpaceState, VolumeState, EMMC_CONTROLLER, SD_CONTROLLER,
 };
-use y2p_core::{command, py::truthy, Root};
+use y2p_core::{command, Root};
 
 /// `/run/y2/media-mount.json`: what the platform mounted at /media/sd (storage group), checked
 /// against the live mount before the card counts as Ready.
@@ -117,7 +116,7 @@ fn media_identity(entry: &Path, filesystem: &Value, uuid: &Value) -> Value {
         v.as_ref()
             .is_some_and(|s| !s.is_empty() && s.chars().all(|c| c.is_ascii_digit()))
     };
-    if !truthy(uuid)
+    if uuid.as_str().is_none_or(str::is_empty)
         && (cid.as_deref().is_none_or(str::is_empty) || !digits(&start) || !digits(&size))
     {
         return Value::Null;
@@ -214,21 +213,21 @@ pub fn storage(root: &Root) -> Result<Value, Failure> {
             if target == "/media/sd" {
                 let identity = media_identity(&device, &json!(mount.filesystem), &uuid);
                 item.identity = Some(identity.clone());
-                let matches = claim.boot_id.py_eq(&boot_value)
-                    && claim.mount_id.py_eq(&json!(mount_id))
-                    && claim.device_id.py_eq(&json!(device_id))
-                    && claim.uuid.py_eq(&uuid);
+                let matches = claim.boot_id == boot_value
+                    && claim.mount_id == json!(mount_id)
+                    && claim.device_id == json!(device_id)
+                    && claim.uuid == uuid;
                 if !matches {
                     (state, reason) = (VolumeState::Failed, Some("mount_claim_changed_or_missing"));
                 }
-                let claimed_other = !claim.identity.is_null() && !claim.identity.py_eq(&identity);
+                let claimed_other = !claim.identity.is_null() && claim.identity != identity;
                 if state == VolumeState::Ready && (identity.is_null() || claimed_other) {
                     (state, reason) = (
                         VolumeState::Failed,
                         Some("media_identity_changed_or_missing"),
                     );
                 }
-                if instance.is_none() || !claim.source_instance.py_eq(&text(instance.clone())) {
+                if instance.is_none() || claim.source_instance != text(instance.clone()) {
                     (state, reason) = (VolumeState::Failed, Some("block_instance_changed"));
                 }
             }

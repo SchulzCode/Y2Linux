@@ -9,7 +9,6 @@ use super::sys::{
 };
 use serde_json::{json, Value};
 use std::{cell::OnceCell, path::Path};
-use y2p_core::py::PyValue;
 use y2p_core::volume::{controller, expected_uuid, SpaceState};
 use y2p_core::{command, json::Separators, storage_media::sha256_hex, Root};
 
@@ -210,17 +209,17 @@ fn volume(root: &Root, mounts: &[Mount], boot: &Option<String>, target: &str) ->
                 ("uuid", uuid),
             ]
             .iter()
-            .all(|(k, v)| claim.get(k).py_eq(v));
+            .all(|(k, v)| claim.get(k) == v);
             if !matches {
                 failed(&mut item, "mount_claim_changed_or_missing");
             }
             let claimed = claim.get("identity");
             if get(&item, "state") == "Ready"
-                && (identity.is_none() || (!claimed.is_null() && !claimed.py_eq(&identity_value)))
+                && (identity.is_none() || (!claimed.is_null() && *claimed != identity_value))
             {
                 failed(&mut item, "media_identity_changed_or_missing");
             }
-            if instance.is_none() || !claim.get("source_instance").py_eq(&text(&instance)) {
+            if instance.is_none() || *claim.get("source_instance") != text(&instance) {
                 failed(&mut item, "block_instance_changed");
             }
         }

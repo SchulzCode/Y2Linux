@@ -16,7 +16,6 @@ use std::{
 pub use y2p_core::clock::wall;
 pub use y2p_core::mounts::{mounts, Mount};
 pub use y2p_core::paths::name;
-use y2p_core::py::PyValue;
 pub use y2p_core::sys::statvfs;
 use y2p_core::{
     lock,
@@ -33,10 +32,9 @@ pub fn get<'a>(map: &'a Object, key: &str) -> &'a Value {
     map.get(key).unwrap_or(&Value::Null)
 }
 
-/// A field equals `value` by JSON value (`1`, `1.0` and `true` alike: records written by older
-/// platforms compare as before).
+/// A field equals `value` (JSON equality: a number of another kind or a bool is another value).
 pub fn get_eq(map: &Object, key: &str, value: &Value) -> bool {
-    get(map, key).py_eq(value)
+    get(map, key) == value
 }
 
 /// A record struct as the JSON object it serializes to (every struct of this group does).

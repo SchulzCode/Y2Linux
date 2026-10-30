@@ -260,7 +260,7 @@ MEDIA = [
         **MOUNTED, '/run/y2/sd-write.json': json.dumps({'boot_id': 'boot-a', 'mount_id': 51, 'holders': {
             'usb': 1e12, 'reborn': 0, 'stranger': 1e12}})}, 'volatile': WRITE_VOLATILE}),
     ('media-write-held', ['media', 'write', '--holder', 'report', '--seconds', '0'], {'files': {
-        **MOUNTED, **mounts(SD_RW), '/run/y2/sd-write.json': json.dumps({'boot_id': 'boot-a', 'mount_id': 51.0, 'holders': {
+        **MOUNTED, **mounts(SD_RW), '/run/y2/sd-write.json': json.dumps({'boot_id': 'boot-a', 'mount_id': 51, 'holders': {
             'usb': 1e12}})}, 'volatile': WRITE_VOLATILE}),
     ('media-write-checking', ['media', 'write'], {'files': {
         **MOUNTED, '/run/y2/media-mount.json': claim('checking')}}),
