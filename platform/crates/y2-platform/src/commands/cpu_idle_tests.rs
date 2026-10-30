@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use super::*;
 use crate::testing::Fixture;
+use serde_json::{json, Value};
 use std::{collections::BTreeMap, fs, os::unix::fs::PermissionsExt, path::Path};
 
 fn qualified() -> Fixture {

@@ -4,9 +4,9 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use crate::reply::At;
 use crate::reply::{atomic_json, create, mkdir_parents, write_text, Failure, Outcome, Reply};
-use serde_json::{json, Map, Value};
+use serde::{Deserialize, Serialize};
 use std::io;
-use y2p_core::Root;
+use y2p_core::{lenient, Root};
 
 const STATE: &str = "/sys/devices/system/cpu/cpu0/cpuidle/state2";
 const BUDGET: &str = "/sys/module/spm/parameters/dormant_budget";
@@ -36,18 +36,70 @@ fn write(root: &Root, path: &str, value: &str) -> Result<(), Failure> {
 }
 
 /// Close admission first, then quarantine the state. Do not change C1/C2.
-fn disable(root: &Root) -> Vec<Value> {
+fn disable(root: &Root) -> Vec<String> {
     let mut errors = Vec::new();
     for (path, value) in [(BUDGET.to_owned(), "0"), (disable_state(), "1")] {
         match write(root, &path, value) {
             Ok(()) if root.read(&path).as_deref() != Some(value) => {
-                errors.push(json!(format!("{path}:readback")))
+                errors.push(format!("{path}:readback"))
             }
             Ok(()) => {}
-            Err(_) => errors.push(json!(format!("{path}:write"))),
+            Err(_) => errors.push(format!("{path}:write")),
         }
     }
     errors
+}
+
+/// The policy record (/run/y2/cpu-idle-policy.json), also what the command prints; read back
+/// leniently (`previous` of a second start this boot).
+#[derive(Serialize, Deserialize, Default, Debug)]
+#[serde(default)]
+struct Policy {
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "lenient::text"
+    )]
+    schema: Option<String>,
+    /// `null` for an unreadable boot id.
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "lenient::there"
+    )]
+    boot_id: Option<Option<String>>,
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "lenient::text"
+    )]
+    policy: Option<String>,
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "lenient::text"
+    )]
+    state: Option<String>,
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "lenient::texts"
+    )]
+    reasons: Option<Vec<String>>,
+    /// The record of the start that already ran this boot.
+    #[serde(skip_serializing_if = "Option::is_none", skip_deserializing)]
+    previous: Option<Box<Policy>>,
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "lenient::texts"
+    )]
+    rollback_errors: Option<Vec<String>>,
+    /// The controls as they read at the end (`null`: unreadable).
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "lenient::there"
+    )]
+    budget: Option<Option<String>>,
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "lenient::there"
+    )]
+    disabled: Option<Option<String>>,
 }
 
 fn kernel_trusted(root: &Root) -> bool {
@@ -59,46 +111,42 @@ fn kernel_trusted(root: &Root) -> bool {
 pub fn apply(root: &Root, action: &str) -> Outcome {
     mkdir_parents(&root.path("/run/y2"), 0o777)?;
     let boot = root.boot_id();
-    let mut result = Map::new();
-    result.insert("schema".into(), json!("org.y2linux.cpu-idle-policy/v1"));
-    result.insert("boot_id".into(), json!(boot));
-    result.insert("policy".into(), json!("qualified_CPU0_DORMANT"));
-    result.insert("state".into(), json!("Skipped"));
-    let mut reasons: Vec<Value> = Vec::new();
+    let mut result = Policy {
+        schema: Some("org.y2linux.cpu-idle-policy/v1".into()),
+        boot_id: Some(boot.clone()),
+        policy: Some("qualified_CPU0_DORMANT".into()),
+        state: Some("Skipped".into()),
+        ..Policy::default()
+    };
+    let mut reasons: Vec<String> = Vec::new();
     let lock = root.path(LOCK);
     if action == "start" {
         match create(&lock, true) {
             Ok(_) => {}
             Err(e) if e.kind() == io::ErrorKind::AlreadyExists => {
-                result.insert("reasons".into(), json!(["already_applied_this_boot"]));
-                result.insert("previous".into(), Value::Object(root.json_object(RECORD)));
+                result.reasons = Some(vec!["already_applied_this_boot".into()]);
+                result.previous = Some(Box::new(lenient::read(root.json_object(RECORD))));
                 return finish(result);
             }
             Err(e) => return Err(Failure::os(e, &lock)),
         }
-        let versions = root.json_object("/etc/y2linux/versions.json");
+        let versions: Versions = lenient::read(root.json_object("/etc/y2linux/versions.json"));
         let osrelease = root.read("/proc/sys/kernel/osrelease");
-        if boot.as_deref().is_none_or(str::is_empty)
-            || versions
-                .get("kernel_version")
-                .cloned()
-                .unwrap_or(Value::Null)
-                != json!(osrelease)
-        {
-            reasons.push(json!("installed_kernel_identity"));
+        if boot.as_deref().is_none_or(str::is_empty) || versions.kernel_version != osrelease {
+            reasons.push("installed_kernel_identity".into());
         }
         if !kernel_trusted(root) {
-            reasons.push(json!("kernel_tainted_or_unknown"));
+            reasons.push("kernel_tainted_or_unknown".into());
         }
         if root
             .read("/sys/devices/system/cpu/cpuidle/current_driver")
             .as_deref()
             != Some("mt6582-idle")
         {
-            reasons.push(json!("cpuidle_driver"));
+            reasons.push("cpuidle_driver".into());
         }
         if root.read(&format!("{STATE}/name")).as_deref() != Some("DORMANT") {
-            reasons.push(json!("dormant_state_unavailable_or_boot_disabled"));
+            reasons.push("dormant_state_unavailable_or_boot_disabled".into());
         }
         let preflight = root.read(PREFLIGHT).unwrap_or_default();
         let lines: Vec<&str> = preflight.lines().collect();
@@ -106,18 +154,18 @@ pub fn apply(root: &Root, action: &str) -> Outcome {
             FOUNDATIONS
                 .iter()
                 .filter(|n| !lines.contains(&format!("prerequisite_{n}=1").as_str()))
-                .map(|n| json!(format!("foundation:{n}"))),
+                .map(|n| format!("foundation:{n}")),
         );
         if !reasons.is_empty() {
             // Initial controls remain quarantined; respect explicit boot options.
-            result.insert("reasons".into(), json!(reasons));
+            result.reasons = Some(reasons);
             atomic_json(&root.path(RECORD), &result, false)?;
             return finish(result);
         }
         if root.read(BUDGET).as_deref() != Some("0")
             || root.read(&disable_state()).as_deref() != Some("1")
         {
-            result.insert("reasons".into(), json!(["existing_owner_runtime_policy"]));
+            result.reasons = Some(vec!["existing_owner_runtime_policy".into()]);
             atomic_json(&root.path(RECORD), &result, false)?;
             return finish(result);
         }
@@ -140,32 +188,32 @@ pub fn apply(root: &Root, action: &str) -> Outcome {
             });
         match enabled {
             Ok(()) => {
-                result.insert("state".into(), json!("Enabled"));
+                result.state = Some("Enabled".into());
             }
             Err(error) => {
-                result.insert("state".into(), json!("Failed"));
-                reasons = vec![json!(error.message())];
-                result.insert("rollback_errors".into(), json!(disable(root)));
+                result.state = Some("Failed".into());
+                reasons = vec![error.message()];
+                result.rollback_errors = Some(disable(root));
             }
         }
     } else {
         // Reserve boot ownership so a subsequent start cannot undo a manual stop.
         create(&lock, false).at(&lock)?;
         reasons = disable(root);
-        result.insert(
-            "state".into(),
-            json!(if reasons.is_empty() {
+        result.state = Some(
+            if reasons.is_empty() {
                 "Disabled"
             } else {
                 "Failed"
-            }),
+            }
+            .into(),
         );
     }
-    result.insert("reasons".into(), json!(reasons));
-    result.insert("budget".into(), json!(root.read(BUDGET)));
-    result.insert("disabled".into(), json!(root.read(&disable_state())));
+    result.reasons = Some(reasons);
+    result.budget = Some(root.read(BUDGET));
+    result.disabled = Some(root.read(&disable_state()));
     if let Err(error) = atomic_json(&root.path(RECORD), &result, false) {
-        if result.get("state") == Some(&json!("Enabled")) {
+        if result.state.as_deref() == Some("Enabled") {
             disable(root);
         }
         return Err(error);
@@ -173,8 +221,16 @@ pub fn apply(root: &Root, action: &str) -> Outcome {
     finish(result)
 }
 
-fn finish(result: Map<String, Value>) -> Outcome {
-    let failed = result.get("state") == Some(&json!("Failed"));
+/// /etc/y2linux/versions.json: the kernel the build installed.
+#[derive(Deserialize, Default)]
+#[serde(default)]
+struct Versions {
+    #[serde(deserialize_with = "lenient::text")]
+    kernel_version: Option<String>,
+}
+
+fn finish(result: Policy) -> Outcome {
+    let failed = result.state.as_deref() == Some("Failed");
     Reply::sorted(&result, u8::from(failed))
 }
 
