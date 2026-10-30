@@ -12,6 +12,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use super::process::{self, Child, Start};
 use super::{radiofw, update, usb::UsbService};
+use crate::commands::connectivity::published::{Published, Record};
 use crate::commands::connectivity::{
     observe_wifi::wifi,
     radio_policy::wifi_policy,
@@ -130,22 +131,18 @@ impl Service {
         let mut coexistence = Coexistence::default();
         let mut next_radio_policy = 0.0;
         let mut settled = false;
-        let previous = root.json_object("/run/y2/network.json");
-        // isinstance(failures, int) and failures >= 0 (a bool is an int).
-        let mut query_failures: Value = match previous.get("status_query_failures") {
-            _ if !this_boot(root, previous.get("boot_id")) => json!(0),
-            None => json!(0),
-            Some(value @ Value::Bool(_)) => value.clone(),
-            Some(value) if py::exact_int(Some(value)).is_some_and(|n| n >= 0) => value.clone(),
-            Some(_) => json!(0),
-        };
+        // It cannot change while the service runs.
+        let boot_id = root.boot_id();
+        let previous = Published::read(root);
+        let mut query_failures = previous
+            .status_query_failures
+            .filter(|_| previous.is_this_boot(boot_id.as_deref()))
+            .unwrap_or_default();
         let mut update_check: Option<Child> = None;
         let mut reports: Option<Reports> = None;
         let (mut reconcile, mut verify) = (Run::default(), Run::default());
         let (mut firmware_scan, mut firmware_ready): (Option<Child>, bool) = (None, false);
         let mut done = 0u64;
-        // It cannot change while the service runs.
-        let boot_id = root.boot_id();
         while RUNNING.load(Ordering::SeqCst) {
             wake.drain();
             let before = root.clock().monotonic();
@@ -177,19 +174,18 @@ impl Service {
                 _ => false,
             };
             if value.get("radio_present").is_some_and(truthy) && observation_failed {
-                query_failures = json!(py::number(Some(&query_failures)).unwrap_or(0.0) as i64 + 1);
+                query_failures = query_failures.counted();
             }
             self.recovery.observe(&value, before, Some(&self.monitor));
-            value
-                .set("status_query_failures", query_failures.clone())
-                .set("schema", 1)
-                .set("boot_id", json!(boot_id))
-                .set("monotonic_s", root.clock().monotonic())
-                .set(
-                    "supplicant_events",
-                    self.monitor.summary(None).into_sorted(),
-                );
-            atomic_json(&runtime.join("network.json"), &value, false)?;
+            let record = Record {
+                observation: &value,
+                status_query_failures: query_failures,
+                schema: 1,
+                boot_id: boot_id.as_deref(),
+                monotonic_s: root.clock().monotonic(),
+                supplicant_events: self.monitor.summary(None).into_sorted(),
+            };
+            atomic_json(&runtime.join("network.json"), &record, false)?;
             let activity = coexistence.observe(root, &value, before)?;
             if before >= next_radio_policy
                 && value.get("association").and_then(Value::as_str) == Some("COMPLETED")

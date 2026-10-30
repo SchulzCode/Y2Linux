@@ -5,6 +5,7 @@ use super::{
     status, truthy, Io, Map, Raise, Result, Root, Value, CHECK_INTERVAL, IN_PROGRESS, LAST_CHECK,
     TERMINAL,
 };
+use crate::commands::connectivity::published::Published;
 
 /// The manifest URL `stage` gets from the channel: none for a missing or empty one, refused for one
 /// that is not text (an owner's channel.json naming a number, say).
@@ -38,7 +39,7 @@ pub(super) fn automatic_check(root: &Root, io: &dyn Io) -> Result<Value> {
     if !channel(root).manifest_url.is_some_and(|url| truthy(&url)) {
         return Ok(skipped("no_channel"));
     }
-    if root.json_object("/run/y2/network.json").get("state") != Some(&json!("Online")) {
+    if !Published::read(root).online() {
         return Ok(skipped("offline"));
     }
     if !io.time_status(root).get("tls_ready").is_some_and(truthy) {

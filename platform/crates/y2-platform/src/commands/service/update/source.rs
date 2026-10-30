@@ -6,6 +6,7 @@ use super::{
     PathBuf, Raise, Read, Response, Result, Root, Sha256, Value, VecDeque, CANCELLED, CHANNEL,
     NETWORK_WAIT_S, PROGRESS, RETRY_PAUSE,
 };
+use crate::commands::connectivity::published::Published;
 use std::io::Write;
 use std::os::fd::AsFd;
 use std::os::unix::fs::OpenOptionsExt;
@@ -284,7 +285,7 @@ pub(super) fn copy_stream(
 /// True once Wi-Fi is Online (DNS answered), waiting at most `seconds`.
 pub(super) fn wait_online(root: &Root, seconds: f64) -> bool {
     let deadline = root.clock().monotonic() + seconds;
-    while root.json_object("/run/y2/network.json").get("state") != Some(&json!("Online")) {
+    while !Published::read(root).online() {
         if root.clock().monotonic() >= deadline {
             return false;
         }

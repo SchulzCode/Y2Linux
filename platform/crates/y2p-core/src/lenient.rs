@@ -64,6 +64,11 @@ pub fn number<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Option<f64>,
     Ok(crate::py::number(Some(&Value::deserialize(deserializer)?)))
 }
 
+/// A flag as Python's truth test takes any value (`bool(value)`): a missing field is false.
+pub fn truthy<'de, D: Deserializer<'de>>(deserializer: D) -> Result<bool, D::Error> {
+    Ok(crate::py::truthy(&Value::deserialize(deserializer)?))
+}
+
 /// A record's `boot_id` field, compared with this boot's id as Python's `==` did: a missing or null
 /// field equals an unreadable boot id, a text equals the same text, anything else equals nothing.
 #[derive(Debug, Default, Clone, PartialEq)]

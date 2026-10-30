@@ -1,11 +1,12 @@
 //! The radio helpers' supervisor: restart a dead helper (rate-bounded), attach wpa_supplicant to
 //! wlan0 with the wpa-event action hook, re-add a stale interface (F53), stop every helper at the end.
 // SPDX-License-Identifier: GPL-2.0-only
+use super::super::published::Published;
 use super::super::wifi::journal;
 use crate::commands::{codec, network::wlan_switched_off};
 use crate::reply::{unlink_missing_ok, Failure};
 use serde::Serialize;
-use serde_json::{json, Value};
+use serde_json::json;
 use std::{
     cell::OnceCell,
     fs,
@@ -13,11 +14,7 @@ use std::{
 };
 use y2p_core::json::{Object, ObjectExt};
 use y2p_core::paths::realpath;
-use y2p_core::{
-    command,
-    py::{number, truthy},
-    Root,
-};
+use y2p_core::{command, Root};
 
 pub(crate) const HELPERS: [(&str, &str); 4] = [
     ("calibration", "/usr/sbin/y2-calibration"),
@@ -232,18 +229,16 @@ impl Supervisor {
     /// blocks it (the platform's own readiness record; no command while healthy).
     pub fn verify(&mut self, now: f64) {
         let root = &self.root;
-        let net = root.json_object("/run/y2/network.json");
-        let fresh = super::super::observe_wifi::eq_text(net.get("boot_id"), self.boot_id())
-            && number(net.get("monotonic_s"))
-                .is_some_and(|at| (0.0..30.0).contains(&(root.clock().monotonic() - at)));
-        let association = net.get("association").and_then(Value::as_str);
+        let net = Published::read(root);
+        let fresh = net.is_this_boot(self.boot_id()) && net.fresh(root, 30.0);
+        let association = net.association.as_deref();
         if fresh && association == Some("COMPLETED") {
             self.renewals = 0;
         }
         if !self.attached
             || !fresh
             || association != Some("INTERFACE_DISABLED")
-            || !net.get("radio_present").is_some_and(truthy)
+            || !net.radio_present
             || wlan_switched_off(root)
         {
             self.disabled_since = None;

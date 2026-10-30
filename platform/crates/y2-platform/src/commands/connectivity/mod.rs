@@ -12,6 +12,7 @@ pub(crate) mod crosscheck;
 pub mod daemon;
 pub mod direct;
 pub mod observe_wifi;
+pub mod published;
 pub mod radio_policy;
 #[cfg(test)]
 mod scenarios;
