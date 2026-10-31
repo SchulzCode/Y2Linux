@@ -1,6 +1,15 @@
 # Current Y2Linux platform state
 
-## Y2Linux 1.0 Beta 9.2.3, Baseline 194 — 2026-10-31 (latest, published)
+## Y2Linux 1.0 Beta 9.2.4, Baseline 195 — 2026-10-31 (latest, published)
+
+Release `1.0.0-beta.9.2.4`, tag `baseline-195`, Linux `0a31c6c4`, Reborn `8ecff51`, sequence 12000. Reborn only:
+Home order (Customize > Home Menu, `home_order`) and playlist order (`playlist_order`, the playlist menu's Move),
+Customize > Wheel Click Off/When Paused/Always (a tick mixed into the wired sink only, with a song loaded;
+`AudioSink::rewind`/`rb_sink_rewind` take back unplayed frames and `playback/click.rs` writes them again), Cover
+Flow text travelling with its cover. GitHub: Y2Reborn #53 #33 #67 #71. Details:
+[Beta 9.2.4 report](validation/Y2-LINUX-1.0-BETA-9.2.4.md).
+
+## Y2Linux 1.0 Beta 9.2.3, Baseline 194 — 2026-10-31 (published)
 
 Release `1.0.0-beta.9.2.3`, tag `baseline-194`, Linux `1f206bf4`, Reborn `9a50d47`, sequence 11900. Reborn only (owner:
 "do all the defaults", no new settings): release year (`Track.year`, additive column, `METADATA_REVISION` 5 = one

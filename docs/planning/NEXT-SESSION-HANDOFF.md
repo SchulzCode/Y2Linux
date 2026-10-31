@@ -1,6 +1,13 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.4 candidate (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-31, evening): BETA 9.2.3 (BASELINE 194) RELEASE.** Reborn defaults from the GitHub triage
+> **START HERE (2026-10-31, late evening): BETA 9.2.4 (BASELINE 195) RELEASE.** Reborn: Home order (Customize >
+> Home Menu), playlist order (Move), Wheel Click Off/When Paused/Always (wired sink only, needs a song loaded; rewind
+> and replay so no music is lost), Cover Flow text travelling with its cover
+> ([Beta 9.2.4 report](../validation/Y2-LINUX-1.0-BETA-9.2.4.md)). Owed: listening to the click on a player (level 0.3
+> is a guess, pops?). Closed #64 (battery estimate) and #40 (settled on Discord); on hold #41 #19 (plugins) and #63.
+> Next free label 196, sequence above 12000, next version 9.2.5.
+>
+> Previous entry: **START HERE (2026-10-31, evening): BETA 9.2.3 (BASELINE 194) RELEASE.** Reborn defaults from the GitHub triage
 > (no new settings): album years (`METADATA_REVISION` 5 re-reads tags once after the update), Other Network… (hidden
 > Wi-Fi), Cover Flow position in the title, numbered album songs in skins, brighter greys
 > ([Beta 9.2.3 report](../validation/Y2-LINUX-1.0-BETA-9.2.3.md)). Open on GitHub: Y2Reborn #71 #67 #63 #64 #53 #33
