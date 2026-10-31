@@ -1085,6 +1085,50 @@ fn bluetooth_operation_in_progress_is_waited_out_within_the_window() {
 }
 
 #[test]
+fn a_power_press_while_bluetooth_is_busy_cancels_the_sleep_at_once() {
+    // 2026-10-31, test build 190: an automatic page to headphones that were off held
+    // bt-operation.lock ≈20 s; the helper retried Bluetooth off all that time with the screen dark,
+    // and a Power press lit it only once the page had ended (up to 17.6 s later).
+    let p = Player::new();
+    p.command(|argv| Outcome {
+        ok: argv[1..] != ["bluetooth", "off-runtime"],
+        ..done()
+    });
+    p.never_enter("entered after a Power press");
+    let tree = p.tree.clone();
+    p.sleep(move |_| {
+        tree.press();
+        Ok(())
+    });
+    let start = p.clock.monotonic();
+    assert_eq!(p.run_sleep(), 2);
+    assert_eq!(p.clock.monotonic() - start, 1.0);
+    assert_eq!(p.product()["reason"], "wake_event_in_progress");
+    assert_eq!(p.rpc(), ["sleep_prepare", "sleep_restore"]);
+    assert_eq!(p.guard()["pending"], false);
+}
+
+#[test]
+fn a_power_press_while_the_connectivity_chip_powers_down_cancels_the_sleep() {
+    let p = Player::new();
+    p.write(
+        "/sys/devices/platform/18070000.connectivity/status",
+        "powered=1 functions=0x3 error=0 ",
+    );
+    p.never_enter("entered after a Power press");
+    let tree = p.tree.clone();
+    p.sleep(move |_| {
+        tree.press();
+        Ok(())
+    });
+    let start = p.clock.monotonic();
+    assert_eq!(p.run_sleep(), 2);
+    assert!(p.clock.monotonic() - start < 1.0);
+    assert_eq!(p.product()["reason"], "wake_event_in_progress");
+    assert_eq!(p.rpc(), ["sleep_prepare", "sleep_restore"]);
+}
+
+#[test]
 fn stale_pre_kernel_guard_from_any_boot_does_not_refuse() {
     let p = Player::new();
     let identity = identity(&p.root);

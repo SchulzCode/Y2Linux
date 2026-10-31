@@ -198,7 +198,7 @@ impl Run {
         record(root, Stage::new("quiescing_radios", Some(0)))?;
         self.radios_changed = true;
         for radio in ["wifi", "bluetooth"] {
-            quiesce_radio(root, pm, radio)?;
+            quiesce_radio(root, pm, radio, &previous_irqs)?;
         }
         // The connectivity chip is off once its status says so (functions as 0 or 0x0).
         let stopped = |status: String| {
@@ -215,6 +215,7 @@ impl Run {
                 return Err(E::refused("radio_power_down"));
             }
             pm.pause(0.1)?;
+            woken(root, &previous_irqs)?;
         }
         let mut stale_counts = 0;
         loop {
@@ -438,8 +439,14 @@ fn service(root: &Root, argv: &[&str]) -> Result<(), E> {
 ///
 /// After a Power wake the reconnect owner holds bt-operation.lock while it reconnects the headset,
 /// and `bluetooth-power off` refuses at once. Retry within a bounded window instead of failing the
-/// whole sleep request.
-fn quiesce_radio(root: &Root, pm: &mut dyn Pm, radio: &str) -> Result<u32, E> {
+/// whole sleep request. A Power or RTC wake meanwhile cancels the sleep at once: the screen is dark
+/// already, and a page to absent headphones held a wake press for up to 17.6 s (test build 190).
+fn quiesce_radio(
+    root: &Root,
+    pm: &mut dyn Pm,
+    radio: &str,
+    previous_irqs: &receipt::WakeIrqs,
+) -> Result<u32, E> {
     let argv = ["/usr/sbin/y2-radio", radio, "off-runtime"];
     let deadline = monotonic(root) + RADIO_QUIESCE_SECONDS;
     let mut attempts = 0;
@@ -450,6 +457,7 @@ fn quiesce_radio(root: &Root, pm: &mut dyn Pm, radio: &str) -> Result<u32, E> {
         if outcome.ok {
             return Ok(attempts);
         }
+        woken(root, previous_irqs)?;
         if monotonic(root) >= deadline {
             return Err(E::RuntimeError(format!(
                 "sleep_service_failed:y2-radio:{radio}:attempts={attempts}"
