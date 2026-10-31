@@ -76,6 +76,12 @@ pub fn power(root: &Root, value: &str) -> Result<Object, Failure> {
     // /run/y2 is not made here: without it the boot never started the radio (FileNotFoundError).
     let path = root.path("/run/y2/bt-operation.lock");
     let Some(_lock) = y2p_core::lock::try_exclusive(&path).at(&path)? else {
+        // The owner holds the lock while it pages a headset: ≈20 s for headphones that are off,
+        // which held the sleep helper's radio quiesce that long (test build 190). `power_pending`
+        // makes it cancel the page and wait for the intent's deadline, so a retry gets the lock
+        // within a second, as Reborn's own waiting power change does. Advice only: unwritten, the
+        // caller still gets the busy answer and retries as before.
+        let _ = intent(root, "power_pending");
         return Ok(Object::new()
             .with("ok", false)
             .with("reason", "platform_bluetooth_operation_in_progress"));
