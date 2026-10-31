@@ -53,6 +53,12 @@ fn wlan_rfkill(root: &Root) -> Vec<String> {
     entries
 }
 
+/// The `soft` switch of Wi-Fi's (first) rfkill entry.
+pub(crate) fn wlan_rfkill_soft(root: &Root) -> Option<std::path::PathBuf> {
+    let base = wlan_rfkill(root).into_iter().next()?;
+    Some(root.path(&format!("{base}/soft")))
+}
+
 /// True while Wi-Fi is soft-blocked: sleep or the owner turned it off.
 pub(crate) fn wlan_switched_off(root: &Root) -> bool {
     wlan_rfkill(root)

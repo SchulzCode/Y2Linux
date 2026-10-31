@@ -109,6 +109,13 @@ impl EventMonitor {
             .with("interrupted_handshakes", self.interrupted_handshakes)
     }
 
+    /// How often the supplicant sent the event `kind` (`NETWORK-NOT-FOUND`) since the monitor started.
+    pub fn total(&self, kind: &str) -> u64 {
+        (self.counts.iter())
+            .find(|(k, _)| k == kind)
+            .map_or(0, |(_, n)| *n)
+    }
+
     /// The socket a caller's select waits on, if attached.
     pub fn fd(&self) -> Option<RawFd> {
         self.sock.as_ref().map(AsRawFd::as_raw_fd)

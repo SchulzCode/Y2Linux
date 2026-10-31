@@ -674,3 +674,117 @@ fn not_in_range_scans_and_a_password_verdict_is_left_alone() {
     }
     assert!(wifi.calls.is_empty());
 }
+
+// ---- F60 restart ---------------------------------------------------------------------------
+
+impl Recovery {
+    /// Scans that see two other networks but no saved one, Wi-Fi on (rfkill0) and wlan0 gone as
+    /// soon as it is blocked.
+    fn blind() -> Self {
+        let mut wifi = Self::new();
+        wifi.scan = format!(
+            "{SCAN_HEADER}aa:bb:cc:dd:ee:03\t2437\t-70\t[WPA2-PSK-CCMP][ESS]\tneighbour\n\
+             aa:bb:cc:dd:ee:04\t2412\t-80\t[ESS]\tguest\n"
+        );
+        wifi.fixture
+            .put("/sys/class/rfkill/rfkill0/type", "wlan\n")
+            .put("/sys/class/rfkill/rfkill0/soft", "0\n");
+        wifi
+    }
+
+    fn not_found(&mut self, times: usize) {
+        for _ in 0..times {
+            self.event(NOT_FOUND);
+        }
+    }
+}
+
+#[test]
+fn scans_that_never_see_the_saved_network_switch_wifi_off_and_on_once() {
+    // F60 (report fa30bf96): after a wake the supplicant scanned for 45 s and never saw the saved
+    // network; Wi-Fi off and on connected in 5 s.
+    let mut wifi = Recovery::blind();
+    let scanning = json!({"association": "SCANNING", "radio_present": true});
+    assert!(wifi.observe(&scanning, 100.0, true).is_none());
+    wifi.not_found(3);
+    assert!(
+        wifi.observe(&scanning, 170.0, true).is_none(),
+        "three scans"
+    );
+    wifi.not_found(1);
+    assert!(
+        wifi.observe(&scanning, 159.0, true).is_none(),
+        "under a minute"
+    );
+    assert_eq!(wifi.observe(&scanning, 160.0, true), Some("wifi_restart"));
+    assert_eq!(wifi.fixture.read("/sys/class/rfkill/rfkill0/soft"), "0\n");
+    let row = wifi.journal().pop().unwrap();
+    assert_eq!(
+        json!([
+            row["event"],
+            row["unseen_s"],
+            row["not_found"],
+            row["saved"],
+            row["scan_entries"]
+        ]),
+        json!(["wifi_restart", 60.0, 4, 2, 2])
+    );
+    assert_eq!(
+        json!([row["blocked"], row["gone"], row["unblocked"]]),
+        json!([true, true, true])
+    );
+    assert!(!row.to_string().contains("neighbour"));
+    // Wi-Fi comes back and still sees nothing: not again within ten minutes.
+    let mut off = scanning.clone();
+    off["radio_present"] = json!(false);
+    wifi.observe(&off, 161.0, true);
+    wifi.observe(&scanning, 170.0, true);
+    wifi.not_found(8);
+    assert!(wifi.observe(&scanning, 700.0, true).is_none());
+    assert_eq!(wifi.observe(&scanning, 760.0, true), Some("wifi_restart"));
+    // A connect ends the episode: the next one may restart at once.
+    let mut completed = scanning.clone();
+    completed["association"] = json!("COMPLETED");
+    wifi.observe(&completed, 800.0, true);
+    wifi.observe(&scanning, 900.0, true);
+    wifi.not_found(4);
+    assert_eq!(wifi.observe(&scanning, 960.0, true), Some("wifi_restart"));
+}
+
+#[test]
+fn a_seen_network_a_password_verdict_or_the_owners_disconnect_never_restart_wifi() {
+    let scanning = json!({"association": "SCANNING", "radio_present": true});
+    // The saved network in the scan: the supplicant can join it, a restart would not help.
+    let mut seen = Recovery::blind();
+    seen.scan = Recovery::new().scan;
+    seen.observe(&scanning, 0.0, true);
+    seen.not_found(10);
+    assert!(seen.observe(&scanning, 100.0, true).is_none());
+    // A wrong password.
+    let mut wrong = Recovery::blind();
+    let mut verdict = json!({"association": "DISCONNECTED", "radio_present": true,
+                             "state": "Failed", "reason": "wrong_credentials"});
+    wrong.observe(&verdict, 0.0, true);
+    wrong.not_found(10);
+    assert!(wrong.observe(&verdict, 100.0, true).is_none());
+    // The owner's Disconnect, and associating (the supplicant is getting somewhere).
+    let mut held = Recovery::blind();
+    held.event("<3>CTRL-EVENT-DISCONNECTED bssid=aa:bb:cc:dd:ee:01 reason=3 locally_generated=1");
+    verdict["state"] = json!("Disconnected");
+    verdict["reason"] = json!(null);
+    held.observe(&verdict, 0.0, true);
+    held.not_found(10);
+    assert!(held.observe(&verdict, 100.0, true).is_none());
+    let mut associating = Recovery::blind();
+    let trying = json!({"association": "ASSOCIATING", "radio_present": true});
+    associating.observe(&trying, 0.0, true);
+    associating.not_found(10);
+    assert!(associating.observe(&trying, 100.0, true).is_none());
+    for wifi in [seen, wrong, held, associating] {
+        assert_eq!(wifi.fixture.read("/sys/class/rfkill/rfkill0/soft"), "0\n");
+        assert!(!wifi
+            .journal()
+            .iter()
+            .any(|row| row["event"] == "wifi_restart"));
+    }
+}
