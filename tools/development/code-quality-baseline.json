@@ -91,7 +91,7 @@
   "Y2Linux/platform/crates/y2-platform/src/commands/storage/internal/setup.rs::setup_locked": 138,
   "Y2Linux/platform/crates/y2-platform/src/commands/suspend/audit/args.rs::parse": 176,
   "Y2Linux/platform/crates/y2-platform/src/commands/suspend/audit/delta.rs::delta": 271,
-  "Y2Linux/platform/crates/y2-platform/src/commands/suspend/helper.rs::body": 121,
+  "Y2Linux/platform/crates/y2-platform/src/commands/suspend/helper.rs::body": 101,
   "Y2Linux/platform/crates/y2-platform/src/commands/suspend/receipt.rs::record": 158,
   "Y2Linux/platform/crates/y2-platform/src/commands/suspend/receipt/rpc.rs::application_rpc": 103,
   "Y2Linux/platform/crates/y2p-core/src/command.rs::real": 117,

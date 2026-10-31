@@ -253,26 +253,7 @@ impl Run {
                 continue;
             }
             stale_counts = 0;
-            self.restored_kernel = false;
-            self.attempted = true;
-            if let Err(error) = enter(root, pm) {
-                let E::Os { errno, .. } = &error else {
-                    return Err(error);
-                };
-                if matches!(*errno, Some(libc::EBUSY) | Some(libc::EAGAIN)) {
-                    self.restored_kernel = true;
-                    return Err(E::refused("kernel_suspend_refused"));
-                }
-                if failed_before_freeze(root) {
-                    // The write returned and no task froze: nothing is left unproven. 8.10 kept
-                    // this pending and refused every sleep on that image (237 refusals in 4.4 h on
-                    // battery).
-                    self.restored_kernel = true;
-                    retry_later(root)?;
-                    return Err(E::refused("kernel_prepare_refused"));
-                }
-                return Err(error);
-            }
+            self.enter_kernel(root, pm)?;
             // The read after the return completes the handshake; its count is not used (the next
             // pass reads a fresh one).
             pm.wakeup_count(root)?;
@@ -297,6 +278,36 @@ impl Run {
             count = None;
         }
         Ok(())
+    }
+
+    /// One kernel attempt: the `/sys/power/state` write, returning when the player woke.
+    fn enter_kernel(&mut self, root: &Root, pm: &mut dyn Pm) -> Result<(), E> {
+        self.restored_kernel = false;
+        self.attempted = true;
+        enter(root, pm).map_err(|error| self.kernel_refusal(root, error))
+    }
+
+    /// What a `/sys/power/state` write that returned an error leaves behind. A refusal the kernel
+    /// provably undid clears the guard; any other error stays the product failure that keeps this
+    /// image quarantined.
+    fn kernel_refusal(&mut self, root: &Root, error: E) -> E {
+        let E::Os { errno, .. } = &error else {
+            return error;
+        };
+        if matches!(*errno, Some(libc::EBUSY) | Some(libc::EAGAIN)) {
+            self.restored_kernel = true;
+            return E::refused("kernel_suspend_refused");
+        }
+        if !failed_before_freeze(root) {
+            return error;
+        }
+        // The write returned and no task froze: nothing is left unproven. 8.10 kept this pending
+        // and refused every sleep on that image (237 refusals in 4.4 h on battery).
+        self.restored_kernel = true;
+        match retry_later(root) {
+            Ok(()) => E::refused("kernel_prepare_refused"),
+            Err(error) => error,
+        }
     }
 
     /// The restore, after every outcome of `body`: the screen first, then the radios, the completion
