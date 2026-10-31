@@ -155,7 +155,7 @@
   "Y2Reborn/crates/reborn-ui/src/skin/compile.rs::compile": 299,
   "Y2Reborn/crates/reborn-ui/src/skin/compile.rs::compile#2": 172,
   "Y2Reborn/crates/reborn-ui/src/skin/draw.rs::element": 291,
-  "Y2Reborn/crates/reborn-ui/src/skin/draw.rs::text": 130,
+  "Y2Reborn/crates/reborn-ui/src/skin/draw.rs::text": 111,
   "Y2Reborn/crates/reborn-ui/src/views_coverflow.rs::albums": 134,
   "Y2Reborn/crates/reborn-ui/src/views_library.rs::album_page": 132,
   "Y2Reborn/crates/reborn-ui/src/views_library.rs::home": 107,
