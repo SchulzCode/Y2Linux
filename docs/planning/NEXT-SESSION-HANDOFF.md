@@ -1,6 +1,15 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.4 candidate (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-31): TEST BUILD 190 AND THE CODING STANDARD.** After an audit ("do we have clean Reborn, Y2Linux
+> **START HERE (2026-10-31, night): BETA 9.2 (BASELINE 191) RELEASE.** Owner: slow wake after Power-to-sleep when
+> unplugged; "build install with ota and publish". Release `1.0.0-beta.9.2`, sequence 11600, label 191
+> ([Beta 9.2 report](../validation/Y2-LINUX-1.0-BETA-9.2.md)): the sleep helper's radio quiesce waited ≈20 s on
+> y2-bt-reconnect's page to headphones that were off without reading the wake IRQs; fixed (wake check in the quiesce,
+> busy `bluetooth-power` writes `power_pending`); serde_json `float_roundtrip` (reset plans); reset goldens' host
+> `device` volatile (the gate was red on clean HEAD). **Owed on the player:** Power to sleep within 20 s of a wake
+> with the headphones off, then Power: lit at once; journal quiescing→syncing ≈1–2 s. Next free label 192, sequence
+> above 11600.
+>
+> Previous entry: **START HERE (2026-10-31): TEST BUILD 190 AND THE CODING STANDARD.** After an audit ("do we have clean Reborn, Y2Linux
 > and platform now?") the owner chose the quick fixes and the two big player functions (CURRENT_PLATFORM_STATE.md
 > "Since Beta 9.1"), then: "going forward I only want high grade production level code everywhere" — the
 > [coding standard](../CODING-STANDARD.md) and its ratchet (`tools/development/code-quality.py`, in the gate) are

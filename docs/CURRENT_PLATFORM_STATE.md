@@ -1,6 +1,18 @@
 # Current Y2Linux platform state
 
-## Since Beta 9.1 (test build 190, sequence 11510, 2026-10-31; not published)
+## Y2Linux 1.0 Beta 9.2, Baseline 191 — 2026-10-31 (latest, published)
+
+Release `1.0.0-beta.9.2`, tag `baseline-191`, Linux `7f5d29db`, Reborn `f445483`, sequence 11600. Owner: "a wake
+problem … pressing the button again to wake takes extremely long". Cause: the sleep helper's radio quiesce retried
+Bluetooth off for up to 25 s while `y2-bt-reconnect` paged headphones that were off (≈20 s, holding
+`bt-operation.lock`) and did not read the wake IRQs meanwhile (power journal of 190: 17.6/17.7/6.4/15.6 s). Fixes: a
+Power/RTC wake during the quiesce and the chip power-down wait refuses at once (`woken`); a busy `bluetooth-power`
+writes `power_pending`, so the owner cancels its page (checked on the player: off after one refusal, 1.1 s). Also:
+serde_json `float_roundtrip` (≈1 in 450 floats read one ULP off; reset plans refused as `reset_plan_changed`), the
+reset goldens' host `device` volatile. Includes test build 190 (below). Details:
+[Beta 9.2 report](validation/Y2-LINUX-1.0-BETA-9.2.md).
+
+## Since Beta 9.1 (test build 190, sequence 11510, 2026-10-31; in Beta 9.2)
 
 Code clean-up after an audit of both repositories, and the [coding standard](CODING-STANDARD.md) with its
 enforcement: the platform gate now runs `tools/development/code-quality.py`, a ratchet over the platform's and
@@ -11,7 +23,7 @@ Music), `effect_inner` an exhaustive table (921 → 299 lines, the long cases in
 thread a worker (`run`, `session`, `open`, seven steps, `command`), eight stale development scripts in
 `tools/archive/`. Behaviour unchanged except the Music fallback; every move checked token for token.
 
-## Y2Linux 1.0 Beta 9.1, Baseline 189 — 2026-10-30 (latest, published)
+## Y2Linux 1.0 Beta 9.1, Baseline 189 — 2026-10-30 (published)
 
 Release `1.0.0-beta.9.1`, tag `baseline-189`, Linux `2851b70d`, Reborn `e309b49`, sequence 11500. Housekeeping after
 the rewrite (owner: "do all the stuff you mentioned"): Reborn reads the platform's records in `y2p-contract` types

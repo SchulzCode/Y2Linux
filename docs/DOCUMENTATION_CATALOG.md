@@ -359,6 +359,7 @@ Indexed pages: **341**. Explicit scope notices: **228**.
 | [Y2Linux 1.0 Beta 8.40 report](validation/Y2-LINUX-1.0-BETA-8.40.md) | Beta 8.40 (Baseline 154): power off on a charger opens the charging screen (F46) |
 | [Plugins plan](planning/PLUGINS-PLAN.md) | One unified kind of plugin (WebAssembly only) for everything optional: extension points, the core after the move, security model, store, SDK, phases P0–P6 |
 | [Coding standard](CODING-STANDARD.md) | How the platform and Reborn are written (functions, workers, dispatchers, records, errors, `unsafe`), what the gate and its code-quality ratchet enforce |
+| [Y2Linux 1.0 Beta 9.2 report](validation/Y2-LINUX-1.0-BETA-9.2.md) | Beta 9.2 (Baseline 191): the screen lights at once on a wake press while saved headphones are off, sleep no longer waits for their reconnect, Reset no longer refuses as "plan changed"; written for players' owners |
 | [Y2Linux 1.0 Beta 9.1 report](validation/Y2-LINUX-1.0-BETA-9.1.md) | Beta 9.1 (Baseline 189): Reborn on the platform's message types, its large files and functions split, platform clean-ups; written for players' owners |
 | [Y2Linux 1.0 Beta 9.0 report](validation/Y2-LINUX-1.0-BETA-9.0.md) | Beta 9.0 (Baseline 186): the platform rewritten from Python into Rust, typed records, fixes; written for players' owners |
 | [Y2Linux 1.0 Beta 8.43 report](validation/Y2-LINUX-1.0-BETA-8.43.md) | Beta 8.43 (Baseline 164): Y2Reborn issue fixes (#25 #28 #30 #45 #46 #51 #52 #55 #56 #57 #60 #62) |
