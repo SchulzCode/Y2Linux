@@ -5,8 +5,8 @@ Measures the production code (tests excluded: `*tests.rs`, `tests/`, `*_tests/`,
 {}` and files of `#[cfg(test)] mod …;` declarations) and compares it with code-quality-baseline.json next to
 this script. The check is a ratchet: nothing may get worse, everything may get better.
 
-- functions over 100 lines: none new, none longer;
-- files over 1000 lines: none new, none longer;
+- functions over 150 lines: none new, none longer (aim for 100: CODING-STANDARD.md §2);
+- files over 1500 lines: none new, none longer (aim for 1000);
 - `unsafe` (blocks, functions, impls) per crate: no more, and none in a crate that has none;
 - `.unwrap()` / `.expect(` per crate, `panic!` / `todo!` / `unimplemented!` / `unreachable!` per crate,
   `#[allow(…)]` per crate: no more;
@@ -29,8 +29,10 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
 BASELINE = Path(__file__).with_name('code-quality-baseline.json')
-FUNCTION_LINES = 100
-FILE_LINES = 1000
+# Ceilings, not targets: a one-line fix in a 1,100-line file passes; past these only shrinking passes
+# (owner, 2026-10-31: the old 100/1000 ratchet forced a refactor before every small change).
+FUNCTION_LINES = 150
+FILE_LINES = 1500
 LINE_COLUMNS = 100
 PER_CRATE = ('unsafe', 'unwrap', 'panic', 'allow')
 PER_FILE = ('json_lookups', 'long_lines')

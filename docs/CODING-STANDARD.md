@@ -27,10 +27,14 @@ Reborn on its own: `cargo fmt --all`, `cargo clippy --workspace --all-targets` (
 Measured on production code (tests excluded) against `tools/development/code-quality-baseline.json`. Nothing may
 get worse; an improvement is recorded with `--update` and its baseline diff is part of the commit.
 
+The length limits are ceilings, not targets (owner, 2026-10-31): a function or file between the aim and the
+ceiling passes, so a small fix never has to start with a refactor. Split code when it reads better, not to win a
+line back.
+
 | Measure | Limit for new code | Existing exceptions |
 | --- | --- | --- |
-| Function length | ≤ 100 lines | listed; may only shrink |
-| File length | ≤ 1000 lines | listed; may only shrink |
+| Function length | aim for ≤ 100 lines; the gate stops at 150 | over 150: listed; may only shrink |
+| File length | aim for ≤ 1000 lines; the gate stops at 1500 | over 1500: listed; may only shrink |
 | `unsafe` | only in the crates that have it today, never more | per crate |
 | `.unwrap()` / `.expect(` | none in production paths (an invariant gets `expect("why it holds")`) | per crate |
 | `panic!` / `todo!` / `unimplemented!` / `unreachable!` | none | per crate |
