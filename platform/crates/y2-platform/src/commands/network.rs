@@ -38,21 +38,26 @@ pub(crate) fn publish<T: Serialize + ?Sized>(
     Ok(value)
 }
 
-/// True while Wi-Fi is soft-blocked: sleep or the owner turned it off.
-pub(crate) fn wlan_switched_off(root: &Root) -> bool {
+/// The Wi-Fi rfkill entries, as `/sys/class/rfkill/rfkillN`, in name order.
+fn wlan_rfkill(root: &Root) -> Vec<String> {
     let mut entries: Vec<String> = fs::read_dir(root.path("/sys/class/rfkill"))
         .into_iter()
         .flatten()
         .flatten()
         .filter_map(|e| e.file_name().into_string().ok())
         .filter(|n| n.starts_with("rfkill"))
+        .map(|name| format!("/sys/class/rfkill/{name}"))
         .collect();
     entries.sort();
-    entries.iter().any(|name| {
-        let base = format!("/sys/class/rfkill/{name}");
-        root.read(&format!("{base}/type")).as_deref() == Some("wlan")
-            && root.read(&format!("{base}/soft")).as_deref() == Some("1")
-    })
+    entries.retain(|base| root.read(&format!("{base}/type")).as_deref() == Some("wlan"));
+    entries
+}
+
+/// True while Wi-Fi is soft-blocked: sleep or the owner turned it off.
+pub(crate) fn wlan_switched_off(root: &Root) -> bool {
+    wlan_rfkill(root)
+        .iter()
+        .any(|base| root.read(&format!("{base}/soft")).as_deref() == Some("1"))
 }
 
 /// `/etc/resolv.conf` is a production-owned symlink into /run; only Wi-Fi supplies DNS in this
