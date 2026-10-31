@@ -122,7 +122,8 @@ SETTINGS = {'/data/reborn/state/session.json': SESSION}
 DEFAULTS = answer(['/usr/bin/reborn', '--default-settings'],
                   json.dumps({'session_schema': 3, 'settings': {'volume': 5}}))
 PLAN_ID = '1234567890abcdef1234567890abcdef'
-RESET = {'volatile': ['expires_monotonic_s', 'inode', 'mtime_ns'], 'patterns': [HEX32, HEX64]}
+# A target's identity is the fixture copy's stat(): `device` and `inode` are the host's filesystem.
+RESET = {'volatile': ['expires_monotonic_s', 'device', 'inode', 'mtime_ns'], 'patterns': [HEX32, HEX64]}
 SESSION_PATH = '/data/reborn/state/session.json'
 TAINTED = {**ENABLED, '/proc/sys/kernel/tainted': '1\n'}
 

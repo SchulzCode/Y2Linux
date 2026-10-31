@@ -65,8 +65,14 @@ def lost(old, new, path=''):
     elif isinstance(old, list) and isinstance(new, list):
         for a, b in zip(old, new):
             yield from lost(a, b, path + '[]')
-    elif old is not None and new is not None and kind(old) != kind(new):
+    elif not hidden(old) and not hidden(new) and kind(old) != kind(new):
         yield path or '.', kind(old), kind(new)
+
+
+def hidden(value):
+    """No value to compare: null (the readers treat it as missing) or the golden suite's `<volatile>`, which
+    stands for a host reading (a clock, the fixture copy's stat()) and not for anything the writer wrote."""
+    return value is None or value == '<volatile>'
 
 
 def allowed():

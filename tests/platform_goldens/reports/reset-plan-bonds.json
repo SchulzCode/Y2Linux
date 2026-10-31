@@ -48,7 +48,7 @@
   "targets": [
    {
     "identity": {
-     "device": 53,
+     "device": "<volatile>",
      "inode": "<volatile>",
      "mode": 32768,
      "mtime_ns": "<volatile>",
@@ -58,7 +58,7 @@
    },
    {
     "identity": {
-     "device": 53,
+     "device": "<volatile>",
      "inode": "<volatile>",
      "mode": 16384,
      "mtime_ns": "<volatile>",
@@ -99,7 +99,7 @@
      "targets": [
       {
        "identity": {
-        "device": 53,
+        "device": "<volatile>",
         "inode": "<volatile>",
         "mode": 32768,
         "mtime_ns": "<volatile>",
@@ -109,7 +109,7 @@
       },
       {
        "identity": {
-        "device": 53,
+        "device": "<volatile>",
         "inode": "<volatile>",
         "mode": 16384,
         "mtime_ns": "<volatile>",

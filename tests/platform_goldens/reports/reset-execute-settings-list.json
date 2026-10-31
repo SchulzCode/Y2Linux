@@ -94,7 +94,7 @@
      "targets": [
       {
        "identity": {
-        "device": 53,
+        "device": "<volatile>",
         "inode": "<volatile>",
         "mode": 32768,
         "mtime_ns": "<volatile>",
