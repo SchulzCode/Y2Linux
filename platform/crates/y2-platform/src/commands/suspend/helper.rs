@@ -224,9 +224,7 @@ impl Run {
             if count.is_none() {
                 count = pm.wakeup_count(root)?;
             }
-            if wake_irqs(root.read("/proc/interrupts").as_deref()) != previous_irqs {
-                return Err(E::refused("wake_event_in_progress"));
-            }
+            woken(root, &previous_irqs)?;
             let Some(current) = count.clone().filter(|c| is_decimal(c)) else {
                 return Err(E::refused("wakeup_count_unavailable"));
             };
@@ -475,9 +473,15 @@ fn wait_for_application(
     let deadline = monotonic(root) + APPLICATION_READY_WAIT_S;
     while application_starting(root) && monotonic(root) < deadline {
         pm.pause(0.25)?;
-        if &wake_irqs(root.read("/proc/interrupts").as_deref()) != previous_irqs {
-            return Err(E::refused("wake_event_in_progress"));
-        }
+        woken(root, previous_irqs)?;
+    }
+    Ok(())
+}
+
+/// Refuse as `wake_event_in_progress` once a Power or RTC IRQ was serviced since `previous_irqs`.
+fn woken(root: &Root, previous_irqs: &receipt::WakeIrqs) -> Result<(), E> {
+    if &wake_irqs(root.read("/proc/interrupts").as_deref()) != previous_irqs {
+        return Err(E::refused("wake_event_in_progress"));
     }
     Ok(())
 }
