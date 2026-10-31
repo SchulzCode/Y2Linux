@@ -1,6 +1,13 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.4 candidate (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-31, afternoon): BETA 9.2.2 (BASELINE 193) RELEASE.** Fix releases after 9.2 are 9.2.x
+> **START HERE (2026-10-31, evening): BETA 9.2.3 (BASELINE 194) RELEASE.** Reborn defaults from the GitHub triage
+> (no new settings): album years (`METADATA_REVISION` 5 re-reads tags once after the update), Other Network… (hidden
+> Wi-Fi), Cover Flow position in the title, numbered album songs in skins, brighter greys
+> ([Beta 9.2.3 report](../validation/Y2-LINUX-1.0-BETA-9.2.3.md)). Open on GitHub: Y2Reborn #71 #67 #63 #64 #53 #33
+> #40 #41 #19. Follow-up: split Reborn's reborn-core and reborn-library lib.rs (≈2300/2200 lines). Next free label
+> 195, sequence above 11900.
+>
+> Previous entry: **START HERE (2026-10-31, afternoon): BETA 9.2.2 (BASELINE 193) RELEASE.** Fix releases after 9.2 are 9.2.x
 > (owner); 9.2.1 = test build 192, not published. Release `1.0.0-beta.9.2.2`, sequence 11800, label 193
 > ([Beta 9.2.2 report](../validation/Y2-LINUX-1.0-BETA-9.2.2.md)): F59 (SD card without Power Off Notification Ready:
 > kernel patch 0071 + `Run::kernel_refusal` retries a proven device refusal), GitHub requests #64 #70 #72 #73 #74 #76

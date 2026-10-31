@@ -1,6 +1,15 @@
 # Current Y2Linux platform state
 
-## Y2Linux 1.0 Beta 9.2.2, Baseline 193 — 2026-10-31 (latest, published)
+## Y2Linux 1.0 Beta 9.2.3, Baseline 194 — 2026-10-31 (latest, published)
+
+Release `1.0.0-beta.9.2.3`, tag `baseline-194`, Linux `1f206bf4`, Reborn `9a50d47`, sequence 11900. Reborn only (owner:
+"do all the defaults", no new settings): release year (`Track.year`, additive column, `METADATA_REVISION` 5 = one
+tag re-read after the update; artist albums oldest first; host 150k timing unchanged), Other Network… for hidden
+Wi-Fi (`scan_ssid 1`), Cover Flow position in the title (`{position}`), numbered album songs in skins (`numbered`),
+brighter `MUTED`/`DIM`. GitHub: Y2Reborn #66 #61 #70 #59, Y2Linux #75. Details:
+[Beta 9.2.3 report](validation/Y2-LINUX-1.0-BETA-9.2.3.md).
+
+## Y2Linux 1.0 Beta 9.2.2, Baseline 193 — 2026-10-31 (published)
 
 Release `1.0.0-beta.9.2.2`, tag `baseline-193`, Linux `275c1ab1`, Reborn `29aa1cc`, sequence 11800. Fix releases after
 9.2 are numbered 9.2.x (owner); 9.2.1 (test build 192, sequence 11700) was not published and is included. F59 (reports
