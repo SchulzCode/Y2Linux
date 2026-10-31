@@ -79,39 +79,15 @@ impl WifiRecovery {
         if now - since < Self::IDLE_S || now < self.next_try {
             return None;
         }
-        let listed = wpa(root, &["list_networks"]);
-        let scan = wpa(root, &["scan_results"]);
+        let look = Look::take(root);
         self.next_try = now + Self::BACKOFF_S[(self.tries as usize).min(Self::BACKOFF_S.len() - 1)];
-        if !(listed.ok && scan.ok) {
+        let look = look?;
+        if look.saved.is_empty() {
             return None;
         }
-        let saved: Vec<Vec<String>> = rows(listed.output.as_deref())
-            .into_iter()
-            .filter(|row| {
-                row.len() >= 4
-                    && digits(&row[0])
-                    && !row[1].is_empty()
-                    && !row[3].contains("[DISABLED]")
-            })
-            .collect();
-        if saved.is_empty() {
-            return None;
-        }
-        let mut signal: Vec<(String, i64)> = Vec::new();
-        for row in rows(scan.output.as_deref()) {
-            if row.len() >= 5 && !row[4].is_empty() && signed(&row[2]) {
-                let level = int(&row[2]);
-                match signal.iter_mut().find(|(name, _)| *name == row[4]) {
-                    Some(entry) => entry.1 = entry.1.max(level),
-                    None => signal.push((row[4].clone(), level.max(-999))),
-                }
-            }
-        }
-        let strength = |name: &str| signal.iter().find(|(n, _)| n == name).map(|(_, s)| *s);
-        let seen: Vec<&Vec<String>> = saved
-            .iter()
-            .filter(|row| strength(&row[1]).is_some())
-            .collect();
+        let (saved, signal) = (&look.saved, &look.signal);
+        let strength = |name: &str| look.strength(name);
+        let seen = look.seen();
         self.tries += 1;
         self.first_try.get_or_insert(now);
         let (action, outcome) = if !seen.is_empty() {
@@ -165,6 +141,55 @@ impl WifiRecovery {
         };
         journal(root, action, &attempt);
         Some(action)
+    }
+}
+
+/// The supplicant's saved networks (not disabled, as `list_networks` rows) and the strongest signal
+/// per network name in its last scan.
+struct Look {
+    saved: Vec<Vec<String>>,
+    signal: Vec<(String, i64)>,
+}
+
+impl Look {
+    /// None when wpa_cli did not answer both.
+    fn take(root: &Root) -> Option<Self> {
+        let listed = wpa(root, &["list_networks"]);
+        let scan = wpa(root, &["scan_results"]);
+        if !(listed.ok && scan.ok) {
+            return None;
+        }
+        let saved = rows(listed.output.as_deref())
+            .into_iter()
+            .filter(|row| {
+                row.len() >= 4
+                    && digits(&row[0])
+                    && !row[1].is_empty()
+                    && !row[3].contains("[DISABLED]")
+            })
+            .collect();
+        let mut signal: Vec<(String, i64)> = Vec::new();
+        for row in rows(scan.output.as_deref()) {
+            if row.len() >= 5 && !row[4].is_empty() && signed(&row[2]) {
+                let level = int(&row[2]);
+                match signal.iter_mut().find(|(name, _)| *name == row[4]) {
+                    Some(entry) => entry.1 = entry.1.max(level),
+                    None => signal.push((row[4].clone(), level.max(-999))),
+                }
+            }
+        }
+        Some(Self { saved, signal })
+    }
+
+    fn strength(&self, name: &str) -> Option<i64> {
+        self.signal.iter().find(|(n, _)| n == name).map(|(_, s)| *s)
+    }
+
+    /// The saved networks the last scan saw.
+    fn seen(&self) -> Vec<&Vec<String>> {
+        (self.saved.iter())
+            .filter(|row| self.strength(&row[1]).is_some())
+            .collect()
     }
 }
 
