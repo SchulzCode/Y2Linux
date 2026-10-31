@@ -48,8 +48,8 @@
  "long_files": {
   "Y2Reborn/app/reborn/src/bin/reborn-preview.rs": 2232,
   "Y2Reborn/app/reborn/src/main_loop.rs": 2378,
-  "Y2Reborn/crates/reborn-core/src/lib.rs": 2325,
-  "Y2Reborn/crates/reborn-library/src/lib.rs": 2196,
+  "Y2Reborn/crates/reborn-core/src/lib.rs": 2328,
+  "Y2Reborn/crates/reborn-library/src/lib.rs": 2215,
   "Y2Reborn/crates/reborn-platform/src/client.rs": 1558,
   "Y2Reborn/crates/reborn-ui/src/pages.rs": 1919
  },
@@ -88,7 +88,7 @@
   "Y2Reborn/crates/reborn-platform/src/wifi.rs::run": 263,
   "Y2Reborn/crates/reborn-ui/src/actions.rs::action_inner": 186,
   "Y2Reborn/crates/reborn-ui/src/actions.rs::select_row": 302,
-  "Y2Reborn/crates/reborn-ui/src/catalog.rs::build": 244,
+  "Y2Reborn/crates/reborn-ui/src/catalog.rs::build": 248,
   "Y2Reborn/crates/reborn-ui/src/context_menus.rs::context_action": 301,
   "Y2Reborn/crates/reborn-ui/src/motion.rs::apply": 188,
   "Y2Reborn/crates/reborn-ui/src/rows.rs::context_rows": 205,
