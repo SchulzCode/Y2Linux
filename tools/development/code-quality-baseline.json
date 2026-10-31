@@ -74,7 +74,7 @@
   "Y2Reborn/app/reborn/src/playback/decode.rs::crossfade": 179,
   "Y2Reborn/app/reborn/src/playback/decode.rs::play": 298,
   "Y2Reborn/app/reborn/src/playback/output.rs::wait_and_commands": 179,
-  "Y2Reborn/app/reborn/src/runtime/effects.rs::effect_inner": 300,
+  "Y2Reborn/app/reborn/src/runtime/effects.rs::effect_inner": 284,
   "Y2Reborn/app/reborn/src/runtime/platform.rs::poll_platform": 355,
   "Y2Reborn/crates/reborn-library/src/benchmark.rs::database": 171,
   "Y2Reborn/crates/reborn-library/src/benchmark.rs::platform_db_on_media": 376,
