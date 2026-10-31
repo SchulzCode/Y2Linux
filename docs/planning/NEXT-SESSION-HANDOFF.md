@@ -1,6 +1,13 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.4 candidate (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-31, late evening): BETA 9.2.4 (BASELINE 195) RELEASE.** Reborn: Home order (Customize >
+> **START HERE (2026-10-31, night): BETA 9.2.5 (BASELINE 196) RELEASE.** F60 (Y2Linux #83, report fa30bf96): after a
+> wake, scans missed the saved network and Join could not help; the platform now cycles Wi-Fi's rfkill once after
+> 4 blind scans over 60 s (`WifiRecovery::restart_unseen`, journal `wifi_restart`, ≤ every 10 min). Cause unproven
+> (Bluetooth reconnect paging at the same time; y2-bt-reconnect logs no timing). Open: Reborn #73 #74 #75 #76
+> (new after 9.2.3), click loudness by ear. Next free label 197, sequence above 12100, next version 9.2.6
+> ([Beta 9.2.5 report](../validation/Y2-LINUX-1.0-BETA-9.2.5.md)).
+>
+> Previous entry: **START HERE (2026-10-31, late evening): BETA 9.2.4 (BASELINE 195) RELEASE.** Reborn: Home order (Customize >
 > Home Menu), playlist order (Move), Wheel Click Off/When Paused/Always (wired sink only, needs a song loaded; rewind
 > and replay so no music is lost), Cover Flow text travelling with its cover
 > ([Beta 9.2.4 report](../validation/Y2-LINUX-1.0-BETA-9.2.4.md)). Owed: listening to the click on a player (level 0.3

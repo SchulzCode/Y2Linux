@@ -1,6 +1,14 @@
 # Current Y2Linux platform state
 
-## Y2Linux 1.0 Beta 9.2.4, Baseline 195 — 2026-10-31 (latest, published)
+## Y2Linux 1.0 Beta 9.2.5, Baseline 196 — 2026-10-31 (latest, published)
+
+Release `1.0.0-beta.9.2.5`, tag `baseline-196`, Linux `76bd154d`, Reborn `f45f6bc`, sequence 12100. Platform only:
+F60 (Y2Linux #83, report fa30bf96) — `WifiRecovery::restart_unseen` blocks and unblocks Wi-Fi's rfkill (waiting for
+wlan0 to go) after ≥ 4 NETWORK-NOT-FOUND over ≥ 60 s with no saved network in the scan, at most every 600 s until a
+connect; journal row `wifi_restart`. Cause of the blind scans unproven (Bluetooth reconnect at the same time).
+Details: [Beta 9.2.5 report](validation/Y2-LINUX-1.0-BETA-9.2.5.md).
+
+## Y2Linux 1.0 Beta 9.2.4, Baseline 195 — 2026-10-31 (published)
 
 Release `1.0.0-beta.9.2.4`, tag `baseline-195`, Linux `0a31c6c4`, Reborn `8ecff51`, sequence 12000. Reborn only:
 Home order (Customize > Home Menu, `home_order`) and playlist order (`playlist_order`, the playlist menu's Move),
