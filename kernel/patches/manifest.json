@@ -311,6 +311,12 @@
       "patch": "0070-ext4-bread-batch-plug.patch",
       "base_sha256": "497bb7ca8da1da0a39bcb14110d6fe5ae8016e74ad0b1a640f1bb9ecc2e02257",
       "result_sha256": "3b188e6f471c3e4fcd47e5afaff961b6e5f46b45bcc1a89d53fab8c7414efa39"
+    },
+    {
+      "path": "drivers/mmc/core/sd.c",
+      "patch": "0071-y2-sd-poweroff-notify-fallback.patch",
+      "base_sha256": "70f3c63f37772a20d42e25d8e0b045f85248ce4f8f5ee273c2feedea3169f191",
+      "result_sha256": "5a73182f3562a6b707f0bd162fa8d3ea2e8d106d204250a0fb087b351d4177ea"
     }
   ]
 }

@@ -1,0 +1,64 @@
+--- a/drivers/mmc/core/sd.c
++++ b/drivers/mmc/core/sd.c
+@@ -8,6 +8,7 @@
+  */
+ 
+ #include <linux/err.h>
++#include <linux/of.h>
+ #include <linux/sizes.h>
+ #include <linux/slab.h>
+ #include <linux/stat.h>
+@@ -1713,6 +1714,42 @@
+ 	return err;
+ }
+ 
++static bool y2_sd_host(struct mmc_host *host)
++{
++	return IS_ENABLED(CONFIG_Y2_POWER) && host->parent &&
++	       of_device_is_compatible(host->parent->of_node, "innioasis,y2-sd");
++}
++
++/*
++ * Y2: some SD cards never set Power Off Notification Ready. On install
++ * 49d6c732 (reports 39778b8a, 8b00b513: manfid 0x11, oemid 0x455a, 03/2026)
++ * the poll timed out on every first sleep, and the failed suspend kept the
++ * player awake. The stock 3.4 kernel never sent the notification. Flush the
++ * cache first so no written data depends on it; a card that then misses the
++ * ready bit is suspended like a card without the power management function,
++ * and is not asked again until it is re-detected.
++ */
++static int y2_sd_suspend_card(struct mmc_host *host)
++{
++	struct mmc_card *card = host->card;
++	int err;
++
++	err = sd_flush_cache(host);
++	if (err)
++		return err;
++
++	if (sd_can_poweroff_notify(card)) {
++		err = sd_poweroff_notify(card);
++		if (err != -ETIMEDOUT)
++			return err;
++		card->ext_power.feature_support &= ~SD_EXT_POWER_OFF_NOTIFY;
++		pr_warn("%s: Power Off Notification not acknowledged; suspending without it\n",
++			mmc_hostname(host));
++	}
++
++	return mmc_deselect_cards(host);
++}
++
+ static int _mmc_sd_suspend(struct mmc_host *host)
+ {
+ 	struct mmc_card *card = host->card;
+@@ -1723,7 +1760,9 @@
+ 	if (mmc_card_suspended(card))
+ 		goto out;
+ 
+-	if (sd_can_poweroff_notify(card))
++	if (y2_sd_host(host))
++		err = y2_sd_suspend_card(host);
++	else if (sd_can_poweroff_notify(card))
+ 		err = sd_poweroff_notify(card);
+ 	else if (!mmc_host_is_spi(host))
+ 		err = mmc_deselect_cards(host);
