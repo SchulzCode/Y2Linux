@@ -93,9 +93,9 @@
   "Y2Reborn/crates/reborn-ui/src/motion.rs::apply": 188,
   "Y2Reborn/crates/reborn-ui/src/rows.rs::context_rows": 205,
   "Y2Reborn/crates/reborn-ui/src/screens.rs::skinned_overlays": 190,
-  "Y2Reborn/crates/reborn-ui/src/skin/compile.rs::compile": 299,
+  "Y2Reborn/crates/reborn-ui/src/skin/compile.rs::compile": 310,
   "Y2Reborn/crates/reborn-ui/src/skin/compile.rs::compile#2": 172,
-  "Y2Reborn/crates/reborn-ui/src/skin/draw.rs::element": 291,
+  "Y2Reborn/crates/reborn-ui/src/skin/draw.rs::element": 292,
   "Y2Reborn/crates/reborn-ui/src/views_playing.rs::now_playing": 262,
   "Y2Reborn/crates/reborn-ui/src/views_playlists.rs::page": 157,
   "Y2Reborn/crates/reborn-ui/src/views_search.rs::page": 167
