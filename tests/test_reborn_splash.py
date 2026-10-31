@@ -214,7 +214,8 @@ int main(int argc,char **argv) {
         # The storage setup's media_setup milestones (both directions): platform/crates/y2-platform/src/
         # commands/boot_tests.rs every_milestone_a_producer_reports_is_in_the_table.
         media = {t for t in tokens if re.fullmatch(r'media_setup(_\d+)?', t)}
-        main = (REBORN / 'app/reborn/src/main.rs').read_text()
+        # Reborn's start-up: main.rs and its main loop (main_loop.rs reports `ready` since the 9.1 refactor).
+        main = ''.join((REBORN / 'app/reborn/src' / f).read_text() for f in ('main.rs', 'main_loop.rs'))
         reported = set(re.findall(r'startup_phase\(&log, process_started, "(\w+)"\)', main))
         self.assertEqual(reported - tokens, set(), 'Reborn reports a milestone the splash does not know')
         self.assertIn('boot_milestone("ready")', main)
