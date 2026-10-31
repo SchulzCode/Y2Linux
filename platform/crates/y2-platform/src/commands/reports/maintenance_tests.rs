@@ -118,6 +118,22 @@ fn settings_reset_preserves_queue_database_music_and_bounded_purge() {
 }
 
 #[test]
+fn a_plan_whose_expiry_has_seventeen_digits_reads_back_as_signed() {
+    // The confirmation is a hash over the plan as read back from /data. serde_json without
+    // float_roundtrip read about 1 in 450 expiries one ULP off (this clock gives 1300.0000000109999)
+    // and the reset refused as reset_plan_changed (2026-10-31: the gate failed 4 runs in 6).
+    let clock = std::sync::Arc::new(y2p_core::clock::Manual::at(
+        1_000_000_000_011,
+        1_000_000_000_011,
+    ));
+    let fixture = fixture(&session()).with_clock(clock);
+    let root = &fixture.root;
+    let plan = plan(root, Some("settings")).unwrap();
+    let result = execute(root, Some(text(&plan, "confirmation")), false, false).unwrap();
+    assert_eq!(text(&result, "state"), "Complete");
+}
+
+#[test]
 fn settings_reset_keeps_a_schema_3_queue_of_song_references() {
     // Reborn Beta 8.33: songs by reference, your queue, history; kept as read.
     let original = json!({"schema": 3, "model": {"settings": {"volume": 99},
