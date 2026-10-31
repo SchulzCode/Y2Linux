@@ -1,6 +1,16 @@
 # Next-session handoff — Y2Linux 1.0 Beta 8.4 candidate (latest entry first; started 2026-10-09 as the deep-sleep continuation)
 
-> **START HERE (2026-10-31, night): BETA 9.2 (BASELINE 191) RELEASE.** Owner: slow wake after Power-to-sleep when
+> **START HERE (2026-10-31, afternoon): BETA 9.2.2 (BASELINE 193) RELEASE.** Fix releases after 9.2 are 9.2.x
+> (owner); 9.2.1 = test build 192, not published. Release `1.0.0-beta.9.2.2`, sequence 11800, label 193
+> ([Beta 9.2.2 report](../validation/Y2-LINUX-1.0-BETA-9.2.2.md)): F59 (SD card without Power Off Notification Ready:
+> kernel patch 0071 + `Run::kernel_refusal` retries a proven device refusal), GitHub requests #64 #70 #72 #73 #74 #76
+> (skins' `indicators`, AM/PM, `{date}`, brightness wheel 5–100 %, letter scroll at 4 steps, 20 EQ filters), the length
+> limits as ceilings (150/1500). Report review 2026-10-31: only 9.2 reports count (owner); F58 (codec choice refused
+> busy after a Connect) and the overnight Power refusals `wake_event_in_progress` (≈1 PMIC key IRQ per press; cause
+> open) are open. **Owed on the player:** the fast-scroll and brightness feel by hand; F59 only on the reporter's
+> card. Next free label 194, sequence above 11800.
+>
+> Previous entry: **START HERE (2026-10-31, night): BETA 9.2 (BASELINE 191) RELEASE.** Owner: slow wake after Power-to-sleep when
 > unplugged; "build install with ota and publish". Release `1.0.0-beta.9.2`, sequence 11600, label 191
 > ([Beta 9.2 report](../validation/Y2-LINUX-1.0-BETA-9.2.md)): the sleep helper's radio quiesce waited ≈20 s on
 > y2-bt-reconnect's page to headphones that were off without reading the wake IRQs; fixed (wake check in the quiesce,

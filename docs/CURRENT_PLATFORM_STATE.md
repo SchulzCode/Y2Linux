@@ -1,6 +1,18 @@
 # Current Y2Linux platform state
 
-## Y2Linux 1.0 Beta 9.2, Baseline 191 — 2026-10-31 (latest, published)
+## Y2Linux 1.0 Beta 9.2.2, Baseline 193 — 2026-10-31 (latest, published)
+
+Release `1.0.0-beta.9.2.2`, tag `baseline-193`, Linux `275c1ab1`, Reborn `29aa1cc`, sequence 11800. Fix releases after
+9.2 are numbered 9.2.x (owner); 9.2.1 (test build 192, sequence 11700) was not published and is included. F59 (reports
+39778b8a, 8b00b513): an SD card that never sets Power Off Notification Ready failed every first suspend (-110), and the
+helper then quarantined sleep on the image; kernel patch 0071 (Y2 SD host: flush the cache, on a notify timeout drop
+the feature and deselect) and `Run::kernel_refusal` (a refusal in step `suspend` proven by `suspend_stats` retries
+after 120 s instead of quarantining). GitHub requests: skins' `indicators` element and every shipped skin's status
+icons (#70, #73), AM/PM and skins' `{date}` (#72), brightness 5–100 % in 5 % steps by the wheel (#74), letter fast
+scroll only at 4 suggested steps (#64), 20 equalizer filters (#76). Coding standard: length limits are ceilings
+(functions 150, files 1500). Details: [Beta 9.2.2 report](validation/Y2-LINUX-1.0-BETA-9.2.2.md).
+
+## Y2Linux 1.0 Beta 9.2, Baseline 191 — 2026-10-31 (published)
 
 Release `1.0.0-beta.9.2`, tag `baseline-191`, Linux `7f5d29db`, Reborn `f445483`, sequence 11600. Owner: "a wake
 problem … pressing the button again to wake takes extremely long". Cause: the sleep helper's radio quiesce retried
