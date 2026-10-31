@@ -119,12 +119,12 @@ def bump(args):
     release = PROJECT / 'tools/production/release.json'
     identity = json.loads(release.read_text())
     old = identity['release_version']
-    if not re.fullmatch(r'\d+\.\d+\.\d+(-[a-z]+\.\d+(\.\d+)?)?', args.version):
-        raise SystemExit('version must look like 1.0.0, 1.0.0-beta.3 or 1.0.0-beta.4.1')
+    if not re.fullmatch(r'\d+\.\d+\.\d+(-[a-z]+\.\d+(\.\d+)*)?', args.version):
+        raise SystemExit('version must look like 1.0.0, 1.0.0-beta.3, 1.0.0-beta.4.1 or 1.0.0-beta.9.2.1')
     prefix, minor = identity['rootfs_version'].rsplit('.', 1)
     identity.update(release_version=args.version,
                     rootfs_version=f'{prefix}.{int(minor) + 1}',
-                    build_id='Y2LINUX-' + re.sub(r'-([A-Z]+)\.(\d+(\.\d+)?)$', r'-\1-\2', args.version.upper()),  # Y2LINUX-1.0.0-BETA-3, -BETA-4.1
+                    build_id='Y2LINUX-' + re.sub(r'-([A-Z]+)\.(\d+(\.\d+)*)$', r'-\1-\2', args.version.upper()),  # Y2LINUX-1.0.0-BETA-3, -BETA-4.1, -BETA-9.2.1
                     update_sequence=args.sequence or identity['update_sequence'] + 100)
     release.write_text(json.dumps(identity, indent=2) + '\n')
     config = PROJECT / 'kernel/config/production.config'
