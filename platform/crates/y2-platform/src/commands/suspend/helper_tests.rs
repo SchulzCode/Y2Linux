@@ -1019,6 +1019,81 @@ fn failure_after_freeze_or_unclear_ring_still_quarantines() {
     }
 }
 
+/// The kernel's `suspend_stats` after one attempt: `fail` failures, the last in `step` with `errno`.
+fn suspend_stats(tree: &Tree, fail: u64, step: &str, errno: i32) {
+    tree.write("/sys/power/suspend_stats/fail", &format!("{fail}\n"));
+    tree.write(
+        "/sys/power/suspend_stats/last_failed_step",
+        &format!("{step}\n"),
+    );
+    tree.write(
+        "/sys/power/suspend_stats/last_failed_errno",
+        &format!("{errno}\n"),
+    );
+}
+
+#[test]
+fn device_refusal_in_the_suspend_step_waits_instead_of_quarantining() {
+    // 39778b8a (9.1): an SD card never acknowledged its power-off notification, `mmc_bus_suspend`
+    // returned -ETIMEDOUT after tasks froze, and the guard refused the next 16 sleeps on that boot
+    // and every sleep on the image after it.
+    let p = Player::new();
+    suspend_stats(&p.tree, 3, "suspend", -16);
+    let tree = p.tree.clone();
+    p.enter(move || {
+        tree.write(
+            "/sys/firmware/y2_pm/devices",
+            "ring=absent cycle=0 last=0 backstop_s=0",
+        );
+        suspend_stats(&tree, 4, "suspend", -110);
+        Err(os_error(libc::ETIMEDOUT))
+    });
+    assert_eq!(p.run_sleep(), 2);
+    assert_eq!(p.product()["reason"], "device_suspend_refused");
+    assert_eq!(p.guard()["pending"], false);
+    p.write(
+        "/sys/firmware/y2_pm/backstop_s",
+        "provider=1 armed_s=0 running=0",
+    );
+    assert_eq!(admission(&p.root), refused("kernel_prepare_retry_wait"));
+}
+
+#[test]
+fn a_device_refusal_the_counters_do_not_prove_still_quarantines() {
+    // Later steps (noirq, late) run closer to the platform entry; stale or unreadable counters, or
+    // another error than the write's, do not describe this attempt.
+    let p = Player::new();
+    for (before, after, step, errno) in [
+        (Some(3), 4, "suspend_noirq", -110),
+        (Some(3), 4, "suspend_late", -110),
+        (Some(3), 3, "suspend", -110),
+        (Some(3), 4, "suspend", -5),
+        (None, 4, "suspend", -110),
+    ] {
+        suspend_stats(&p.tree, before.unwrap_or(0), "suspend", -16);
+        if before.is_none() {
+            p.tree.write("/sys/power/suspend_stats/fail", "");
+        }
+        let tree = p.tree.clone();
+        p.enter(move || {
+            tree.write(
+                "/sys/firmware/y2_pm/devices",
+                "ring=absent cycle=0 last=0 backstop_s=0",
+            );
+            suspend_stats(&tree, after, step, errno);
+            Err(os_error(libc::ETIMEDOUT))
+        });
+        p.write(GUARD, "{}");
+        p.write(
+            "/sys/firmware/y2_pm/backstop_s",
+            "provider=1 armed_s=0 running=0",
+        );
+        assert_eq!(p.run_sleep(), 1, "{step} {before:?}→{after} {errno}");
+        assert_eq!(p.guard()["pending"], true);
+        assert!(!p.fixture.exists(RETRY));
+    }
+}
+
 #[test]
 fn radio_quiesce_failure_before_kernel_entry_never_quarantines() {
     // POWER-FINAL-12 Defect A: a Bluetooth off refused by the reconnect owner (result 1, kernel

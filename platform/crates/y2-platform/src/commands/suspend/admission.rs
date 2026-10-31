@@ -348,6 +348,49 @@ pub fn failed_before_freeze(root: &Root) -> bool {
         && field(&kernel, "failed_stage") == Some("EXIT")
 }
 
+/// The kernel's account of failed attempts (`/sys/power/suspend_stats`); a file that does not read
+/// as its number or name is absent.
+#[derive(Debug, Default, PartialEq, Eq)]
+pub struct SuspendStats {
+    /// Failed attempts since boot.
+    pub fail: Option<u64>,
+    /// The step of the last failure (`suspend`, `suspend_noirq`, …).
+    pub last_failed_step: Option<String>,
+    /// The last failure's error, negative (-110 for ETIMEDOUT).
+    pub last_failed_errno: Option<i32>,
+}
+
+impl SuspendStats {
+    pub fn read(root: &Root) -> SuspendStats {
+        let text = |name: &str| {
+            root.read(&format!("/sys/power/suspend_stats/{name}"))
+                .map(|text| text.trim().to_owned())
+                .filter(|text| !text.is_empty())
+        };
+        SuspendStats {
+            fail: text("fail").and_then(|t| t.parse().ok()),
+            last_failed_step: text("last_failed_step"),
+            last_failed_errno: text("last_failed_errno").and_then(|t| t.parse().ok()),
+        }
+    }
+
+    /// True when the attempt between `self` (read before the write) and now failed because a device
+    /// refused its suspend callback, and the kernel undid it itself.
+    ///
+    /// 39778b8a (9.1, install 49d6c732): an SD card never acknowledged its power-off notification,
+    /// `mmc_bus_suspend` returned -ETIMEDOUT, and the guard then refused every later sleep on the
+    /// image (16 times on that boot). The `suspend` step comes before suspend_late, noirq and the
+    /// platform entry: on its failure `dpm_resume_end` resumes every device it suspended and the
+    /// tasks thaw before the write returns. The counters must describe this attempt: exactly one
+    /// failure more, with the write's own error.
+    pub fn device_refused_since(&self, root: &Root, errno: i32) -> bool {
+        let now = SuspendStats::read(root);
+        self.fail.is_some_and(|before| now.fail == Some(before + 1))
+            && now.last_failed_step.as_deref() == Some("suspend")
+            && now.last_failed_errno == Some(-errno)
+    }
+}
+
 /// `product-sleep-retry.json`: no product sleep on this boot before `not_before_ns` (CLOCK_BOOTTIME).
 #[derive(Serialize)]
 struct Retry {

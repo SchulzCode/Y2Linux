@@ -5536,7 +5536,7 @@
     },
     {
      "path": "/run/y2/product-sleep-retry.json",
-     "how": "atomic_json durable=False mode=0o600 (kernel_prepare_refused only)",
+     "how": "atomic_json durable=False mode=0o600 (kernel_prepare_refused and device_suspend_refused only)",
      "shape": "{boot_id, not_before_ns: CLOCK_BOOTTIME ns + 120 s}"
     },
     {
@@ -5662,7 +5662,7 @@
      "seconds": 2
     },
     {
-     "what": "kernel_prepare_refused retry gate (CLOCK_BOOTTIME)",
+     "what": "kernel_prepare_refused / device_suspend_refused retry gate (CLOCK_BOOTTIME)",
      "seconds": 120
     },
     {

@@ -17,7 +17,7 @@ mod kernel;
 use super::{
     admission::{
         admission, application_starting, battery_and_cable, failed_before_freeze, guard_record,
-        operation_state, retry_later, spm_state,
+        operation_state, retry_later, spm_state, SuspendStats,
     },
     fail, int_literal,
     receipt::{self, record, wake_irqs, Receipt, Stage},
@@ -284,13 +284,14 @@ impl Run {
     fn enter_kernel(&mut self, root: &Root, pm: &mut dyn Pm) -> Result<(), E> {
         self.restored_kernel = false;
         self.attempted = true;
-        enter(root, pm).map_err(|error| self.kernel_refusal(root, error))
+        let before = SuspendStats::read(root);
+        enter(root, pm).map_err(|error| self.kernel_refusal(root, error, &before))
     }
 
     /// What a `/sys/power/state` write that returned an error leaves behind. A refusal the kernel
     /// provably undid clears the guard; any other error stays the product failure that keeps this
     /// image quarantined.
-    fn kernel_refusal(&mut self, root: &Root, error: E) -> E {
+    fn kernel_refusal(&mut self, root: &Root, error: E, before: &SuspendStats) -> E {
         let E::Os { errno, .. } = &error else {
             return error;
         };
@@ -298,14 +299,18 @@ impl Run {
             self.restored_kernel = true;
             return E::refused("kernel_suspend_refused");
         }
-        if !failed_before_freeze(root) {
+        let reason = if failed_before_freeze(root) {
+            // The write returned and no task froze: nothing is left unproven. 8.10 kept this
+            // pending and refused every sleep on that image (237 refusals in 4.4 h on battery).
+            "kernel_prepare_refused"
+        } else if errno.is_some_and(|errno| before.device_refused_since(root, errno)) {
+            "device_suspend_refused"
+        } else {
             return error;
-        }
-        // The write returned and no task froze: nothing is left unproven. 8.10 kept this pending
-        // and refused every sleep on that image (237 refusals in 4.4 h on battery).
+        };
         self.restored_kernel = true;
         match retry_later(root) {
-            Ok(()) => E::refused("kernel_prepare_refused"),
+            Ok(()) => E::refused(reason),
             Err(error) => error,
         }
     }
