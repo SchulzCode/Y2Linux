@@ -16,6 +16,7 @@ import json
 import os
 import tarfile
 import time
+from pathlib import Path
 
 from datetime import datetime, timezone
 
@@ -68,8 +69,13 @@ def archive(report_id, created, members=()):
 
 
 # The three reports fixture() queues: A and B made "in the future" (never too old to send), C long ago.
-ARCHIVES = {name: archive(name[17:53], created, [('files/x.log', b'x\n')]) for name, created in (
-    (A, '2099-01-01T00:00:00+00:00'), (B, '2099-01-02T00:00:00.500000+00:00'), (C, '2000-01-01T00:00:00+00:00'))}
+ARCHIVE_CASES = (
+    (A, '2099-01-01T00:00:00+00:00'), (B, '2099-01-02T00:00:00.500000+00:00'),
+    (C, '2000-01-01T00:00:00+00:00'))
+# These tiny synthetic inputs retain the original zlib-ng bytes and upload checksums. Regenerating
+# them with a host's different DEFLATE implementation changes bytes despite identical tar contents.
+ARCHIVES = {name: (Path(__file__).with_name('report_archives') / name).read_bytes()
+            for name, _ in ARCHIVE_CASES}
 
 
 def request(name, key='K' * 40):

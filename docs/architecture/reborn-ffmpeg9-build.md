@@ -10,8 +10,8 @@ Y2Linux pins the Reborn media build to FFmpeg **9.0.2**. Buildroot supplies
 `libswscale`; the FFmpeg command line tools, `libavdevice`, network protocols,
 capture devices, hardware autodetection, post-processing and unrelated video
 families are disabled. Encoders and muxers are empty because Reborn only
-reads and processes local media. `libswscale` remains for JPEG, PNG and WebP
-artwork conversion.
+reads and processes local media. `libswscale` handles artwork and the bounded
+RGBA conversion used by the local-video candidate.
 
 The component lists live in
 [`y2_production_defconfig`](../../buildroot/configs/y2_production_defconfig).
@@ -21,9 +21,10 @@ and `libavdevice` absence after Buildroot finishes. The ARM runtime manifest is
 checked by `Y2Reborn/tools/build/qemu-check.py`; it records the actual FFmpeg
 and library versions rather than trusting the Buildroot defconfig.
 
-FFmpeg's WebP decoder requires its VP8 decoder, so `vp8` is the sole
-intentional video-codec dependency. VP9 and other video codecs remain
-disabled.
+The local-video source candidate explicitly enables H.264 and VP8, their
+parsers, and Matroska/WebM demuxing; MOV already supplies MP4. VP8 also remains
+a dependency of WebP artwork. VP9, HEVC, AV1 and unrelated video decoders stay
+disabled. See [video dependencies and qualification limits](reborn-video.md).
 
 The ALSA qualification profile intentionally prefers `S32_LE` but currently
 allows only the owner-confirmed `S16_LE`, stereo, 44.1 kHz wired combination.

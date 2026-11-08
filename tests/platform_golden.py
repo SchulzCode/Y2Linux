@@ -25,6 +25,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 import hashlib
 import json
+import math
 import os
 from pathlib import Path
 import re
@@ -53,7 +54,8 @@ TRAIL_CLOCK = re.compile(r'(?m)^\d+\.\d+ ')
 
 def base_environment(extra):
     # What the platform's callers pass (udhcpc/ntpd hook variables) and nothing from the host.
-    return {'PATH': '/usr/bin:/bin', 'LC_ALL': 'C', **extra}
+    # The report goldens use UTC+1 as a fixed clock input, independent of host timezone or DST.
+    return {'PATH': '/usr/bin:/bin', 'LC_ALL': 'C', 'TZ': 'UTC-1', **extra}
 
 
 def rust_binary():
@@ -208,6 +210,11 @@ def differences(left, right, path=''):
     """Human-readable list of where two results differ (empty when equal)."""
     if type(left) is not type(right):
         return ['%s: %r != %r' % (path or '/', left, right)]
+    # The monitor's observation window measures this run's elapsed host time. Preserve its
+    # numeric type and validity, but do not require an emulated host to round it to 0.0 seconds.
+    if type(left) is float and path.endswith('/supplicant_events/since_s'):
+        return [] if math.isfinite(right) and right >= 0 else [
+            '%s: invalid monitor duration %r' % (path, right)]
     if isinstance(left, dict):
         found = []
         for key in sorted(set(left) | set(right), key=str):
@@ -262,7 +269,10 @@ def run_all(jobs, workers=None):
             return job[1]()
         except Exception as error:  # reported by the case's subTest
             return error
-    with ThreadPoolExecutor(workers or min(16, (os.cpu_count() or 2) * 2)) as pool:
+    if workers is None:
+        configured = os.environ.get('Y2_GOLDEN_WORKERS')
+        workers = int(configured) if configured is not None else min(16, (os.cpu_count() or 2) * 2)
+    with ThreadPoolExecutor(workers) as pool:
         return dict(zip([key for key, _ in jobs], pool.map(one, jobs)))
 
 

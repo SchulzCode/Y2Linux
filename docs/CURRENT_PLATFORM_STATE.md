@@ -1,5 +1,14 @@
 # Current Y2Linux platform state
 
+## Reborn local video — 2026-11-07 (source candidate)
+
+The paired Reborn source candidate needs explicit H.264/VP8 decoders and parsers and Matroska
+demuxing. The production verifier checks those components while retaining the existing local-file
+protocol and encoder restrictions. See [video dependencies](architecture/reborn-video.md) and the
+[standing source-scope audit](planning/roadmap-gap-audit.md#reborn-local-video-source-admission--2026-11-07).
+No production image or physical Y2 video result is available. The published baseline below retains
+its own qualification; this source candidate promotes no hardware milestone.
+
 ## Y2Linux 1.0 Beta 9.3.16, Baseline 224 — 2026-11-06 (latest, published)
 
 Release `1.0.0-beta.9.3.16`, tag `baseline-224`, Linux `5d87f546`, Reborn `ceb4824`, sequence 14900. Steady Bluetooth

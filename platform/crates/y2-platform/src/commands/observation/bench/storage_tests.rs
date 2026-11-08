@@ -111,7 +111,9 @@ fn real_scratch_readback_latency_and_no_live_data_changes() {
     let fixture = data();
     fixture.put("/data/music/track.flac", "valuable music");
     fixture.put("/data/reborn/state/settings.json", "valuable state");
-    let result = benchmark(&fixture, 2, 10);
+    // This checks readback, measurements and cleanup, not host throughput. A cold emulated host
+    // can exceed ten seconds; the expired-deadline test below checks timeout handling separately.
+    let result = benchmark(&fixture, 2, 60);
     assert_eq!(
         result["record"]["result"], "OK",
         "{}",
@@ -132,6 +134,35 @@ fn real_scratch_readback_latency_and_no_live_data_changes() {
         fixture.read("/data/reborn/state/settings.json"),
         "valuable state"
     );
+    assert!(scratch_is_empty(&fixture));
+}
+
+#[test]
+fn an_expired_deadline_stops_measurement_and_cleans_scratch() {
+    let fixture = data();
+    let root = answered(&fixture);
+    let mut scratch = Scratch::new(&root, "/data", 4 * 1024 * 1024).unwrap();
+    let mut bench = Bench {
+        root: &root,
+        io: &Kernel,
+        deadline: 0.0,
+        measured: Measured::default(),
+    };
+    let block = vec![0; 1024 * 1024];
+    let error = bench
+        .run(
+            &mut scratch,
+            block.len(),
+            1,
+            &mut PyRandom::new(6582),
+            &block,
+        )
+        .unwrap_err();
+    assert_eq!(error.class, "TimeoutError");
+    assert_eq!(error.text, "benchmark_deadline");
+    assert!(bench.measured.measurements.is_empty());
+    assert!(bench.measured.integrity.is_empty());
+    scratch.close();
     assert!(scratch_is_empty(&fixture));
 }
 

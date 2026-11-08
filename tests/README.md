@@ -10,6 +10,23 @@ single-write error handling is covered by `the suspend helper's Rust tests (plat
 
 <!-- knowledge-base-scope: maintained-test-guide; baseline02-sync 2026-10-03 -->
 
+## Development golden-case concurrency
+
+On an emulated or resource-constrained host, run
+`Y2_GOLDEN_WORKERS=1 sh tools/development/platform-gate.sh` from the repository root to
+compare golden cases serially. The limit must be a positive integer. It changes scheduling,
+not the cases, assertions or expected files. Without it, the existing automatic worker limit
+is retained. This host check does not qualify a production image or physical Y2.
+
+Native golden commands receive a fixed UTC+1 timezone input (`TZ=UTC-1`); a case may override it.
+The three small `platform_cases/report_archives/` inputs contain synthetic `report.json` and
+`files/x.log` members. Their kept zlib-ng level-6, mtime-zero bytes preserve the existing upload
+hashes across host compression libraries; tests compare their decompressed contents with the
+fixture generator. SQLite export comparisons canonicalize only the last-writer library version
+at header bytes 96..99 against `platform_cases/library.db`; schema and data bytes remain exact.
+The stale DNS input is aged relative to the host's current monotonic clock, so its 420-second
+expiry assertion also works within the first seven minutes after host boot.
+
 ## Retained Baseline02 validation
 
 Fresh kernel/config/DT/module/ABI, Buildroot ARM and Reborn ARM checks pass.

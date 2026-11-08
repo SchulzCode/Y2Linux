@@ -1,5 +1,22 @@
 # Roadmap gap audit
 
+## Reborn local-video source admission — 2026-11-07
+
+Scope audit before adding production decoder components: retained Baseline 224 validates the existing
+music and Bluetooth paths, not video playback. The Reborn source has no plugin host or public video
+extension API; this candidate keeps video behind a removable application controller rather than adding
+a new plugin ABI. No device, hardware playback receipt, decode benchmark or battery measurement is
+available for this contribution. MT6582 CPU decoding and the existing GLES texture path are the
+candidate paths; hardware video acceleration has not been qualified.
+
+Admitted source change: local H.264/AAC MP4, Matroska and the existing VP8/Opus decoding components,
+with a bounded Reborn frame queue and source-pixel ceiling. Network protocols, CLI tools and encoders
+remain disabled. No boot, memory reservation, kernel, firmware, update or recovery changes are made.
+No platform milestone is promoted. A production Buildroot rebuild, generated-component verification,
+real-device frame pacing/A-V sync, SD removal, Bluetooth output changes, sleep and battery gates remain
+required before a release claim. See [video dependencies](../architecture/reborn-video.md).
+
+
 ## POWER-FINAL-06 INFRASYS power-down bring-up admission — 2026-10-09
 
 Standing milestone-boundary audit before materially changing hardware/memory scope, using real hardware
