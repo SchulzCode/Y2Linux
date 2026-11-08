@@ -50,6 +50,7 @@ Indexed pages: **343**. Explicit scope notices: **228**.
 | [Production v1 restoration](architecture/production-recovery.md) | Historical design / runbook |
 | [Production Storage / Installation v1 partition audit](architecture/production-storage-v1.md) | Historical design / runbook |
 | [Reborn FFmpeg 9.0.2 production build](architecture/reborn-ffmpeg9-build.md) | Source contract |
+| [Reborn local-video dependencies](architecture/reborn-video.md) | Source candidate: codec policy, paired build and remaining hardware qualification |
 | [Y2Linux update model — layout v1](architecture/update-model.md) | Historical design / runbook |
 
 ## Build

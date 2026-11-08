@@ -2,10 +2,12 @@
 (tests/platform_cases/observation.py, EXTRA_CASES): boot-evidence below /data and the records the platform refuses
 (REFUSALS). Run by the Rust host build (`Y2_PLATFORM_RUST`) and compared with
 tests/platform_goldens/observation/<case>.json (tests/platform_golden.py)."""
+import json
 from pathlib import Path
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from platform_golden import SKIP, check_all, read_golden, run_case, rust_binary, touched  # noqa: E402
@@ -22,6 +24,16 @@ class ObservationGoldens(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         cls.directory.cleanup()
+
+    def test_stale_dns_fixture_expires_on_freshly_booted_hosts(self):
+        options = next(options for name, _, options in observation.CASES if name == 'status-wifi-dns-stale')
+        make = options['files']['/run/y2/dns.json']
+        for uptime in (2.0, 1000.0):
+            with mock.patch.object(observation.time, 'monotonic', return_value=uptime):
+                record = json.loads(make())
+            self.assertEqual(uptime - record['monotonic_s'], 421)
+            self.assertIs(record['ok'], True)
+            self.assertEqual(record['boot_id'], observation.BOOT)
 
     @unittest.skipUnless(rust_binary(), SKIP)
     def test_cases_match_their_goldens(self):

@@ -33,10 +33,11 @@ def blkid(source, uuid):
     return answer(['blkid', '-p', '-s', 'UUID', '-o', 'value', source], uuid)
 
 
-def fresh(value, key='monotonic_s', ns=False, us=False):
-    """A record stamped with the clock when the case runs."""
+def fresh(value, key='monotonic_s', ns=False, us=False, age_seconds=0):
+    """A record stamped relative to the clock when the case runs, in the selected units."""
     def make():
         stamp = time.monotonic_ns() if ns else time.monotonic() * 1e6 if us else time.monotonic()
+        stamp -= age_seconds * (1_000_000_000 if ns else 1_000_000 if us else 1)
         return json.dumps({**value, key: int(stamp) if (ns or us) else stamp})
     return make
 
@@ -306,8 +307,9 @@ CASES = [
     # wifi
     status('status-wifi-online', ['wifi'], files={**RADIO, '/run/y2/dns.json': DNS}, commands=ONLINE,
            volatile=TIMING),
-    status('status-wifi-dns-stale', ['wifi'], files={**RADIO, '/run/y2/dns.json': json.dumps(
-        {'ok': True, 'boot_id': BOOT, 'epoch': EPOCH, 'address': '192.168.1.40', 'bssid': BSSID, 'monotonic_s': 1})},
+    # The DNS window is 420 s. A literal timestamp of 1 is still fresh just after host boot.
+    status('status-wifi-dns-stale', ['wifi'], files={**RADIO, '/run/y2/dns.json': fresh(
+        {'ok': True, 'boot_id': BOOT, 'epoch': EPOCH, 'address': '192.168.1.40', 'bssid': BSSID}, age_seconds=421)},
         commands=ONLINE, volatile=TIMING),
     status('status-wifi-signal-cached', ['wifi'], files={**RADIO, '/run/y2/dns.json': DNS, '/run/y2/network.json': fresh(
         {'rssi_dbm': -61, 'signal_observation': {'boot_id': BOOT, 'bssid': BSSID}})}, commands=ONLINE,

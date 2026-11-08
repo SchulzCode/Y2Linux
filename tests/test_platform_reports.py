@@ -43,6 +43,14 @@ FIXED = set(reports.ARCHIVES)
 LIBRARY = Path(__file__).resolve().parent / 'platform_cases/library.db'
 
 
+def canonical_library(data):
+    # SQLite backups stamp the linked library's version at bytes 96..99 (file format §1.3.16).
+    # Keep the fixture's writer stamp; every other header byte, schema and data page stays exact.
+    if len(data) >= 100 and data.startswith(b'SQLite format 3\0'):
+        return data[:96] + LIBRARY.read_bytes()[96:100] + data[100:]
+    return data
+
+
 def text(data, tokens):
     """Member data as text with tokens numbered by first appearance and IDs replaced."""
     value = data.decode('utf-8', errors='replace')
@@ -77,6 +85,8 @@ def listing(data):
     with tarfile.open(fileobj=io.BytesIO(gzip.decompress(data)), mode='r:') as archive:
         for member in archive.getmembers():
             body = archive.extractfile(member).read() if member.isfile() else b''
+            if member.name == 'library.db':
+                body = canonical_library(body)
             entry = {'name': member.name, 'mode': oct(member.mode), 'type': member.type.decode(),
                      'uname': owner(member.uname, users), 'gname': owner(member.gname, users)}
             if member.name.endswith('report-progress.json'):
@@ -198,6 +208,22 @@ class ReportsGoldens(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         cls.directory.cleanup()
+
+    def test_kept_archives_have_the_intended_tar_contents(self):
+        for name, created in reports.ARCHIVE_CASES:
+            generated = reports.archive(name[17:53], created, [('files/x.log', b'x\n')])
+            self.assertEqual(gzip.decompress(reports.ARCHIVES[name]), gzip.decompress(generated))
+
+    def test_library_comparison_keeps_schema_and_data_bytes(self):
+        reference = LIBRARY.read_bytes()
+        other_writer = reference[:96] + (3_046_001).to_bytes(4, 'big') + reference[100:]
+        self.assertEqual(canonical_library(other_writer), reference)
+        for offset in (60, 120):
+            changed = bytearray(other_writer)
+            changed[offset] ^= 1
+            self.assertNotEqual(canonical_library(bytes(changed)), reference)
+        for other in (reference[:99], b'x' * len(reference)):
+            self.assertEqual(canonical_library(other), other)
 
     @unittest.skipUnless(rust_binary(), SKIP)
     def test_cases_match_their_goldens(self):

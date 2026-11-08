@@ -7,14 +7,15 @@ import shutil
 import subprocess
 from pathlib import Path
 
-REQUIRED_DEMUXERS = {"flac", "mp3", "mov", "ogg", "wav", "aac", "aiff", "ape", "wv"}
+REQUIRED_DEMUXERS = {"flac", "mp3", "mov", "ogg", "wav", "aac", "aiff", "ape", "wv", "matroska"}
 REQUIRED_DECODERS = {
     "flac", "mp3", "mp3float", "aac", "alac", "vorbis", "opus", "ape", "wavpack",
     "pcm_s16le", "pcm_s16be", "pcm_s24le", "pcm_s24be", "pcm_s32le", "pcm_s32be",
     "pcm_f32le", "pcm_f32be",
 }
+REQUIRED_VIDEO = {"h264", "vp8"}
 REQUIRED_ARTWORK = {"mjpeg", "png", "webp"}
-REQUIRED_PARSERS = {"flac", "mpegaudio", "aac", "opus", "vorbis"}
+REQUIRED_PARSERS = {"flac", "mpegaudio", "aac", "opus", "vorbis", "h264", "vp8"}
 REQUIRED_FILTERS = {
     "abuffer", "abuffersink", "aformat", "aresample", "volume", "equalizer", "lowshelf",
     "highshelf", "alimiter", "acrossfade", "amix", "atrim", "afade", "asetnsamples",
@@ -28,9 +29,8 @@ EXPECTED_LIBRARIES = {
 EXPECTED_DEMUXERS = REQUIRED_DEMUXERS
 EXPECTED_PARSERS = REQUIRED_PARSERS
 EXPECTED_FILTERS = REQUIRED_FILTERS - {"abuffer", "abuffersink"}
-# FFmpeg's WebP decoder is implemented on top of its VP8 decoder. VP8 is an
-# intentional artwork-only dependency; VP9 and all other video decoders remain
-# disabled.
+# WebP animation remains an artwork dependency; VP8 is also admitted for local video.
+# VP9 and unrelated video decoders remain disabled.
 ALLOWED_ARTWORK_DEPENDENCY_DECODERS = {"vp8", "webp_anim"}
 
 
@@ -46,6 +46,7 @@ def check(value: dict) -> list[str]:
         "demuxers": REQUIRED_DEMUXERS,
         "audio_decoders": REQUIRED_DECODERS,
         "artwork_decoders": REQUIRED_ARTWORK,
+        "video_decoders": REQUIRED_VIDEO,
         "parsers": REQUIRED_PARSERS,
         "filters": REQUIRED_FILTERS,
     }.items():
@@ -168,8 +169,8 @@ def check_buildroot(output: Path) -> list[str]:
         missing = sorted(required - actual[name])
         if missing:
             failures.append(f"generated FFmpeg missing {name}: {', '.join(missing)}")
-    allowed_decoders = REQUIRED_DECODERS | REQUIRED_ARTWORK | ALLOWED_ARTWORK_DEPENDENCY_DECODERS
-    missing_decoders = sorted((REQUIRED_DECODERS | REQUIRED_ARTWORK) - actual["decoders"])
+    allowed_decoders = REQUIRED_DECODERS | REQUIRED_ARTWORK | REQUIRED_VIDEO | ALLOWED_ARTWORK_DEPENDENCY_DECODERS
+    missing_decoders = sorted((REQUIRED_DECODERS | REQUIRED_ARTWORK | REQUIRED_VIDEO) - actual["decoders"])
     if missing_decoders:
         failures.append(f"generated FFmpeg missing decoders: {', '.join(missing_decoders)}")
     unexpected_decoders = sorted(actual["decoders"] - allowed_decoders)

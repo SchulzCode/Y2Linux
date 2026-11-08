@@ -12,10 +12,11 @@ import sys
 import tempfile
 import time
 import unittest
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from platform_golden import (REPOSITORY, SKIP, check, check_all, differences, prune, read_golden, recording,  # noqa: E402
-                             run_case, rust_binary, touched)
+                             run_all, run_case, rust_binary, touched)
 
 UUID = (r'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}', '<uuid>')
 EPOCH = 'b6a2f0de-6a1c-4b7e-9c0e-3f1d2a4b5c6d'
@@ -346,6 +347,32 @@ class PlatformGoldens(unittest.TestCase):
                          ['nameserver 192.168.1.1', 'nameserver 9.9.9.9', 'options timeout:2 attempts:1'])
         # The epoch is a new uuid (normalised as the fixture's), so only the events record shows the change.
         self.assertIn('/run/y2/wifi-events.json', results['wifi-event']['tree']['changed'])
+
+    def test_case_worker_limit_keeps_jobs_and_failures(self):
+        def failed():
+            raise ValueError('fixture failure')
+        jobs = [('one', lambda: 1), ('failed', failed), ('two', lambda: 2)]
+        with mock.patch.dict('os.environ', {'Y2_GOLDEN_WORKERS': '1'}):
+            results = run_all(jobs)
+        self.assertEqual(list(results), ['one', 'failed', 'two'])
+        self.assertEqual((results['one'], results['two']), (1, 2))
+        self.assertIsInstance(results['failed'], ValueError)
+        with mock.patch.dict('os.environ', {'Y2_GOLDEN_WORKERS': '0'}):
+            with self.assertRaises(ValueError):
+                run_all(jobs)
+            self.assertEqual(run_all([('one', lambda: 1)], workers=1), {'one': 1})
+
+    def test_monitor_elapsed_time_preserves_schema_and_counters(self):
+        expected = {'supplicant_events': {'since_s': 0.0, 'connected': 1}}
+        self.assertEqual(differences(expected, {
+            'supplicant_events': {'since_s': 0.6, 'connected': 1}}), [])
+        for invalid in (-0.1, float('inf'), float('nan'), None, 1):
+            self.assertTrue(differences(expected, {
+                'supplicant_events': {'since_s': invalid, 'connected': 1}}))
+        self.assertTrue(differences(expected, {
+            'supplicant_events': {'since_s': 0.6, 'connected': 2}}))
+        self.assertTrue(differences(expected, {'supplicant_events': {'connected': 1}}))
+        self.assertTrue(differences({'since_s': 0.0}, {'since_s': 0.6}))
 
     @unittest.skipUnless(rust_binary(), SKIP)
     def test_harness_reports_each_kind_of_difference(self):
