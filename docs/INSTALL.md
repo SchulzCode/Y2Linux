@@ -1,16 +1,21 @@
 # Installing Y2Linux on the Innioasis Y2
 
-There are two ways in. Most people use the **release images**: flash once with SP Flash
-Tool, copy one file from Innioasis's own firmware package onto the player, done. After
-that every update comes over Wi-Fi. Developers can also [build everything from
+There are two ways in. 
+
+You can flash the firmware package directly from Innioasis Updater, or manually using SP Flash Tool, and once this is done, copy [one file from Innioasis's own firmware package](https://github.com/y1-community/y1-stock-rom/releases/download/3.2.0-fm/system.img) into the Firmware folder on the player, done. After
+that your player can update itself using Wi-Fi. You can get update notifications both on the device running Y2Linux with Reborn and also on your computer via the [Updater](https://innioasis.app/guide.html) app if you like.
+
+Developers can also [build everything from
 source](BUILDING.md) and flash their own personalized package (with their SSH key).
+
+macOS users will need an MTP client like OpenMTP or MacDroid in order to transfer their media and also a copy of the [system.img firmware file](https://github.com/y1-community/y1-stock-rom/releases/download/3.2.0-fm/system.img) to enable Wi-Fi and Bluetooth.
 
 Read the whole page once before you start.
 
 ## What you need
 
 - A computer (Windows or Linux) and a USB cable.
-- **SP Flash Tool v5.2032**, MediaTek's flashing program, with its bundled `MTK_AllInOne_DA.bin`.
+- **[Updater CE](https://innioasis.app/guide.html)**, which can guide you through installing Reborn/Y2Linux, or manually using **SP Flash Tool v5.2032**, MediaTek's flashing program, with its bundled `MTK_AllInOne_DA.bin`.
 - The **Y2Linux release**: the `…-first-install.zip` of the newest
   [GitHub release](https://github.com/SchulzCode/Y2Linux/releases) (1.0 Beta 1 or later).
 - The **Innioasis firmware package for the Y2**, v3.2.0 (`y2_v3.2.0_FM-20260813`), from
@@ -50,7 +55,11 @@ first start Y2Linux turns it into Internal Storage, keeping up to about 400 MB o
 `Old Player Files` and leaving a larger library untouched until you decide
 ([Storage](STORAGE.md)). Copying anything you want to keep to a computer first is still wise.
 
-## Install from the release
+
+## Install from [Innioasis Updater CE](https://innioasis.app/guide.html) 
+Works on Windows, macOS or Linux (x86-64 only for Windows. x86-64 and ARM64 supported on Linux and Mac.
+
+## Install from the release from SP Flash Tool (Windows and Linux x86/x64 only)
 
 1. **Download the Y2Linux release zip and unpack it.** Check it if you like:
    `sha256sum -c SHA256SUMS` in the unpacked folder.
