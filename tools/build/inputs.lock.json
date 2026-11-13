@@ -31,9 +31,9 @@
       "sha256": "07c588c6502ece84cf6acb0ec3c6c3b592948de1e4b5590c63a17c9ec0b694f7"
     },
     {
-      "name": "brotli-libs-1.2.0-r1.apk",
-      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/x86_64/brotli-libs-1.2.0-r1.apk",
-      "sha256": "f0823de7c6d45859aeb6a7facfc5cfbf2dadb83ad4f27c794cb6ecc74e578cee"
+      "name": "brotli-libs-1.2.1-r0.apk",
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/x86_64/brotli-libs-1.2.1-r0.apk",
+      "sha256": "62a7e37e43bbfc1f8525a00ad2125fd5897135dc93b849733884cb78ffd8e26c"
     },
     {
       "name": "build-base-0.5-r4.apk",
@@ -41,9 +41,9 @@
       "sha256": "3ac72e74e96150995e8d797b6c33fc3b46d69e3667c47bd0ff25ce89f9fc4eaf"
     },
     {
-      "name": "c-ares-1.34.8-r0.apk",
-      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/x86_64/c-ares-1.34.8-r0.apk",
-      "sha256": "123fdeadc5ec884b897787f98d865492bf70402697b251cd1f3591a00b8c9d73"
+      "name": "c-ares-1.34.9-r0.apk",
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/x86_64/c-ares-1.34.9-r0.apk",
+      "sha256": "3539a3e11c1ef1516117d8179a546ac882086e94e0d78ad51d687b3fa2b3b5f2"
     },
     {
       "name": "clang22-22.1.3-r2.apk",
@@ -116,14 +116,14 @@
       "sha256": "2737e2b23ed08d4911ee62cd0163b5f4bf0379cacf4dc35b23a00209584c98fd"
     },
     {
-      "name": "libcurl-8.22.0-r0.apk",
-      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/x86_64/libcurl-8.22.0-r0.apk",
-      "sha256": "40b2a8e15a8d24bc95a5f42aaeb018313a1ff457cee71d8e15aaf1328da765e8"
+      "name": "libcurl-8.23.0-r0.apk",
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/x86_64/libcurl-8.23.0-r0.apk",
+      "sha256": "1f70ca404818805a6465b615bbfe84ef861488a963d7e630108ebd7fbaa51665"
     },
     {
-      "name": "libexpat-2.8.5-r0.apk",
-      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/x86_64/libexpat-2.8.5-r0.apk",
-      "sha256": "2e56946bc495cbed9eb1ad70859a79cba9db6420016453e065a0628848b32c7e"
+      "name": "libexpat-2.10.0-r0.apk",
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/x86_64/libexpat-2.10.0-r0.apk",
+      "sha256": "e7e7408ea787ed06d00159b0ff1f9b65a63cf634f36d9e0fa7512ce2c489a503"
     },
     {
       "name": "libffi-3.5.2-r1.apk",
@@ -211,29 +211,29 @@
       "sha256": "87018467cd7f38d9ad66849a8f4bd7353b841cb1360ee7e4484932167b6d8000"
     },
     {
-      "name": "llvm22-22.1.3-r0.apk",
-      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/x86_64/llvm22-22.1.3-r0.apk",
-      "sha256": "f1964556dafd84871571054a32b95c87e4156b4ee25672063cbd7fb93db2fa7d"
+      "name": "llvm22-22.1.3-r1.apk",
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/x86_64/llvm22-22.1.3-r1.apk",
+      "sha256": "6c675cb63a183cf6b4cb75e585e4ccc393c93c58ef10bc22fced4460a8967493"
     },
     {
-      "name": "llvm22-libs-22.1.3-r0.apk",
-      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/x86_64/llvm22-libs-22.1.3-r0.apk",
-      "sha256": "de10a3114c14e4afec35fabaaf1a3834392d24f6f394532a301b56eca4f0065d"
+      "name": "llvm22-libs-22.1.3-r1.apk",
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/x86_64/llvm22-libs-22.1.3-r1.apk",
+      "sha256": "dec15bdd29b6ec7fc22aee43bac153a22e6b132c599e5e5d9ccd0d159eae764f"
     },
     {
-      "name": "llvm22-linker-tools-22.1.3-r0.apk",
-      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/x86_64/llvm22-linker-tools-22.1.3-r0.apk",
-      "sha256": "c810c6203676d5dbf48e7db52446c89d33e005d69aa2b03738884e53ebe8f646"
+      "name": "llvm22-linker-tools-22.1.3-r1.apk",
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/x86_64/llvm22-linker-tools-22.1.3-r1.apk",
+      "sha256": "6ac25b0354487cbf43c78f9eaf1ba944cb8b4006a488508043841b129e31de25"
     },
     {
-      "name": "llvm22-test-utils-22.1.3-r0.apk",
-      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/x86_64/llvm22-test-utils-22.1.3-r0.apk",
-      "sha256": "f18878caca9367020a67839f682a805855a34d0f61b029732069330924780540"
+      "name": "llvm22-test-utils-22.1.3-r1.apk",
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/x86_64/llvm22-test-utils-22.1.3-r1.apk",
+      "sha256": "24a5f2fd184ecf25ddd7a0bca565372342a31591b3665b73a3cff8faf00ff6df"
     },
     {
-      "name": "llvm22-test-utils-pyc-22.1.3-r0.apk",
-      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/x86_64/llvm22-test-utils-pyc-22.1.3-r0.apk",
-      "sha256": "89d06511db9c2c2022a1d9fe7133a782c1d32d914c928e376d910de26ae20027"
+      "name": "llvm22-test-utils-pyc-22.1.3-r1.apk",
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/x86_64/llvm22-test-utils-pyc-22.1.3-r1.apk",
+      "sha256": "ea42b56fd4ec6834d0d0be09c06a212c9ace6968a9511a0580cdd4d659abe1f0"
     },
     {
       "name": "m4-1.4.20-r1.apk",
@@ -261,9 +261,14 @@
       "sha256": "93620a803d416e8c05150fb14413796df14ea370322dff6bd106455deab15646"
     },
     {
-      "name": "musl-dev-1.2.6-r2.apk",
-      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/x86_64/musl-dev-1.2.6-r2.apk",
-      "sha256": "6831e8b9e4821dae2c9121f0641f81e543f4ac27c03144c4876980ee84e6988f"
+      "name": "musl-1.2.6-r3.apk",
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/x86_64/musl-1.2.6-r3.apk",
+      "sha256": "e142255d0fa397f14318996bc10378093dcc069dc3dd1b6818c8f28a789c21da"
+    },
+    {
+      "name": "musl-dev-1.2.6-r3.apk",
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/x86_64/musl-dev-1.2.6-r3.apk",
+      "sha256": "310b51cff12e1d5ce5f135c558a82e2550427da5465bbd16c9ff9b05e63ee3d9"
     },
     {
       "name": "ncurses-terminfo-base-6.6_p20260516-r0.apk",
@@ -281,9 +286,9 @@
       "sha256": "723c061ea3e2c3e61b457f8f614f0b87724aeae37564ba4c1bdd41c722118187"
     },
     {
-      "name": "perl-5.42.2-r1.apk",
-      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/x86_64/perl-5.42.2-r1.apk",
-      "sha256": "0c57f655954b9183711d850b9ccb369f22aabd70f3ce617fe9f67eac2ef2afa7"
+      "name": "perl-5.42.3-r0.apk",
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/x86_64/perl-5.42.3-r0.apk",
+      "sha256": "6bb4d744425b1689d54feece20bdd51f71508c4d23d1af5f66298f03f8310df7"
     },
     {
       "name": "py3-elftools-0.32-r1.apk",
@@ -296,24 +301,24 @@
       "sha256": "033df2a00a8f15c2b3ed0f5a9cf9b5b27ba5e481182964f774051526e318e6a4"
     },
     {
-      "name": "pyc-3.14.8-r0.apk",
-      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/x86_64/pyc-3.14.8-r0.apk",
-      "sha256": "45894c74dcf5229c373b5693045df60b90c671639103fd43a37eaefb0961557f"
+      "name": "pyc-3.14.10-r1.apk",
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/x86_64/pyc-3.14.10-r1.apk",
+      "sha256": "8b1678559e6c29db978a923b611cd21a8bfda26d4814edefbb2d62a903bf7df8"
     },
     {
-      "name": "python3-3.14.8-r0.apk",
-      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/x86_64/python3-3.14.8-r0.apk",
-      "sha256": "802caff00b3398c01bb227cd925c8f9e33585ff19f58f0f25295a761ff2509cd"
+      "name": "python3-3.14.10-r1.apk",
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/x86_64/python3-3.14.10-r1.apk",
+      "sha256": "32ae9c446a79f965f942ae704c5121fa4744c5fee76ec86955fe0fc9a6e6c412"
     },
     {
-      "name": "python3-pyc-3.14.8-r0.apk",
-      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/x86_64/python3-pyc-3.14.8-r0.apk",
-      "sha256": "f3784543adb738ac7e3816ab55bbab057f4301b545a83044ebfa21cc822fbf56"
+      "name": "python3-pyc-3.14.10-r1.apk",
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/x86_64/python3-pyc-3.14.10-r1.apk",
+      "sha256": "bc63349707d5658ee2d852e415846246b8d71ece5007120b1d2aee85b4a2ad0a"
     },
     {
-      "name": "python3-pycache-pyc0-3.14.8-r0.apk",
-      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/x86_64/python3-pycache-pyc0-3.14.8-r0.apk",
-      "sha256": "14fb0adaa0db1d73c6d925d05134571b5cd0d7be26fbe6ccec552b6dd613bf4b"
+      "name": "python3-pycache-pyc0-3.14.10-r1.apk",
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/x86_64/python3-pycache-pyc0-3.14.10-r1.apk",
+      "sha256": "19a814d76898adbf90ec0f33ff1fd85fb8454be8615f4993fba0b69b7b978926"
     },
     {
       "name": "qemu-arm-11.0.3-r0.apk",
@@ -358,11 +363,11 @@
     "bc=1.08.2-r1",
     "binutils=2.45.1-r1",
     "bison=3.8.2-r3",
-    "brotli-libs=1.2.0-r1",
+    "brotli-libs=1.2.1-r0",
     "build-base=0.5-r4",
     "busybox-binsh=1.37.0-r31",
     "busybox=1.37.0-r31",
-    "c-ares=1.34.8-r0",
+    "c-ares=1.34.9-r0",
     "ca-certificates-bundle=20260909-r0",
     "clang22-headers=22.1.3-r2",
     "clang22-libs=22.1.3-r2",
@@ -380,8 +385,8 @@
     "libatomic=15.2.0-r5",
     "libbz2=1.0.8-r6",
     "libcrypto3=3.5.8-r0",
-    "libcurl=8.22.0-r0",
-    "libexpat=2.8.5-r0",
+    "libcurl=8.23.0-r0",
+    "libexpat=2.10.0-r0",
     "libffi=3.5.2-r1",
     "libgcc-static=15.2.0-r5",
     "libgcc=15.2.0-r5",
@@ -399,30 +404,30 @@
     "lld22-libs=22.1.3-r0",
     "lld22=22.1.3-r0",
     "llvm-linker-tools=22-r0",
-    "llvm22-libs=22.1.3-r0",
-    "llvm22-linker-tools=22.1.3-r0",
-    "llvm22-test-utils-pyc=22.1.3-r0",
-    "llvm22-test-utils=22.1.3-r0",
-    "llvm22=22.1.3-r0",
+    "llvm22-libs=22.1.3-r1",
+    "llvm22-linker-tools=22.1.3-r1",
+    "llvm22-test-utils-pyc=22.1.3-r1",
+    "llvm22-test-utils=22.1.3-r1",
+    "llvm22=22.1.3-r1",
     "llvm=22-r0",
     "m4=1.4.20-r1",
     "make=4.4.1-r4",
     "mpc1=1.3.1-r1",
     "mpdecimal=4.0.1-r0",
     "mpfr4=4.2.2-r0",
-    "musl-dev=1.2.6-r2",
+    "musl-dev=1.2.6-r3",
     "musl-utils=1.2.6-r2",
-    "musl=1.2.6-r2",
+    "musl=1.2.6-r3",
     "ncurses-terminfo-base=6.6_p20260516-r0",
     "nghttp2-libs=1.70.0-r0",
     "patch=2.8-r0",
-    "perl=5.42.2-r1",
+    "perl=5.42.3-r0",
     "py3-elftools-pyc=0.32-r1",
     "py3-elftools=0.32-r1",
-    "pyc=3.14.8-r0",
-    "python3-pyc=3.14.8-r0",
-    "python3-pycache-pyc0=3.14.8-r0",
-    "python3=3.14.8-r0",
+    "pyc=3.14.10-r1",
+    "python3-pyc=3.14.10-r1",
+    "python3-pycache-pyc0=3.14.10-r1",
+    "python3=3.14.10-r1",
     "qemu-arm=11.0.3-r0",
     "readline=8.3.3-r1",
     "scanelf=1.3.9-r1",
