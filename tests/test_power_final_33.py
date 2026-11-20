@@ -22,8 +22,11 @@ class ShippedSkins(unittest.TestCase):
         self.assertIn('skins/classic/fonts/OpenSans-OFL.txt', self.mk)
         # POWER-FINAL-34: the example skins add Noto fonts.
         self.assertIn('skins/paper/fonts/Noto-OFL.txt', self.mk)
-        self.assertIn('Noto and Pixelify Sans fonts of the shipped skins', self.mk)
+        self.assertIn('Pixelify Sans, DM Sans, Syne and IBM Plex Mono fonts of the shipped skins', self.mk)
         self.assertIn('skins/bunny-bow/fonts/PixelifySans-OFL.txt', self.mk)
+        for name in ('DMSans', 'Syne', 'IBMPlexMono'):
+            self.assertIn(f'skins/gallery/fonts/{name}-OFL.txt', self.mk)
+        self.assertIn('skins/gallery/LICENSE.txt', self.mk)
         # Luna XP (contributed 2026-11-08): DejaVu fonts and CC0 pictures.
         self.assertIn('Bitstream-Vera (DejaVu fonts of the Luna XP skin)', self.mk)
         self.assertIn('skins/luna-xp/fonts/DejaVu-LICENSE.txt skins/luna-xp/LICENSE.txt', self.mk)
