@@ -117,12 +117,19 @@ impl Controller {
 
     fn disconnected(&mut self, dev: &world::Dev) {
         let quiescing = !matches!(self.sleep, Sleep::Awake);
-        let ended = self.reasons.remove(&dev.path).unwrap_or(if quiescing {
+        let reported = self.reasons.remove(&dev.path).unwrap_or(if quiescing {
             Ended::Sleep
         } else {
             Ended::Unknown
         });
         let record = self.record(&dev.address);
+        // The disconnect for a wide stream is ours, though BlueZ named "Remote" for it (measured):
+        // the headset gets the tries and the short wait of a local end, not one look after 4 s.
+        let ended = if std::mem::take(&mut record.stereo_reconnect) && !quiescing {
+            Ended::Local
+        } else {
+            reported
+        };
         let lasted = record.connected_since.map(|since| since.elapsed());
         record.quick_drops = if links::quick_drop(lasted, ended) {
             record.quick_drops + 1
