@@ -21,6 +21,11 @@
 /* 10% of four cores, as a sustained average rather than every sample. */
 #define Y2_SYSTEM_QUIET_MCORES 400
 #define Y2_SYSTEM_HIGH_FREQ_PERMILLE 250
+/* Dark playback (only a PlaybackNormal lease is live). Decode, file reads and the Bluetooth encode keep
+ * schedutil above 598 MHz about 58% of the time at a load of ~0.24 cores (device, 9.3.35), so the
+ * time-above-598 proxy cannot tell music from real work there. The load average above and the
+ * one-second saturation guard below still decide. */
+#define Y2_SYSTEM_PLAY_HIGH_FREQ_PERMILLE 800
 /* Per online core: saturation for one second is real demand. */
 #define Y2_SYSTEM_BURST_PERMILLE 850
 #define Y2_SYSTEM_BURST_MS 1000
@@ -46,6 +51,11 @@ static const char *const y2_idle_reason_names[Y2_IDLE_REASONS] = {
 	"none", "screen", "lease", "timer", "disabled", "demand", "burst",
 };
 enum y2_idle_action { Y2_IDLE_WAIT, Y2_IDLE_PARK, Y2_IDLE_RESTORE };
+/* y2_idle_sample.lease: the strongest live workload lease. Ordinary playback does not stop parking
+ * (workload.c), but it changes the frequency proxy below. */
+#define Y2_LEASE_NONE 0
+#define Y2_LEASE_HARD 1
+#define Y2_LEASE_PLAYBACK 2
 
 struct y2_idle_sample {
 	unsigned now_ms, dt_ms;
@@ -150,7 +160,7 @@ static inline enum y2_idle_action y2_idle_decide(struct y2_idle_state *s,
 	if (!in->allowed) *why = Y2_IDLE_DISABLED;
 	else if (!in->timer) *why = Y2_IDLE_TIMER;
 	else if (!in->dark) *why = Y2_IDLE_SCREEN;
-	else if (in->lease) *why = Y2_IDLE_LEASE;
+	else if (in->lease == Y2_LEASE_HARD) *why = Y2_IDLE_LEASE;
 	else if (in->demand) *why = Y2_IDLE_DEMAND;
 	else if (s->burst_ms >= Y2_SYSTEM_BURST_MS) *why = Y2_IDLE_BURST;
 	if (*why != Y2_IDLE_NONE) {
@@ -170,7 +180,8 @@ static inline enum y2_idle_action y2_idle_decide(struct y2_idle_state *s,
 	if (in->online > 1 &&
 	    y2_idle_after(in->now_ms, s->quiet_start_ms + Y2_SYSTEM_QUIET_MS) &&
 	    s->load_mc <= Y2_SYSTEM_QUIET_MCORES &&
-	    s->high_permille <= Y2_SYSTEM_HIGH_FREQ_PERMILLE &&
+	    s->high_permille <= (in->lease == Y2_LEASE_PLAYBACK ? Y2_SYSTEM_PLAY_HIGH_FREQ_PERMILLE :
+						Y2_SYSTEM_HIGH_FREQ_PERMILLE) &&
 	    (!s->parked || y2_idle_after(in->now_ms, s->last_park_ms + Y2_SYSTEM_PARK_STEP_MS)))
 		return Y2_IDLE_PARK;
 	return Y2_IDLE_WAIT;

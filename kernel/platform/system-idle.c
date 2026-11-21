@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Slow stock-topology coordinator. schedutil and cpuidle still own policy.
  * Only coordinator-owned offlines are restored; manual topology is preserved.
- * Playback/scan/transfer leases prevent parking. Input schedules an immediate
+ * Scan/transfer/interactive/heavy-playback leases prevent parking; ordinary
+ * playback (PlaybackNormal) does not once the screen is dark (workload.c). Input schedules an immediate
  * high-priority restore, a workload producer or display wake restores
  * synchronously before acknowledgement, and one second of sustained CPU
  * saturation restores with an escalating anti-oscillation hold. Parking needs
@@ -130,14 +131,15 @@ static void sample_work_fn(struct work_struct *work)
 		.online = min(num_online_cpus(), 4U),
 		.khz = cpufreq_quick_get(0),
 		.dark = y2_backlight_dark(),
-		.lease = y2_workload_active(),
+		.lease = y2_workload_parking_blocked() ? Y2_LEASE_HARD :
+			 y2_workload_playing() ? Y2_LEASE_PLAYBACK : Y2_LEASE_NONE,
 		.timer = y2_local_events_ready(),
 		.allowed = enabled && !broken && !paused && y2_normal_boot_enabled() &&
 			   !y2_cpu_safe() && !y2_idle_disabled(),
 		.demand = atomic_xchg(&demand, 0),
 	};
 	last_sample = jiffies;
-	if (in.allowed && in.dark && !in.lease && in.online == 1 && !in.demand)
+	if (in.allowed && in.dark && in.lease == Y2_LEASE_NONE && in.online == 1 && !in.demand)
 		y2_ccf_reclaim_unused();
 	if (in.demand)
 		y2_idle_wake(&state, in.now_ms);

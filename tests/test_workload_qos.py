@@ -4,11 +4,11 @@ import unittest
 from test_audio import function
 from test_power import run_c
 
+SOURCE = (Path(__file__).resolve().parents[1] / 'kernel/platform/workload.c').read_text()
 
-class WorkloadQos(unittest.TestCase):
-    def test_bounds_expiry_and_failed_update(self):
-        source = (Path(__file__).resolve().parents[1] / 'kernel/platform/workload.c').read_text()
-        run_c(r'''
+# The kernel facilities workload.c's write path touches, as small fakes. `restores` counts calls
+# of the parking coordinator's synchronous restore; `dark` is the backlight.
+LEASE_FAKES = r'''
 #include <assert.h>
 #include <errno.h>
 #include <stdbool.h>
@@ -19,6 +19,8 @@ class WorkloadQos(unittest.TestCase):
 #define strscpy(a,b,n) snprintf(a,n,"%s",b)
 static unsigned long jiffies;
 #define __user
+#define READ_ONCE(x) (x)
+#define time_before(a,b) ((long)((a)-(b))<0)
 #define PM_QOS_DEFAULT_VALUE -1
 struct freq_qos_request{int value;};
 struct pm_qos_request{int value;};
@@ -28,8 +30,10 @@ static int idle_blocking_leases;
 #define atomic_inc(p) (++*(p))
 #define atomic_dec(p) (--*(p))
 struct file{void *private_data;};
-static int system_wq,fail;
-static int y2_system_idle_restore(void){return 0;}
+static int system_wq,fail,restores;
+static bool soft_playback=true,dark;
+static bool y2_backlight_dark(void){return dark;}
+static int y2_system_idle_restore(void){restores++;return 0;}
 static int copy_from_user(void *a,const void *b,unsigned n){memcpy(a,b,n);return 0;}
 static void mutex_lock(int *p){assert(!*p);*p=1;}
 static void mutex_unlock(int *p){assert(*p);*p=0;}
@@ -37,7 +41,14 @@ static int freq_qos_update_request(struct freq_qos_request *p,int v){if(fail)ret
 static void cpu_latency_qos_update_request(struct pm_qos_request *p,int v){p->value=v;}
 static unsigned msecs_to_jiffies(unsigned ms){return ms;}
 static void mod_delayed_work(int q,struct delayed_work *p,unsigned ms){p->delay=ms;}
-''' + function(source, 'y2_workload_idle_blocker') + function(source, 'y2_workload_idle') + function(source, 'y2_workload_write') + r'''
+'''
+LEASE_FUNCTIONS = (function(SOURCE, 'y2_workload_idle_blocker') + function(SOURCE, 'y2_workload_idle') +
+                   function(SOURCE, 'y2_playback_is_soft') + function(SOURCE, 'y2_workload_write'))
+
+
+class WorkloadQos(unittest.TestCase):
+    def test_bounds_expiry_and_failed_update(self):
+        run_c(LEASE_FAKES + LEASE_FUNCTIONS + r'''
 int main(void){
  struct y2_workload hint={0};struct file file={&hint};
  const char *invalid[]={"Interactive 501","Idle 30001","Idle 0","Idle 100 garbage","MHz 1040000","PlaybackHeavy -1"};
@@ -58,8 +69,43 @@ int main(void){
 }
 ''')
 
+    def test_dark_playback_renewals_leave_parked_cores_alone(self):
+        """PlaybackNormal is soft for parking: only its renewals while dark skip the restore."""
+        run_c(LEASE_FAKES + LEASE_FUNCTIONS + r'''
+#define WRITE(text) assert(y2_workload_write(&file,text,strlen(text),0)==(ssize_t)strlen(text))
+int main(void){
+ struct y2_workload hint={0};struct file file={&hint};
+ /* Lit: every write restores, as before. */
+ jiffies=1000;dark=false;
+ WRITE("PlaybackNormal 3000");WRITE("PlaybackNormal 3000");assert(restores==2);
+ /* The screen goes dark mid-lease: the next renewal of the live lease does not restore. */
+ dark=true;jiffies=2000;WRITE("PlaybackNormal 3000");assert(restores==2);
+ jiffies=3000;WRITE("PlaybackNormal 3000");assert(restores==2);
+ /* The lease still blocks DORMANT: the idle blocker is unchanged (SPM admission is not touched). */
+ assert(hint.idle_blocking && idle_blocking_leases==1);
+ /* An expired lease is a new run of playback: restore, then renewals are quiet again. */
+ jiffies=3000+3000+1;WRITE("PlaybackNormal 3000");assert(restores==3);
+ jiffies+=1000;WRITE("PlaybackNormal 3000");assert(restores==3);
+ /* Any other lease restores, dark or not, and so does playback after it. */
+ WRITE("Interactive 250");assert(restores==4);
+ jiffies+=100;WRITE("PlaybackNormal 3000");assert(restores==5);
+ WRITE("PlaybackHeavy 3000");assert(restores==6);
+ jiffies+=100;WRITE("PlaybackHeavy 3000");assert(restores==7);
+ WRITE("NetworkTransfer 3000");assert(restores==8);
+ /* Idle never restores. */
+ WRITE("Idle 3000");assert(restores==8 && !hint.idle_blocking);
+ /* The run-time switch restores the old behaviour for A/B tests. */
+ soft_playback=false;jiffies+=100;WRITE("PlaybackNormal 3000");jiffies+=100;WRITE("PlaybackNormal 3000");
+ assert(restores==10);
+ /* Lit again: restore even for a live renewal. */
+ soft_playback=true;dark=false;jiffies+=100;WRITE("PlaybackNormal 3000");assert(restores==11);
+ /* An expiring lease goes idle without a restore call of its own. */
+ y2_workload_idle(&hint);assert(restores==11 && !hint.idle_blocking && idle_blocking_leases==0);
+}
+''')
+
     def test_close_or_process_exit_releases_only_the_owned_lease(self):
-        source = (Path(__file__).resolve().parents[1] / 'kernel/platform/workload.c').read_text()
+        source = SOURCE
         run_c(r'''
 #include <assert.h>
 #include <stdbool.h>

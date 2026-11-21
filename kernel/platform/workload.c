@@ -41,6 +41,18 @@ static void y2_workload_idle_blocker(struct y2_workload *hint, bool active)
 }
 bool y2_workload_idle_blocked(void) { return atomic_read(&idle_blocking_leases) != 0; }
 
+/* PlaybackNormal is "soft" for core parking: music on one core at the lowest clock is the normal
+ * case (about 0.24 cores of load, 9.3.35). Only the parking coordinator treats it so (the idle
+ * blocker above is unchanged, so DORMANT is still refused during playback). Every other lease,
+ * and PlaybackNormal while the screen is lit, still restores cores and blocks parking. The
+ * `soft_playback` parameter (0644) turns this off at run time for A/B tests. */
+static bool soft_playback = true;
+module_param(soft_playback, bool, 0644);
+static bool y2_playback_is_soft(const char *name)
+{
+	return READ_ONCE(soft_playback) && !strcmp(name, "PlaybackNormal");
+}
+
 static void y2_workload_idle(struct y2_workload *hint)
 {
 	y2_workload_idle_blocker(hint, false);
@@ -117,8 +129,20 @@ static ssize_t y2_workload_write(struct file *file, const char __user *buffer,
 	/* Restore available cores before acknowledging a real workload lease.
 	 * Never hold hint/QoS locks across the hotplug transition. */
 	if (strcmp(name, "Idle")) {
-		ret = y2_system_idle_restore();
-		if (ret) return ret;
+		/* A renewal of live dark playback is not a new workload: the cores it was granted are
+		 * already settled, and restoring on every 1-s renewal would undo every park. The first
+		 * write of a playback run, after any other lease, or with the screen lit restores. */
+		bool renewal = false;
+		if (y2_playback_is_soft(name) && y2_backlight_dark()) {
+			mutex_lock(&hint->lock);
+			renewal = hint->deadline && time_before(jiffies, hint->deadline) &&
+				  !strcmp(hint->name, name);
+			mutex_unlock(&hint->lock);
+		}
+		if (!renewal) {
+			ret = y2_system_idle_restore();
+			if (ret) return ret;
+		}
 	}
 	mutex_lock(&hint->lock);
 	ret = freq_qos_update_request(&hint->minimum, floor);
@@ -149,19 +173,25 @@ static int y2_workload_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-bool y2_workload_active(void)
+/* A live lease that is soft (`soft`) or hard (!soft) for parking. Idle and expired leases are neither. */
+static bool y2_workload_live(bool soft)
 {
-	struct y2_workload *hint; bool active = false;
+	struct y2_workload *hint; bool found = false;
 	mutex_lock(&leases_lock);
 	list_for_each_entry(hint, &leases, node) {
 		mutex_lock(&hint->lock);
-		active = hint->deadline && time_before(jiffies, hint->deadline) && strcmp(hint->name, "Idle");
+		found = hint->deadline && time_before(jiffies, hint->deadline) && strcmp(hint->name, "Idle") &&
+			y2_playback_is_soft(hint->name) == soft;
 		mutex_unlock(&hint->lock);
-		if (active) break;
+		if (found) break;
 	}
 	mutex_unlock(&leases_lock);
-	return active;
+	return found;
 }
+/* Any lease that keeps the parking coordinator from parking (and restores what it parked). */
+bool y2_workload_parking_blocked(void) { return y2_workload_live(false); }
+/* Dark-capable ordinary playback: allowed to coexist with parked cores. */
+bool y2_workload_playing(void) { return y2_workload_live(true); }
 static int leases_get(char *buf, const struct kernel_param *kp)
 {
 	struct y2_workload *hint;
