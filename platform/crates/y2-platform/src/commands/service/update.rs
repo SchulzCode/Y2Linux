@@ -69,6 +69,10 @@ const LAST_CHECK: &str = "/data/updates/last-check.json";
 /// Wi-Fi needs 15-20 s to reconnect after the player wakes; a Check for Updates pressed meanwhile
 /// failed at once ("name resolution") and hid Update Now.
 const NETWORK_WAIT_S: f64 = 30.0;
+/// ntpd starts with the Wi-Fi join and the clock is TLS-ready at its first answer, about 30 s later
+/// on the player (join 18:34:47, first sync 18:35:17); until then it is the build date. A check made
+/// in that window failed at once as "Couldn't reach the update server" with the network Online.
+const CLOCK_WAIT_S: f64 = 45.0;
 const MANIFEST_ATTEMPTS: u32 = 3;
 /// The pause before another manifest attempt.
 const RETRY_PAUSE: Duration = Duration::from_secs(3);

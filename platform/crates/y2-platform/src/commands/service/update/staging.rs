@@ -4,9 +4,9 @@
 use super::{
     atomic_json, channel, copy_stream, core, download, fs, installed_release, journal_state, json,
     lock, pathlib, private_directory, py, set_signal, shortened, signal_disposition, storage,
-    wait_online, Disposition, File, Handler, Io, Map, Net, OpenOptions, Ordering, Path, PathBuf,
-    Progress, Raise, Result, Root, Source, Value, BACKUPS, CANCELLED, CHECK_PROGRESS, FILES,
-    IN_PROGRESS, KEPT_LOGS, MANIFEST_ATTEMPTS, RESERVE,
+    wait_for_clock, wait_online, Disposition, File, Handler, Io, Map, Net, OpenOptions, Ordering,
+    Path, PathBuf, Progress, Raise, Result, Root, Source, Value, BACKUPS, CANCELLED,
+    CHECK_PROGRESS, FILES, IN_PROGRESS, KEPT_LOGS, MANIFEST_ATTEMPTS, RESERVE,
 };
 use std::ops::ControlFlow;
 use std::os::fd::AsFd;
@@ -441,8 +441,7 @@ impl Staging<'_> {
             }
             return Ok(Source::Local(directory));
         };
-        let clock = io.time_status(root);
-        if !clock.tls_ready || clock.entropy_ready != Some(true) {
+        if !wait_for_clock(root, io) {
             return Err(Raise::value("clock_or_entropy_not_ready_for_TLS"));
         }
         if !wait_online(root, io.network_wait()) {
