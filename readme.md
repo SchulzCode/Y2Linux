@@ -3,7 +3,7 @@
 **A new life for the Innioasis Y2.** Y2Linux replaces the player's stock Android system with a small, fast Linux
 system built only for music, and with [Reborn](https://github.com/SchulzCode/Y2Reborn), a music player made for the
 Y2's click wheel. Cover Flow, gapless playback, Bluetooth headphones with AAC and LDAC, internet radio, audiobooks,
-Last.fm and seventeen skins. Once it's installed, the player updates itself over Wi-Fi.
+Last.fm and nineteen skins. Once it's installed, the player updates itself over Wi-Fi.
 
 <p align="center">
   <img src="docs/images/reborn-hero.png" alt="Reborn on the Y2: the Home screen, Now Playing with its progress wave, and Cover Flow" width="100%">
@@ -82,8 +82,8 @@ Last.fm and seventeen skins. Once it's installed, the player updates itself over
 </p>
 
 <p align="center">
-  <img src="docs/images/reborn-skins.png" alt="Now Playing in eight of the seventeen skins" width="100%">
-  <br><em>Now Playing in eight of the seventeen skins</em>
+  <img src="docs/images/reborn-skins.png" alt="Now Playing in eight of the nineteen skins" width="100%">
+  <br><em>Now Playing in eight of the nineteen skins</em>
 </p>
 
 *The pictures are drawn by Reborn's own drawing code with sample music (Beta 9.2.13).*
