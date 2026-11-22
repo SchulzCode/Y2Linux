@@ -13,6 +13,11 @@ const BUDGET: &str = "/sys/module/spm/parameters/dormant_budget";
 const PREFLIGHT: &str = "/sys/devices/platform/10006000.power-controller/dormant_preflight";
 const RECORD: &str = "/run/y2/cpu-idle-policy.json";
 const LOCK: &str = "/run/y2/cpu-idle-policy.lock";
+/// schedutil re-evaluates the clock every 900 us by default: about 300 frequency changes (each a
+/// PMIC voltage step and a `sugov` wakeup) a second while music plays on a load of 0.14 cores.
+/// 25 ms is plenty for audio; the workload leases still raise the floor at once (Y2Reborn #176).
+const RATE_LIMIT: &str = "/sys/devices/system/cpu/cpufreq/schedutil/rate_limit_us";
+const RATE_LIMIT_US: &str = "25000";
 /// Other prerequisites describe transient activity and remain entry-time guards.
 const FOUNDATIONS: [&str; 8] = [
     "system_running",
@@ -100,6 +105,20 @@ pub(crate) struct Policy {
         deserialize_with = "lenient::there"
     )]
     disabled: Option<Option<String>>,
+    /// schedutil's rate limit as it reads after the boot start (`null`: no schedutil).
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "lenient::there"
+    )]
+    rate_limit_us: Option<Option<String>>,
+}
+
+/// Slow schedutil's re-evaluation once per boot. Independent of the dormant admission: it is set
+/// even when that is skipped, and only where schedutil exists (another governor keeps its own).
+fn slow_schedutil(root: &Root) -> Option<String> {
+    root.read(RATE_LIMIT)?;
+    let _ = write(root, RATE_LIMIT, RATE_LIMIT_US);
+    root.read(RATE_LIMIT)
 }
 
 fn kernel_trusted(root: &Root) -> bool {
@@ -130,6 +149,7 @@ pub fn apply(root: &Root, action: &str) -> Outcome {
             }
             Err(e) => return Err(Failure::os(e, &lock)),
         }
+        result.rate_limit_us = Some(slow_schedutil(root));
         let installed = super::versions(root).and_then(|v| v.kernel_version);
         let osrelease = root.read("/proc/sys/kernel/osrelease");
         if boot.as_deref().is_none_or(str::is_empty) || installed != osrelease {

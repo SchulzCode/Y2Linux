@@ -10,6 +10,7 @@
   "budget": "-1",
   "disabled": "0",
   "policy": "qualified_CPU0_DORMANT",
+  "rate_limit_us": null,
   "reasons": [],
   "schema": "org.y2linux.cpu-idle-policy/v1",
   "state": "Enabled"
@@ -22,6 +23,7 @@
      "budget": "-1",
      "disabled": "0",
      "policy": "qualified_CPU0_DORMANT",
+     "rate_limit_us": null,
      "reasons": [],
      "schema": "org.y2linux.cpu-idle-policy/v1",
      "state": "Enabled"

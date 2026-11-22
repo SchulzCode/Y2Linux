@@ -8,6 +8,7 @@
  "stdout": {
   "boot_id": "boot-a",
   "policy": "qualified_CPU0_DORMANT",
+  "rate_limit_us": null,
   "reasons": [
    "kernel_tainted_or_unknown",
    "foundation:system_running",
@@ -27,6 +28,7 @@
     "content": {
      "boot_id": "boot-a",
      "policy": "qualified_CPU0_DORMANT",
+     "rate_limit_us": null,
      "reasons": [
       "kernel_tainted_or_unknown",
       "foundation:system_running",

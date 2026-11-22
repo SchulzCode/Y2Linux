@@ -262,3 +262,23 @@ fn failed_stop_readback_does_not_report_disabled() {
     assert!(reasons(&result).contains(&format!("{BUDGET}:readback")));
     assert_eq!(read(&fixture, &disable_state()), "1");
 }
+
+#[test]
+fn start_slows_schedutil_even_when_deep_idle_is_skipped() {
+    let fixture = qualified();
+    put(&fixture, RATE_LIMIT, "900");
+    put(&fixture, "/proc/sys/kernel/tainted", "1");
+    let result = apply_json(&fixture, "start");
+    assert_eq!(result["state"], "Skipped");
+    assert_eq!(read(&fixture, RATE_LIMIT), RATE_LIMIT_US);
+    assert_eq!(result["rate_limit_us"], RATE_LIMIT_US);
+}
+
+#[test]
+fn no_schedutil_writes_nothing() {
+    let fixture = qualified();
+    let result = apply_json(&fixture, "start");
+    assert_eq!(result["state"], "Enabled");
+    assert!(result["rate_limit_us"].is_null());
+    assert!(fixture.root.read(RATE_LIMIT).is_none());
+}

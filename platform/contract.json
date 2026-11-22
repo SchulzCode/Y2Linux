@@ -2654,6 +2654,7 @@
      "reasons",
      "budget",
      "disabled",
+     "rate_limit_us (start only; null without schedutil)",
      "previous (already applied only)",
      "rollback_errors (Failed only)"
     ],
@@ -2662,7 +2663,8 @@
      "state": "Skipped|Enabled|Failed",
      "reasons": "already_applied_this_boot | installed_kernel_identity | kernel_tainted_or_unknown | cpuidle_driver | dormant_state_unavailable_or_boot_disabled | foundation:<system_running|boot_policy|spm|local_events|cirq|linux_context|timer_context|broken> | existing_owner_runtime_policy | 'dormant budget readback' | 'cpuidle state readback' | str(OSError)",
      "budget/disabled": "readback of dormant_budget and state2/disable (absent on the already-applied and reasons paths)",
-     "rollback_errors": "['<path>:readback'|'<path>:write']"
+     "rollback_errors": "['<path>:readback'|'<path>:write']",
+     "rate_limit_us": "readback of schedutil rate_limit_us after writing 25000 (Y2Reborn #176); set on every first start, also when deep idle is skipped"
     },
     "failure_shapes": [
      {
@@ -2697,7 +2699,8 @@
     "/sys/devices/system/cpu/cpu0/cpuidle/state2/name (must be 'DORMANT')",
     "/sys/devices/platform/10006000.power-controller/dormant_preflight (line list)",
     "/sys/module/spm/parameters/dormant_budget (must be '0' before, readback)",
-    "/sys/devices/system/cpu/cpu0/cpuidle/state2/disable (must be '1' before, readback)"
+    "/sys/devices/system/cpu/cpu0/cpuidle/state2/disable (must be '1' before, readback)",
+    "/sys/devices/system/cpu/cpufreq/schedutil/rate_limit_us (written 25000 when present, readback)"
    ],
    "writes": [
     {
@@ -2718,6 +2721,11 @@
     {
      "path": "/sys/devices/system/cpu/cpu0/cpuidle/state2/disable",
      "how": "sysfs write '0\\n', readback must be '0'",
+     "shape": "value"
+    },
+    {
+     "path": "/sys/devices/system/cpu/cpufreq/schedutil/rate_limit_us",
+     "how": "sysfs write '25000\\n' when the file exists (after the lock marker, before the checks), readback recorded as rate_limit_us; never undone",
      "shape": "value"
     },
     {

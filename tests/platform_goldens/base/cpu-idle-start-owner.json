@@ -8,6 +8,7 @@
  "stdout": {
   "boot_id": "boot-a",
   "policy": "qualified_CPU0_DORMANT",
+  "rate_limit_us": null,
   "reasons": [
    "existing_owner_runtime_policy"
   ],
@@ -20,6 +21,7 @@
     "content": {
      "boot_id": "boot-a",
      "policy": "qualified_CPU0_DORMANT",
+     "rate_limit_us": null,
      "reasons": [
       "existing_owner_runtime_policy"
      ],
