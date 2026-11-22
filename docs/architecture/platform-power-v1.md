@@ -23,6 +23,9 @@ boot ID, state, reasons and control readbacks; failed activation includes rollba
 errors. States are Enabled / Skipped / Failed / Disabled. Missing/stale evidence
 is not successful activation. A start runs once per boot, respects explicit owner
 controls and never overrides a later stop; this service adds no polling loop.
+The first start of a boot also sets schedutil's `rate_limit_us` to 25000 (25 ms; Y2Reborn #176), also when deep
+idle is skipped, and records the readback as `rate_limit_us`. Ordinary playback (`PlaybackNormal`) no longer keeps
+cores online while the screen is dark (`/sys/module/workload/parameters/soft_playback`, see the Beta 9.3.36 report).
 
 C1/C2/C3 are physically qualified on preceding UART01. Baseline02's new image and
 automatic cold boot remain NOT_RUN. Full system suspend is still disabled for
