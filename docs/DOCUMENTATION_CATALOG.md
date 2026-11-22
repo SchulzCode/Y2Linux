@@ -13,7 +13,7 @@ document links, rather than relocating or deleting proof. See the
 [shared knowledge rules](KNOWLEDGE_BASE.md)
 and the other repository's catalog for product-wide context.
 
-Indexed pages: **359**. Explicit scope notices: **228**.
+Indexed pages: **360**. Explicit scope notices: **228**.
 
 ## Entry
 
@@ -380,6 +380,7 @@ Indexed pages: **359**. Explicit scope notices: **228**.
 | [Y2Linux 1.0 Beta 9.3.36 report](validation/Y2-LINUX-1.0-BETA-9.3.36.md) | Beta 9.3.36 (Baseline 269): fewer processor wakeups during playback with the screen off: speed re-decided every 25 ms, a calmer decoder wait, playback on one core while dark (Y2Reborn #176, jonasevcik) |
 | [Y2Linux 1.0 Beta 9.3.37 report](validation/Y2-LINUX-1.0-BETA-9.3.37.md) | Beta 9.3.37 (Baseline 272): fewer wakeups in dark playback on wired and Bluetooth: main loop twice a second, 1024-frame wired periods, whole decoder blocks, decoder woken on commands, one-period output wait (Y2Reborn #176 follow-up) |
 | [Y2Linux 1.0 Beta 9.3.38 report](validation/Y2-LINUX-1.0-BETA-9.3.38.md) | Beta 9.3.38 (Baseline 273): two new skins, Pixel Quest and Gilded Grove; Bluetooth switched off no longer leaves Play waiting for headphones (#136) |
+| [Y2Linux 1.0 Beta 9.3.39 report](validation/Y2-LINUX-1.0-BETA-9.3.39.md) | Beta 9.3.39 (Baseline 275): the cover and quality tag stay while seeking (Y2Reborn #151, PR #154 by jonasevcik; #150 restored cover survives Play); films in formats the player cannot show (HEVC, AV1, …) listed in Videos as unplayable, never among songs |
 | [Y2Linux 1.0 Beta 9.3.25 report](validation/Y2-LINUX-1.0-BETA-9.3.25.md) | Beta 9.3.25 (Baseline 248): videos (own hardware decoder driver, H.264 and MPEG-4 on the video chip, Videos in Reborn; early version), genres split at "/" (Y2Reborn #124) |
 | [Y2Linux 1.0 Beta 9.3.24 report](validation/Y2-LINUX-1.0-BETA-9.3.24.md) | Beta 9.3.24 (Baseline 235): SBC XQ removed (Y2Reborn #123), battery level after charging while off (#113), encoder rate log in reports |
 | [Y2Linux 1.0 Beta 9.3.19 report](validation/Y2-LINUX-1.0-BETA-9.3.19.md) | Beta 9.3.19 (Baseline 228): the update message works again and is opt-in: Update Notifications on Software Update, off by default (Y2Reborn #97) |
