@@ -27,7 +27,7 @@ Films never appear among the songs, in the albums or artists, in shuffles of the
 | Picture, in software | H.264 the hardware refuses (other chroma formats, 10 bit), MPEG-4 Part 2 the hardware refuses (interlaced, global motion compensation, data partitioning), DivX 3, H.263, VP8, VP9 |
 | Sound | what songs use (AAC, MP3, FLAC, Vorbis, Opus, ALAC, PCM), and AC-3 |
 | Subtitles | SubRip, ASS/SSA, WebVTT, MP4 timed text; shown as plain text |
-| Not played | HEVC (H.265), AV1, DTS sound, picture subtitles (DVD, Blu-ray), files with a picture and no sound |
+| Not played | HEVC (H.265), AV1, MPEG-2, VC-1/WMV, DTS sound, picture subtitles (DVD, Blu-ray), files with a picture and no sound. A film whose picture format the player cannot show stands in Videos marked "Can't play · HEVC (H.265)" (or its format), never among the songs; convert it as below. |
 
 The screen is 480×360, so every picture is shrunk to it; a 1080p file looks no better than a 480p file and
 costs more battery and storage.
