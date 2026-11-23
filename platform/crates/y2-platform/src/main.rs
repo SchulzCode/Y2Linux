@@ -9,6 +9,7 @@ mod cli;
 mod commands;
 mod reply;
 mod signal_wake;
+mod timer_slack;
 
 /// `regex!(pattern)`: a constant pattern compiled once (y2p_core's).
 pub(crate) use y2p_core::regex;
@@ -83,6 +84,7 @@ fn main() -> ExitCode {
         return ExitCode::from(127);
     };
     let root = y2p_core::Root::from_env();
+    timer_slack::apply(&root, &canonical);
     let (stdout, code) = match command(&root) {
         Ok(reply) => (reply.stdout, reply.code),
         // An error no command turned into its own record: the error record, exit 1 (an input of an
