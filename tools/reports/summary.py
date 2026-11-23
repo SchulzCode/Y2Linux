@@ -25,13 +25,15 @@ STARTUP_LOG = 'files/data/reborn/logs/startup-last.jsonl'
 SYSTEM_LOG = 'files/data/logs/system.log'
 # BlueALSA's line for each radio stall it bounds (patch 0009, from Beta 9.3.34).
 STALL = re.compile(r'Y2 stall: stream (\d+) ms behind')
+# Time and charge per state (power plan 2026-11, phase 2), this boot.
+ENERGY = 'files/data/system/platform/energy.json'
 SETTINGS = {'wifi': 'files/data/network/enabled', 'bluetooth': 'files/data/bluetooth/enabled'}
 MEMBER_LIMIT = 4 * 1024 * 1024
 
 
 def members(path):
     """Name → text of the members a summary reads; missing ones are absent."""
-    wanted = {'report.json', STATUS, STARTUP_LOG, SYSTEM_LOG, *SETTINGS.values()}
+    wanted = {'report.json', STATUS, STARTUP_LOG, SYSTEM_LOG, ENERGY, *SETTINGS.values()}
     found = {}
     with tarfile.open(path, 'r:gz') as archive:
         for info in archive:
@@ -84,6 +86,22 @@ def stalls(text):
     return (len(lengths), max(lengths)) if lengths else None
 
 
+def energy(text):
+    """One line from energy.json: hours per state and the gauge's mAh per state (None without one)."""
+    record = json_or_empty(text)
+    seconds = record.get('seconds')
+    if not isinstance(seconds, dict) or not seconds:
+        return None
+    gauge = record.get('gauge_mah') if isinstance(record.get('gauge_mah'), dict) else {}
+    parts = []
+    for state, value in sorted(seconds.items(), key=lambda item: -float(item[1] or 0)):
+        part = '%s %.1f h' % (state, float(value or 0) / 3600)
+        if state in gauge:
+            part += ' %.0f mAh' % float(gauge[state] or 0)
+        parts.append(part)
+    return '  energy (gauge estimate): ' + ', '.join(parts)
+
+
 def summarize(path):
     texts = members(path)
     report = json_or_empty(texts.get('report.json'))
@@ -107,6 +125,9 @@ def summarize(path):
             get(status, 'storage', 'media', 'lifecycle', 'reason')
             or get(status, 'storage', 'media', 'lifecycle', 'state')),
     ]
+    spent = energy(texts.get(ENERGY))
+    if spent:
+        lines.append(spent)
     stalled = stalls(texts.get(SYSTEM_LOG))
     if stalled:
         lines.append('  Bluetooth stalls in the system log: %d, longest %d ms' % stalled)

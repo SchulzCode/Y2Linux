@@ -78,3 +78,15 @@ class Summary(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class EnergyLine(unittest.TestCase):
+    def test_states_by_time_with_the_gauge_figures(self):
+        text = json.dumps({'seconds': {'asleep': 72000, 'screen_on': 1800},
+                           'gauge_mah': {'asleep': 180.4}})
+        self.assertEqual(summary.energy(text),
+                         '  energy (gauge estimate): asleep 20.0 h 180 mAh, screen_on 0.5 h')
+
+    def test_no_record_no_line(self):
+        self.assertIsNone(summary.energy(None))
+        self.assertIsNone(summary.energy('{"seconds": {}}'))
