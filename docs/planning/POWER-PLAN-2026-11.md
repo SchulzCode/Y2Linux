@@ -17,16 +17,15 @@ Entry audit: [roadmap-gap-audit.md](roadmap-gap-audit.md#power-plan-2026-11-entr
 
 | # | Phase | State |
 | --- | --- | --- |
-| 1 | Current meter per state | WAITING: no meter; each phase states what a meter would confirm |
-| 2 | Energy accounting (time per state × estimated current, lease holders) | see below |
-| 3 | Sleep backoff: 30 min → 1 h → 2 h → 4 h untouched; 30 min when battery not Normal / ≤ 20 %; wake ends after the safety sample (≤ 2 s) | DONE in source (`e72afe65`), device check owed |
-| 4 | Batch deferred work into shared windows | see below |
-| 5 | Battery Saver | see below |
-| 6a | Timer slack for background services | see below |
-| 6b | Freezer | needs `CONFIG_CGROUPS`/`CONFIG_CGROUP_FREEZER`; SIGSTOP fallback considered |
-| 7 | Bluetooth BTIF/APDMA clock gating (stock STP PSM) | high risk; behind a switch |
-| 8 | Smaller cleanups (DAC power-down after a stream, decoder block size, native EQ) | see below |
-
+| 1 | Current meter per state | WAITING: no meter. Phase 2 reads a `power-profile.json` the day one exists |
+| 2 | Energy accounting | DONE in source (`998f319c`, summary line `0364b2a8`): `energy.json` seconds per state (asleep, charger, screen_on, dark_playing, dark_idle), radio and lease seconds, gauge mAh per state, profile mAh when a profile exists; in error reports |
+| 3 | Sleep backoff | DONE in source (`e72afe65`): 30 min ×4, 1 h ×2, 2 h ×2, then 4 h; 30 min when the battery is not Normal, ≤ 20 % or unknown; a wake ends after the safety sample (≤ 2 s) |
+| 4 | Batch deferred work | AUDITED, no change: the service daemon already runs every periodic job (space policy, time, update check, error reports, health) in one maintenance pass (30 s lit, 300 s dark), none wakes the player from sleep; Reborn's only short poll is the Last.fm sign-in |
+| 5 | Battery Saver | DONE in source (Reborn `1c34592`): Display › Battery Saver, Off / At 15 % (default) / On: ≤ 30 % brightness, ≤ 15 s screen timeout, no animation |
+| 6a | Timer slack | DONE in source (`5e67db62`): 50 ms for the power, service, connectivity and SSH daemons and their children |
+| 6b | Freezer | DROPPED on evidence: the candidates (umtprd, dropbear, wpa_supplicant, wpa_cli, crond, syslogd) wake < 2 times/s together while idle (umtprd and the SSH listener 0/s); not worth `CONFIG_CGROUPS` against the kernel Image cap |
+| 7 | Bluetooth BTIF/APDMA clock gating (stock STP PSM) | IN PROGRESS: donor `psm_core.c` / BTIF HAL analysis |
+| 8 | Cleanups | Decoder blocks: already 4096 frames since 9.3.37. DAC: powers down 120 s after a stream as designed (the long active time seen was the owner's wake). Reborn dark idle wakes ≈10/s over seven threads (1–2/s each): left, watchdog heartbeats. Native EQ chain instead of FFmpeg filters: NOT done, it would change the sound of every EQ/AutoEq profile and needs listening tests |
 Each phase: `GATE OK` before commit, a test build on the owner's player before anything is published.
 
 ## Device checks owed (all phases)
