@@ -135,6 +135,24 @@ module_param(pwrap_gate, bool, 0644);
 static bool pwrap_gated;
 static unsigned pwrap_gates, pwrap_ungates, pwrap_gate_failures, pwrap_gate_sta;
 static void y2_golden_delay(unsigned us) { udelay(us); }
+/* Maintenance wake period (spm-suspend-policy.h). The sleep helper writes it
+ * before each entry to back off while the player lies untouched; an entry
+ * uses the value it found, and that value judges its timer return. */
+static unsigned maintenance_seconds = Y2_SPM_MAINTENANCE_S, armed_seconds = Y2_SPM_MAINTENANCE_S;
+static int maintenance_seconds_set(const char *val, const struct kernel_param *kp)
+{
+	unsigned seconds;
+	int ret = kstrtouint(val, 0, &seconds);
+	if (ret) return ret;
+	if (seconds < Y2_SPM_MAINTENANCE_MIN_S || seconds > Y2_SPM_MAINTENANCE_MAX_S) return -ERANGE;
+	WRITE_ONCE(maintenance_seconds, seconds);
+	return 0;
+}
+static const struct kernel_param_ops maintenance_seconds_ops = {
+	.set = maintenance_seconds_set, .get = param_get_uint,
+};
+module_param_cb(maintenance_seconds, &maintenance_seconds_ops, &maintenance_seconds, 0644);
+MODULE_PARM_DESC(maintenance_seconds, "timer wake period while suspended, 300..14400 s (default 1800)");
 
 static unsigned spm_read(void *context, unsigned reg)
 {
@@ -645,6 +663,7 @@ static int y2_spm_enter(suspend_state_t state)
 	    smp_processor_id() != 0 || READ_ONCE(spm_broken)) return -EBUSY;
 	raw_spin_lock_irqsave(&spm_lock, flags);
 	entries++;
+	armed_seconds = READ_ONCE(maintenance_seconds);
 	/* Boot ROM fetches uncached physical instructions after CPU0 reset. */
 	__cpuc_flush_dcache_area((void *)y2_cpu_resume, 64);
 	ret = y2_ccf_boot_vector(__pa_symbol(y2_cpu_resume));
@@ -673,11 +692,11 @@ static int y2_spm_enter(suspend_state_t state)
 	y2_pmic_golden_capture();
 	/* 19: no AP PMIC access may follow until y2_pwrap_clock_ungate(). */
 	y2_pwrap_clock_gate();
-	ret = y2_spm_suspend_arm(&spm_io, pcm_address, infra);
+	ret = y2_spm_suspend_arm(&spm_io, pcm_address, infra, Y2_SPM_TICKS(armed_seconds));
 	if (ret == -EBUSY && y2_spm_uart_busy()) {
 		/* F47: one more request after the dump, then refuse as stock. */
 		uart_busy = true;
-		ret = y2_spm_suspend_arm(&spm_io, pcm_address, infra);
+		ret = y2_spm_suspend_arm(&spm_io, pcm_address, infra, Y2_SPM_TICKS(armed_seconds));
 		if (!ret) uart_busy_recoveries++;
 	}
 	y2_spm_journal_snapshot();
@@ -1005,9 +1024,9 @@ static ssize_t state_show(struct device *dev, struct device_attribute *attr, cha
 	 * sharing bit 0. Require the full timer horizon as well before userspace
 	 * may keep the display dark through a battery-maintenance return. */
 	ret += sysfs_emit_at(buf, ret, "system_sleep_abi=1 maintenance_seconds=%u timer_wake=%u sleep_isr=%#x cpu_wake=%#x\n",
-		Y2_SPM_MAINTENANCE_S,
+		armed_seconds,
 		!last_result && !last_debug && last_wake == 1 &&
-		last_ticks >= Y2_SPM_TIMER && !(last_sleep_isr & ISR_TWAM) && !last_cpu_wake,
+		last_ticks >= Y2_SPM_TICKS(armed_seconds) && !(last_sleep_isr & ISR_TWAM) && !last_cpu_wake,
 		last_sleep_isr, last_cpu_wake);
 	ret += sysfs_emit_at(buf, ret, "dormant_entries=%u dormant_resumes=%u dormant_aborts=%u dormant_failures=%u dormant_result=%d dormant_broken=%u\n",
 		dormant_entries, dormant_resumes, dormant_aborts, dormant_failures, dormant_result, dormant_broken);

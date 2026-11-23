@@ -35,6 +35,8 @@ enum { SPM_PCM_REG9_DATA, SPM_PCM_TIMER_OUT, SPM_PCM_REG_DATA_INI,
 static bool suspend_cirq_pending, spm_broken, cirq_active, core_restored;
 static bool timer_ok=true, cirq_ok=true;
 static unsigned entries, resumes, aborts, suspend_restore_failures;
+#define Y2_SPM_TICKS(s) ((s)*32768U)
+static unsigned maintenance_seconds = 1800, armed_seconds = 1800;
 static unsigned last_wake,last_ticks,last_debug,last_event,last_r13,last_sleep_isr,last_cpu_wake;
 static u64 resume_restore_ns;
 static int last_result, spm_lock, vector_error, cirq_error, arm_error, return_error;
@@ -72,7 +74,7 @@ static int infra_save=-ENODEV, infra_restore, arm_infra;
 static unsigned infra_saves, infra_restores;
 static int y2_infra_pdn_save(void) { ++infra_saves; return infra_save; }
 static int y2_infra_pdn_restore(void) { ++infra_restores; return infra_restore; }
-static int y2_spm_suspend_arm(void *io,unsigned address,unsigned infra) { arm_infra=infra; assert(infra_saves>=1 || !infra); return arm_error; }
+static int y2_spm_suspend_arm(void *io,unsigned address,unsigned infra,unsigned timer) { (void)timer; arm_infra=infra; assert(infra_saves>=1 || !infra); return arm_error; }
 static int y2_spm_suspend_restore(void *io,unsigned address) { restores++; return restore_error; }
 static int y2_spm_finish(unsigned long arg) { return 0; }
 /* POWER-FINAL-13: VPROC sleep voltage armed only with CIRQ active and always

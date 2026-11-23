@@ -676,7 +676,7 @@ fn battery_notification_during_maintenance_uses_a_fresh_handshake() {
     });
     let tree = p.tree.clone();
     p.sleep(move |seconds| {
-        assert_eq!(seconds, 2.0);
+        assert_eq!(seconds, 0.1);
         // A routine post-resume BAT0 notification: no cable, Power or RTC event, and the normal
         // battery safety owner stays healthy.
         tree.write("/sys/power/wakeup_count", "9");
@@ -1567,4 +1567,96 @@ fn short_store_fails_without_writing_remainder() {
 fn successful_store_is_issued_once() {
     let (outcome, _) = invoke(Ok(4));
     assert_eq!(outcome, Ok(()));
+}
+
+/// Run one sleep of `entries` kernel entries (all but the last a maintenance timer return) with the
+/// kernel's period parameter present and the battery at `percent`: the periods written, in order.
+fn backoff_periods(entries: u32, percent: i64) -> Vec<String> {
+    let p = Player::new();
+    p.write(super::backoff::PARAMETER, "1800\n");
+    let battery = json!({"percent": percent});
+    p.tree.power_with("Normal", Some(battery.clone()));
+    let (tree, n) = (p.tree.clone(), Rc::new(Cell::new(0)));
+    p.enter(move || {
+        n.set(n.get() + 1);
+        tree.power_with("Normal", Some(battery.clone()));
+        tree.returned(n.get() < entries, false);
+        Ok(())
+    });
+    let periods = Rc::new(RefCell::new(Vec::new()));
+    let seen = periods.clone();
+    p.control(move |_, name, value| {
+        if name == super::backoff::PARAMETER {
+            seen.borrow_mut().push(value.trim().to_owned());
+        }
+        Ok(())
+    });
+    assert_eq!(p.run_sleep(), 0);
+    assert_eq!(p.receipt()["maintenance_wakes"], entries - 1);
+    let written = periods.borrow().clone();
+    written
+}
+
+#[test]
+fn maintenance_wakes_back_off_while_the_player_lies_untouched() {
+    let expected = [
+        "1800", "1800", "1800", "1800", "3600", "3600", "7200", "7200", "14400", "14400",
+    ];
+    assert_eq!(backoff_periods(10, 80), expected);
+}
+
+#[test]
+fn a_battery_that_needs_care_keeps_the_30_minute_check() {
+    assert_eq!(backoff_periods(10, 20), ["1800"; 10]);
+}
+
+#[test]
+fn an_unknown_battery_or_an_older_kernel_never_stretches_the_check() {
+    use super::backoff::period;
+    use y2p_contract::power::{BatteryState, PowerRecord};
+    assert_eq!(period(9, None), 1800);
+    let mut record = PowerRecord {
+        state: BatteryState::Low,
+        ..PowerRecord::default()
+    };
+    record.battery.percent = Some(90);
+    assert_eq!(period(9, Some(&record)), 1800);
+    record.state = BatteryState::Normal;
+    record.battery.percent = None;
+    assert_eq!(period(9, Some(&record)), 1800);
+    record.battery.percent = Some(21);
+    assert_eq!(period(9, Some(&record)), 14400);
+    // Without the parameter (an older kernel) nothing is written and the sleep still runs.
+    let p = Player::new();
+    p.tree.power();
+    let tree = p.tree.clone();
+    p.enter(move || {
+        tree.returned(false, false);
+        Ok(())
+    });
+    p.control(|_, name, _| {
+        assert_ne!(name, super::backoff::PARAMETER);
+        Ok(())
+    });
+    assert_eq!(p.run_sleep(), 0);
+}
+
+#[test]
+fn a_maintenance_return_waits_for_the_safety_sample_at_most_2_s() {
+    // No fresh power.json sample: the full 2 s, in 0.1 s steps.
+    let p = Player::new();
+    let (tree, n) = (p.tree.clone(), Rc::new(Cell::new(0)));
+    p.enter(move || {
+        n.set(n.get() + 1);
+        tree.returned(n.get() == 1, false);
+        Ok(())
+    });
+    let waited = Rc::new(Cell::new(0.0));
+    let w = waited.clone();
+    p.sleep(move |seconds| {
+        w.set(w.get() + seconds);
+        Ok(())
+    });
+    assert_eq!(p.run_sleep(), 0);
+    assert!((waited.get() - 2.0).abs() < 1e-9, "{}", waited.get());
 }

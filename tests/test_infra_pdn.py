@@ -247,7 +247,7 @@ int main(void) {
         # save before arming; arm told the mode; restore right after the CPU returns,
         # after the backstop clock is running again.
         self.assertLess(enter.index('y2_infra_pdn_save()'), enter.index('y2_spm_suspend_arm('))
-        self.assertIn('y2_spm_suspend_arm(&spm_io, pcm_address, infra)', enter)
+        self.assertIn('y2_spm_suspend_arm(&spm_io, pcm_address, infra, Y2_SPM_TICKS(armed_seconds))', enter)
         self.assertLess(enter.index('cpu_suspend(0, y2_spm_finish)'), enter.index('y2_infra_pdn_restore()'))
         self.assertLess(enter.index('y2_pm_backstop_pause(false)'), enter.index('y2_infra_pdn_restore()'))
         self.assertLess(enter.index('y2_infra_pdn_restore()'), enter.index('resumes++'))

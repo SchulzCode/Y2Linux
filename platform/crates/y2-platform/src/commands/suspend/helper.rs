@@ -2,8 +2,9 @@
 //! `sleep request` launches with its `/run/y2/suspend.lock` open file description; no polling while
 //! asleep and no editable bypass on 04.
 //!
-//! The established PCM wakes every 30 minutes for a battery safety check. Only an unambiguous timer
-//! return can re-enter without restoring the screen/radios. All other wakes restore the application.
+//! The established PCM wakes for a battery safety check, every 30 minutes at first and further apart
+//! the longer the player lies untouched (`backoff`). Only an unambiguous timer return can re-enter
+//! without restoring the screen/radios. All other wakes restore the application.
 //! Critical operations use real flock ownership and bounded kernel leases, never the mere existence
 //! of a PID file.
 //!
@@ -12,6 +13,7 @@
 //! (`interrupted`: the run ends as `sleep_helper_interrupted`); during the restore it is checked only
 //! once the restore has finished, so a signal never leaves Reborn quiesced or the radios off.
 // SPDX-License-Identifier: GPL-2.0-only
+mod backoff;
 mod kernel;
 
 use super::{
@@ -219,6 +221,7 @@ impl Run {
             woken(root, &previous_irqs)?;
         }
         let mut stale_counts = 0;
+        let mut maintenance_wakes = 0;
         loop {
             check()?;
             // Reading can block until an event finishes. The write rejects any intervening
@@ -232,6 +235,7 @@ impl Run {
             };
             battery_and_cable(root)?;
             operation_state(root, true)?;
+            backoff::arm(root, pm, maintenance_wakes)?;
             record(root, Stage::new("syncing", Some(0)))?;
             service(root, &["/bin/sync"])?;
             record(root, Stage::new("kernel_suspend", Some(0)))?;
@@ -271,7 +275,8 @@ impl Run {
             // ADC directly.
             previous_irqs = value.wake_irqs_after();
             record(root, Stage::new("maintenance_wake", Some(0)))?;
-            pm.pause(2.0)?;
+            maintenance_wakes += 1;
+            backoff::await_safety_tick(root, pm)?;
             // The safety tick may publish a normal BAT0 notification. Begin a new handshake after
             // that pause; reusing the pre-tick count would reject an otherwise safe next cycle.
             // Preserve previous_irqs so Power/RTC during the pause still cancel entry, and the

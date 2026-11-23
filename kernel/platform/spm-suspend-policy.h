@@ -13,9 +13,15 @@
 #define Y2_SPM_WAKE (WAKE_SRC_KP | WAKE_SRC_EINT | WAKE_SRC_USB_CD | WAKE_SRC_THERM | WAKE_SRC_SYSPWREQ)
 /* Maintenance wake for the battery-safety check. Vendor SPM_WAKE_PERIOD is
  * 600 s (a modem-era value); each return costs ~3 s fully awake, so
- * POWER-FINAL-13 checks every 30 min. The PCM watchdog stays timer + 30 s. */
+ * POWER-FINAL-13 checks every 30 min. Since the power plan of 2026-11-24 the
+ * sleep helper may stretch it while the player lies untouched (Doze-like
+ * backoff) within these bounds; 4 h of 32 kHz ticks plus the 30 s watchdog
+ * margin stay far below 2^32. The PCM watchdog stays timer + 30 s. */
 #define Y2_SPM_MAINTENANCE_S 1800U
-#define Y2_SPM_TIMER (Y2_SPM_MAINTENANCE_S * 32768U)
+#define Y2_SPM_MAINTENANCE_MIN_S 300U
+#define Y2_SPM_MAINTENANCE_MAX_S 14400U
+#define Y2_SPM_TICKS(seconds) ((seconds) * 32768U)
+#define Y2_SPM_TIMER Y2_SPM_TICKS(Y2_SPM_MAINTENANCE_S)
 
 static inline void y2_spm_reset_pcm(const struct y2_spm_io *io)
 {
@@ -46,7 +52,7 @@ static inline void y2_spm_normal(const struct y2_spm_io *io, unsigned address)
 	io->write(io->context, SPM_PCM_CON0, CON0_CFG_KEY);
 }
 static inline int y2_spm_suspend_arm(const struct y2_spm_io *io, unsigned address,
-				     unsigned infra_pdn)
+				     unsigned infra_pdn, unsigned timer)
 {
 	unsigned infra_flag = infra_pdn ? 0 : CC_DISABLE_INFRA_PWR;
 	unsigned val, settle, n;
@@ -94,7 +100,7 @@ static inline int y2_spm_suspend_arm(const struct y2_spm_io *io, unsigned addres
 	/* Clear only the software CPU wake request before arming, never an RTC
 	 * or EINT pending bit. Source wake polarity remains IRQ-owner defined. */
 	io->write(io->context, SPM_SLEEP_CPU_WAKEUP_EVENT, 0);
-	io->write(io->context, SPM_PCM_TIMER_VAL, Y2_SPM_TIMER);
+	io->write(io->context, SPM_PCM_TIMER_VAL, timer);
 	y2_spm_update(io, SPM_PCM_CON1, 0, CON1_CFG_KEY | CON1_PCM_TIMER_EN);
 	io->write(io->context, SPM_SLEEP_WAKEUP_EVENT_MASK, ~Y2_SPM_WAKE);
 	io->write(io->context, SPM_SLEEP_ISR_MASK, ISRM_PCM_IRQ_AUX | ISR_TWAM);
@@ -106,12 +112,12 @@ static inline int y2_spm_suspend_arm(const struct y2_spm_io *io, unsigned addres
 	io->write(io->context, SPM_PCM_MAS_PAUSE_MASK, 0xffffffff);
 	io->write(io->context, SPM_PCM_PWR_IO_EN, PCM_PWRIO_EN_R0 | PCM_PWRIO_EN_R7);
 	y2_spm_update(io, SPM_CLK_CON, 0, CC_SRCLKENA_MASK);
-	io->write(io->context, SPM_PCM_WDT_TIMER_VAL, Y2_SPM_TIMER + 30U * 32768U);
+	io->write(io->context, SPM_PCM_WDT_TIMER_VAL, timer + 30U * 32768U);
 	y2_spm_update(io, SPM_PCM_CON1, CON1_PCM_WDT_WAKE_MODE, CON1_CFG_KEY | CON1_PCM_WDT_EN);
 	/* Refuse a dropped control write before any CPU/cluster power removal. */
 	if (io->read(io->context, SPM_SLEEP_WAKEUP_EVENT_MASK) != ~Y2_SPM_WAKE ||
-	    io->read(io->context, SPM_PCM_TIMER_VAL) != Y2_SPM_TIMER ||
-	    io->read(io->context, SPM_PCM_WDT_TIMER_VAL) != Y2_SPM_TIMER + 30U * 32768U ||
+	    io->read(io->context, SPM_PCM_TIMER_VAL) != timer ||
+	    io->read(io->context, SPM_PCM_WDT_TIMER_VAL) != timer + 30U * 32768U ||
 	    io->read(io->context, SPM_PCM_PWR_IO_EN) != (PCM_PWRIO_EN_R0 | PCM_PWRIO_EN_R7) ||
 	    !(io->read(io->context, SPM_PCM_CON1) & CON1_PCM_WDT_EN) ||
 	    (io->read(io->context, SPM_CLK_CON) & (CC_DISABLE_DORM_PWR | CC_DISABLE_INFRA_PWR)) != infra_flag)

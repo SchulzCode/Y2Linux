@@ -68,6 +68,8 @@ static void *spm_base=spmregs,*spm_biu=&biureg;
 static int spm_lock;static bool spm_broken,suspend_cirq_pending;
 static unsigned entries,resumes,aborts,last_wake,last_ticks,last_debug,last_event,last_r13,suspend_restore_failures,last_sleep_isr,last_cpu_wake;
 static int last_result;static u64 resume_restore_ns;
+#define Y2_SPM_TICKS(s) ((s)*32768U)
+static unsigned maintenance_seconds=1800,armed_seconds=1800;
 static unsigned pcm_address=0x81000000,normal_address=0x81001000;
 static struct y2_spm_io spm_io;
 static unsigned cirq_enter,cirq_exit,normal_restores,sleeps;
@@ -86,7 +88,7 @@ static void writel(unsigned v,void *p){if(bad_biu)v^=1;*(unsigned*)p=v;}
 static bool suspend_infra_pdn;static unsigned infra_pdn_entries,infra_pdn_restore_failures;
 static int y2_infra_pdn_save(void){return -ENODEV;}
 static int y2_infra_pdn_restore(void){return 0;}
-static int y2_spm_suspend_arm(struct y2_spm_io *io,unsigned addr,unsigned infra){(void)infra;return fail_arm;}
+static int y2_spm_suspend_arm(struct y2_spm_io *io,unsigned addr,unsigned infra,unsigned timer){(void)infra;(void)timer;return fail_arm;}
 static int y2_spm_finish(unsigned long n){return 0;}
 static int cpu_suspend(unsigned long n,int(*fn)(unsigned long)){assert(n==0);sleeps++;return fail_sleep;}
 static int y2_spm_suspend_restore(struct y2_spm_io *io,unsigned addr){normal_restores++;return fail_restore;}
