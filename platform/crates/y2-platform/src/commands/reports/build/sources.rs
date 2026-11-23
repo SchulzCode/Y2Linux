@@ -65,7 +65,7 @@ pub(super) const COMMANDS: [(&str, &[&str], f64, usize); 13] = [
 ];
 
 /// Files copied whole (logs keep their newest end). Globs are bounded by `Root::glob`.
-pub(super) const FILES: [&str; 68] = [
+pub(super) const FILES: [&str; 70] = [
     "/sys/fs/pstore/*",
     "/data/logs/system.log",
     "/data/logs/system.log.0",
@@ -116,6 +116,9 @@ pub(super) const FILES: [&str; 68] = [
     "/data/system/platform/panel.json",
     "/data/system/platform/sd-admissions.json",
     "/data/system/platform/sd-repair-last.json",
+    // Power plan phase 2: time and charge per state, this boot and the previous one.
+    "/data/system/platform/energy*.json",
+    "/data/system/platform/power-profile.json",
     "/data/system/platform/wifi-journal*.jsonl",
     "/data/system/platform/bluetooth-journal*.jsonl",
     "/data/system/platform/retained/*.tar",

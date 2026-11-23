@@ -6,6 +6,7 @@ pub mod battery;
 pub mod client;
 pub mod coordinator;
 pub mod daemon;
+pub mod energy;
 pub mod journal;
 pub mod policy;
 pub mod published;

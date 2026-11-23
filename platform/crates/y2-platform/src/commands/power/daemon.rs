@@ -16,6 +16,7 @@ mod requests;
 use super::{
     battery::{load_profile, sample, BatteryStatus, DisplayRecord, Soc, UI_STATE},
     coordinator::Coordinator,
+    energy::{Energy, Observation},
     journal::PowerJournal,
     policy::{load_policy, BatteryState, LowBattery, Policy},
     quiet_exit, unix,
@@ -78,6 +79,8 @@ struct Daemon<'r> {
     /// What the power.json last written said (see [`Published`]) and when.
     published: Option<(Published, u64)>,
     notes: Notes,
+    /// Time and charge per state (energy.json).
+    energy: Energy,
 }
 
 impl Daemon<'_> {
@@ -120,6 +123,10 @@ impl Daemon<'_> {
             self.coordinator.intent.as_ref(),
             None,
         );
+        self.energy
+            .observe(root, &self.battery_status, &Observation::read(root));
+        let saved = self.energy.save_due(root);
+        self.notes.check("energy.json", saved);
         let now = root.clock().monotonic_ns();
         let content = Published::of(self);
         if !publish_due(self.published.as_ref(), &content, now) {
@@ -255,6 +262,7 @@ pub fn serve(root: &Root) -> Outcome {
         battery_status: BatteryStatus::default(),
         published: None,
         notes: Notes::default(),
+        energy: Energy::new(root, root.boot_id()),
     };
     RUNNING.store(true, Ordering::SeqCst);
     handle_signals();
