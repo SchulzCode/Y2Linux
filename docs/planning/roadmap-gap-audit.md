@@ -9954,3 +9954,26 @@ Power on the PMIC; only `mtk-pmic-keys` is wake-enabled. The SPM suspend mask al
 | Device checks | — | OWED on the owner's player: every lockout path, dark feedback, a remapped layout through a day |
 
 **Gate decision:** source work and an owner test build. Publishing is the owner's decision.
+
+## Power plan 2026-11: entry audit — 2026-11-24
+
+**Boundary:** power behaviour of sleep, awake idle and Bluetooth; no new hardware subsystem, no memory or
+partition change. Owner request 2026-11-24 ("can you just do all the steps in total?") for the plan in
+[POWER-PLAN-2026-11.md](POWER-PLAN-2026-11.md).
+
+**Evidence (owner's player, 9.3.39 `a3794d82`, boot `70c6fea1`, read-only over USB SSH):** a 23-h unplugged sleep,
+47/47 clean INFRA_PDN entries, 47 maintenance wakes, SoC/PMIC golden rows unchanged from earlier audits (only the
+known differences, VEMC3V3 among them). Awake: the Bluetooth BTIF/APDMA clocks refused 376 058 of 376 089 idle
+attempts; deep idle 5 entries in 25 h. Limitation: no current sensor and no meter; drain is voltage-estimated and
+the owner rules out comparing older numbers.
+
+| Area | Before | Plan |
+| --- | --- | --- |
+| Maintenance wakes | fixed 30 min, fixed 2 s awake | backoff to 4 h while untouched and the battery is healthy; wake ends after the safety sample |
+| Energy evidence | voltage only | time-per-state accounting with estimated currents until a meter calibrates them |
+| Background work | separate timers | shared windows (awake anyway, charger, Wi-Fi up) |
+| Awake idle with Bluetooth on | BTIF/APDMA always on (F37) | stock power-saving handshake, behind a switch |
+| Kernel config | no cgroups | unchanged unless the freezer phase is taken |
+
+**Gate decision:** source work phase by phase; an owner test build before publishing. Hardware authorization for
+live register probes stays separate.
