@@ -94,7 +94,7 @@ class Placement(unittest.TestCase):
         enter = self.spm[self.spm.index('static int y2_spm_enter('):self.spm.index('int y2_spm_dormant_idle(')]
         begin = enter.index('y2_pmic_vproc_sleep_begin();')
         self.assertLess(enter.index('y2_infra_pdn_save()'), begin)
-        self.assertLess(begin, enter.index('y2_spm_suspend_arm(&spm_io, pcm_address, infra)'))
+        self.assertLess(begin, enter.index('y2_spm_suspend_arm(&spm_io, pcm_address, infra, Y2_SPM_TICKS(armed_seconds))'))
         end = enter.index('y2_pmic_vproc_sleep_end();')
         self.assertLess(enter.index('cpu_suspend(0, y2_spm_finish)'), end)
         self.assertLess(end, enter.index('restore = y2_spm_suspend_restore(&spm_io, normal_address);'))

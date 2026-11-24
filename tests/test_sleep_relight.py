@@ -63,7 +63,7 @@ int main(void) {
 
     def test_one_retry_only_after_a_uart_refusal_then_refuse_as_stock(self):
         enter = function(SPM, 'y2_spm_enter')
-        arm = enter.index('ret = y2_spm_suspend_arm(&spm_io, pcm_address, infra);')
+        arm = enter.index('ret = y2_spm_suspend_arm(&spm_io, pcm_address, infra, Y2_SPM_TICKS(armed_seconds));')
         retry = enter.index('if (ret == -EBUSY && y2_spm_uart_busy()) {')
         self.assertLess(arm, retry)
         self.assertEqual(enter.count('y2_spm_suspend_arm('), 2)
