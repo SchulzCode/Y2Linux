@@ -46,7 +46,9 @@ static irqreturn_t y2_btif_irq(int irq, void *data)
 		return IRQ_HANDLED;
 	}
 	if (irq == c->irq[3]) {
-		writel(1, c->btif + 0x64); /* Host/controller wake handshake. */
+		/* With power saving the line means "chip has data": wake it (stp-psm.c). */
+		if (READ_ONCE(c->psm_state) != Y2_PSM_OFF) y2_psm_wake_irq(c);
+		else writel(1, c->btif + 0x64); /* Host/controller wake handshake. */
 		return IRQ_HANDLED;
 	}
 	mutex_lock(&c->dma_rx);
@@ -85,6 +87,9 @@ int y2_btif_send(struct y2_conn *c, const unsigned char *data, unsigned size)
 	if (!size || size > Y2_CONN_DMA_SIZE) return -EMSGSIZE;
 	mutex_lock(&c->dma_tx);
 	if (!READ_ONCE(c->transport_on)) { ret = -ESHUTDOWN; goto out; }
+	/* Every sender holds the chip awake first (y2_psm_get); a gated BTIF here
+	 * is a missing reference, refused instead of touching unclocked registers. */
+	if (READ_ONCE(c->psm_gated)) { c->psm_send_while_gated++; ret = -EIO; goto out; }
 	ret = readl_poll_timeout(c->txdma + FLUSH, value, !(value & 1), 10, 100000);
 	if (!ret) ret = readl_poll_timeout(c->txdma + LEFT, value, value >= size, 10, 100000);
 	if (ret) goto out;
@@ -151,7 +156,7 @@ void y2_btif_report_timeout(struct y2_conn *c)
 	/* WMT's lifecycle owner calls this before shutdown, with clocks held.
 	 * Log only control/status and FIFO offsets, never DMA base addresses,
 	 * traffic, factory data or radio identities. */
-	if (!c->dma_active || !READ_ONCE(c->transport_on)) return;
+	if (!c->dma_active || !READ_ONCE(c->transport_on) || READ_ONCE(c->psm_gated)) return;
 	mutex_lock(&c->dma_tx);
 	dev_err(c->dev, "BTIF timeout: IER=%x LSR=%x DMA=%x TX en=%x ien=%x flag=%x wpt=%x rpt=%x valid=%u left=%u flush=%x\n",
 		readl(c->btif+4), readl(c->btif+0x14), readl(c->btif+0x4c),

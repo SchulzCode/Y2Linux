@@ -87,7 +87,7 @@ static bool fm_done(struct y2_fm *fm, unsigned mask)
 }
 
 /* Send fm->tx and wait for every bit of mask (vendor fm_cmd_tx semantics). */
-static int fm_cmd(struct y2_fm *fm, unsigned mask, unsigned seconds)
+static int fm_exchange(struct y2_fm *fm, unsigned mask, unsigned seconds)
 {
 	unsigned long flags;
 	int ret;
@@ -110,6 +110,15 @@ static int fm_cmd(struct y2_fm *fm, unsigned mask, unsigned seconds)
 	fm->events &= ~mask;
 	spin_unlock_irqrestore(&fm->events_lock, flags);
 	return 0;
+}
+/* The chip stays awake from the command until its answer (stp-psm.c). */
+static int fm_cmd(struct y2_fm *fm, unsigned mask, unsigned seconds)
+{
+	int ret = y2_psm_get(fm->c);
+	if (ret) return ret;
+	ret = fm_exchange(fm, mask, seconds);
+	y2_psm_put(fm->c);
+	return ret;
 }
 
 static int fm_read(struct y2_fm *fm, unsigned addr, unsigned *value)

@@ -8,8 +8,10 @@
 #include <linux/slab.h>
 #include "conn.h"
 
-int y2_conn_wmt(struct y2_conn *c, const unsigned char *request, unsigned size,
-	       const unsigned char *expected, unsigned expected_size)
+/* One WMT command and its exact reply, for a caller that holds the chip awake
+ * (y2_conn_wmt, or the power-saving owner itself under its lock). */
+int y2_conn_wmt_awake(struct y2_conn *c, const unsigned char *request, unsigned size,
+		      const unsigned char *expected, unsigned expected_size)
 {
 	static const unsigned char rf_reply[] = {2, 0x14, 2, 0, 0, 1};
 	int ret;
@@ -43,6 +45,15 @@ out:
 	WRITE_ONCE(c->wmt_reg_read,false);
 	WRITE_ONCE(c->wmt_rf_calibrate,false);
 	mutex_unlock(&c->command);
+	return ret;
+}
+int y2_conn_wmt(struct y2_conn *c, const unsigned char *request, unsigned size,
+	       const unsigned char *expected, unsigned expected_size)
+{
+	int ret = y2_psm_get(c);
+	if (ret) return ret;
+	ret = y2_conn_wmt_awake(c, request, size, expected, expected_size);
+	y2_psm_put(c);
 	return ret;
 }
 static int read_version(struct y2_conn *c, unsigned address, unsigned *value)

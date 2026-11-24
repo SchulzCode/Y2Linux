@@ -58,6 +58,7 @@ static int power_off(struct y2_conn *c)
 	int ret, result, stop_error;
 	if (!c->powered && !c->clock_on && !c->dma_active &&
 	    !c->rail_on[0] && !c->rail_on[1] && !c->rail_on[2] && !c->rail_on[3]) return 0;
+	y2_psm_stop(c);
 	stop_error = y2_btif_stop(c); ret=0;
 	y2_stp_reset(c);
 	/* A DMA STOP timeout retains buffers/clocks, but isolating the remote
@@ -115,7 +116,7 @@ static int power_on_once(struct y2_conn *c)
 	msleep(5);
 	WRITE_ONCE(c->failure,0);
 	ret = y2_wmt_boot(c);
-	if (!ret) return 0;
+	if (!ret) { y2_psm_start(c); return 0; }
 fail:
 	dev_err(c->dev,"connectivity start failed: %d\n",ret);
 	int stopped = power_off(c);
@@ -321,6 +322,11 @@ static ssize_t boot_retries_show(struct device *dev, struct device_attribute *at
 	return sysfs_emit(buf, "%u\n", READ_ONCE(boot_retries));
 }
 static DEVICE_ATTR_RO(boot_retries);
+static ssize_t psm_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	return y2_psm_show(dev_get_drvdata(dev), buf);
+}
+static DEVICE_ATTR_RO(psm);
 static DEVICE_ATTR_WO(activate);
 static DEVICE_ATTR_RO(status);
 static ssize_t recover_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t n)
@@ -337,7 +343,7 @@ static ssize_t recover_store(struct device *dev, struct device_attribute *attr, 
 	return n;
 }
 static DEVICE_ATTR_WO(recover);
-static struct attribute *attrs[]={&dev_attr_activate.attr,&dev_attr_status.attr,&dev_attr_recover.attr,&dev_attr_boot_retries.attr,NULL};
+static struct attribute *attrs[]={&dev_attr_activate.attr,&dev_attr_status.attr,&dev_attr_recover.attr,&dev_attr_boot_retries.attr,&dev_attr_psm.attr,NULL};
 static const struct bin_attribute *const bin_attrs[]={&bin_attr_factory,NULL};
 static const struct attribute_group group={.attrs=attrs,.bin_attrs=bin_attrs};
 static int suspend(struct device *dev)
@@ -388,7 +394,7 @@ static int probe(struct platform_device *pdev)
 	c->dev=dev; mutex_init(&c->lifecycle); mutex_init(&c->command);
 	mutex_init(&c->recovery_lock);
 	mutex_init(&c->dma_tx); mutex_init(&c->dma_rx); init_completion(&c->response);
-	y2_stp_init(c); INIT_WORK(&c->recovery_work,recover);
+	y2_stp_init(c); y2_psm_init(c); INIT_WORK(&c->recovery_work,recover);
 	c->clocks[0].id="connmcu"; c->clocks[1].id="btif"; c->clocks[2].id="dma";
 	ret=devm_clk_bulk_get(dev,3,c->clocks); if (ret) return ret;
 	c->rails[0].supply="vcn18"; c->rails[1].supply="vcn28";

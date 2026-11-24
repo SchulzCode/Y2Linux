@@ -99,10 +99,13 @@ int main(void){
 #define IRQ_NONE 0
 #define IRQ_HANDLED 1
 typedef int irqreturn_t;
+#define Y2_PSM_OFF 0
 struct y2_conn {
  bool transport_on;int dma_tx,dma_rx,tx_wait,irq[4],failure;
  unsigned txptr,rxptr;void *txdma,*rxdma,*btif;unsigned char *txbuf,*rxbuf;
+ int psm_state;bool psm_gated;unsigned psm_send_while_gated;
 };
+static void y2_psm_wake_irq(struct y2_conn *c){(void)c;}
 static uint32_t regs[32];
 static unsigned char fifo[8192],wire[8192];
 static unsigned wire_size,writes,bad_enable_order,stuck;
@@ -200,10 +203,13 @@ int main(void){
 #define IRQ_NONE 0
 #define IRQ_HANDLED 1
 typedef int irqreturn_t;
+#define Y2_PSM_OFF 0
 struct y2_conn {
  bool transport_on;int dma_tx,dma_rx,tx_wait,irq[4],failure;
  unsigned txptr,rxptr;void *txdma,*rxdma,*btif;unsigned char *txbuf,*rxbuf;
+ int psm_state;bool psm_gated;unsigned psm_send_while_gated;
 };
+static void y2_psm_wake_irq(struct y2_conn *c){(void)c;}
 static uint32_t rx[32],btif[32];
 static unsigned char ring[8192],got[8192];
 static unsigned got_size,wptr_reads,arrive_on_read,arrive_bytes;
@@ -263,7 +269,11 @@ int main(void){
         source=source.replace('void y2_stp_receive(', 'static void y2_stp_receive(')
         body='\n'.join(function(source,n) for n in
                        ('y2_stp_send','y2_stp_acknowledge','deliver','y2_stp_receive'))
-        body+='\n'+function((ROOT/'kernel/platform/connectivity/wmt.c').read_text().replace('int y2_conn_wmt(', 'static int y2_conn_wmt('), 'y2_conn_wmt')
+        wmt = (ROOT/'kernel/platform/connectivity/wmt.c').read_text()
+        wmt = wmt.replace('int y2_conn_wmt_awake(', 'static int y2_conn_wmt_awake(').replace('int y2_conn_wmt(', 'static int y2_conn_wmt(')
+        # Power saving off in this harness: holding the chip awake always succeeds (stp-psm.c).
+        body+='\nstatic int y2_psm_get(struct y2_conn *c){(void)c;return 0;}\nstatic void y2_psm_put(struct y2_conn *c){(void)c;}'
+        body+='\n'+function(wmt, 'y2_conn_wmt_awake')+'\n'+function(wmt, 'y2_conn_wmt')
         run_c(r'''
 #include <assert.h>
 #include <errno.h>
@@ -282,6 +292,7 @@ int main(void){
 struct y2_stp_frame {unsigned size;unsigned char data[Y2_STP_MAX_PAYLOAD+6];};
 struct y2_conn {
  int stp_lock,tx_wait,retry_work,response,failure,command;
+ unsigned psm_expect,psm_unsolicited;
  bool transport_on,full_stp,wmt_reg_read,wmt_rf_calibrate;
  unsigned chip,hvr,fvr;
  unsigned stp_pending,stp_tx,stp_oldest,stp_rx,stp_retries,rx_used,rx_needed,response_size;

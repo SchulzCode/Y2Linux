@@ -91,14 +91,20 @@ static void tx_work(struct work_struct *work)
 {
 	struct y2_conn *c = container_of(work, struct y2_conn, hci_work);
 	struct sk_buff *skb;
+	int awake;
+	/* An empty run is a no-op; a packet queued later schedules this work again. */
+	if (skb_queue_empty(&c->hci_tx)) return;
+	/* The chip stays awake while this queue drains (stp-psm.c). */
+	awake = y2_psm_get(c);
 	while ((skb = skb_dequeue(&c->hci_tx))) {
-		int ret = READ_ONCE(c->hci_open) && !READ_ONCE(c->hci_paused) ?
+		int ret = awake ? awake : READ_ONCE(c->hci_open) && !READ_ONCE(c->hci_paused) ?
 			y2_stp_send(c, Y2_CONN_BT, skb->data, skb->len) : -ESHUTDOWN;
 		if (ret) c->hdev->stat.err_tx++;
 		else c->hdev->stat.byte_tx += skb->len;
 		kfree_skb(skb);
 		if (ret && ret != -ESHUTDOWN) { y2_conn_failed(c, ret); break; }
 	}
+	if (!awake) y2_psm_put(c);
 }
 static int open(struct hci_dev *hdev)
 {

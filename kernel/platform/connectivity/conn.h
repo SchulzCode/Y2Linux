@@ -8,7 +8,9 @@
 #include <linux/mutex.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
+#include <linux/ktime.h>
 #include <linux/regulator/consumer.h>
+#include <linux/spinlock.h>
 #include <linux/reset.h>
 #include <linux/skbuff.h>
 #include <linux/wait.h>
@@ -26,6 +28,8 @@ int y2_conn_request_firmware(struct device *dev, const char *name, const struct 
 struct hci_dev;
 struct y2_md;
 struct y2_fm;
+/* STP power saving (stp-psm.c). */
+enum y2_psm_state { Y2_PSM_OFF, Y2_PSM_ACT, Y2_PSM_ACT_INACT, Y2_PSM_INACT, Y2_PSM_INACT_ACT };
 struct y2_stp_frame { unsigned size; unsigned char data[Y2_STP_MAX_PAYLOAD + 6]; };
 struct y2_conn {
 	struct device *dev;
@@ -69,6 +73,19 @@ struct y2_conn {
 	struct platform_device *wifi;
 	struct y2_md *md;
 	struct y2_fm *fm;
+	struct mutex psm_lock;
+	spinlock_t psm_irq_lock;
+	struct delayed_work psm_idle;
+	struct work_struct psm_wake;
+	enum y2_psm_state psm_state;
+	bool psm_gated, psm_wake_enabled;
+	unsigned psm_users, psm_expect;
+	ktime_t psm_since;
+	u64 psm_asleep_ns;
+	unsigned psm_sleeps, psm_refused, psm_sleep_failures, psm_gate_busy;
+	unsigned psm_host_wakes, psm_chip_wakes, psm_wake_spurious, psm_wake_retries, psm_wake_failures;
+	unsigned psm_wake_latency_us, psm_wake_latency_max_us;
+	unsigned psm_rx_while_gated, psm_send_while_gated, psm_unsolicited;
 };
 int y2_btif_probe(struct platform_device *pdev, struct y2_conn *c);
 int y2_btif_start(struct y2_conn *c);
@@ -85,6 +102,15 @@ int y2_conn_get(struct y2_conn *c, unsigned function);
 int y2_conn_put(struct y2_conn *c, unsigned function);
 int y2_conn_wmt(struct y2_conn *c, const unsigned char *request, unsigned size,
 	       const unsigned char *expected, unsigned expected_size);
+int y2_conn_wmt_awake(struct y2_conn *c, const unsigned char *request, unsigned size,
+		      const unsigned char *expected, unsigned expected_size);
+void y2_psm_init(struct y2_conn *c);
+void y2_psm_start(struct y2_conn *c);
+void y2_psm_stop(struct y2_conn *c);
+int y2_psm_get(struct y2_conn *c);
+void y2_psm_put(struct y2_conn *c);
+void y2_psm_wake_irq(struct y2_conn *c);
+ssize_t y2_psm_show(struct y2_conn *c, char *buf);
 int y2_wmt_boot(struct y2_conn *c);
 int y2_wmt_function(struct y2_conn *c, unsigned function, bool enable);
 int y2_conn_rail(struct y2_conn *c, unsigned rail, bool enable);

@@ -115,6 +115,13 @@ static int deliver(struct y2_conn *c, unsigned channel, const unsigned char *p, 
 		 * the small command buffer nor logged/persisted as factory data. */
 		copy_size = 6;
 	}
+	/* Power-saving events (02 03 02 00 00 0x) only answer the step that waits
+	 * for one; any other is dropped and counted, never a transport failure. */
+	if (size == 6 && p[1] == 3 && y2_conn_le16(p + 2) == 2 && !p[4] &&
+	    READ_ONCE(c->psm_expect) != p[5]) {
+		c->psm_unsolicited++;
+		return 0;
+	}
 	if (completion_done(&c->response)) return -EPROTO;
 	memcpy(c->response_data, p, copy_size); c->response_size = size;
 	complete(&c->response);
