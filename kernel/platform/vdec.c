@@ -139,7 +139,10 @@ static int y2_vdec_configure(struct y2_vdec *v, struct y2_vdec_config *c)
 	    c->height > 1920 || c->width * c->height > 1920 * 1088)
 		return -EINVAL;
 	/* A mapping of the old buffers would outlive them. */
-	if (atomic_read(&v->maps)) return -EBUSY;
+	if (atomic_read(&v->maps)) {
+		dev_warn(v->dev, "configure refused: buffers of the last stream are still mapped\n");
+		return -EBUSY;
+	}
 	y2_vdec_power_off(v);
 	y2_vdec_release_buffers(v);
 	v->mbs_w = c->width / 16;
@@ -160,6 +163,9 @@ static int y2_vdec_configure(struct y2_vdec *v, struct y2_vdec_config *c)
 	}
 	if (!ret && mpeg4 && c->frames < 2) ret = y2_vdec_buf_alloc(v, &v->mv[1], vectors);
 	if (ret) {
+		/* Y2Linux #145: a film fell back to software and the report could not say why. */
+		dev_warn(v->dev, "configure %ux%u, %u frames of %u bytes: %d after %u frames\n",
+			 c->width, c->height, c->frames, c->y_size + c->c_size, ret, i);
 		y2_vdec_release_buffers(v);
 		return ret;
 	}
@@ -312,7 +318,10 @@ out:
 static int y2_vdec_open(struct inode *inode, struct file *file)
 {
 	struct y2_vdec *v = container_of(file->private_data, struct y2_vdec, misc);
-	if (test_and_set_bit(0, &v->opened)) return -EBUSY;
+	if (test_and_set_bit(0, &v->opened)) {
+		dev_warn(v->dev, "open refused: the decoder is already in use\n");
+		return -EBUSY;
+	}
 	return 0;
 }
 

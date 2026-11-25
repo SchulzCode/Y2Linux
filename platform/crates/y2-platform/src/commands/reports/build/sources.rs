@@ -76,6 +76,7 @@ pub(super) const FILES: [&str; 70] = [
     "/proc/cmdline",
     "/proc/meminfo",
     "/proc/vmstat",
+    "/proc/buddyinfo",
     "/proc/loadavg",
     "/proc/interrupts",
     "/proc/softirqs",
@@ -137,7 +138,6 @@ pub(super) const FILES: [&str; 70] = [
     "/data/reborn/logs/panic-last.json",
     "/data/reborn/diagnostics/*.tar.gz",
     // (padding entries keep the array length explicit; never matched)
-    "",
     "",
 ];
 
