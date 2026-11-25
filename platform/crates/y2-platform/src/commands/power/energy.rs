@@ -247,9 +247,11 @@ impl Energy {
     }
 
     /// Write the record every 10 minutes, the first time 10 minutes after the daemon started (a
-    /// bounded test run or a daemon restarted in a loop writes nothing).
+    /// bounded test run or a daemon restarted in a loop writes nothing). The minutes run on the
+    /// clock that counts suspended time: a player asleep for days is awake only seconds of them,
+    /// and an awake-time cadence never wrote that record.
     pub fn save_due(&mut self, root: &Root) -> Result<(), Failure> {
-        let now = root.clock().monotonic_ns();
+        let now = root.clock().boottime_ns();
         match self.written_ns {
             None => {
                 self.written_ns = Some(now);
@@ -268,7 +270,7 @@ impl Energy {
             self.saved = true;
         }
         self.record.updated = root.clock().wall_ns() as f64 / 1e9;
-        self.written_ns = Some(root.clock().monotonic_ns());
+        self.written_ns = Some(root.clock().boottime_ns());
         atomic_json(&root.path(RECORD), &self.record, true)
     }
 

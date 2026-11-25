@@ -143,3 +143,20 @@ fn written_every_10_minutes_and_the_previous_boot_kept() {
     assert_eq!(f.json(PREVIOUS)["boot_id"], "old");
     assert_eq!(f.json(RECORD)["seconds"]["dark_idle"], 1.0);
 }
+
+#[test]
+fn a_player_asleep_for_days_still_writes_its_record() {
+    let (f, clock) = fixture();
+    f.put_json(RECORD, &serde_json::json!({"schema": 1, "boot_id": "old"}));
+    let mut energy = Energy::new(&f.root, Some("asleep".into()));
+    energy.observe(&f.root, &battery(1_000_000, false), &dark());
+    energy.save_due(&f.root).unwrap();
+    // Test build 277: 42.8 h asleep with ~200 s awake, and no record was ever written.
+    clock.advance(2_000_000_000);
+    clock.suspend(1_800_000_000_000);
+    clock.advance(2_000_000_000);
+    energy.observe(&f.root, &battery(999_000, false), &dark());
+    energy.save_due(&f.root).unwrap();
+    assert_eq!(f.json(RECORD)["boot_id"], "asleep");
+    assert_eq!(f.json(RECORD)["seconds"]["asleep"], 1800.0);
+}
