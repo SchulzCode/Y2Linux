@@ -41,6 +41,12 @@ def fresh(value, key='monotonic_s', ns=False, us=False):
     return make
 
 
+def stale(value, seconds=1000, key='monotonic_s'):
+    """A record stamped `seconds` before the clock when the case runs: older than any freshness window whatever the
+    host's uptime (a fixed small stamp is only stale on a host that has been up longer than the window)."""
+    return lambda: json.dumps({**value, key: time.monotonic() - seconds})
+
+
 MOUNTS = ('22 1 179:19 / / ro - ext4 /dev/mmcblk0p19 ro\n'
           '30 22 179:20 / /data rw,noatime - ext4 /dev/mmcblk0p20 rw\n'
           '40 30 179:33 / /media/sd ro,nosuid - vfat /dev/mmcblk1p1 ro\n'
@@ -306,8 +312,8 @@ CASES = [
     # wifi
     status('status-wifi-online', ['wifi'], files={**RADIO, '/run/y2/dns.json': DNS}, commands=ONLINE,
            volatile=TIMING),
-    status('status-wifi-dns-stale', ['wifi'], files={**RADIO, '/run/y2/dns.json': json.dumps(
-        {'ok': True, 'boot_id': BOOT, 'epoch': EPOCH, 'address': '192.168.1.40', 'bssid': BSSID, 'monotonic_s': 1})},
+    status('status-wifi-dns-stale', ['wifi'], files={**RADIO, '/run/y2/dns.json': stale(
+        {'ok': True, 'boot_id': BOOT, 'epoch': EPOCH, 'address': '192.168.1.40', 'bssid': BSSID})},
         commands=ONLINE, volatile=TIMING),
     status('status-wifi-signal-cached', ['wifi'], files={**RADIO, '/run/y2/dns.json': DNS, '/run/y2/network.json': fresh(
         {'rssi_dbm': -61, 'signal_observation': {'boot_id': BOOT, 'bssid': BSSID}})}, commands=ONLINE,
