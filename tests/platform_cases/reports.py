@@ -9,13 +9,14 @@ ID and wall-clock time in its name, a random scrubbing key in its tokens, deflat
 the plan made in the same root (a target's identity is its inode). The test normalises them: archives are
 decompressed and recorded by member, tokens and IDs replaced.
 """
-import gzip
 import hashlib
 import io
 import json
 import os
+import struct
 import tarfile
 import time
+import zlib
 
 from datetime import datetime, timezone
 
@@ -54,17 +55,28 @@ def answer(argv, output='', ok=True):
     return {'argv': argv, 'ok': ok, 'reason': None if ok else 'command_failed', 'output': output}
 
 
+def gzip_stored(data):
+    """One gzip member holding `data` in a stored deflate block. A golden records the archive's length and
+    SHA-256 (the upload's Content-Length and X-Y2-Sha256), and a compressed stream is not the same bytes on
+    every Python and zlib (zlib versions, zlib-ng); stored blocks are, whatever built them."""
+    assert len(data) <= 0xFFFF, 'one stored block holds 65535 bytes'
+    header = b'\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff'  # deflate, no flags, mtime 0, OS unknown
+    block = b'\x01' + struct.pack('<HH', len(data), len(data) ^ 0xFFFF) + data
+    return header + block + struct.pack('<II', zlib.crc32(data), len(data))
+
+
 def archive(report_id, created, members=()):
     """A queued report as report._pack writes it (report.json first)."""
     index = {'schema': 1, 'report_id': report_id, 'install_id': INSTALL, 'trigger': 'manual', 'triggers': ['manual'],
              'created_utc': created, 'release': {'release_version': '1.0.0-fixture'}}
     raw = io.BytesIO()
-    with tarfile.open(fileobj=raw, mode='w') as tar:
+    # The format is named: the default of tarfile changed (PAX since Python 3.14).
+    with tarfile.open(fileobj=raw, mode='w', format=tarfile.GNU_FORMAT) as tar:
         for name, data in [('report.json', json.dumps(index, indent=1, sort_keys=True).encode()), *members]:
             info = tarfile.TarInfo(name)
             info.size, info.mtime, info.mode = len(data), 1761000000, 0o600
             tar.addfile(info, io.BytesIO(data))
-    return gzip.compress(raw.getvalue(), compresslevel=6, mtime=0)
+    return gzip_stored(raw.getvalue())
 
 
 # The three reports fixture() queues: A and B made "in the future" (never too old to send), C long ago.

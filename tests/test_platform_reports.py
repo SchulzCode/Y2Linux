@@ -65,6 +65,12 @@ def summary(value):
             'head': lines[:3], 'tail': lines[-3:]}
 
 
+def without_sqlite_version(body):
+    """A SQLite file without the version number of the library that wrote it (header bytes 96 to 99): the online
+    backup stamps its own, so the same database differs between hosts with another libsqlite3."""
+    return body[:96] + bytes(4) + body[100:] if body.startswith(b'SQLite format 3\0') else body
+
+
 def listing(data):
     """An archive's members in order, normalised."""
     tokens, members = {}, []
@@ -76,7 +82,7 @@ def listing(data):
             pass
     with tarfile.open(fileobj=io.BytesIO(gzip.decompress(data)), mode='r:') as archive:
         for member in archive.getmembers():
-            body = archive.extractfile(member).read() if member.isfile() else b''
+            body = without_sqlite_version(archive.extractfile(member).read() if member.isfile() else b'')
             entry = {'name': member.name, 'mode': oct(member.mode), 'type': member.type.decode(),
                      'uname': owner(member.uname, users), 'gname': owner(member.gname, users)}
             if member.name.endswith('report-progress.json'):
