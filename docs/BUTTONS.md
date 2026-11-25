@@ -12,6 +12,9 @@ buttons answer in three places, each with its own page:
 - **Screen Off**: with the screen dark and the player awake (music playing, or just paused). Only commands that
   make sense in a pocket are offered: play/pause, skip, seek, volume, shuffle, repeat, the sleep timer, or nothing.
 
+**Next Chapter** and **Previous Chapter** move one chapter in an audiobook, however long the chapter is; with
+music they skip a song (Y2Reborn #177). They work with the screen off too.
+
 ## Changing a button
 
 1. Open a place, for example **In Menus**. The page draws the player. Turn the wheel to pick a button, or simply
