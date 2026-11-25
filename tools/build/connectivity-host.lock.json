@@ -7,9 +7,9 @@
       "sha256": "86cf2b3f8aa3b1092cb3225fcc8179fc1229d178aa126266cfeadfda09487dc2"
     },
     {
-      "name": "libcrypto3-3.5.9-r0.apk",
-      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/x86_64/libcrypto3-3.5.9-r0.apk",
-      "sha256": "6632d758d8f5e9ea3b650fe966f23bbf9a202f8b8dceecac93da135dec5e3689"
+      "name": "libcrypto3-3.5.9-r1.apk",
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/x86_64/libcrypto3-3.5.9-r1.apk",
+      "sha256": "042026082cc9bc7872d1baa81755c50efa70b05f03b5369fdc5f0a1303009720"
     },
     {
       "name": "libintl-1.0-r0.apk",
@@ -17,14 +17,14 @@
       "sha256": "cb03919cba5624b5e8759d04f3b31913b02585355988b914bc31de4746ff5ef6"
     },
     {
-      "name": "libssl3-3.5.9-r0.apk",
-      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/x86_64/libssl3-3.5.9-r0.apk",
-      "sha256": "05e3393fb95aa5751ca2f9d242f659f6cff82c1cc7767cc2df4a086f7ad01877"
+      "name": "libssl3-3.5.9-r1.apk",
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/x86_64/libssl3-3.5.9-r1.apk",
+      "sha256": "18c5778cbe52e1991303f8531970b05d4e6e036ea08349322f7422f42a689dc7"
     },
     {
-      "name": "openssl-dev-3.5.9-r0.apk",
-      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/x86_64/openssl-dev-3.5.9-r0.apk",
-      "sha256": "2479885dfc1414b44cf0f2578b014b70a3ce671d7607db62c8366e46f5b77ca6"
+      "name": "openssl-dev-3.5.9-r1.apk",
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/x86_64/openssl-dev-3.5.9-r1.apk",
+      "sha256": "6a5734c3a00cf03aaa9cb0f4ff8c6d12d3b0c0c5f1490a3491eaf13a16ae044c"
     },
     {
       "name": "pkgconf-2.5.1-r0.apk",
@@ -34,10 +34,10 @@
   ],
   "replace_packages": {
     "findutils": "4.10.0-r1",
-    "libcrypto3": "3.5.9-r0",
+    "libcrypto3": "3.5.9-r1",
     "libintl": "1.0-r0",
-    "libssl3": "3.5.9-r0",
-    "openssl-dev": "3.5.9-r0",
+    "libssl3": "3.5.9-r1",
+    "openssl-dev": "3.5.9-r1",
     "pkgconf": "2.5.1-r0"
   }
 }
