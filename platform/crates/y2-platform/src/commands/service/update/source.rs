@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{
     clock, download, free, py, record, Duration, File, Net, OpenOptions, Ordering, Path, PathBuf,
-    Raise, Read, Response, Result, Root, Sha256, Value, VecDeque, CANCELLED, CHANNEL,
+    Raise, Read, Response, Result, Root, Sha256, Value, VecDeque, CANCELLED, CHANNEL, CLOCK_WAIT_S,
     NETWORK_WAIT_S, PROGRESS, RETRY_PAUSE,
 };
 use crate::commands::connectivity::published;
@@ -134,6 +134,11 @@ pub(super) trait Io {
     /// How long a check waits for Wi-Fi to be online.
     fn network_wait(&self) -> f64 {
         NETWORK_WAIT_S
+    }
+
+    /// How long a check on an Online network waits for the clock's first NTP answer.
+    fn clock_wait(&self) -> f64 {
+        CLOCK_WAIT_S
     }
 
     /// The pause before another manifest attempt.
@@ -322,6 +327,24 @@ pub(super) fn copy_stream(
     }
     stream.sync_all()?;
     Ok((count, digest.hexdigest()))
+}
+
+/// Whether the clock is ready for TLS (and entropy is), waiting for it while the network is Online:
+/// right after the join the first NTP answer is still on its way. Without a network no answer can
+/// come, so that fails at once.
+pub(super) fn wait_for_clock(root: &Root, io: &dyn Io) -> bool {
+    let ready = || {
+        let clock = io.time_status(root);
+        clock.tls_ready && clock.entropy_ready == Some(true)
+    };
+    let deadline = root.clock().monotonic() + io.clock_wait();
+    while !ready() {
+        if !published::read(root).online() || root.clock().monotonic() >= deadline {
+            return false;
+        }
+        root.clock().sleep(Duration::from_secs(1));
+    }
+    true
 }
 
 /// True once Wi-Fi is Online (DNS answered), waiting at most `seconds`.

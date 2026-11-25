@@ -31,6 +31,10 @@ struct Fake {
     /// The bytes available (writable, no inode limit).
     space: Option<Box<dyn Fn() -> i128>>,
     remote: RefCell<Option<Remote>>,
+    /// How long a check on an Online network waits for the clock (none by default).
+    clock_wait: f64,
+    /// The looks at the clock still to pass before it reads TLS-ready (the first NTP answer).
+    ready_after: Cell<Option<u32>>,
 }
 
 impl Fake {
@@ -50,6 +54,10 @@ impl Fake {
 
 impl Io for Fake {
     fn time_status(&self, root: &Root) -> crate::commands::time::Status {
+        if let Some(left) = self.ready_after.get() {
+            self.ready_after.set(Some(left.saturating_sub(1)));
+            return crate::commands::time::Status::ready(left == 0, true);
+        }
         self.time
             .clone()
             .unwrap_or_else(|| Player.time_status(root))
@@ -84,6 +92,10 @@ impl Io for Fake {
 
     fn network_wait(&self) -> f64 {
         0.0
+    }
+
+    fn clock_wait(&self) -> f64 {
+        self.clock_wait
     }
 
     fn retry_pause(&self) -> Duration {
@@ -853,6 +865,35 @@ fn daily_check_is_rate_limited_and_never_shows_a_failed_update() {
         fixture.json("/data/updates/last-check.json")["attempt"],
         json!(1000.0 + 3.0 * 86400.0)
     );
+}
+
+#[test]
+fn a_check_waits_for_the_first_ntp_answer_only_while_the_network_is_online() {
+    // Beta 9.3.35 player: Wi-Fi joined at 18:34:47, ntpd's first answer came at 18:35:17, and a check
+    // at 18:35:13 failed at once with `clock_or_entropy_not_ready_for_TLS` (shown as "Couldn't reach
+    // the update server") although the network was Online.
+    use y2p_core::clock::{Clock as _, Manual};
+    const SECOND: u64 = 1_000_000_000;
+    let _serial = serial();
+    let waited = |network: &str, ready_after: Option<u32>, wait: f64| {
+        let manual = std::sync::Arc::new(Manual::at(100 * SECOND, 100 * SECOND));
+        let fixture = policy().with_clock(manual.clone());
+        fixture.put_json("/run/y2/network.json", &json!({ "state": network }));
+        let mut io = Fake::default();
+        io.clock(false, true);
+        io.clock_wait = wait;
+        io.ready_after.set(ready_after);
+        let ready = wait_for_clock(&fixture.root, &io);
+        (ready, manual.monotonic() - 100.0)
+    };
+    // Online, the answer comes after three looks: the check goes on, three seconds later.
+    assert_eq!(waited("Online", Some(3), 45.0), (true, 3.0));
+    // Online, no answer in time: the old failure, after the wait and not before.
+    assert_eq!(waited("Online", None, 10.0), (false, 10.0));
+    // No network, no answer can come: at once, as before.
+    assert_eq!(waited("Associating", None, 45.0), (false, 0.0));
+    // A clock that is ready needs no wait.
+    assert_eq!(waited("Online", Some(0), 45.0), (true, 0.0));
 }
 
 #[test]
