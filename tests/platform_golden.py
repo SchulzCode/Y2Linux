@@ -52,8 +52,10 @@ TRAIL_CLOCK = re.compile(r'(?m)^\d+\.\d+ ')
 
 
 def base_environment(extra):
-    # What the platform's callers pass (udhcpc/ntpd hook variables) and nothing from the host.
-    return {'PATH': '/usr/bin:/bin', 'LC_ALL': 'C', **extra}
+    # What the platform's callers pass (udhcpc/ntpd hook variables) and nothing from the host. TZ is fixed
+    # (UTC+1, no daylight saving) so the local time a record names is the same on every host; without it
+    # localtime_r reads the host's /etc/localtime.
+    return {'PATH': '/usr/bin:/bin', 'LC_ALL': 'C', 'TZ': 'CET-1', **extra}
 
 
 def rust_binary():
