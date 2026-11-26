@@ -64,9 +64,21 @@ Reborn:
 - ext4 cards as a drive (computers can't read them).
 - Making Disk Mode the default: only after device and Windows/macOS/Linux checks.
 
+## Device results (owner's player, Linux host, 2026-11-26)
+
+- **Test build 289 failed:** with the switch on the gadget never bound (only charging). The MUSB FIFO table set
+  up endpoints 1–4, exactly MTP + ECM. Test build 290 adds endpoint 5 (512-byte double-buffered bulk pair,
+  6240 of 8192 bytes of FIFO RAM) and falls back to plain MTP (`drive_unavailable`) if a drive composition ever
+  fails to set up or bind.
+- **Test build 290 (seq 19500), exFAT 128 GB card:** the host enumerates bcdDevice 1.01 with MTP, the drive and
+  ECM; the card is Lent about 5 s after enumeration and appears as "Y2Linux SD Card" (`sdb`); exFAT mounts,
+  files read at 40 MB/s; MTP keeps Internal Storage only. Eject (udisks `Drive.Eject`) → player remounts the card
+  4 s later, MTP shows it again, Reborn logs `source_removed` then `source_inserted`; state Kept
+  `computer_ejected`. **Reconnecting while a song from the card plays:** Lending → Lent in 3 s, Reborn paused
+  the song and closed every file on the card. No kernel errors.
+
 ## Checks owed on the device
 
-Windows, macOS and Linux: the drive appears, copying, Eject → the player plays the new songs; unplug without
-ejecting → check finds the dirty card (Repair offered if needed); playing from the SD card when connecting;
-toggling the switch while connected (applies on the next connection); MTP still works for Internal Storage in
-the same connection; charging on a PC port.
+Windows and macOS (drive and MTP in one composite device); writing to the drive and new songs after Eject;
+pulling the cable without ejecting (check finds the dirty card, Repair offered if needed); the Reborn switch
+and its messages on screen; a FAT32 card; charging on a PC port.
