@@ -8,17 +8,32 @@ stop by itself when you fall asleep. Books never mix with your music.
 
 Copy books to Internal Storage or the SD card, in any of these ways:
 
-- **A folder named `Audiobooks` or `Hörbücher`** (any capitals, anywhere), with one folder per
+- **A folder named `Audiobooks`, `Hörbücher` or `Hörspiele`** (any capitals, anywhere), with one folder per
   book inside. An author folder in between is fine:
   `Audiobooks/Michael Ende/Momo/01.mp3`, `02.mp3`, …
   Folders called `CD 1`, `Disc 2`, `Part 3` (or `Teil 3`) inside a book belong to that book.
 - **Any `.m4b` file**, wherever it is: one file is one book. Several `.m4b` files make one book
   only when they share the same album tag (`Book Part 1.m4b`, `Book Part 2.m4b`).
-- **Files tagged with the genre `Audiobook` or `Hörbuch`.**
+- **Files tagged with the genre `Audiobook`, `Hörbuch` or `Hörspiel`.**
 
 A book's name comes from its album tag, else its folder (or file); the author from its album
 artist or artist tag, else an author folder. Parts play in disc order, then folder order, then by
 track number (when every file has one), then by file name, where `2` comes before `10`.
+
+### Series
+
+Books of one series stand on **Audiobooks** as one row (with the first book's cover); open it to
+see its books in series order. Two or more books make a series when they share either
+
+- **a series tag**: `SERIES` (with `SERIES-PART` for the place, as Audiobookshelf, Mp3tag and
+  Audible downloads write it), ID3 `MVNM` (with `MVIN`), or else the grouping tag; or
+- **a folder** inside the Audiobooks folder, one folder per book or one `.m4b` per book:
+  `Hörspiele/Die drei ???/001 Der Super-Papagei/…`, `Audiobooks/Discworld/01 The Colour of Magic.m4b`.
+
+Inside a series, books play in their `SERIES-PART` order (`1`, `2`, `2.5`, `10`), else by name
+with `2` before `10`. The series row stands where its most recently heard book would. Switch it
+off under **Settings → Customize → Browsing → Audiobook Series** to list every book on its own.
+The tags are read once after the update: only audiobook files are read again, not your music.
 
 Books are not songs: they stay out of Songs, Albums, Artists, Genres, Folders, Cover Flow,
 search's music results, Shuffle and the counts, and they are never scrobbled to Last.fm.
