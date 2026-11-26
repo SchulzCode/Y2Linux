@@ -66,7 +66,9 @@ starts a new one.
 - **Nothing is recorded until you choose it**: connect Last.fm or switch on the log.
 - What is sent per play: **artist, song title, album, album artist (when different), track
   number, length and the start time**. Nothing else: no file names, no location, no device data.
-  Now Playing sends the same for the current song.
+  Now Playing sends the same for the current song. A song tagged with several artists
+  (`Artist A;Artist B`, shown as "Artist A, Artist B") goes as its first artist, since Last.fm keeps
+  one artist per play; the same goes for the album artist (#149).
 - The waiting plays live in the player's private data partition (not visible over USB); the log
   file, if you switch it on, is on Internal Storage where you can see it.
 - **Disconnect**, **Settings → System → Reset & Maintenance → Reset Reborn Settings** and the platform's settings reset forget the
