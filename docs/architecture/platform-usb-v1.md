@@ -31,7 +31,10 @@ plug-and-play or add an unqualified RNDIS gadget. The new desktop-transfer candi
 MTP + ECM by default, ACM + ECM as an advanced disconnected-session choice.
 [USB Platform 1.0 report](../validation/Y2-PLATFORM-V1-USB.md) records architecture,
 file confinement and qualification limits. No writable Linux filesystem is
-exported as USB mass storage. The following authenticated SFTP contract remains.
+exported as USB mass storage, with one owner-approved exception since 2026-11-26: with Settings → Library →
+Storage → SD Card as USB Drive on, an SD card (FAT32/exFAT) is unmounted by the platform and lent to the
+computer as a removable LUN, never shared with the player
+([plan](../planning/SD-DISK-MODE-PLAN.md)). The following authenticated SFTP contract remains.
 
 Dropbear 2026.94 is restricted to both that address and usb0 using SO_BINDTODEVICE.
 Its existing warning-and-continue failure is patched to close the socket instead.

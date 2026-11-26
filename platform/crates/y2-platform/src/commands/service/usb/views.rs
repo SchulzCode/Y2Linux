@@ -87,6 +87,10 @@ pub(super) fn media_views(root: &Root) -> Vec<View> {
                 continue;
             }
         }
+        // The card lent (or being lent) to the computer as a drive is not also an MTP storage.
+        if path == "/media/sd" && crate::commands::storage::media::lend::on_computer(root) {
+            continue;
+        }
         let state = volume.state;
         let Some(mount) = mount else { continue };
         let nested = mounts.iter().any(|m| {

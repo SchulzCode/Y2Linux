@@ -42,7 +42,9 @@ def userspace_config(config):
         for key in ('CONFIG_USB_CONFIGFS','CONFIG_USB_CONFIGFS_ACM','CONFIG_USB_CONFIGFS_ECM'):
             require(config.get(key)=='y','missing product USB prerequisite '+key)
         require(config.get('CONFIG_USB_CDC_COMPOSITE') not in ('y','m'),'configfs owns product and developer gadget')
-        require(config.get('CONFIG_USB_CONFIGFS_MASS_STORAGE')!='y' and config.get('CONFIG_USB_MASS_STORAGE') not in ('y','m'),'no block storage export')
+        # The SD card's drive is a configfs function the platform fills only with an unmounted FAT/exFAT
+        # card (docs/planning/SD-DISK-MODE-PLAN.md); the legacy gadget that exports a fixed block device stays out.
+        require(config.get('CONFIG_USB_MASS_STORAGE') not in ('y','m'),'no legacy block storage gadget')
     else:
         require(config.get('CONFIG_USB_CDC_COMPOSITE')=='y','missing development prerequisite CONFIG_USB_CDC_COMPOSITE')
 
@@ -125,7 +127,8 @@ def check(root,project,production=False):
     if config.get('CONFIG_USB_CONFIGFS_F_FS') == 'y':
         for name in ('ffs_func_bind', 'configfs_composite_bind'):
             require(kernel.sym(name) >= text, 'missing consumer USB path '+name)
-        require(config.get('CONFIG_USB_CONFIGFS_MASS_STORAGE') != 'y', 'raw block export excluded')
+        if config.get('CONFIG_USB_CONFIGFS_MASS_STORAGE') == 'y':
+            require(kernel.sym('fsg_bind') >= text, 'missing SD drive function fsg_bind')
     else:
         require(kernel.sym('cdc_bind') >= text, 'legacy CDC gadget linked')
     if config.get('CONFIG_Y2_POWER')=='y':

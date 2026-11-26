@@ -174,6 +174,21 @@
     "help": null
    }
   ],
+  "usb-sd-disk": [
+   {
+    "name": "switch",
+    "positional": true,
+    "type": "str",
+    "choices": [
+     "on",
+     "off"
+    ],
+    "default": null,
+    "required": true,
+    "nargs": null,
+    "help": null
+   }
+  ],
   "codec-runtime": [
    {
     "name": "--record",
@@ -8810,6 +8825,166 @@
    "notes": [
     "Applied by service-daemon USBService.tick (usb.py:401-483), not by this command: requested mode is read every tick (default \"mtp\"); a change is only applied while the UDC state is \"not attached\" (an attached host keeps the old mode); functions: mtp = ffs.mtp + ecm.usb0 (umtprd responder, os_desc enabled), developer = acm.usb0 + ecm.usb0 (no responder). ECM (usb0, 10.42.0.1/24 for SSH) exists in both.",
     "No caller found in Reborn; owner/developer tool."
+   ]
+  },
+  {
+   "group": "C",
+   "command": "usb-sd-disk",
+   "action": "on",
+   "handler": "devices::usb::sd_disk (platform/crates/y2-platform/src/commands/devices/usb.rs)",
+   "arguments": [
+    {
+     "name": "switch",
+     "type/choices": [
+      "on",
+      "off"
+     ],
+     "default": null,
+     "notes": "positional"
+    }
+   ],
+   "exit_codes": [
+    {
+     "code": 0,
+     "when": "after the write"
+    },
+    {
+     "code": 1,
+     "when": "/data/system/platform missing or not writable"
+    },
+    {
+     "code": 2,
+     "when": "argument error; usage on stderr, no stdout"
+    }
+   ],
+   "stdout": {
+    "format": "json",
+    "sort_keys": false,
+    "schema_id": null,
+    "top_level_keys": [
+     "enabled",
+     "apply"
+    ],
+    "important_fields": {
+     "enabled": "true for on",
+     "apply": "\"next_connection\""
+    },
+    "failure_shapes": [
+     {
+      "schema": "org.y2linux.error/v1",
+      "state": "Failed",
+      "reason": "the errno text incl. path",
+      "type": "the error class"
+     }
+    ]
+   },
+   "reads": [
+    {
+     "path": "/run/y2/readiness.pid",
+     "how": "the service to wake (SIGUSR1); none is no error"
+    }
+   ],
+   "writes": [
+    {
+     "path": "/data/system/platform/usb-sd-disk.json",
+     "how": "atomic_json durable=True",
+     "shape": "{\"enabled\":true}"
+    }
+   ],
+   "locks": [],
+   "timeouts": [],
+   "subprocesses": [],
+   "trail_lines": [
+    "none"
+   ],
+   "signals": [
+    "SIGUSR1 to the service daemon"
+   ],
+   "f_numbers": [],
+   "env": [],
+   "notes": [
+    "Owner 2026-11-26 (docs/planning/SD-DISK-MODE-PLAN.md): the SD card as a USB drive. The service adds mass_storage.0 to the MTP composition while no computer is attached, and lends an unmounted FAT32/exFAT card to a computer that configured the gadget; usb-transfer.json's sd_disk reports it.",
+    "Called by Reborn's Settings > Library > Storage > SD Card as USB Drive."
+   ]
+  },
+  {
+   "group": "C",
+   "command": "usb-sd-disk",
+   "action": "off",
+   "handler": "devices::usb::sd_disk (platform/crates/y2-platform/src/commands/devices/usb.rs)",
+   "arguments": [
+    {
+     "name": "switch",
+     "type/choices": [
+      "on",
+      "off"
+     ],
+     "default": null,
+     "notes": "positional"
+    }
+   ],
+   "exit_codes": [
+    {
+     "code": 0,
+     "when": "after the write"
+    },
+    {
+     "code": 1,
+     "when": "/data/system/platform missing or not writable"
+    },
+    {
+     "code": 2,
+     "when": "argument error; usage on stderr, no stdout"
+    }
+   ],
+   "stdout": {
+    "format": "json",
+    "sort_keys": false,
+    "schema_id": null,
+    "top_level_keys": [
+     "enabled",
+     "apply"
+    ],
+    "important_fields": {
+     "enabled": "true for on",
+     "apply": "\"next_connection\""
+    },
+    "failure_shapes": [
+     {
+      "schema": "org.y2linux.error/v1",
+      "state": "Failed",
+      "reason": "the errno text incl. path",
+      "type": "the error class"
+     }
+    ]
+   },
+   "reads": [
+    {
+     "path": "/run/y2/readiness.pid",
+     "how": "the service to wake (SIGUSR1); none is no error"
+    }
+   ],
+   "writes": [
+    {
+     "path": "/data/system/platform/usb-sd-disk.json",
+     "how": "atomic_json durable=True",
+     "shape": "{\"enabled\":true}"
+    }
+   ],
+   "locks": [],
+   "timeouts": [],
+   "subprocesses": [],
+   "trail_lines": [
+    "none"
+   ],
+   "signals": [
+    "SIGUSR1 to the service daemon"
+   ],
+   "f_numbers": [],
+   "env": [],
+   "notes": [
+    "Owner 2026-11-26 (docs/planning/SD-DISK-MODE-PLAN.md): the SD card as a USB drive. The service adds mass_storage.0 to the MTP composition while no computer is attached, and lends an unmounted FAT32/exFAT card to a computer that configured the gadget; usb-transfer.json's sd_disk reports it.",
+    "Called by Reborn's Settings > Library > Storage > SD Card as USB Drive."
    ]
   },
   {

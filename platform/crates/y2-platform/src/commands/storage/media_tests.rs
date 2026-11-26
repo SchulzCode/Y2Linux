@@ -1361,3 +1361,56 @@ fn storage_reports_an_undersized_filesystem_without_changing_it() {
     );
     assert_eq!(card.sd()["capacity_state"], "Full");
 }
+
+// ---- the card lent to a computer (docs/planning/SD-DISK-MODE-PLAN.md) ---------------------------
+
+#[test]
+fn a_lent_card_is_left_alone_by_reconcile_repair_and_format() {
+    let card = Card::change();
+    card.operation("mount");
+    assert_eq!(lend::lendable(card.root()), Ok("/dev/mmcblk1p1".into()));
+    lend::begin(card.root(), "/dev/mmcblk1p1".into()).unwrap();
+    let lend = lend::current(card.root()).unwrap();
+    assert!(lend::detach(card.root(), &lend).unwrap());
+    assert_eq!(lend::current(card.root()).unwrap().stage, lend::Stage::Lent);
+    card.clear();
+    // Inserted, not mounted: reconcile would mount it; while lent it does nothing at all.
+    reconcile(card.root()).unwrap();
+    for refused in [
+        json!(repair(card.root()).unwrap()),
+        card.change_card("format", Some(CID)),
+        card.operation("check"),
+    ] {
+        assert_eq!(refused["reason"], "sd_on_computer");
+    }
+    assert!(card.calls().is_empty(), "{:?}", card.calls());
+    // Back: the next reconcile admits it again.
+    lend::end(card.root(), true).unwrap();
+    assert!(!settled(&lifecycle(card.root()), &inventory(card.root())));
+    assert_eq!(
+        reconcile(card.root()).unwrap().state.as_deref(),
+        Some("Ready")
+    );
+}
+
+#[test]
+fn only_a_mounted_fat_card_past_its_check_is_lendable() {
+    let card = Card::new("ext4");
+    assert_eq!(lend::lendable(card.root()), Err("no_card"));
+    card.operation("mount");
+    assert_eq!(lend::lendable(card.root()), Err("not_fat"));
+    let slow = slow_card(|| done(""));
+    slow.operation("mount");
+    assert_eq!(lend::lendable(slow.root()), Err("checking"));
+}
+
+#[test]
+fn the_switch_reads_off_unless_it_says_on() {
+    let card = Card::new("vfat");
+    assert!(!lend::enabled(card.root()));
+    card.fixture.put(lend::SETTING, "not json");
+    assert!(!lend::enabled(card.root()));
+    card.fixture
+        .put_json(lend::SETTING, &json!({"enabled": true}));
+    assert!(lend::enabled(card.root()));
+}

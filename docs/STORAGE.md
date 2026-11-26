@@ -98,10 +98,29 @@ automatically.
   Storage) rather than a card reader; with a reader, switch the player off before taking the card
   out and eject it on the computer before unplugging.
 
+### The SD card as a USB drive
+
+Settings → Library → Storage → **SD Card as USB Drive** (off by default). With it on, a connected
+computer gets the SD card as an ordinary **USB drive** ("Y2Linux SD Card"), like a card reader: Windows,
+macOS and Linux open it without any app, and tools that need a drive (rsync, beets, foobar2000's sync)
+work. Internal Storage stays as it is (Music Transfer, below), and music on it keeps playing.
+
+- While the computer has the card, the player can't read it: a song from it stops, its music leaves the
+  library until it is back, and Storage says *On the computer*.
+- **Eject the drive on the computer** when you are done. The player checks the card, as on every insertion,
+  and the new songs appear. Unplugging without ejecting works too, but the computer may not have finished
+  writing: the check then finds the damage and offers Repair SD Card.
+- After you eject it, the card stays with the player until the cable is plugged in again.
+- Only FAT32 and exFAT cards become a drive (computers can't read ext4); an ext4 card stays in Music
+  Transfer.
+- Turning the switch on or off while connected applies the next time you connect.
+- If something on the player still reads the card 30 s after connecting (a library scan, say), the card stays
+  in Music Transfer for this connection.
+
 ## Copying music: USB
 
 Connect the player to a computer: it appears like a phone (MTP) with **Internal Storage** and
-**SD Card**. It works with Windows Explorer, Linux file managers (Dolphin, Nautilus) and MTP apps
+**SD Card** (or the SD card as a drive of its own: [SD Card as USB Drive](#the-sd-card-as-a-usb-drive)). It works with Windows Explorer, Linux file managers (Dolphin, Nautilus) and MTP apps
 on macOS (for example OpenMTP). Music apps that read a device's song list over MTP (Strawberry and other
 libmtp programs) see the songs of both storages with the title, artist, album and length the player's library
 read; a song just copied shows its file name until the player has scanned it.

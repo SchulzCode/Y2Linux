@@ -187,7 +187,7 @@ fn no_udc_bind_before_all_functionfs_descriptors() {
     assert_eq!(usb.gadget("UDC"), "musb");
     assert_eq!(usb.gadget("os_desc/use"), "1");
     assert!(is_link(&usb.fixture.path(&format!("{GADGET}/os_desc/c.1"))));
-    assert_eq!(selection("mtp").unwrap(), ["ffs.mtp", "ecm.usb0"]);
+    assert_eq!(selection("mtp", false).unwrap(), ["ffs.mtp", "ecm.usb0"]);
 }
 
 fn is_link(path: &Path) -> bool {
@@ -205,12 +205,23 @@ fn no_block_export_or_triple_function_selection() {
         "Y2DATA",
         "BOOTIMG",
     ] {
-        assert_eq!(
-            selection(invalid).err().unwrap().message(),
-            "unsupported_usb_mode"
-        );
+        for disk in [false, true] {
+            assert_eq!(
+                selection(invalid, disk).err().unwrap().message(),
+                "unsupported_usb_mode"
+            );
+        }
     }
-    assert_eq!(selection("developer").unwrap(), ["acm.usb0", "ecm.usb0"]);
+    assert_eq!(
+        selection("developer", true).unwrap(),
+        ["acm.usb0", "ecm.usb0"]
+    );
+    // The only block export: the SD card's drive, in the MTP composition the owner switched on.
+    assert_eq!(
+        selection("mtp", true).unwrap(),
+        ["ffs.mtp", "mass_storage.0", "ecm.usb0"]
+    );
+    assert_eq!(selection("mtp", false).unwrap(), ["ffs.mtp", "ecm.usb0"]);
     let named = |path: &'static str| View {
         path,
         name: Some("Internal Storage"),
@@ -677,4 +688,186 @@ fn a_mode_that_is_no_name_is_refused_as_unsupported() {
             "{mode}"
         );
     }
+}
+
+// ---- the SD card as a USB drive ----------------------------------------------------------------
+
+const SD_CARD: &str =
+    "/sys/devices/platform/11240000.mmc/mmc_host/mmc1/mmc1:aaaa/block/mmcblk1/mmcblk1p1";
+const SD_MOUNT: &str = "51 1 179:9 / /media/sd ro - vfat /dev/mmcblk1p1 ro";
+const LUN_FILE: &str = "functions/mass_storage.0/lun.0/file";
+
+/// A FAT card the platform mounted (its claim of this boot), the switch on. No /media/sd folder: the card
+/// is no MTP view here, so the responder never pins it.
+fn lending_card(usb: &Usb) {
+    let f = &usb.fixture;
+    f.put(&format!("{SD_CARD}/dev"), "179:9")
+        .put("/proc/self/mountinfo", &format!("{MOUNT}\n{SD_MOUNT}"))
+        .put("/dev/mmcblk1p1", "")
+        .mkdir(&format!("{GADGET}/functions/mass_storage.0/lun.0"));
+    link(f.path(SD_CARD), f.path("/sys/dev/block/179:9")).unwrap();
+    f.put_json(
+        "/run/y2/media-mount.json",
+        &json!({"mount_id": 51, "boot_id": "boot-one", "device": "/dev/mmcblk1p1",
+                "device_id": "179:9"}),
+    );
+    f.put_json(
+        "/data/system/platform/usb-sd-disk.json",
+        &json!({"enabled": true}),
+    );
+}
+
+fn disk(record: &Value) -> (&str, Option<&str>) {
+    (
+        record["sd_disk"]["state"].as_str().unwrap(),
+        record["sd_disk"]["reason"].as_str(),
+    )
+}
+
+#[test]
+fn the_card_is_lent_once_released_and_comes_back_when_the_computer_ejects_it() {
+    let mut usb = Usb::new();
+    lending_card(&usb);
+    let first = usb.ready();
+    assert_eq!(disk(&first), ("Idle", Some("starting")));
+    assert_eq!(
+        first["functions"],
+        json!(["ffs.mtp", "mass_storage.0", "ecm.usb0"])
+    );
+    assert_eq!(usb.gadget("bcdDevice"), "0x0101");
+    assert_eq!(usb.gadget("functions/mass_storage.0/lun.0/removable"), "1");
+    // A configured computer: the lend starts; the card is still mounted (the player lets go first).
+    assert_eq!(disk(&usb.tick()), ("Lending", None));
+    assert!(usb.fixture.exists("/run/y2/sd-lent.json"));
+    // Still in use (umount refused): it stays mounted and is not the drive's yet.
+    assert_eq!(disk(&usb.tick()), ("Lending", None));
+    assert!(usb
+        .fixture
+        .root
+        .read(&format!("{GADGET}/{LUN_FILE}"))
+        .is_none());
+    // Released: unmounted, the partition is the drive.
+    usb.fixture.put("/proc/self/mountinfo", MOUNT);
+    let lent = usb.tick();
+    assert_eq!(disk(&lent), ("Lent", None));
+    assert_eq!(lent["block_export"], true);
+    assert_eq!(usb.gadget(LUN_FILE), "/dev/mmcblk1p1");
+    // Nothing on the player touches it meanwhile.
+    let refused = crate::commands::storage::media::operation(&usb.fixture.root, "mount").unwrap();
+    assert_eq!(refused.reason.as_deref(), Some("sd_on_computer"));
+    // The computer ejected it: the card is admitted again and not lent again this connection.
+    usb.fixture.put(&format!("{GADGET}/{LUN_FILE}"), "");
+    assert_eq!(disk(&usb.tick()), ("Kept", Some("computer_ejected")));
+    assert!(!usb.fixture.exists("/run/y2/sd-lent.json"));
+    let lifecycle = usb.fixture.root.json_object("/run/y2/media-lifecycle.json");
+    assert_eq!(lifecycle.get("retry"), Some(&json!(true)));
+    usb.fixture
+        .put("/proc/self/mountinfo", &format!("{MOUNT}\n{SD_MOUNT}"));
+    assert_eq!(disk(&usb.tick()), ("Kept", Some("computer_ejected")));
+    // Unplugged: the next connection lends it again.
+    usb.cable("not attached");
+    assert_eq!(disk(&usb.tick()), ("Idle", Some("no_computer")));
+    usb.cable("configured");
+    assert_eq!(disk(&usb.tick()), ("Lending", None));
+}
+
+#[test]
+fn a_card_still_in_use_after_30_s_stays_with_the_player() {
+    let mut usb = Usb::new();
+    lending_card(&usb);
+    usb.ready();
+    assert_eq!(disk(&usb.tick()), ("Lending", None));
+    // The lend began long ago (the monotonic clock is far past 0 s).
+    usb.fixture.put_json(
+        "/run/y2/sd-lent.json",
+        &json!({"stage": "Lending", "device": "/dev/mmcblk1p1", "since": 0.0}),
+    );
+    assert_eq!(disk(&usb.tick()), ("Kept", Some("sd_in_use")));
+    assert!(!usb.fixture.exists("/run/y2/sd-lent.json"));
+    // Still mounted: no admission asked for.
+    assert!(!usb.fixture.exists("/run/y2/media-lifecycle.json"));
+}
+
+#[test]
+fn unplugging_or_pulling_the_card_ends_the_lend() {
+    for end in ["unplugged", "pulled"] {
+        let mut usb = Usb::new();
+        lending_card(&usb);
+        usb.ready();
+        usb.tick();
+        usb.fixture.put("/proc/self/mountinfo", MOUNT);
+        assert_eq!(disk(&usb.tick()), ("Lent", None), "{end}");
+        match end {
+            "unplugged" => usb.cable("not attached"),
+            _ => fs::remove_file(usb.fixture.path("/dev/mmcblk1p1")).unwrap(),
+        }
+        let record = usb.tick();
+        assert!(!usb.fixture.exists("/run/y2/sd-lent.json"), "{end}");
+        assert_eq!(record["block_export"], false, "{end}");
+        let lifecycle = usb.fixture.root.json_object("/run/y2/media-lifecycle.json");
+        assert_eq!(lifecycle.get("retry"), Some(&json!(true)), "{end}");
+    }
+}
+
+#[test]
+fn the_switch_off_or_an_ext4_card_lends_nothing() {
+    let mut usb = Usb::new();
+    lending_card(&usb);
+    usb.fixture.put_json(
+        "/data/system/platform/usb-sd-disk.json",
+        &json!({"enabled": false}),
+    );
+    let record = usb.ready();
+    assert_eq!(disk(&record), ("Off", None));
+    assert_eq!(record["functions"], json!(["ffs.mtp", "ecm.usb0"]));
+    assert_eq!(usb.gadget("bcdDevice"), "0x0100");
+    // Switched on while connected: the drive comes with the next connection.
+    usb.fixture.put_json(
+        "/data/system/platform/usb-sd-disk.json",
+        &json!({"enabled": true}),
+    );
+    assert_eq!(disk(&usb.tick()), ("Idle", Some("reconnect")));
+    usb.cable("not attached");
+    usb.tick();
+    let ext4 = SD_MOUNT.replace("vfat", "ext4");
+    usb.fixture
+        .put("/proc/self/mountinfo", &format!("{MOUNT}\n{ext4}"));
+    usb.cable("configured");
+    usb.tick();
+    assert_eq!(disk(&usb.tick()), ("Idle", Some("not_fat")));
+    assert!(!usb.fixture.exists("/run/y2/sd-lent.json"));
+}
+
+#[test]
+fn a_lend_left_by_a_previous_service_gives_the_card_back() {
+    let mut usb = Usb::new();
+    lending_card(&usb);
+    usb.fixture.put_json(
+        "/run/y2/sd-lent.json",
+        &json!({"stage": "Lent", "device": "/dev/mmcblk1p1", "since": 1.0}),
+    );
+    usb.fixture.put("/proc/self/mountinfo", MOUNT);
+    usb.tick();
+    assert!(!usb.fixture.exists("/run/y2/sd-lent.json"));
+    let lifecycle = usb.fixture.root.json_object("/run/y2/media-lifecycle.json");
+    assert_eq!(lifecycle.get("retry"), Some(&json!(true)));
+}
+
+#[test]
+fn a_lend_that_fails_gives_the_card_back_and_music_transfer_goes_on() {
+    let mut usb = Usb::new();
+    lending_card(&usb);
+    usb.ready();
+    usb.tick();
+    let pid = usb.pid();
+    // Another card under the mount than the lend named.
+    usb.fixture.put_json(
+        "/run/y2/sd-lent.json",
+        &json!({"stage": "Lending", "device": "/dev/mmcblk9p1", "since": 1.0e12}),
+    );
+    let record = usb.tick();
+    assert_eq!(disk(&record), ("Kept", Some("lend_failed")));
+    assert_eq!(record["state"], "Ready");
+    assert_eq!(usb.pid(), pid);
+    assert!(!usb.fixture.exists("/run/y2/sd-lent.json"));
 }

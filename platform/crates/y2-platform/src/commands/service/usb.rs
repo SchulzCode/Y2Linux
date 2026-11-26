@@ -1,5 +1,6 @@
 //! The USB service: consumer MTP + advanced ECM;
-//! Linux is the only block/filesystem owner. No block-export function is selectable. The responder
+//! Linux is the only filesystem owner, except for the SD card the owner lets a computer have as a USB drive
+//! (`disk`: unmounted first, never shared). The responder
 //! pins media roots per lifetime; mount identity changes require unbinding/stopping it before a
 //! replacement view. `service-daemon` ticks it every pass and stops it when it ends.
 // SPDX-License-Identifier: GPL-2.0-only
@@ -16,10 +17,12 @@ use serde_json::{json, Value};
 use std::{fs, path::Path, thread, time::Duration};
 use y2p_core::{py, Root};
 
+mod disk;
 mod gadget;
 mod responder;
 mod views;
 
+use self::disk::DiskRecord;
 use self::views::*;
 
 const GADGET: &str = "/sys/kernel/config/usb_gadget/y2";
@@ -39,9 +42,10 @@ const NAMES: [(&str, &str); 4] = [
 const SD_WINDOW_RENEW: f64 = 10.0;
 const SD_WINDOW_SECONDS: i64 = 30;
 
-/// `selection(mode)`: the gadget functions of a mode.
-fn selection(mode: &str) -> Result<&'static [&'static str], Failure> {
+/// `selection(mode, disk)`: the gadget functions of a mode (MTP with the SD card's drive or without).
+fn selection(mode: &str, disk: bool) -> Result<&'static [&'static str], Failure> {
     match mode {
+        "mtp" if disk => Ok(&["ffs.mtp", disk::FUNCTION, "ecm.usb0"]),
         "mtp" => Ok(&["ffs.mtp", "ecm.usb0"]),
         "developer" => Ok(&["acm.usb0", "ecm.usb0"]),
         _ => Err(Failure::value("unsupported_usb_mode")),
@@ -67,6 +71,7 @@ pub struct Transfer {
     /// The responder's last copy error (an errno: 28 for a copy that did not fit).
     error: Option<i64>,
     restarts: i64,
+    sd_disk: DiskRecord,
 }
 
 /// What the running responder reports in /run/y2/mtp-events.json (a record of another responder
@@ -140,6 +145,13 @@ pub struct UsbService {
     boot_id: Option<Option<String>>,
     /// What starts the responder and its IPC commands.
     launch: Launch,
+    /// The gadget has the SD card's drive (`mass_storage.0`).
+    disk: bool,
+    disk_record: DiskRecord,
+    /// Why the card stays with the player until the cable is plugged in again.
+    kept: Option<&'static str>,
+    /// The first pass ended a lend the previous service left.
+    lend_recovered: bool,
 }
 
 impl UsbService {
@@ -163,6 +175,10 @@ impl UsbService {
             sd_window: 0.0,
             boot_id: None,
             launch: process::launcher(),
+            disk: false,
+            disk_record: DiskRecord::default(),
+            kept: None,
+            lend_recovered: false,
         }
     }
 
@@ -187,14 +203,17 @@ impl UsbService {
             reason: reason.map(str::to_owned),
             mode: self.mode,
             cable: cable.clone(),
-            functions: self.mode.map_or(Ok(&[][..]), selection)?,
+            functions: self
+                .mode
+                .map_or(Ok(&[][..]), |mode| selection(mode, self.disk))?,
             views: self.views.clone().unwrap_or_default(),
             filesystem_owner: "linux",
-            block_export: false,
+            block_export: self.disk_record.state == "Lent",
             refresh_generation: self.refresh_generation,
             active: activity.active,
             error: activity.error,
             restarts: self.failures,
+            sd_disk: self.disk_record.clone(),
         };
         if self.last_record.as_ref() != Some(&record) {
             atomic_json(&self.root.path("/run/y2/usb-transfer.json"), &record, false)?;
@@ -315,7 +334,7 @@ impl UsbService {
         udc: &str,
     ) -> Result<Transfer, Failure> {
         let requested_text = requested.as_str().unwrap_or_default();
-        selection(requested_text).map_err(|e| {
+        selection(requested_text, false).map_err(|e| {
             if requested.is_string() {
                 e
             } else {
@@ -327,6 +346,11 @@ impl UsbService {
         } else {
             "developer"
         };
+        // A lend that starts takes the SD view away in this same pass. A lend that fails gives the card
+        // back; it never counts against the responder (Music Transfer goes on).
+        if self.lend_pass(cable.as_deref()).is_err() {
+            self.give_up_lend();
+        }
         // Reuse validated views until identity/options change. This adds no recurring blkid
         // process, storage read, or polling wakeup.
         let root = &self.root;
@@ -338,6 +362,7 @@ impl UsbService {
                 "/run/y2/internal-media.json",
                 "/run/y2/media-mount.json",
                 "/run/y2/usb-release-sd.json",
+                "/run/y2/sd-lent.json",
             ]
             .iter()
             .map(|f| root.read(f))
@@ -367,9 +392,13 @@ impl UsbService {
         } else {
             Vec::new()
         };
+        let attached = cable.as_deref() != Some("not attached");
+        let mut disk = requested == "mtp" && media::lend::enabled(&self.root);
         if let Some(mode) = self.mode {
-            if requested != mode && cable.as_deref() != Some("not attached") {
+            // A connected computer keeps the composition it enumerated; a change applies unplugged.
+            if attached {
                 requested = mode;
+                disk = self.disk;
                 views = if mode == "mtp" {
                     self.cached_views.clone()
                 } else {
@@ -377,11 +406,11 @@ impl UsbService {
                 };
             }
         }
-        if self.mode != Some(requested) {
+        if self.mode != Some(requested) || self.disk != disk {
             if self.mode.is_some() {
                 self.refresh_generation = self.root.clock().monotonic_ns();
             }
-            self.setup(requested, views)?;
+            self.setup(requested, views, disk)?;
         } else if self.mode == Some("mtp")
             && self.views.as_ref() != Some(&views)
             && self.child_running()

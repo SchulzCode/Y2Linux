@@ -244,7 +244,8 @@ impl Service {
             if matches!(
                 value.state.as_str(),
                 "Scanning" | "Associating" | "AcquiringIP"
-            ) {
+            ) || self.usb.lending()
+            {
                 interval = interval.min(1.0);
             }
             if ticks.is_none() {

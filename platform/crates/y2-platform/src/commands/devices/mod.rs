@@ -1,4 +1,5 @@
-//! The devices commands: `ssh-daemon` (owner SSH over USB), `usb-mode` (the gadget mode), `transfer`
+//! The devices commands: `ssh-daemon` (owner SSH over USB), `usb-mode` (the gadget mode), `usb-sd-disk`
+//! (the SD card as a USB drive), `transfer`
 //! (verified uploads), `codec-settings` (Bluetooth codec quality) and the clock commands `time-set`,
 //! `time-bootstrap`, `rtc-alarm`. `route` sees the parser's canonical form (cli.rs); it takes exactly
 //! the forms below and nothing else (`None`: no implementation).
@@ -20,6 +21,10 @@ pub fn route(args: &[&str]) -> Option<Command> {
         ["usb-mode", mode] if ["mtp", "developer"].contains(mode) => {
             let mode = mode.to_string();
             Box::new(move |root| usb::request_mode(root, &mode))
+        }
+        ["usb-sd-disk", switch] if ["on", "off"].contains(switch) => {
+            let enabled = *switch == "on";
+            Box::new(move |root| usb::sd_disk(root, enabled))
         }
         ["time-bootstrap"] => Box::new(timekeeping::bootstrap),
         ["time-set", epoch] => {
@@ -87,6 +92,8 @@ mod tests {
         assert!(route(&["ssh-daemon", "x"]).is_none());
         assert!(route(&["usb-mode", "mtp"]).is_some());
         assert!(route(&["usb-mode", "mass-storage"]).is_none());
+        assert!(route(&["usb-sd-disk", "on"]).is_some());
+        assert!(route(&["usb-sd-disk", "yes"]).is_none());
         assert!(route(&["time-set", "1788000000"]).is_some());
         assert!(route(&["time-set", "-5"]).is_some());
         assert!(route(&["time-set", "-x"]).is_none());

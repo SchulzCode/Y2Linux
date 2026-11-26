@@ -297,6 +297,11 @@
      "refresh_generation": 0,
      "restarts": 1,
      "schema": "org.y2linux.usb-transfer/v1",
+     "sd_disk": {
+      "enabled": false,
+      "reason": null,
+      "state": "Off"
+     },
      "state": "Failed",
      "views": []
     },

@@ -192,6 +192,9 @@ struct RepairRecord {
 
 /// Owner command: repair the marked card, then admit it again.
 pub fn repair(root: &Root) -> Result<MediaRecord, Failure> {
+    if super::lend::on_computer(root) {
+        return Ok(super::refused(MediaRecord::begin(root, "repair")));
+    }
     let mut state = {
         let _lease = maintenance(root)?;
         let (state, record) = repair_locked(root)?;

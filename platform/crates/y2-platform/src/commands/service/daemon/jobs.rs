@@ -27,7 +27,10 @@ pub(super) fn kill(mut child: Child) {
 /// needs a reconcile too (its protect step): without one the card stayed writable until the next
 /// insertion or removal.
 pub(super) fn media_reconcile_needed(root: &Root) -> bool {
-    !media::settled(&media::lifecycle(root), &inventory(root)) || media::window_expired(root)
+    // While a computer has the card nothing on the player touches it (the lend asks again once it is back).
+    !media::lend::on_computer(root)
+        && (!media::settled(&media::lifecycle(root), &inventory(root))
+            || media::window_expired(root))
 }
 
 /// A child the service runs for one of its jobs (`{'process', 'started'}`), or when it may start one

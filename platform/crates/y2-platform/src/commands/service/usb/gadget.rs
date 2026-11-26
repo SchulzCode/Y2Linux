@@ -61,8 +61,13 @@ impl UsbService {
         unbind_error.map_or(Ok(()), Err)
     }
 
-    pub(super) fn setup(&mut self, mode: &'static str, views: Vec<View>) -> Result<(), Failure> {
-        let functions = selection(mode)?;
+    pub(super) fn setup(
+        &mut self,
+        mode: &'static str,
+        views: Vec<View>,
+        disk: bool,
+    ) -> Result<(), Failure> {
+        let functions = selection(mode, disk)?;
         self.stop()?;
         let root = self.root.path(GADGET);
         if !self.root.path("/sys/kernel/config/usb_gadget").exists() {
@@ -82,7 +87,9 @@ impl UsbService {
             ("idVendor", "0x0525"),
             ("idProduct", "0xa4aa"),
             ("bcdUSB", "0x0200"),
-            ("bcdDevice", "0x0100"),
+            // Windows keeps a device's interface list by VID/PID/revision: the composition with the SD
+            // card's drive is another revision, or Windows would reuse the MTP-only list.
+            ("bcdDevice", if disk { "0x0101" } else { "0x0100" }),
             ("bDeviceClass", "0"),
             ("bDeviceSubClass", "0"),
             ("bDeviceProtocol", "0"),
@@ -138,6 +145,9 @@ impl UsbService {
         }
         for function in functions {
             self.mkdir(&format!("functions/{function}"))?;
+            if *function == super::disk::FUNCTION {
+                self.setup_lun()?;
+            }
             if *function == "ecm.usb0" {
                 self.write("functions/ecm.usb0/host_addr", "02:42:00:00:00:02")?;
                 self.write("functions/ecm.usb0/dev_addr", "02:42:00:00:00:01")?;
@@ -188,6 +198,7 @@ impl UsbService {
             Vec::new()
         };
         self.mode = Some(mode);
+        self.disk = disk;
         self.views = Some(views);
         self.started = self.root.clock().monotonic();
         Ok(())

@@ -109,6 +109,9 @@ pub(super) fn change_card_with(
     if action != "format" && action != "grow" {
         return Err(Failure::value("unknown_media_change"));
     }
+    if super::lend::on_computer(root) {
+        return Ok(super::refused(MediaRecord::begin(root, action)));
+    }
     let mut state = apply_change(root, action, confirm_cid, reread)?;
     if state.state_is("Starting") {
         // Mount through the normal admission path, after the change released the media lock.

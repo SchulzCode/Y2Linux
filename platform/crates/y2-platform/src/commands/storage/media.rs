@@ -20,6 +20,7 @@ use y2p_core::{command, lenient::Shaped, mounts::mounts_at, Root};
 
 mod change;
 mod check;
+pub mod lend;
 mod repair;
 mod window;
 
@@ -198,6 +199,10 @@ pub fn reconcile(root: &Root) -> Result<MediaRecord, Failure> {
     let runtime = runtime(root)?;
     let current = inventory(root);
     let previous = lifecycle(root);
+    if lend::on_computer(root) {
+        // The computer has the card: the USB service asks for a reconcile once it is back.
+        return Ok(previous);
+    }
     let same = previous.inventory.as_ref() == Some(&current);
     if settled(&previous, &current) {
         protect(root)?;
@@ -246,6 +251,9 @@ pub fn operation(root: &Root, action: &str) -> Result<MediaRecord, Failure> {
     let _lock = lock_now(&runtime.join("media.lock"))?;
     let record = runtime.join("media.json");
     let mut state = MediaRecord::begin(root, action);
+    if lend::on_computer(root) {
+        return Ok(refused(state));
+    }
     let old = mounts_at(root, SD);
     if !old.is_empty() && old.iter().any(|m| !owned_mount(root, m)) {
         state.set_state("Failed", Some("mounted_source_not_sd"));
@@ -302,6 +310,12 @@ pub fn operation(root: &Root, action: &str) -> Result<MediaRecord, Failure> {
     }
     atomic_json(&record, &state, false)?;
     Ok(state)
+}
+
+/// A media action refused because a computer has the card as a USB drive (nothing is written).
+pub(crate) fn refused(mut state: MediaRecord) -> MediaRecord {
+    state.set_state("Failed", Some(lend::ON_COMPUTER));
+    state
 }
 
 /// The mount branch of `operation` after the unique card was found; true when it returns early

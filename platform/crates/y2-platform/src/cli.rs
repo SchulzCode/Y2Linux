@@ -208,6 +208,7 @@ pub const COMMANDS: &[Command] = &[
     command("service-daemon", &[]),
     command("connectivity-daemon", &[]),
     command("usb-mode", &[positional("mode").choices(&["mtp", "developer"])]),
+    command("usb-sd-disk", &[positional("switch").choices(ON_OFF)]),
     command("codec-runtime", &[flag("--record")]),
     command("codec-settings", &[
         option("--sbc-quality").choices(&[crate::commands::codec::SBC_QUALITY]),

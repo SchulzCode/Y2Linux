@@ -98,5 +98,5 @@ fn the_argument_table_is_printed_for_the_contract_check() {
     let table: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
     assert_eq!(table["time-set"][0]["name"], "epoch");
     assert_eq!(table["time-set"][0]["type"], "int");
-    assert_eq!(table.as_object().unwrap().len(), 38);
+    assert_eq!(table.as_object().unwrap().len(), 39);
 }

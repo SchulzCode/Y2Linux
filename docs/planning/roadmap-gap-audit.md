@@ -9977,3 +9977,28 @@ the owner rules out comparing older numbers.
 
 **Gate decision:** source work phase by phase; an owner test build before publishing. Hardware authorization for
 live register probes stays separate.
+
+## SD card as a USB drive (configfs mass storage for the SD card): scope note — 2026-11-26
+
+**Boundary:** production scope change, no new hardware subsystem: the earlier rule "the host receives files
+through the sole Linux filesystem owner, never raw writable blocks" (configfs/MTP composition above) gains one
+owner-approved exception. Owner request 2026-11-26 ("people apparently hate MTP ... we start with only SD cards
+for now, since I don't want to reformat the internal storage"). Plan:
+[SD-DISK-MODE-PLAN.md](SD-DISK-MODE-PLAN.md).
+
+**Evidence:** the MUSB peripheral path, configfs and the MTP+ECM composition run on every released player; the
+kernel is 6.18 (`f_mass_storage` with `forced_eject`); Internal Storage is ext4 (unreadable on Windows/macOS),
+SD cards are FAT32, exFAT or ext4 and already checked read-only on every admission (F49, #44).
+
+| Area | Before | Now |
+| --- | --- | --- |
+| Kernel | `CONFIG_USB_CONFIGFS_MASS_STORAGE=n` | `=y` (production config only; the legacy `CONFIG_USB_MASS_STORAGE` gadget stays out, `dev_artifacts.py`) |
+| Block export | none | only the SD card, only with the owner's switch on (off by default), only FAT32/exFAT, only unmounted by the player first (plain `umount`, never lazy); nothing on the player touches it while lent (`sd_on_computer`) |
+| Internal Storage, Y2DATA, system partitions | MTP / never exported | unchanged |
+| Records | — | `/data/system/platform/usb-sd-disk.json` (new, additive); `usb-transfer.json` gains `sd_disk` (contract `usb::SdDisk`) |
+| Sleep | refused while a computer configured the gadget | unchanged (covers a lent card) |
+| Image size | 12 MiB D08 cap | measured in the test build |
+| Device checks | — | OWED: Windows, macOS, Linux; eject and unplug; playing from the card when connecting; MTP on Internal Storage in the same connection; charging |
+
+**Gate decision:** source work and an owner test build. Making it the default and publishing are the owner's
+decisions.
