@@ -100,6 +100,9 @@ automatically.
 
 ### The SD card as a USB drive
 
+**Experimental, and for the SD card only for now** (since Beta 9.3.42): Internal Storage is always reached
+through Music Transfer (MTP).
+
 Settings → Library → Storage → **SD Card as a USB Stick** (off by default). With it on, a connected
 computer gets the SD card as an ordinary **USB drive** ("Y2Linux SD Card"), like a card reader: Windows,
 macOS and Linux open it without any app, and tools that need a drive (rsync, beets, foobar2000's sync)

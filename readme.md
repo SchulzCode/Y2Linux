@@ -9,7 +9,7 @@ Last.fm and nineteen skins. Once it's installed, the player updates itself over 
   <img src="docs/images/reborn-hero.png" alt="Reborn on the Y2: the Home screen, Now Playing with its progress wave, and Cover Flow" width="100%">
 </p>
 
-> **Current version: Y2Linux 1.0 Beta 9.3.41** (26 November 2026), a public beta. New: cleaner quiet listening on wired headphones (volume in the DAC chip), Storage shows what fills it, a smoother Home and eleven fixes.
+> **Current version: Y2Linux 1.0 Beta 9.3.42** (27 November 2026), a public beta. New: audiobook series and Hörspiele, and the SD card as a USB stick on a computer (experimental; Internal Storage stays in Music Transfer).
 > **[Download it from the releases page](https://github.com/SchulzCode/Y2Linux/releases/latest)** and follow the
 > [install guide](docs/INSTALL.md). It runs every day on the developer's Y2 and on many others, but it is still a
 > beta: read [Known issues](#known-issues) first.
@@ -53,6 +53,7 @@ Last.fm and nineteen skins. Once it's installed, the player updates itself over 
 
 **Everyday**
 - Copy music over USB (MTP) from Windows, macOS or Linux at about 30 MB/s; the player charges at the same time.
+- Or open the SD card on a computer as an ordinary USB stick (experimental, SD card only; Internal Storage stays in Music Transfer).
 - **Wi-Fi Share**: copy music without a cable. The player becomes a small website on your home network; a phone
   (an iPhone too), tablet or computer opens a file browser for Internal Storage and the SD card
   ([guide](docs/WIFI-SHARE.md)).
@@ -118,6 +119,7 @@ Wi-Fi ([how updates work](docs/RECOVERY-AND-UPDATES.md)). More guides: [Storage]
 - **The speaker** uses the same volume as the headphones; its loudest step is the stock speaker's. Start low the
   first time.
 - **Radio:** stations that stream only in HLS (such as the BBC) don't play yet.
+- **SD card as a USB stick** is experimental and tried with Linux only so far; switch it off if Windows or macOS has trouble with it.
 - **Going back to stock** doesn't restore the old storage format: copy your music off first; stock Android then has
   to format that storage ([Storage](docs/STORAGE.md)).
 
@@ -135,16 +137,16 @@ calibration and factory partitions untouched. A Y2 with a different board, stora
 
 ## For developers
 
-| | 1.0 Beta 9.3.41 (Baseline 288) |
+| | 1.0 Beta 9.3.42 (Baseline 294) |
 | --- | --- |
-| Git tag (both repositories) | `baseline-288` (previous: `baseline-283`); the GitHub release carries the first-install images, the signed over-the-air update and the GPL sources |
-| Release / kernel | `1.0.0-beta.9.3.41` / `6.18.56-y2linux-1.0.0-beta.9.3.41` (Linux 6.18 long-term line) |
-| Root filesystem | `2026.08-platform-v1.311` (Buildroot 2026.08) |
+| Git tag (both repositories) | `baseline-294` (previous: `baseline-288`); the GitHub release carries the first-install images, the signed over-the-air update and the GPL sources |
+| Release / kernel | `1.0.0-beta.9.3.42` / `6.18.56-y2linux-1.0.0-beta.9.3.42` (Linux 6.18 long-term line) |
+| Root filesystem | `2026.08-platform-v1.317` (Buildroot 2026.08) |
 | Platform | `y2-platform` (Rust 1.99): the battery, sleep, Wi-Fi, Bluetooth, storage, update, USB and report services; no Python on the player |
-| Player | Y2Reborn 1.0.0-beta.9.3.41 (Rust 1.99, OpenGL ES on the Mali-400 GPU through DRM + Lima, FFmpeg, SQLite) |
+| Player | Y2Reborn 1.0.0-beta.9.3.42 (Rust 1.99, OpenGL ES on the Mali-400 GPU through DRM + Lima, FFmpeg, SQLite) |
 | Bluetooth codecs | SBC, AAC (fdk-aac-free) and LDAC |
 | Main components | GCC 15.3 / glibc 2.44, Mesa 26.2.4, FFmpeg 9.0.2, BlueZ 5.87, OpenSSL 4.0.3 |
-| Images built from | Y2Linux `13d88839`, Y2Reborn `db9fbb6` ([Beta 9.3.41 report](docs/validation/Y2-LINUX-1.0-BETA-9.3.41.md); every earlier release report is listed in the [documentation catalog](docs/DOCUMENTATION_CATALOG.md)) |
+| Images built from | Y2Linux `cab44d1e`, Y2Reborn `84b19fa` ([Beta 9.3.42 report](docs/validation/Y2-LINUX-1.0-BETA-9.3.42.md); every earlier release report is listed in the [documentation catalog](docs/DOCUMENTATION_CATALOG.md)) |
 
 - **[Build from source](docs/BUILDING.md)**: host setup, the build, the first-install package and releases.
 - **[Coding standard](docs/CODING-STANDARD.md)** for the platform and Reborn; `tools/development/platform-gate.sh`
