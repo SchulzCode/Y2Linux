@@ -13,7 +13,7 @@ document links, rather than relocating or deleting proof. See the
 [shared knowledge rules](KNOWLEDGE_BASE.md)
 and the other repository's catalog for product-wide context.
 
-Indexed pages: **361**. Explicit scope notices: **228**.
+Indexed pages: **362**. Explicit scope notices: **228**.
 
 ## Entry
 
@@ -382,6 +382,7 @@ Indexed pages: **361**. Explicit scope notices: **228**.
 | [Y2Linux 1.0 Beta 9.3.38 report](validation/Y2-LINUX-1.0-BETA-9.3.38.md) | Beta 9.3.38 (Baseline 273): two new skins, Pixel Quest and Gilded Grove; Bluetooth switched off no longer leaves Play waiting for headphones (#136) |
 | [Y2Linux 1.0 Beta 9.3.39 report](validation/Y2-LINUX-1.0-BETA-9.3.39.md) | Beta 9.3.39 (Baseline 275): the cover and quality tag stay while seeking (Y2Reborn #151, PR #154 by jonasevcik; #150 restored cover survives Play); films in formats the player cannot show (HEVC, AV1, …) listed in Videos as unplayable, never among songs |
 | [Y2Linux 1.0 Beta 9.3.40 report](validation/Y2-LINUX-1.0-BETA-9.3.40.md) | Beta 9.3.40 (Baseline 283): power plan (maintenance wake backoff, calm-rate wave #197, Battery Saver), sleep timer End of Queue (#175), chapter buttons (#177), audiobook speed slider (PR #198), lyrics keep the screen on (#142), SD skin after restart (#143), skin labels (#196), Home Menu notes (#195), update check reasons (PR #179/#140), Alpine 3.24.4 build lock (#199) |
+| [Y2Linux 1.0 Beta 9.3.41 report](validation/Y2-LINUX-1.0-BETA-9.3.41.md) | Beta 9.3.41 (Baseline 288): wired headphone volume in the DAC chip + 16-bit dither (PR #207), Storage split by kind (PR #206), Home motion and Back to top (PR #182), eleven review fixes (PR #205), multi-artist Last.fm scrobbles (#149) |
 | [Y2Linux 1.0 Beta 9.3.25 report](validation/Y2-LINUX-1.0-BETA-9.3.25.md) | Beta 9.3.25 (Baseline 248): videos (own hardware decoder driver, H.264 and MPEG-4 on the video chip, Videos in Reborn; early version), genres split at "/" (Y2Reborn #124) |
 | [Y2Linux 1.0 Beta 9.3.24 report](validation/Y2-LINUX-1.0-BETA-9.3.24.md) | Beta 9.3.24 (Baseline 235): SBC XQ removed (Y2Reborn #123), battery level after charging while off (#113), encoder rate log in reports |
 | [Y2Linux 1.0 Beta 9.3.19 report](validation/Y2-LINUX-1.0-BETA-9.3.19.md) | Beta 9.3.19 (Baseline 228): the update message works again and is opt-in: Update Notifications on Software Update, off by default (Y2Reborn #97) |
