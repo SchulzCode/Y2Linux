@@ -32,7 +32,7 @@ MTP + ECM by default, ACM + ECM as an advanced disconnected-session choice.
 [USB Platform 1.0 report](../validation/Y2-PLATFORM-V1-USB.md) records architecture,
 file confinement and qualification limits. No writable Linux filesystem is
 exported as USB mass storage, with one owner-approved exception since 2026-11-26: with Settings → Library →
-Storage → SD Card as USB Drive on, an SD card (FAT32/exFAT) is unmounted by the platform and lent to the
+Storage → SD Card as a USB Stick on, an SD card (FAT32/exFAT) is unmounted by the platform and lent to the
 computer as a removable LUN, never shared with the player
 ([plan](../planning/SD-DISK-MODE-PLAN.md)). The following authenticated SFTP contract remains.
 

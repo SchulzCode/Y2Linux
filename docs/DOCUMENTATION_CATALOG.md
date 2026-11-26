@@ -422,7 +422,7 @@ Indexed pages: **362**. Explicit scope notices: **228**.
 | [Wi-Fi Share](WIFI-SHARE.md) | Copying music over Wi-Fi from a phone or computer through the player's own web page: how to use it, who can get in, limits |
 | [Buttons](BUTTONS.md) | Customize > Buttons: giving buttons, holds and wheel turns other commands in the menus, on Now Playing and with the screen off; layouts and why nobody gets locked out |
 | [Videos on the Y2](VIDEO.md) | Owner test builds: how to use it, what plays, what was checked on the player, what is not done |
-| [SD card as a USB drive](planning/SD-DISK-MODE-PLAN.md) | Settings → Storage → SD Card as USB Drive: the SD card lent to a computer as a removable drive; owner decisions, how the lend works, device checks owed |
+| [SD card as a USB drive](planning/SD-DISK-MODE-PLAN.md) | Settings → Storage → SD Card as a USB Stick: the SD card lent to a computer as a removable drive; owner decisions, how the lend works, device checks owed |
 | [Video playback plan](planning/VIDEO-PLAYBACK-PLAN.md) | Hardware video decoder driver, software VP8/VP9, Videos in Reborn: owner decisions, steps and gates |
 | [MT6582 hardware video decoder](knowledge/video-decoder.md) | What the stock firmware does: base, interrupt, power, and the H.264 register sequence |
 | [Bluetooth reimplementation plan](planning/BLUETOOTH-REIMPLEMENTATION-PLAN.md) | One radio daemon for Bluetooth and the shared core: evidence, design, phases, as built (Beta 9.3) |

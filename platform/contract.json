@@ -8904,7 +8904,7 @@
    "env": [],
    "notes": [
     "Owner 2026-11-26 (docs/planning/SD-DISK-MODE-PLAN.md): the SD card as a USB drive. The service adds mass_storage.0 to the MTP composition while no computer is attached, and lends an unmounted FAT32/exFAT card to a computer that configured the gadget; usb-transfer.json's sd_disk reports it.",
-    "Called by Reborn's Settings > Library > Storage > SD Card as USB Drive."
+    "Called by Reborn's Settings > Library > Storage > SD Card as a USB Stick."
    ]
   },
   {
@@ -8984,7 +8984,7 @@
    "env": [],
    "notes": [
     "Owner 2026-11-26 (docs/planning/SD-DISK-MODE-PLAN.md): the SD card as a USB drive. The service adds mass_storage.0 to the MTP composition while no computer is attached, and lends an unmounted FAT32/exFAT card to a computer that configured the gadget; usb-transfer.json's sd_disk reports it.",
-    "Called by Reborn's Settings > Library > Storage > SD Card as USB Drive."
+    "Called by Reborn's Settings > Library > Storage > SD Card as a USB Stick."
    ]
   },
   {

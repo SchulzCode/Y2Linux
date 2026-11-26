@@ -100,7 +100,7 @@ automatically.
 
 ### The SD card as a USB drive
 
-Settings → Library → Storage → **SD Card as USB Drive** (off by default). With it on, a connected
+Settings → Library → Storage → **SD Card as a USB Stick** (off by default). With it on, a connected
 computer gets the SD card as an ordinary **USB drive** ("Y2Linux SD Card"), like a card reader: Windows,
 macOS and Linux open it without any app, and tools that need a drive (rsync, beets, foobar2000's sync)
 work. Internal Storage stays as it is (Music Transfer, below), and music on it keeps playing.
@@ -120,7 +120,7 @@ work. Internal Storage stays as it is (Music Transfer, below), and music on it k
 ## Copying music: USB
 
 Connect the player to a computer: it appears like a phone (MTP) with **Internal Storage** and
-**SD Card** (or the SD card as a drive of its own: [SD Card as USB Drive](#the-sd-card-as-a-usb-drive)). It works with Windows Explorer, Linux file managers (Dolphin, Nautilus) and MTP apps
+**SD Card** (or the SD card as a drive of its own: [SD Card as a USB Stick](#the-sd-card-as-a-usb-drive)). It works with Windows Explorer, Linux file managers (Dolphin, Nautilus) and MTP apps
 on macOS (for example OpenMTP). Music apps that read a device's song list over MTP (Strawberry and other
 libmtp programs) see the songs of both storages with the title, artist, album and length the player's library
 read; a song just copied shows its file name until the player has scanned it.

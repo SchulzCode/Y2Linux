@@ -9,7 +9,7 @@ use crate::reply::{atomic_json, unlink_missing_ok, Failure};
 use serde::{Deserialize, Serialize};
 use y2p_core::{command, mounts::mounts_at, Root};
 
-/// The owner's switch (Settings → Storage → SD Card as USB Drive); missing or unreadable is off.
+/// The owner's switch (Settings → Storage → SD Card as a USB Stick); missing or unreadable is off.
 pub const SETTING: &str = "/data/system/platform/usb-sd-disk.json";
 /// The lend record: written before the card leaves the player, removed once it is back.
 const LENT: &str = "/run/y2/sd-lent.json";

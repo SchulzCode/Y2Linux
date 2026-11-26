@@ -6,7 +6,7 @@ ext4 and on MTP, and is **not** reformatted.
 
 ## What the listener gets
 
-Settings → Library → Storage → **SD Card as USB Drive** (a switch, off by default). With it on, connecting a
+Settings → Library → Storage → **SD Card as a USB Stick** (a switch, off by default). With it on, connecting a
 computer:
 
 - Internal Storage appears as before (MTP, "Y2"), and music on it keeps playing.
