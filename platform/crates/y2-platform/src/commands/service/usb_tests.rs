@@ -871,3 +871,26 @@ fn a_lend_that_fails_gives_the_card_back_and_music_transfer_goes_on() {
     assert_eq!(usb.pid(), pid);
     assert!(!usb.fixture.exists("/run/y2/sd-lent.json"));
 }
+
+#[test]
+fn a_drive_that_cannot_bind_falls_back_to_music_transfer() {
+    let mut usb = Usb::new();
+    lending_card(&usb);
+    // The first gadget (with the drive) fails to bind, as on test build 289 (no endpoint left).
+    let udc = usb.fixture.path(&format!("{GADGET}/UDC"));
+    usb.tick();
+    usb.descriptors();
+    usb.cable("configured");
+    fs::create_dir_all(&udc).unwrap();
+    let failed = usb.tick();
+    assert_eq!(failed["state"], "Failed");
+    fs::remove_dir(&udc).unwrap();
+    // Set up again without it: Music Transfer works, the record says why there is no drive.
+    usb.tick();
+    usb.descriptors();
+    let record = usb.tick();
+    assert_eq!(record["state"], "Ready");
+    assert_eq!(record["functions"], json!(["ffs.mtp", "ecm.usb0"]));
+    assert_eq!(disk(&record), ("Kept", Some("drive_unavailable")));
+    assert!(!usb.fixture.exists("/run/y2/sd-lent.json"));
+}

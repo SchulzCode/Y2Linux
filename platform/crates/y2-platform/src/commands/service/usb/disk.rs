@@ -195,6 +195,7 @@ impl UsbService {
             (None, Some(kept)) => ("Kept", Some(kept)),
             (None, None) if !link.enabled => ("Off", None),
             (None, None) if !link.hosted => ("Idle", Some("no_computer")),
+            (None, None) if link.enabled && self.disk_failed => ("Kept", Some("drive_unavailable")),
             // Switched on while connected: the drive comes with the next connection.
             (None, None) if !self.disk => ("Idle", Some("reconnect")),
             (None, None) if !link.ready => ("Idle", Some("starting")),

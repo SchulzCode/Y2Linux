@@ -152,6 +152,11 @@ pub struct UsbService {
     kept: Option<&'static str>,
     /// The first pass ended a lend the previous service left.
     lend_recovered: bool,
+    /// The gadget being set up has the drive and is not bound yet.
+    disk_pending: bool,
+    /// A composition with the drive failed to set up or bind: plain MTP until the service restarts
+    /// (test build 289: the controller had no endpoint for it and the player had no USB at all).
+    disk_failed: bool,
 }
 
 impl UsbService {
@@ -179,6 +184,8 @@ impl UsbService {
             disk_record: DiskRecord::default(),
             kept: None,
             lend_recovered: false,
+            disk_pending: false,
+            disk_failed: false,
         }
     }
 
@@ -285,6 +292,9 @@ impl UsbService {
             .and_then(|()| self.attempt(requested, &cable, &name))
         {
             Err(error) => {
+                if std::mem::take(&mut self.disk_pending) {
+                    self.disk_failed = true;
+                }
                 if self.stop().is_err() {
                     self.terminal = true;
                 }
@@ -393,7 +403,7 @@ impl UsbService {
             Vec::new()
         };
         let attached = cable.as_deref() != Some("not attached");
-        let mut disk = requested == "mtp" && media::lend::enabled(&self.root);
+        let mut disk = requested == "mtp" && media::lend::enabled(&self.root) && !self.disk_failed;
         if let Some(mode) = self.mode {
             // A connected computer keeps the composition it enumerated; a change applies unplugged.
             if attached {
@@ -410,6 +420,7 @@ impl UsbService {
             if self.mode.is_some() {
                 self.refresh_generation = self.root.clock().monotonic_ns();
             }
+            self.disk_pending = disk;
             self.setup(requested, views, disk)?;
         } else if self.mode == Some("mtp")
             && self.views.as_ref() != Some(&views)
@@ -463,6 +474,7 @@ impl UsbService {
             }
             self.write("UDC", udc)?;
             self.bound = true;
+            self.disk_pending = false;
         }
         let activity = Activity::read(&self.root, self.child.as_ref().map(Child::pid));
         if let Some(generation) = activity.generation.filter(|g| *g > self.seen_generation) {

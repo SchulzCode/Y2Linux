@@ -646,11 +646,11 @@ static u16 y2_musb_clearw(void __iomem *base,u32 offset)
 static void y2_musb_disable(struct musb *musb)
 { writel(0,musb->mregs+0xa4); }
 
-#define Y2_FIFO_ENTRIES 6
+#define Y2_FIFO_ENTRIES 8
 static const struct musb_fifo_cfg y2_fifo[Y2_FIFO_ENTRIES];
 /* The FIFO layout is the platform's validated table (y2_fifo below, declared
  * after this function): ECM plus ACM or MTP, two bulk pairs and two 16-byte
- * notification endpoints. The registers must still hold exactly what the table
+ * notification endpoints, and a third bulk pair for the SD card's drive. The registers must still hold exactly what the table
  * describes before the pull-up is raised; anything else is a terminal fault. */
 static int y2_musb_fifos(struct musb *musb)
 {
@@ -1011,16 +1011,20 @@ static const struct musb_platform_ops y2_musb_ops={
 /* Bulk FIFOs are double buffered: with a single 512-byte buffer a host OUT packet
  * is NAKed until the previous one has been read, and the host's retry cadence
  * (not the CPU) limited device receive to about 7 MB/s while the CPU idled.
- * 4192 of the controller's 8192 bytes of FIFO RAM are used. */
+ * Endpoint 5 is the SD card's drive (mass storage next to MTP and ECM; test
+ * build 289 had no endpoint for it and the gadget never bound). The vendor
+ * declares 16 endpoints; 6240 of the controller's 8192 bytes of FIFO RAM are
+ * used. */
 static const struct musb_fifo_cfg y2_fifo[Y2_FIFO_ENTRIES]={
     MUSB_EP_FIFO_DOUBLE(1,FIFO_TX,512),MUSB_EP_FIFO_DOUBLE(1,FIFO_RX,512),
     MUSB_EP_FIFO_SINGLE(2,FIFO_TX,16),
     MUSB_EP_FIFO_DOUBLE(3,FIFO_TX,512),MUSB_EP_FIFO_DOUBLE(3,FIFO_RX,512),
     MUSB_EP_FIFO_SINGLE(4,FIFO_TX,16),
+    MUSB_EP_FIFO_DOUBLE(5,FIFO_TX,512),MUSB_EP_FIFO_DOUBLE(5,FIFO_RX,512),
 };
 static const struct musb_hdrc_config y2_musb_config={
     .fifo_cfg=y2_fifo,.fifo_cfg_size=ARRAY_SIZE(y2_fifo),.multipoint=true,
-    .num_eps=5,.ram_bits=11,.maximum_speed=USB_SPEED_HIGH,
+    .num_eps=6,.ram_bits=11,.maximum_speed=USB_SPEED_HIGH,
 };
 static const struct musb_hdrc_platform_data y2_musb_data={
     .mode=MUSB_PERIPHERAL,.config=&y2_musb_config,.platform_ops=&y2_musb_ops,
