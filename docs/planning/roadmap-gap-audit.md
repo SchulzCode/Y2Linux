@@ -9997,7 +9997,7 @@ SD cards are FAT32, exFAT or ext4 and already checked read-only on every admissi
 | Internal Storage, Y2DATA, system partitions | MTP / never exported | unchanged |
 | Records | — | `/data/system/platform/usb-sd-disk.json` (new, additive); `usb-transfer.json` gains `sd_disk` (contract `usb::SdDisk`) |
 | Sleep | refused while a computer configured the gadget | unchanged (covers a lent card) |
-| USB controller | FIFO endpoints 1–4 (MTP + ECM) | endpoint 5 added for the drive (test build 289 without it never bound the gadget); 6240 of 8192 bytes FIFO RAM; a drive that fails to bind falls back to MTP |
+| USB controller | FIFO endpoints 1–4 (MTP + ECM) | endpoint 5 added for the drive (test build 289 without it never bound the gadget); 7744 of 8192 bytes FIFO RAM after every IN FIFO became bulk-capable (test build 292: ECM bulk on the 16-byte endpoint 4 broke networking when booting with the drive on); a drive that fails to bind falls back to MTP |
 | Image size | 12 MiB D08 cap | 11.0 MiB (test build 289) |
 | Device checks | — | Linux host on build 290: drive, read 40 MB/s, Eject → back in 4 s, lend while playing from the card; OWED: Windows, macOS, writing, unplug without eject, FAT32 |
 

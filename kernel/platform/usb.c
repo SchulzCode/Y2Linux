@@ -1012,14 +1012,20 @@ static const struct musb_platform_ops y2_musb_ops={
  * is NAKed until the previous one has been read, and the host's retry cadence
  * (not the CPU) limited device receive to about 7 MB/s while the CPU idled.
  * Endpoint 5 is the SD card's drive (mass storage next to MTP and ECM; test
- * build 289 had no endpoint for it and the gadget never bound). The vendor
- * declares 16 endpoints; 6240 of the controller's 8192 bytes of FIFO RAM are
+ * build 289 had no endpoint for it and the gadget never bound).
+ * Every IN FIFO can carry bulk (test build 291): f_ecm's and f_mass_storage's
+ * full-speed bulk descriptors leave wMaxPacketSize 0, so epautoconf takes the
+ * first free IN endpoint whatever its FIFO and keeps that limit in the static
+ * descriptor for the rest of the boot. Booting with the drive on, ECM's bulk IN
+ * landed on endpoint 4's 16-byte FIFO, its alt setting could not be enabled and
+ * the host's cdc_ether failed with -32 (EPIPE) until the next boot. The vendor
+ * declares 16 endpoints; 7744 of the controller's 8192 bytes of FIFO RAM are
  * used. */
 static const struct musb_fifo_cfg y2_fifo[Y2_FIFO_ENTRIES]={
     MUSB_EP_FIFO_DOUBLE(1,FIFO_TX,512),MUSB_EP_FIFO_DOUBLE(1,FIFO_RX,512),
-    MUSB_EP_FIFO_SINGLE(2,FIFO_TX,16),
+    MUSB_EP_FIFO_SINGLE(2,FIFO_TX,512),
     MUSB_EP_FIFO_DOUBLE(3,FIFO_TX,512),MUSB_EP_FIFO_DOUBLE(3,FIFO_RX,512),
-    MUSB_EP_FIFO_SINGLE(4,FIFO_TX,16),
+    MUSB_EP_FIFO_DOUBLE(4,FIFO_TX,512),
     MUSB_EP_FIFO_DOUBLE(5,FIFO_TX,512),MUSB_EP_FIFO_DOUBLE(5,FIFO_RX,512),
 };
 static const struct musb_hdrc_config y2_musb_config={

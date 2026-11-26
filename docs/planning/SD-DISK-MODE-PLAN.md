@@ -70,6 +70,13 @@ Reborn:
   up endpoints 1–4, exactly MTP + ECM. Test build 290 adds endpoint 5 (512-byte double-buffered bulk pair,
   6240 of 8192 bytes of FIFO RAM) and falls back to plain MTP (`drive_unavailable`) if a drive composition ever
   fails to set up or bind.
+- **Test build 291, booting with the switch on:** the drive worked but the PC's `cdc_ether` failed with -32 (no
+  network, no SSH) and stayed broken across replugs until the next boot. ECM's bulk IN was on endpoint 4, whose
+  FIFO was 16 bytes (meant for an interrupt endpoint): f_ecm's full-speed bulk descriptor leaves wMaxPacketSize 0,
+  epautoconf takes the first free IN endpoint and keeps its limit in the static descriptor for the rest of the boot.
+  A boot whose first bind was MTP-only (every earlier test) put bulk on a 512-byte FIFO, so later binds skipped
+  endpoint 4. Fix (test build 292): every IN FIFO carries bulk (endpoint 2 single 512, endpoint 4 double 512;
+  7744 of 8192 bytes of FIFO RAM).
 - **Test build 290 (seq 19500), exFAT 128 GB card:** the host enumerates bcdDevice 1.01 with MTP, the drive and
   ECM; the card is Lent about 5 s after enumeration and appears as "Y2Linux SD Card" (`sdb`); exFAT mounts,
   files read at 40 MB/s; MTP keeps Internal Storage only. Eject (udisks `Drive.Eject`) → player remounts the card
