@@ -41,6 +41,8 @@ struct Fake {
     in_progress_first: bool,
     /// Every ConnectProfile answers "Host is down" (headphones switched off).
     host_down: bool,
+    /// The next this-many ConnectProfile calls answer "Host is down" (a page that misses once).
+    fail_next: u32,
     /// The headphones offer AAC too, and refuse it when selected.
     refuse_aac: bool,
     /// BlueALSA shows no PCM for the connected headset.
@@ -55,6 +57,15 @@ struct Fake {
     /// The codec every connect negotiates (BlueZ picks BlueALSA's first endpoint, AAC); empty keeps
     /// the last one.
     negotiates: String,
+    /// BlueALSA lists the stream with 8 channels (a 7.1 map), as it did for AAC headphones that
+    /// connected by themselves (BlueALSA 5.0.0 on the player, 2026-11-21); a connect from the
+    /// daemon makes it stereo (the same headphones connected from the player listed 2).
+    wide: bool,
+    /// The stream stays wide through a connect from the daemon too.
+    wide_always: bool,
+    /// BlueZ names "Remote" as the reason of a Disconnect asked for from here (the player,
+    /// 2026-11-21), with a `Disconnected` signal.
+    names_remote: bool,
     /// A change within this long of a connect ends the link with EIO: BlueZ still opens the stream
     /// and the change cancels that (#94).
     fragile_for: Duration,
@@ -128,7 +139,10 @@ fn bluealsa_objects(fake: &Fake) -> Objects {
         pcm.insert("Codec".into(), variant(fake.codec.clone()));
         pcm.insert("Format".into(), variant(0x8210u16));
         pcm.insert("Rate".into(), variant(44_100u32));
-        pcm.insert("Channels".into(), variant(2u8));
+        pcm.insert(
+            "Channels".into(),
+            variant(if fake.wide { 8u8 } else { 2u8 }),
+        );
         pcm.insert("Running".into(), variant(false));
         pcm.insert("Sequence".into(), variant(fake.connects));
         objects.insert(
@@ -223,11 +237,13 @@ fn answer(fake: &Mutex<Fake>, message: &Message, connection: &Connection) -> Mes
             if fake.in_progress_first && fake.connects == 1 {
                 return message.error(&"org.bluez.Error.InProgress".into(), c"In Progress");
             }
-            if fake.host_down {
+            if fake.host_down || fake.fail_next > 0 {
+                fake.fail_next = fake.fail_next.saturating_sub(1);
                 return message.error(&"org.bluez.Error.Failed".into(), c"Host is down");
             }
             fake.connected = true;
             fake.arrived = false;
+            fake.wide = fake.wide_always;
             fake.connected_at = Some(Instant::now());
             if !fake.negotiates.is_empty() {
                 fake.codec = fake.negotiates.clone();
@@ -237,6 +253,16 @@ fn answer(fake: &Mutex<Fake>, message: &Message, connection: &Connection) -> Mes
         }
         "Disconnect" => {
             fake.connected = false;
+            if fake.names_remote {
+                let _ = connection.send(
+                    Message::new_signal(DEVICE, "org.bluez.Device1", "Disconnected")
+                        .expect("signal")
+                        .append2(
+                            "org.bluez.Reason.Remote",
+                            "Connection terminated by remote user",
+                        ),
+                );
+            }
             let _ = connection.send(changed(DEVICE, "org.bluez.Device1"));
             message.method_return()
         }
@@ -789,6 +815,85 @@ fn a_codec_change_keeps_a_headset_that_came_by_itself() {
     assert_eq!(fake.selects, ["AAC"]);
 }
 
+/// AAC headphones that connected by themselves: BlueALSA lists the stream with 8 channels, which
+/// the player cannot open, so its output never followed the headphones while the screen said
+/// "Connected". Selecting a codec on that stream did not repair it (it ran behind real time and
+/// played one ear garbled); a connection from this side does. The headset is disconnected once
+/// and connected again (a missed try is repeated), the codec is left alone.
+fn a_wide_stream_gets_one_clean_reconnect() {
+    let Some(h) = Harness::start(
+        "wide",
+        Fake {
+            host_down: true,
+            offers_aac: true,
+            negotiates: "AAC".into(),
+            codec: "AAC".into(),
+            wide: true,
+            names_remote: true,
+            ..Fake::default()
+        },
+    ) else {
+        return;
+    };
+    h.link(LONG, Link::Parked).expect("parked");
+    let connects = h.fake().connects;
+    {
+        // The first try of the reconnect misses: a local end gets three, one look would leave
+        // the headphones off (BlueZ names "Remote" for the disconnect asked for from here).
+        let mut fake = h.fake.lock().expect("fake");
+        fake.host_down = false;
+        fake.fail_next = 1;
+    }
+    let _ = h.control.send(Control::Arrive);
+    let ready = h
+        .until(LONG, |s| {
+            s.devices.iter().any(|d| d.link == Link::Ready)
+                && s.pcms.first().and_then(|p| p.channels) == Some(2)
+        })
+        .expect("ready with a stereo stream");
+    let fake = h.fake();
+    assert_eq!(
+        fake.connects,
+        connects + 2,
+        "a missed try, then the connect"
+    );
+    assert!(
+        fake.selects.is_empty(),
+        "no codec change: {:?}",
+        fake.selects
+    );
+    assert!(fake.connected && ready.devices[0].connected);
+    assert_eq!(ready.pcms[0].codec.as_deref(), Some("AAC"));
+}
+
+/// The same headphones get the wide stream again from the reconnect: no second one (a loop of
+/// disconnects would be worse than the speaker); the link stays as it is.
+fn a_stream_that_stays_wide_is_reconnected_only_once() {
+    let Some(h) = Harness::start(
+        "wide-again",
+        Fake {
+            host_down: true,
+            wide: true,
+            wide_always: true,
+            names_remote: true,
+            ..Fake::default()
+        },
+    ) else {
+        return;
+    };
+    h.link(LONG, Link::Parked).expect("parked");
+    let connects = h.fake().connects;
+    h.fake.lock().expect("fake").host_down = false;
+    let _ = h.control.send(Control::Arrive);
+    fake_until(&h, LONG, |f| f.connects == connects + 1 && f.connected)
+        .expect("reconnected from this side");
+    // A second reconnect would come after the link is set up again and the headset reconnected.
+    std::thread::sleep(settle::SWITCH_QUIET + Duration::from_secs(8));
+    let fake = h.fake();
+    assert_eq!(fake.connects, connects + 1, "reconnected once, not again");
+    assert!(fake.connected, "the link stays");
+}
+
 /// Connected and resolved, but BlueALSA shows no stream: A2DP is asked for, then BlueALSA restarts.
 fn missing_stream_asks_a2dp_then_restarts_bluealsa() {
     let Some(h) = Harness::start(
@@ -935,6 +1040,8 @@ fn field_failures_against_a_fake_bluez() {
     codec_change_waits_for_the_link();
     a_change_that_ends_the_link_is_not_repeated();
     a_codec_change_keeps_a_headset_that_came_by_itself();
+    a_wide_stream_gets_one_clean_reconnect();
+    a_stream_that_stays_wide_is_reconnected_only_once();
     missing_stream_asks_a2dp_then_restarts_bluealsa();
     codec_reload_reconnects_cleanly();
     quick_drops_park_the_headset();

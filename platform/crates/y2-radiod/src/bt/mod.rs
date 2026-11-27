@@ -128,6 +128,13 @@ struct Record {
     cancels: u32,
     /// Links in a row that dropped right after coming up (`links::QUICK_DROPS` park the headset).
     quick_drops: u32,
+    /// Reconnects made because BlueALSA listed the stream with more than two channels
+    /// (`settle::WIDE_RECONNECTS` at most); a stereo stream starts the count again.
+    wide_reconnects: u32,
+    /// When a reconnect for that is due (the link is set up first).
+    wide_at: Option<Instant>,
+    /// That reconnect's disconnect is under way: it ends the link as `Ended::Local`.
+    stereo_reconnect: bool,
 }
 
 struct Power {
@@ -322,6 +329,7 @@ impl Controller {
             consider(record.connecting.map(|at| at + links::STUCK));
             consider(record.unset_since.map(|at| at + links::HALF_CONNECTED));
             consider(record.pcm_missing_since.map(|at| at + settle::PCM_WAIT));
+            consider(record.wide_at);
         }
         consider(self.discovery.as_ref().map(|d| d.until));
         consider(self.pairing.deadline());

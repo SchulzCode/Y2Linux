@@ -8,6 +8,13 @@
 //! up): sent while BlueZ still opens the stream, it cancels that open and the link ends; the
 //! reconnect then met the same change, ≈40 times in a row (Y2Reborn #94, F66). A change that ended
 //! a link or failed is not sent again to that headset until the owner picks a codec again.
+//!
+//! Headphones that connect by themselves can get a BlueALSA stream with 8 channels (a 7.1 map)
+//! where the same headphones connected from here get 2. The player cannot open or route that
+//! stream, yet it is "connected" on the screen and the sound stays on the speaker. Selecting a
+//! codec on it does not repair it (the stream then runs behind real time and plays one ear
+//! garbled, measured with AAC and with SBC), a fresh connection from this side does: the headset
+//! is disconnected once and connected again ([`Controller::stereo_reconnect`]).
 // SPDX-License-Identifier: GPL-2.0-only
 use super::{bus::Kind, codec, ladder::Rung, world::SINK, Controller};
 use dbus::{
@@ -22,6 +29,9 @@ use y2p_contract::radiod::{Codec, Eligibility};
 
 /// A resolved headset without a PCM this long: ask for A2DP, then restart BlueALSA.
 pub const PCM_WAIT: Duration = Duration::from_secs(8);
+/// Reconnects for a stream that lists more than two channels, in a row: a headset that gets the
+/// same stream again keeps it (nothing else is tried; the output then stays where it is).
+pub const WIDE_RECONNECTS: u32 = 1;
 const SELECT_DEADLINE: Duration = Duration::from_secs(8);
 const SELECT_BUDGET: Duration = Duration::from_secs(12);
 const SELECTIONS: u32 = 3;
@@ -129,6 +139,9 @@ impl Controller {
         let record = self.record(address);
         record.pcm_missing_since = None;
         record.profile_asked = false;
+        if self.stereo_reconnect(address, &pcm, now) {
+            return;
+        }
         let preference = self.desired.policy.preference.clone();
         // The owner picked a codec while this link runs: apply it, even to a headset kept before.
         let changed = self
@@ -193,6 +206,51 @@ impl Controller {
             }
             _ => run.state = "Settled",
         }
+    }
+
+    /// The stream lists more than two channels (headphones that connected by themselves): end the
+    /// link and connect again from here, once. Only for a headset this daemon keeps connected (it
+    /// reconnects it itself: episode `Lost(Local)`), not while a
+    /// stream is open, and not before the link is set up. Whether a reconnect was started.
+    fn stereo_reconnect(
+        &mut self,
+        address: &str,
+        pcm: &super::world::PcmObs,
+        now: Instant,
+    ) -> bool {
+        let wide = not_stereo(pcm);
+        let wait = if wide {
+            self.switch_waits(address, now)
+        } else {
+            None
+        };
+        let keeps = self.target().as_deref() == Some(address);
+        let open = self.streams.contains_key(address);
+        let record = self.record(address);
+        record.wide_at = None;
+        if !wide {
+            record.wide_reconnects = 0;
+            return false;
+        }
+        if record.wide_reconnects >= WIDE_RECONNECTS || !keeps || open {
+            return false;
+        }
+        if let Some(at) = wait {
+            record.wide_at = Some(at);
+            return true;
+        }
+        record.wide_reconnects += 1;
+        let reconnects = record.wide_reconnects;
+        self.journal.event(
+            "stereo_reconnect",
+            serde_json::json!({
+                "address": address, "channels": pcm.channels, "codec": pcm.codec,
+                "attempt": reconnects
+            }),
+        );
+        self.record(address).stereo_reconnect = true;
+        self.disconnect(address, Kind::Cancel(address.to_owned()));
+        true
     }
 
     /// When a codec change may be sent: not while our Connect is unanswered, nor in the first
@@ -437,6 +495,12 @@ fn numbers(p: &PropMap, key: &str) -> Vec<u64> {
 
 fn rates(p: &PropMap) -> Vec<u64> {
     numbers(p, "Rates")
+}
+
+/// BlueALSA lists the stream with a channel count other than 2 (8 with a 7.1 map: AAC headphones
+/// that connected by themselves, BlueALSA 5.0.0).
+fn not_stereo(pcm: &super::world::PcmObs) -> bool {
+    matches!(pcm.channels, Some(channels) if channels != 2)
 }
 
 /// Stereo at 44.1 or 48 kHz (what the player sends).
