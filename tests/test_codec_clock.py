@@ -2,8 +2,9 @@
 runs it: it starts when the codec powers up, stops only with the rails, a stream waits for its ready flag until it
 has run 1 s and then uses it anyway (stock never reads the flag), flags seen later are counted and never restart it,
 the running clock stays selected between streams (#52: stock never switches), power-up selects the crystal with
-the PLL and CLKOUT on as stock cs43131_hw_init does (#54), rates the crystal does not clock are refused (the PLL is never
-used, as stock: #52's crystal stopped at every 48 kHz start), a crystal error at a stream start power-cycles the codec,
+the PLL and CLKOUT on as stock cs43131_hw_init does (#54), 48 kHz runs from the crystal like 44.1 kHz (the serial port's
+clock generator, DS1155F2 Table 4-6) and rates the crystal does not clock are refused (the PLL is never used, as stock:
+#52's crystal stopped at every 48 kHz start through the PLL), a crystal error at a stream start power-cycles the codec,
 a probe that finds the rails on starts the codec cold, and the per-DAI clock requests stay balanced across ALSA's
 hw_params/hw_free sequences. #52/#54 on 8.24: each power-up starts the crystal with the whole chip powered (stock
 PWDN_CTL=0, except the headphone amplifier: its unsequenced power-up was audible) and cuts the rails for another try when it flags an error or no ready flag, three tries in all; the first
@@ -72,17 +73,19 @@ class CodecClock(unittest.TestCase):
         at = 0
         for step in order:
             at = cold.index(step, at) + 1
-        # #52: no PLL, ever: rates the crystal does not clock fail before any clock work.
+        # #52: no PLL, ever: rates the crystal does not clock fail before any clock work; 48 kHz is one it clocks.
         get = function(source, 'y2_clk_get')
-        self.assertLess(get.index('if (CS43130_MCLK_22M % rate) {'), get.index('mutex_lock(&cs43130->clk_mutex);'))
+        self.assertLess(get.index('if (CS43130_MCLK_22M % rate && rate != 48000) {'),
+                        get.index('mutex_lock(&cs43130->clk_mutex);'))
+        self.assertIn('unsigned int required_clk = CS43130_MCLK_22M;', get)
         afe = (Path(__file__).resolve().parents[1]/'kernel/audio/mt6582-afe.c').read_text()
-        # Playback only: the FM tuner's capture (48 kHz into memory) never reaches the codec.
+        # Playback at 44.1 and 48 kHz, the two rates the AFE's I2S out has (2026-11-27 on a Y2: 48 kHz plays from the
+        # crystal); the FM tuner's capture stays 48 kHz into memory.
         playback = afe[afe.index('static const struct snd_pcm_hardware mt6582_hw'):afe.index('mt6582_fm_hw')]
-        self.assertNotIn('SNDRV_PCM_RATE_48000', playback)
-        self.assertEqual(afe.count('SNDRV_PCM_RATE_48000'), 2)
+        self.assertIn('.rates = SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000,', playback)
+        self.assertIn('.rate_min = 44100, .rate_max = 48000,', playback)
         macro = afe[afe.index('#define MT6582_PLAYBACK'):afe.index('static struct snd_soc_dai_driver')]
-        self.assertIn('SNDRV_PCM_RATE_44100', macro)
-        self.assertIn('.rate_min = 44100, .rate_max = 44100,', afe)
+        self.assertIn('.rates = SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000,', macro)
         preamble = source[source.index('#define Y2_XTAL_WAIT_MS'):source.index('static void y2_xtal_boost(')]
         run_c(r'''
 #include <assert.h>
@@ -322,21 +325,29 @@ int main(void) {
  /* Test boost: the bias changes at the next power-up, never under a running crystal. */
  y2_xtal_boost(&codec); assert(y2_xtal_boosted && map.reg[CS43130_CRYSTAL_SET] == CS43130_XTAL_IBIAS_12_5UA);
  runtime_suspend(); runtime_resume(); assert(map.reg[CS43130_CRYSTAL_SET] == CS43130_XTAL_IBIAS_15UA);
- /* #52: 48 kHz, and every rate the crystal does not clock, is refused before any clock work: no PLL, ever. */
+ /* 48 kHz runs from the running crystal exactly as 44.1 kHz: no PLL work, no clock switch, no crystal stop. */
  pll_sets = 0; stops = 0;
- assert(y2_clk_get(&component, 0, 48000) == -EINVAL && y2_clk_get(&component, 0, 96000) == -EINVAL);
- assert(y2_clk_get(&component, 0, 32000) == -EINVAL);
+ assert(!y2_clk_get(&component, 0, 48000) && codec.clk_req == 1 && codec.mclk_int == CS43130_MCLK_22M);
+ assert(!pll_sets && !stops && !xtal_off()); on_ext();
+ hw_free(0); assert(codec.clk_req == 0);
+ /* #52: every rate the crystal does not clock is refused before any clock work: no PLL, ever. */
+ assert(y2_clk_get(&component, 0, 96000) == -EINVAL && y2_clk_get(&component, 0, 32000) == -EINVAL);
+ assert(y2_clk_get(&component, 0, 192000) == -EINVAL);
  assert(!pll_sets && codec.clk_req == 0 && !y2_clk_holders && !stops && !xtal_off()); on_ext();
  hw_free(0); /* ALSA's hw_free after the refusal must not take a request it never got */
  assert(codec.clk_req == 0);
- /* Runtime suspend returns the codec to RCO with the PLL off; the next open selects the crystal again. */
+ /* Runtime suspend returns the codec to RCO with the PLL off; the next open selects the crystal again, at 48 kHz
+  * as at 44.1 kHz (set_pll() only records the crystal as the bypass: 22.5792 MHz in and out). */
  runtime_suspend(); on_rco(); runtime_resume();
- assert(!y2_clk_get(&component, 0, 44100)); on_ext();
+ assert(!y2_clk_get(&component, 0, 48000)); on_ext();
+ assert(codec.mclk_int == CS43130_MCLK_22M && codec.pll_bypass);
  hw_free(0);
- /* A repeated hw_params keeps the clock; 88.2 kHz runs from the crystal too; a refused rate keeps the request. */
+ /* A repeated hw_params keeps the clock, also across 44.1 -> 48 kHz (an album change); 88.2 kHz runs from the
+  * crystal too; a refused rate keeps the request. */
  assert(!y2_clk_get(&component, 0, 44100) && codec.clk_req == 1);
+ assert(!y2_clk_get(&component, 0, 48000) && codec.clk_req == 1 && codec.mclk_int == CS43130_MCLK_22M && !pll_sets);
  assert(!y2_clk_get(&component, 0, 88200) && codec.clk_req == 1 && codec.mclk_int == CS43130_MCLK_22M && !pll_sets);
- assert(y2_clk_get(&component, 0, 48000) == -EINVAL && codec.clk_req == 1);
+ assert(y2_clk_get(&component, 0, 96000) == -EINVAL && codec.clk_req == 1);
  /* A second DAI shares the clock; the last hw_free returns to RCO. */
  assert(!y2_clk_get(&component, 1, 44100) && codec.clk_req == 2 && mix);
  hw_free(0); assert(codec.clk_req == 1 && sel() == CS43130_MCLK_SRC_EXT);
