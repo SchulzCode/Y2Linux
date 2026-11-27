@@ -32,11 +32,13 @@ static const struct snd_pcm_hardware mt6582_hw = {
 	.info = SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_MMAP_VALID |
 		SNDRV_PCM_INFO_INTERLEAVED | SNDRV_PCM_INFO_BLOCK_TRANSFER,
 	.formats = SNDRV_PCM_FMTBIT_S16_LE,
-	/* 44.1 kHz only, as stock (#52): the CS43131's 22.5792 MHz crystal
-	 * clocks it directly; 48 kHz needs the codec's PLL, which stock never
-	 * runs and which stopped one player's crystal. Reborn converts. */
-	.rates = SNDRV_PCM_RATE_44100,
-	.rate_min = 44100, .rate_max = 44100,
+	/* 44.1 and 48 kHz, both on the CS43131's 22.5792 MHz crystal (#52: never
+	 * the codec PLL, which stopped one player's crystal). 48 kHz uses the
+	 * DAC's serial-port clock generator (DS1155F2 Table 4-6); rate code 0xA
+	 * gives exactly 48.0 kHz frames on the pads and played clean on a Y2
+	 * (2026-11-27). The AFE has no higher output rate. Reborn converts the rest. */
+	.rates = SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000,
+	.rate_min = 44100, .rate_max = 48000,
 	.channels_min = 2, .channels_max = 2,
 	.buffer_bytes_max = PCM_MAX_BYTES,
 	.period_bytes_min = 512, .period_bytes_max = 128 * 1024,
@@ -436,7 +438,7 @@ static const struct snd_soc_dai_ops mt6582_i2s_ops = {
 };
 
 #define MT6582_PLAYBACK(_name) { .stream_name = _name, .channels_min = 2, \
-	.channels_max = 2, .rates = SNDRV_PCM_RATE_44100, \
+	.channels_max = 2, .rates = SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000, \
 	.formats = SNDRV_PCM_FMTBIT_S16_LE }
 static struct snd_soc_dai_driver mt6582_dais[] = {
 	{ .name = "DL1", .id = 0, .playback = MT6582_PLAYBACK("DL1"), .ops = &mt6582_fe_ops },
@@ -655,7 +657,7 @@ static ssize_t pcm_contract_show(struct device *dev, struct device_attribute *at
 		"\"afe_format\":\"I05_I06_to_O00_O01_s16\","
 		"\"afe_interconnect_physical_bits\":null,\"i2s_slot_bits\":32,"
 		"\"i2s_payload_bits\":16,\"dac_input_word_bits\":16,"
-		"\"rates_hz\":[44100]}],"
+		"\"rates_hz\":[44100,48000]}],"
 		"\"current\":{\"configured\":%s,\"running\":%s,\"rate_hz\":%u,"
 		"\"alsa_format\":\"%s\",\"container_bits\":%u,\"meaningful_bits\":%u,"
 		"\"dma_format\":\"%s\",\"dl1_format\":\"%s\",\"afe_format\":\"%s\","

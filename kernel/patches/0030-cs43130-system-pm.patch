@@ -471,9 +471,9 @@
 +}
 +
 +/*
-+ * Y2 (#52): only rates the 22.5792 MHz crystal clocks directly. The others
-+ * need the PLL, which the stock firmware never runs (its only output rate is
-+ * 44.1 kHz) and which stopped one player's crystal at every 48 kHz start.
++ * Y2 (#52): the 22.5792 MHz crystal is the only clock; never the PLL, which stock never runs
++ * and which stopped one player's crystal at every 48 kHz start. The crystal clocks the 44.1 kHz
++ * family and 48 kHz (DS1155F2 Table 4-6, N/M 20/147; played on a Y2 2026-11-27); others refused.
 + */
 +static int y2_clk_get(struct snd_soc_component *component, int dai_id,
 +		      unsigned int rate)
@@ -482,9 +482,9 @@
 +	unsigned int required_clk = CS43130_MCLK_22M;
 +	int ret = 0;
 +
-+	if (CS43130_MCLK_22M % rate) {
++	if (CS43130_MCLK_22M % rate && rate != 48000) {
 +		dev_warn_ratelimited(cs43130->dev,
-+				     "%u Hz refused: it needs the PLL, which stock never runs\n",
++				     "%u Hz refused: the crystal does not clock it\n",
 +				     rate);
 +		return -EINVAL;
 +	}

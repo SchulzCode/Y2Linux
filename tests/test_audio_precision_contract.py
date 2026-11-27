@@ -57,6 +57,7 @@ int main(void) {
                               mode['i2s_slot_bits'], mode['i2s_payload_bits']),
                              (16, 16, 32, 16))
             self.assertIsNone(mode['afe_interconnect_physical_bits'])
+            self.assertEqual(mode['rates_hz'], [44100, 48000])
             self.assertEqual(row['evidence'], 'driver_contract')
 
 
