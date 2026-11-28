@@ -12,6 +12,10 @@ use std::collections::BTreeMap;
 /// `State::schema`.
 pub const SCHEMA: &str = "org.y2linux.radiod/v1";
 
+/// The longest name the owner can give the player ([`Request::DeviceName`]), in UTF-8 bytes: car
+/// screens and phone lists cut longer names short.
+pub const NAME_MAX_BYTES: usize = 32;
+
 /// The two radios of the shared core.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -45,6 +49,9 @@ pub enum Request {
     /// The owner's codec choice for every headset: "Auto", "SBC", "SBC-XQ", "AAC", "aptX", "aptX-HD",
     /// "LDAC". Applied when a headset connects, or at the next stop of its stream.
     CodecPreference { preference: String },
+    /// The name cars, phones and headphones list this player by (BlueZ keeps it across restarts).
+    /// Empty: back to the standard name. At most [`NAME_MAX_BYTES`], no control characters.
+    DeviceName { name: String },
     /// The headphones' own volume (AVRCP absolute volume, 0..=127).
     Volume { address: String, volume: u8 },
     /// Whether this paired device connects on its own (Y2Reborn #78: a TV that is always on).
@@ -292,6 +299,10 @@ pub struct Bluetooth {
     pub codec: Option<Codec>,
     /// The owner's codec choice.
     pub preference: String,
+    /// The name other devices list this player by, while the adapter is there (an older daemon
+    /// does not send it).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
     pub scan: Scan,
     /// The recovery step running or last run (`reconnect`, `cancel_page`, `power_cycle`,
     /// `bluealsa_restart`, `bluez_restart`, `core_reset`).
@@ -330,3 +341,7 @@ impl Bluetooth {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "radiod_tests.rs"]
+mod radiod_tests;

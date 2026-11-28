@@ -5,7 +5,7 @@
 use super::{bus::Kind, links::Trigger, Controller, Discovery, Sleep};
 use crate::server::Client;
 use std::time::{Duration, Instant};
-use y2p_contract::radiod::{Ended, Radio, Reply, Request, Scan};
+use y2p_contract::radiod::{Ended, Radio, Reply, Request, Scan, NAME_MAX_BYTES};
 
 const SCAN_FOR: Duration = Duration::from_secs(15);
 const PAIR_DEADLINE: Duration = Duration::from_secs(70);
@@ -29,6 +29,7 @@ impl Controller {
                 false => Reply::refused("no_pairing_question"),
             },
             Request::CodecPreference { preference } => self.preference(&preference),
+            Request::DeviceName { name } => self.rename(&name),
             Request::Volume { address, volume } => self.volume(&address, volume),
             Request::AutoConnect { address, on } => self.auto_connect(&address, on),
             Request::Stream { address, open } => self.stream(address, open),
@@ -276,6 +277,33 @@ impl Controller {
         Reply::done()
     }
 
+    /// The owner's name for the player: BlueZ keeps it (`/data/bluetooth/bluez`), so it outlives
+    /// this daemon and a restore of the system; the next published state carries it.
+    fn rename(&mut self, name: &str) -> Reply {
+        let name = match device_name(name) {
+            Ok(name) => name,
+            Err(reason) => return Reply::refused(reason),
+        };
+        let (Some(owner), Some(adapter), Some(bus)) = (
+            self.world.bluez.clone(),
+            self.world.adapter.as_ref().map(|a| a.path.clone()),
+            self.bus.as_ref(),
+        ) else {
+            return Reply::refused("bluetooth_not_ready");
+        };
+        match bus.set_now(
+            (&owner, &adapter, "org.bluez.Adapter1", "Alias"),
+            name.to_owned(),
+        ) {
+            Ok(()) => Reply::done(),
+            Err(error) => {
+                self.journal
+                    .event("rename_failed", serde_json::json!({"error": error}));
+                Reply::refused("device_name_not_set")
+            }
+        }
+    }
+
     fn volume(&mut self, address: &str, volume: u8) -> Reply {
         let (Some(owner), Some(transport)) = (
             self.world.bluez.clone(),
@@ -360,6 +388,18 @@ impl Controller {
     }
 }
 
+/// The name the owner asked for, trimmed (empty: main.conf's), or why it cannot be one.
+fn device_name(name: &str) -> Result<&str, &'static str> {
+    let name = name.trim();
+    if name.len() > NAME_MAX_BYTES {
+        Err("device_name_too_long")
+    } else if name.chars().any(char::is_control) {
+        Err("device_name_invalid")
+    } else {
+        Ok(name)
+    }
+}
+
 /// A request's name for the journal (never its addresses).
 fn operation(request: &Request) -> &'static str {
     match request {
@@ -374,6 +414,7 @@ fn operation(request: &Request) -> &'static str {
         Request::Forget { .. } => "forget",
         Request::Confirm { .. } => "confirm",
         Request::CodecPreference { .. } => "codec_preference",
+        Request::DeviceName { .. } => "device_name",
         Request::Volume { .. } => "volume",
         Request::AutoConnect { .. } => "auto_connect",
         Request::Stream { open: true, .. } => "stream_open",

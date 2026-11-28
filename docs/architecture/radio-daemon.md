@@ -74,6 +74,11 @@ changes while one is open.
   `AuthorizeService` is answered without a second question, and once BlueZ bonded it the daemon
   trusts it, hides the player again and uses it for audio like headphones paired here
   (`adopt_welcomed`). Bluetooth off, a sleep or a pairing of our own end the visibility early.
+- **The player's name** (`bt/requests.rs` `rename`, Y2Reborn #217): `DeviceName` sets the adapter's `Alias`, the
+  name cars, phones and headphones list the player by (trimmed, at most `radiod::NAME_MAX_BYTES`, no control
+  characters; empty puts back main.conf's `Name=Y2Linux`). BlueZ keeps it in the adapter's `settings` file, so it
+  outlives restarts and system updates; the full and Bluetooth-bond resets clear it. `State.bluetooth.name` shows
+  the Alias while the adapter is there. A device paired before a rename may keep showing the name it learned.
 
 ## Records
 
@@ -85,6 +90,7 @@ changes while one is open.
 | `/data/bluetooth/codec-history.json` | daemon | daemon |
 | `/data/system/platform/bluetooth-journal.jsonl` | daemon (state changes, calls, disconnect reasons, recovery) | error reports |
 | `/run/y2/radiod-state.json` | daemon | service daemon (coexistence, Wi-Fi power save), error reports |
+| `/data/bluetooth/bluez/<adapter>/settings` `Alias=` | BlueZ, when the daemon sets the player's name | BlueZ, error reports (to replace the name) |
 
 `status` asks the daemon on its socket for `bluetooth.reconnect`. BlueZ's and BlueALSA's objects and the encoder
 statistics in `status` still come from `y2-bt-observe` (read-only).

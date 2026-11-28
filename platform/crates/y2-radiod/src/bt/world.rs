@@ -20,6 +20,8 @@ pub struct Adapter {
     pub path: String,
     pub powered: bool,
     pub discovering: bool,
+    /// The name other devices list the player by (BlueZ's Alias: the owner's or main.conf's).
+    pub alias: String,
 }
 
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -237,6 +239,7 @@ fn bluez_objects(world: &mut World, objects: Objects) {
                     path: path.to_string(),
                     powered: flag(p, "Powered"),
                     discovering: flag(p, "Discovering"),
+                    alias: text(p, "Alias"),
                 });
             }
         }

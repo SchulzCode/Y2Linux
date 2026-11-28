@@ -2,7 +2,8 @@
 //! run one after another in one test). Each scenario is
 //! a field failure the old stack mishandled: a stuck page (F65, #92), headphones switched off, a
 //! remote end, the owner's own disconnect, a codec the headphones refuse, a stream that never came,
-//! a codec change that ends the link (#94), a car that pairs from its own side (#116).
+//! a codec change that ends the link (#94), a car that pairs from its own side (#116); and the
+//! owner's name for the player (Y2Reborn #217).
 use super::*;
 use crate::arbiter::Event;
 use dbus::{
@@ -76,6 +77,17 @@ struct Fake {
     /// Who registered the pairing agent, and the agent's answer to AuthorizeService.
     agent: Option<String>,
     authorized: Option<bool>,
+    /// The owner's name for the adapter (BlueZ's stored Alias); none: main.conf's Name.
+    alias: Option<String>,
+}
+
+/// main.conf's `Name`.
+const SYSTEM_NAME: &str = "Y2Linux";
+
+impl Fake {
+    fn alias(&self) -> String {
+        self.alias.clone().unwrap_or_else(|| SYSTEM_NAME.into())
+    }
 }
 
 fn variant<T: RefArg + 'static>(value: T) -> Variant<Box<dyn RefArg>> {
@@ -88,6 +100,7 @@ fn bluez_objects(fake: &Fake) -> Objects {
     let mut adapter = PropMap::new();
     adapter.insert("Powered".into(), variant(fake.powered));
     adapter.insert("Discovering".into(), variant(false));
+    adapter.insert("Alias".into(), variant(fake.alias()));
     let mut device = PropMap::new();
     device.insert("Address".into(), variant(ADDRESS.to_string()));
     device.insert("Alias".into(), variant("Buds".to_string()));
@@ -202,6 +215,12 @@ fn answer(fake: &Mutex<Fake>, message: &Message, connection: &Connection) -> Mes
                 "Discoverable" => fake.discoverable = on,
                 "Pairable" => fake.pairable = on,
                 "Trusted" => fake.trusted = on,
+                "Alias" => {
+                    // BlueZ: an empty Alias goes back to the system name.
+                    let alias = value.0.as_str().unwrap_or_default().to_owned();
+                    fake.alias = (!alias.is_empty()).then_some(alias);
+                    let _ = connection.send(changed(ADAPTER, "org.bluez.Adapter1"));
+                }
                 _ => {}
             }
             message.method_return()
@@ -211,6 +230,7 @@ fn answer(fake: &Mutex<Fake>, message: &Message, connection: &Connection) -> Mes
             match name.as_str() {
                 "PairableTimeout" => message.return_with_args((variant(0u32),)),
                 "Pairable" => message.return_with_args((variant(fake.pairable),)),
+                "Alias" => message.return_with_args((variant(fake.alias()),)),
                 _ => message.return_with_args((variant(!fake.stranger || fake.paired),)),
             }
         }
@@ -922,6 +942,42 @@ fn a_car_pairs_from_its_side() {
         .expect("the car is used for audio");
 }
 
+/// Y2Reborn #217: the owner names the player. BlueZ gets the name as the adapter's Alias and the
+/// published state shows it; a name too long is refused and changes nothing; an empty one puts
+/// main.conf's back.
+fn the_owner_renames_the_player() {
+    let Some(h) = Harness::start("rename", Fake::default()) else {
+        return;
+    };
+    h.until(LONG, |s| s.name.as_deref() == Some(SYSTEM_NAME))
+        .expect("the standard name is shown");
+    let answer = h.ask(Request::DeviceName {
+        name: "  Kitchen Y2 ".into(),
+    });
+    assert!(answer.contains("\"ok\":true"), "{answer}");
+    assert_eq!(h.fake().alias.as_deref(), Some("Kitchen Y2"), "trimmed");
+    h.until(Duration::from_secs(5), |s| {
+        s.name.as_deref() == Some("Kitchen Y2")
+    })
+    .expect("the new name is published");
+    let answer = h.ask(Request::DeviceName {
+        name: "x".repeat(33),
+    });
+    assert!(answer.contains("device_name_too_long"), "{answer}");
+    let answer = h.ask(Request::DeviceName {
+        name: "Kitchen\nY2".into(),
+    });
+    assert!(answer.contains("device_name_invalid"), "{answer}");
+    assert_eq!(h.fake().alias.as_deref(), Some("Kitchen Y2"), "kept");
+    let answer = h.ask(Request::DeviceName { name: "".into() });
+    assert!(answer.contains("\"ok\":true"), "{answer}");
+    assert_eq!(h.fake().alias, None, "main.conf's name again");
+    h.until(Duration::from_secs(5), |s| {
+        s.name.as_deref() == Some(SYSTEM_NAME)
+    })
+    .expect("the standard name is published again");
+}
+
 #[test]
 fn field_failures_against_a_fake_bluez() {
     if private_bus().is_none() {
@@ -939,4 +995,5 @@ fn field_failures_against_a_fake_bluez() {
     codec_reload_reconnects_cleanly();
     quick_drops_park_the_headset();
     a_car_pairs_from_its_side();
+    the_owner_renames_the_player();
 }
