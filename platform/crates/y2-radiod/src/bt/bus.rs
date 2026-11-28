@@ -357,7 +357,7 @@ fn relevant(message: &Message) -> bool {
         return true;
     };
     let keys: &[&str] = match interface.as_str() {
-        "org.bluez.Adapter1" => &["Powered", "Discovering"],
+        "org.bluez.Adapter1" => &["Powered", "Discovering", "Alias"],
         "org.bluez.Device1" => &[
             "Alias",
             "UUIDs",

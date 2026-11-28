@@ -10,6 +10,8 @@ pub const SSID: &str = "CanaryNet Home";
 pub const PSK: &str = "canary-pass-9876";
 pub const BT_NAME: &str = "Canary Buds Pro";
 pub const BT_MAC: &str = "14:14:7D:AB:CD:EF";
+/// The owner's name for the player itself (BlueZ's adapter Alias, Y2Reborn #217).
+pub const PLAYER_NAME: &str = "Canary Kitchen Player";
 pub const LASTFM_USER: &str = "canaryuser42";
 pub const LASTFM_KEY: &str = "c4n4rys3ss10nk3y";
 pub const SSH_BLOB: &str = "AAAACcanaryKEYblob0123";
@@ -25,10 +27,11 @@ pub const PUBLIC_IP: &str = "93.184.216.34";
 pub const EMAIL: &str = "canary@example.org";
 pub const BSSID: &str = "3C:22:FB:9A:BC:DE";
 /// Every planted secret, as it may appear (MACs also in BlueZ's underscore form).
-pub const CANARIES: [&str; 23] = [
+pub const CANARIES: [&str; 24] = [
     SSID,
     PSK,
     BT_NAME,
+    PLAYER_NAME,
     "AB:CD:EF",
     "AB_CD_EF",
     LASTFM_USER,
@@ -96,6 +99,16 @@ pub fn player(base: &Path) {
         base,
         &format!("/data/bluetooth/bluez/A2:5F:D7:57:80:23/{BT_MAC}/info"),
         format!("[General]\nName={BT_NAME}\nAlias={BT_NAME}\n"),
+    );
+    write(
+        base,
+        "/data/bluetooth/bluez/A2:5F:D7:57:80:23/settings",
+        format!("[General]\nDiscoverable=false\nAlias={PLAYER_NAME}\n"),
+    );
+    write(
+        base,
+        "/run/y2/radiod-state.json",
+        json!({"schema": "org.y2linux.radiod/v1", "bluetooth": {"name": PLAYER_NAME}}).to_string(),
     );
     write(
         base,

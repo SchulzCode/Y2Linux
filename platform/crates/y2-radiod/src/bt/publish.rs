@@ -42,6 +42,7 @@ impl Controller {
             pairing: self.pairing.shown(),
             codec,
             preference: self.desired.policy.preference.clone(),
+            name: self.world.adapter.as_ref().map(|a| a.alias.clone()),
             scan: self.scan.clone(),
             recovery: self.ladder.current(now).map(str::to_owned),
             failure: self.failure.clone(),

@@ -168,6 +168,9 @@ pub fn secrets(root: &Root) -> Result<Known, Failure> {
     let names = lazy(&NAMES, r"(?m)^(?:Name|Alias)=(.+)$");
     let mut infos = root.glob("/data/bluetooth/bluez/*/*/info");
     infos.extend(root.glob("/data/bluetooth/bluez/*/cache/*"));
+    // The adapter's own: the owner's name for the player (Y2Reborn #217), which the radio daemon's
+    // state carries too.
+    infos.extend(root.glob("/data/bluetooth/bluez/*/settings"));
     for info in infos {
         let text = root
             .read_limited(&rel(root, &info), 65536)

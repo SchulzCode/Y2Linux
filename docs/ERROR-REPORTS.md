@@ -61,7 +61,7 @@ about half a megabyte. A saved report never leaves the player on its own.
 ## What is never in a report
 
 Your music (no titles, artists, albums, file or folder names), playlists, Wi-Fi network names and passwords,
-Bluetooth device names, your Last.fm account, SSH keys, serial numbers, your IP addresses and device addresses
+Bluetooth device names (and the name you gave the player), your Last.fm account, SSH keys, serial numbers, your IP addresses and device addresses
 (only the maker part of a Wi-Fi or Bluetooth address stays). The player looks up
 these values before it writes a report and replaces them everywhere they appear, then also replaces anything that
 looks like an address, an e-mail, a path to your music or a serial number. A replaced value becomes a token such as
