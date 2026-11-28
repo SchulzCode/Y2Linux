@@ -30,18 +30,20 @@ fn time_status(root: &Root) -> super::time::Status {
     super::time::record(root)
 }
 
-/// `update <action>` with `--url URL` and `--package DIR` as the parser's canonical form gives them.
+/// `update <action>` with `--url URL`, `--package DIR` and `--sequence N` as the parser's canonical
+/// form gives them.
 fn update_route(args: &[&str]) -> Option<Command> {
     let (action, rest) = args.split_first()?;
     if !UPDATE_ACTIONS.contains(action) {
         return None;
     }
-    let (mut url, mut package) = (None, None);
+    let (mut url, mut package, mut sequence) = (None, None, None);
     let mut rest = rest;
     while let [option, value, tail @ ..] = rest {
         match *option {
             "--url" if url.is_none() => url = Some(value.to_string()),
             "--package" if package.is_none() => package = Some(value.to_string()),
+            "--sequence" if sequence.is_none() => sequence = Some(value.parse::<i64>().ok()?),
             _ => return None,
         }
         rest = tail;
@@ -51,7 +53,7 @@ fn update_route(args: &[&str]) -> Option<Command> {
     }
     let action = action.to_string();
     Some(Box::new(move |root| {
-        update::run(root, &action, url.as_deref(), package.as_deref())
+        update::run(root, &action, url.as_deref(), package.as_deref(), sequence)
     }))
 }
 

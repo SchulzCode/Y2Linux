@@ -254,6 +254,8 @@ pub const COMMANDS: &[Command] = &[
         ]),
         option("--url").help("HTTPS manifest.json URL (default: the release channel)"),
         option("--package").help("owner-supplied local signed package directory"),
+        Arg::new("--sequence", Kind::One(Type::Int), false)
+            .help("stage only: download only the release with this sequence (the approved one)"),
     ]),
     command("time-bootstrap", &[]),
     command("time", &[]),

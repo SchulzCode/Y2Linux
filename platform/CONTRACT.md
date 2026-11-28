@@ -321,6 +321,7 @@ Ported 1:1 first (owner decision 2026-10-28: port, then fix), fixed in Rust afte
 | `media status` exited 1 for a Degraded (read-only) or Failed card | exits 0 for every state it reports (`storage::media_exit`) |
 | `media write` exited 0 with `failure` set for `not_mounted` | exits 1 whenever it sets `failure`; Reborn's write window treats it as no window |
 | A second `update check/stage` meeting the busy `.stage.lock` overwrote `download.json` with Failed `[Errno 11]` while the first download went on | refused as `update_in_progress` before anything is written; auto-check leaves the record alone; Reborn: "An update check is already running." |
+| `update stage` downloaded whatever the channel named at that moment: a release published after the check Update Now showed was installed unreviewed (Y2Reborn #192) | `update stage --sequence N` (Reborn passes the offered release) downloads nothing for another sequence: download.json offers the new release, failure `update_release_changed` |
 | `update rollback` asked the core before the battery gate: a battery refusal left the journal `RollbackPending` | the battery gate comes first |
 | `update auto-check` printed `null` when it did not check | prints `{"schema": 1, "result": "skipped", "reason": …}` (not_due, update_pending, no_channel, offline, clock_not_ready) |
 | `firmware scan` exited 0 when the owner's copy could not be installed | exits 1 with state Failed, as `firmware install` |

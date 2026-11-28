@@ -284,7 +284,7 @@ fn download_stage_authenticates_before_payload_and_never_queues_partial() {
     let answers = || vec![blkid(), package.check(), queued()];
     // A check reads only the signed manifest: the core's verdict, no journal, no payload.
     let (checked, calls) = answering(&fixture, answers(), |root| {
-        stage(root, &io, Some(&source), None, true)
+        stage(root, &io, Some(&source), None, true, None)
     });
     let checked = checked.unwrap();
     assert_eq!(checked["sequence"], json!(1));
@@ -303,7 +303,7 @@ fn download_stage_authenticates_before_payload_and_never_queues_partial() {
         r#"{"failure": "signature"}"#,
     );
     let (result, calls) = answering(&fixture, vec![blkid(), refused], |root| {
-        stage(root, &io, Some(&source), None, false)
+        stage(root, &io, Some(&source), None, false, None)
     });
     assert_eq!(result.err().unwrap().text(), "signature");
     assert!(!asked(&calls, "queue"));
@@ -315,7 +315,7 @@ fn download_stage_authenticates_before_payload_and_never_queues_partial() {
         let original = fs::read(&payload).unwrap();
         fs::write(&payload, &original[..original.len() - 10]).unwrap();
         let (result, calls) = answering(&fixture, answers(), |root| {
-            stage(root, &io, Some(&source), None, false)
+            stage(root, &io, Some(&source), None, false, None)
         });
         assert_eq!(result.err().unwrap().text(), "incomplete_download");
         assert_eq!(fixture.json(PROGRESS)["phase"], json!("failed"));
@@ -327,7 +327,7 @@ fn download_stage_authenticates_before_payload_and_never_queues_partial() {
     // A stale check percentage is not left for Reborn (the queue writes its own, core.c).
     fixture.put(CHECK_PROGRESS, "40 check\n");
     let (result, calls) = answering(&fixture, answers(), |root| {
-        stage(root, &io, Some(&source), None, false)
+        stage(root, &io, Some(&source), None, false, None)
     });
     assert_eq!(result.unwrap()["state"], json!("Queued"));
     assert_eq!(
@@ -368,7 +368,7 @@ fn download_stage_authenticates_before_payload_and_never_queues_partial() {
         r#"{"failure": "downgrade/replay refused"}"#,
     );
     let (result, _) = answering(&fixture, vec![blkid(), replay], |root| {
-        stage(root, &io, Some(&source), None, true)
+        stage(root, &io, Some(&source), None, true, None)
     });
     assert_eq!(result.unwrap()["state"], json!("UpToDate"));
     let checked = fixture.json("/data/updates/download.json");
@@ -418,7 +418,7 @@ fn cancel_stops_a_running_download_and_offers_the_release_again() {
     });
     let answers = || vec![blkid(), package.check(), queued()];
     let (result, calls) = answering(&fixture, answers(), |root| {
-        stage(root, &io, Some(&source), None, false)
+        stage(root, &io, Some(&source), None, false, None)
     });
     assert!(sent.get());
     let error = result.err().unwrap();
@@ -436,7 +436,56 @@ fn cancel_stops_a_running_download_and_offers_the_release_again() {
     );
     // Nothing was changed: the same download works afterwards.
     let (result, _) = answering(&fixture, answers(), |root| {
-        stage(root, &io, Some(&source), None, false)
+        stage(root, &io, Some(&source), None, false, None)
+    });
+    assert_eq!(result.unwrap()["state"], json!("Queued"));
+}
+
+#[test]
+fn a_download_of_another_release_than_the_approved_one_offers_it_instead() {
+    // Y2Reborn #192: Update Now approves the release the page showed. When the channel has published
+    // another one since that check, nothing is downloaded and the page offers the new release, to
+    // be approved again; never a silent swap.
+    let _serial = serial();
+    let io = Fake::default();
+    let fixture = policy();
+    volume(&fixture);
+    let package = package(&fixture, "test-v1", 4096);
+    let source = package.path();
+    fixture.put_json(
+        "/data/updates/download.json",
+        &json!({"schema": 1, "state": "Checked", "release_version": "test-v0", "sequence": 0,
+                "download_bytes": 123, "notes": "", "reborn_version": ""}),
+    );
+    let answers = || vec![blkid(), package.check(), queued()];
+    let (result, calls) = answering(&fixture, answers(), |root| {
+        stage(root, &io, Some(&source), None, false, Some(0))
+    });
+    let error = result.err().unwrap();
+    assert_eq!(error.text(), RELEASE_CHANGED);
+    assert!(!error.cancelled());
+    assert!(!asked(&calls, "queue"));
+    assert!(fixture.root.glob("/data/updates/.incoming-*").is_empty());
+    assert!(!fixture.exists("/data/updates/pending"));
+    assert!(!fixture.exists(PROGRESS), "no download started");
+    let offered = fixture.json("/data/updates/download.json");
+    assert_eq!(
+        (
+            &offered["state"],
+            &offered["release_version"],
+            &offered["sequence"],
+            &offered["download_bytes"]
+        ),
+        (
+            &json!("Checked"),
+            &json!("test-v1"),
+            &json!(1),
+            &json!(package.bytes())
+        )
+    );
+    // The release now on offer, approved, downloads and is queued.
+    let (result, _) = answering(&fixture, answers(), |root| {
+        stage(root, &io, Some(&source), None, false, Some(1))
     });
     assert_eq!(result.unwrap()["state"], json!("Queued"));
 }
@@ -485,7 +534,7 @@ fn space_cleanup_stale_package_and_cancel_free_the_data_volume() {
     let old = fixture.path("/data/logs/deepsleep-old");
     io.available(move || if old.exists() { 0 } else { 1 << 40 });
     let (result, _) = answering(&fixture, vec![blkid(), package.check(), queued()], |root| {
-        stage(root, &io, Some(&source), None, false)
+        stage(root, &io, Some(&source), None, false, None)
     });
     assert_eq!(result.unwrap()["state"], json!("Queued"));
     // Only as much as needed: the first entry was enough.
@@ -520,7 +569,7 @@ fn space_cleanup_stale_package_and_cancel_free_the_data_volume() {
     // Room for the manifest, not for the payloads.
     io.available(|| RESERVE + (1 << 20));
     let (result, _) = answering(&fixture, vec![blkid(), package.check(), queued()], |root| {
-        stage(root, &io, Some(&source), None, false)
+        stage(root, &io, Some(&source), None, false, None)
     });
     assert!(matches!(result, Err(Raise::NoSpace(n)) if n == need));
     let failed = fixture.json("/data/updates/download.json");
@@ -761,7 +810,7 @@ fn journal_schemas_and_unpublished_channel() {
         }))
     });
     let (result, _) = answering(&fixture, vec![blkid()], |root| {
-        stage(root, &io, None, Some(URL), true)
+        stage(root, &io, None, Some(URL), true, None)
     });
     assert_eq!(result.unwrap()["state"], json!("UpToDate"));
     let checked = fixture.json("/data/updates/download.json");
@@ -775,7 +824,7 @@ fn journal_schemas_and_unpublished_channel() {
     );
     // A download never treats 404 as success.
     let (result, _) = answering(&fixture, vec![blkid()], |root| {
-        stage(root, &io, None, Some(URL), false)
+        stage(root, &io, None, Some(URL), false, None)
     });
     assert!(matches!(
         result,
@@ -928,7 +977,7 @@ fn a_check_waits_for_wifi_retries_and_keeps_the_offered_release() {
     };
     // Never online: no request at all, the offered release stays.
     let (result, _) = answering(&fixture, vec![blkid()], |root| {
-        stage(root, &io, None, Some(URL), true)
+        stage(root, &io, None, Some(URL), true, None)
     });
     assert_eq!(result.err().unwrap().text(), "network_not_online");
     assert_eq!(opened.get(), 0);
@@ -936,7 +985,7 @@ fn a_check_waits_for_wifi_retries_and_keeps_the_offered_release() {
     // Online, but every lookup fails: three tries, then the error; still offered.
     fixture.put_json("/run/y2/network.json", &json!({"state": "Online"}));
     let (result, _) = answering(&fixture, vec![blkid()], |root| {
-        stage(root, &io, None, Some(URL), true)
+        stage(root, &io, None, Some(URL), true, None)
     });
     assert!(matches!(result, Err(Raise::Net(Net::Url(_)))));
     assert_eq!(opened.get(), MANIFEST_ATTEMPTS);
@@ -949,7 +998,7 @@ fn a_check_waits_for_wifi_retries_and_keeps_the_offered_release() {
     );
     // A download that fails is still reported as failed.
     let (result, _) = answering(&fixture, vec![blkid()], |root| {
-        stage(root, &io, None, Some(URL), false)
+        stage(root, &io, None, Some(URL), false, None)
     });
     assert!(matches!(result, Err(Raise::Net(Net::Url(_)))));
     assert_eq!(
@@ -965,7 +1014,7 @@ fn records_that_cannot_be_read_are_refused() {
     let fixture = policy();
     fixture.put_json("/data/updates/channel.json", &json!({"manifest_url": 5}));
     // `update check`: a refusal record before anything is written.
-    let reply = run(&fixture.root, "check", None, None).unwrap();
+    let reply = run(&fixture.root, "check", None, None, None).unwrap();
     assert_eq!(
         (reply.code, reply.stdout.as_str()),
         (
@@ -991,7 +1040,7 @@ fn records_that_cannot_be_read_are_refused() {
         "/run/y2/update-health.json",
         &json!({"boot_id": "boot-a", "deadline_monotonic_s": "soon"}),
     );
-    let reply = run(&fixture.root, "health-ack", None, None).unwrap();
+    let reply = run(&fixture.root, "health-ack", None, None, None).unwrap();
     assert_eq!(
         (reply.code, reply.stdout.as_str()),
         (

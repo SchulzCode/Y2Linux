@@ -6,7 +6,7 @@ use super::{
     lock, pathlib, private_directory, py, set_signal, shortened, signal_disposition, storage,
     wait_for_clock, wait_online, Disposition, File, Handler, Io, Map, Net, OpenOptions, Ordering,
     Path, PathBuf, Progress, Raise, Result, Root, Source, Value, BACKUPS, CANCELLED,
-    CHECK_PROGRESS, FILES, IN_PROGRESS, KEPT_LOGS, MANIFEST_ATTEMPTS, RESERVE,
+    CHECK_PROGRESS, FILES, IN_PROGRESS, KEPT_LOGS, MANIFEST_ATTEMPTS, RELEASE_CHANGED, RESERVE,
 };
 use std::ops::ControlFlow;
 use std::os::fd::AsFd;
@@ -239,6 +239,9 @@ pub(super) struct Staging<'a> {
     incoming: PathBuf,
     token: String,
     check_only: bool,
+    /// The sequence of the release the owner approved (Update Now): a download of another one stops
+    /// before any payload.
+    approved: Option<i64>,
     live: Option<Progress>,
     /// What download.json says once the manifest is checked; a cancel restores it (`null` before).
     summary: Option<Download>,
@@ -354,6 +357,15 @@ impl Staging<'_> {
             remove_package(&self.incoming)?;
             atomic_json(&self.record(), &self.summary, false)?;
             return Ok(Value::Object(manifest.answer));
+        }
+        // The channel moved on since the page offered a release: the owner sees the new one (stage()
+        // writes the summary) and approves it again; nothing is downloaded.
+        if self
+            .approved
+            .is_some_and(|approved| py::exact_int(Some(&manifest.sequence)) != Some(approved))
+        {
+            remove_package(&self.incoming)?;
+            return Err(Raise::value(RELEASE_CHANGED));
         }
         self.download(file, &source, manifest, volume, cleaned)
     }
@@ -640,13 +652,14 @@ impl Staging<'_> {
 }
 
 /// Check the signed manifest, and unless `check_only` download the payloads and queue
-/// the package with the core.
+/// the package with the core; with `approved`, only the release of that sequence.
 pub(super) fn stage(
     root: &Root,
     io: &dyn Io,
     source: Option<&str>,
     url: Option<&str>,
     check_only: bool,
+    approved: Option<i64>,
 ) -> Result<Value> {
     let source = source.filter(|s| !s.is_empty());
     let url = url.filter(|u| !u.is_empty());
@@ -688,6 +701,7 @@ pub(super) fn stage(
         directory,
         token,
         check_only,
+        approved,
         live: None,
         summary: None,
         previous: None,
@@ -696,7 +710,9 @@ pub(super) fn stage(
     let download = staging.directory.join("download.json");
     let outcome = match result {
         Ok(value) => Ok(value),
-        Err(error) if error.cancelled() => {
+        // A cancel leaves the release offered as before; another release than the approved one is
+        // offered instead (the summary of the manifest just checked).
+        Err(error) if error.cancelled() || error.text() == RELEASE_CHANGED => {
             let _ = remove_package(&staging.incoming);
             atomic_json(&download, &staging.summary, true)?;
             if let Some(live) = staging.live.as_mut() {

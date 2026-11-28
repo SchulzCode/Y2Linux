@@ -73,7 +73,10 @@ The recovery that installs an update is always the one built with that update.
    image, recovery image), each checked against the SHA-256 the signed manifest pins, then
    decoded once to prove they are complete (**Check**). It makes room first if needed (old logs
    only; never music or settings). One screen shows the steps Download · Check · Install with
-   progress, speed and time left; Cancel stops the download and changes nothing.
+   progress, speed and time left; Cancel stops the download and changes nothing. Update Now
+   installs only the version the page showed: when a newer release came out since the last
+   check, nothing is downloaded and the page shows the new version to approve again
+   (Y2Reborn #192). The download screen and *Ready to Install* name the version.
 3. **Install**: right after the check the normal system writes the new recovery image into
    RECOVERY, reads it back, sets `boot-recovery` in MISC and restarts by itself.
 4. **In the recovery** (the screen shows *Installing Update*, step and time left):
