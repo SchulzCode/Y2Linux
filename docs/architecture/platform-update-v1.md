@@ -69,6 +69,8 @@ y2-platform update check --url https://owner.example/release/manifest.json
 y2-platform update stage --url https://owner.example/release/manifest.json
 # An owner-delivered directory is also supported, without a wall-clock dependency:
 y2-platform update stage --package /data/owner-signed-package
+# Only the release the owner approved (Reborn's Update Now passes the offered sequence):
+y2-platform update stage --sequence 19900
 y2-platform update status
 y2-platform update apply
 ```

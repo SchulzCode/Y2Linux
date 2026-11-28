@@ -56,6 +56,9 @@ const FILES: [&str; 5] = [
 ];
 /// `update check/stage` while another one holds .stage.lock.
 const IN_PROGRESS: &str = "update_in_progress";
+/// `update stage --sequence N` when the channel's signed manifest names another release than the
+/// one the owner approved: nothing is downloaded and download.json offers the new release.
+const RELEASE_CHANGED: &str = "update_release_changed";
 const RESERVE: i128 = 96 * 1024 * 1024;
 const CHANNEL: &str = "/etc/y2linux/update-channel.json";
 /// Owner gate before the device turns off to install (decision 2026-10-15).
@@ -153,8 +156,15 @@ fn shortened(text: &str, limit: usize) -> String {
     text.chars().take(limit).collect()
 }
 
-/// The routed form: `update <action> [--url URL] [--package DIR]`.
-pub fn run(root: &Root, action: &str, url: Option<&str>, package: Option<&str>) -> Outcome {
+/// The routed form: `update <action> [--url URL] [--package DIR] [--sequence N]`; `sequence` is the
+/// release a stage was approved for (Update Now passes the one the page showed).
+pub fn run(
+    root: &Root,
+    action: &str,
+    url: Option<&str>,
+    package: Option<&str>,
+    sequence: Option<i64>,
+) -> Outcome {
     let result = (|| -> Result<Value> {
         match action {
             "check" | "stage" => {
@@ -163,7 +173,9 @@ pub fn run(root: &Root, action: &str, url: Option<&str>, package: Option<&str>) 
                     None if package.is_none_or(str::is_empty) => channel_url(root)?,
                     None => None,
                 };
-                stage(root, &Player, package, url.as_deref(), action == "check")
+                let check = action == "check";
+                let approved = sequence.filter(|_| !check);
+                stage(root, &Player, package, url.as_deref(), check, approved)
             }
             "auto-check" => automatic_check(root, &Player),
             "probe-recovery" => probe(root),
@@ -248,6 +260,7 @@ mod tests {
             None,
             Some("https://updates.example/m.json"),
             true,
+            None,
         );
         assert_eq!(result.err().map(|e| e.text()).as_deref(), Some(IN_PROGRESS));
         assert_eq!(fixture.read("/data/updates/download.json"), staging);

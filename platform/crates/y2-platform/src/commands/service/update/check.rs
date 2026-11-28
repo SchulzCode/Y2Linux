@@ -57,7 +57,7 @@ pub(super) fn automatic_check(root: &Root, io: &dyn Io) -> Result<Value> {
     };
     // Never an interrupted download's leftover: a failed check would write it back.
     let previous = download_record(root);
-    match channel_url(root).and_then(|url| stage(root, io, None, url.as_deref(), true)) {
+    match channel_url(root).and_then(|url| stage(root, io, None, url.as_deref(), true, None)) {
         Ok(manifest) => {
             record.time = Some(now);
             record.result = Some("checked".into());

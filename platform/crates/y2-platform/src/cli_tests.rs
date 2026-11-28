@@ -113,6 +113,7 @@ fn what_callers_pass_parses_as_given() {
         &["health"],
         &["status", "wifi"],
         &["update", "stage"],
+        &["update", "stage", "--sequence", "19900"],
         &["export-state", "--include-database"],
         &["codec-settings", "--ldac-quality", "high"],
         &["codec-settings", "--aac-abr", "off"],

@@ -547,6 +547,16 @@
     "required": false,
     "nargs": null,
     "help": "owner-supplied local signed package directory"
+   },
+   {
+    "name": "--sequence",
+    "positional": false,
+    "type": "int",
+    "choices": null,
+    "default": null,
+    "required": false,
+    "nargs": null,
+    "help": "stage only: download only the release with this sequence (the approved one)"
    }
   ],
   "time-bootstrap": [],
@@ -12585,6 +12595,12 @@
      "type/choices": "str",
      "default": null,
      "notes": "local directory: lstat must be a dir; files opened O_RDONLY|O_NOFOLLOW|O_NONBLOCK and must be regular (not via ctx)"
+    },
+    {
+     "name": "--sequence",
+     "type/choices": "int",
+     "default": null,
+     "notes": "the release Update Now approved (Y2Reborn #192): a verified manifest of another sequence downloads nothing, download.json gets its Checked summary, failure update_release_changed"
     }
    ],
    "exit_codes": [
@@ -12599,6 +12615,10 @@
     {
      "code": 1,
      "when": "Cancelled (ValueError 'download_cancelled') -> {'state':'Failed','failure':'download_cancelled'}"
+    },
+    {
+     "code": 1,
+     "when": "--sequence given and the verified manifest names another sequence -> {'state':'Failed','failure':'update_release_changed'}; nothing downloaded"
     },
     {
      "code": 1,
@@ -12632,7 +12652,7 @@
    "writes": [
     {
      "path": "/data/updates/download.json",
-     "how": "{schema:1,state:'Staging',id} durable; on success Verified durable; on Cancelled the Checked summary durable; on error Failed durable (+needed_bytes)",
+     "how": "{schema:1,state:'Staging',id} durable; on success Verified durable; on Cancelled or update_release_changed the Checked summary durable; on error Failed durable (+needed_bytes)",
      "shape": "see status.download"
     },
     {
